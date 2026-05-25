@@ -1,0 +1,354 @@
+@page "/ai"
+@implements IDisposable
+
+<PageTitle>DRYL — AI Mode</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Core feature</span>
+        <h2>AI Mode <DrylAiIndicator State="AiState.Active" /></h2>
+        <p class="lead">
+            DRYL components are designed for seamless AI integration. Set <code>Ai="AiState.X"</code> on any
+            AI-aware component to mark it as AI-driven — rotating gradient border, breathing glow, one-shot
+            reveals. Pair it with <code>Microsoft.Extensions.AI</code> tool calling so the UI breathes with
+            the model.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>States — DrylCard with <code>Ai</code></h3>
+        <p>The same surface in each of the five states. Spotlight disabled here so the AI ring is the only signal.</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-5);">
+            <DrylCard Ai="AiState.None" Spotlight="false">
+                <span class="eyebrow">None</span>
+                <h4 style="margin-top: var(--sp-2);">Default</h4>
+                <p>No AI styling.</p>
+            </DrylCard>
+
+            <DrylCard Ai="AiState.Active" Spotlight="false">
+                <span class="eyebrow">Active</span>
+                <h4 style="margin-top: var(--sp-2);">AI mode on</h4>
+                <p>Persistent ambient border.</p>
+            </DrylCard>
+
+            <DrylCard Ai="AiState.Thinking" Spotlight="false">
+                <span class="eyebrow">Thinking</span>
+                <h4 style="margin-top: var(--sp-2);">Tool call in flight</h4>
+                <p>Faster pulse, brighter glow.</p>
+            </DrylCard>
+
+            <DrylCard Ai="AiState.Streaming" Spotlight="false">
+                <span class="eyebrow">Streaming</span>
+                <h4 style="margin-top: var(--sp-2);">Tokens arriving</h4>
+                <p>Moderate pulse.</p>
+            </DrylCard>
+
+            <DrylCard Ai="AiState.Generated" Spotlight="false">
+                <span class="eyebrow">Generated</span>
+                <h4 style="margin-top: var(--sp-2);">Just finished</h4>
+                <p>One-shot accent wash.</p>
+            </DrylCard>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Lifecycle simulation</h3>
+        <p>
+            Click <em>Generate</em> to walk the card through a realistic tool-call lifecycle:
+            <code>None</code> → <code>Thinking</code> → <code>Streaming</code> → <code>Generated</code> → <code>Active</code>.
+        </p>
+
+        <div class="row">
+            <DrylButton OnClick="RunLifecycle" Loading="_running">
+                @if (_running) { <text>Generating…</text> } else { <text>Generate</text> }
+            </DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" OnClick="Reset" Disabled="_running">Reset</DrylButton>
+        </div>
+
+        <DrylCard Ai="_demoState" Spotlight="false">
+            <div class="between">
+                <span class="eyebrow">Sales summary · DACH</span>
+                @if (_demoState != AiState.None)
+                {
+                    <DrylAiIndicator State="_demoState" />
+                }
+            </div>
+            <h3 style="margin-top: var(--sp-3);">@_demoTitle</h3>
+            <p style="margin-top: var(--sp-2);">@_demoBody</p>
+        </DrylCard>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Inputs — <code>DrylInputText</code> &amp; <code>DrylTextarea</code></h3>
+        <p>Same five states, this time wrapping the form field itself. Useful for chat prompts and AI-bound inputs. The textarea below mirrors the lifecycle above.</p>
+
+        <EditForm Model="@_inputModel">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4);">
+                <DrylInputText @bind-Value="_inputModel.None"      Label="None"      Ai="AiState.None"      Placeholder="Default input" />
+                <DrylInputText @bind-Value="_inputModel.Active"    Label="Active"    Ai="AiState.Active"    Placeholder="Persistent AI mode" LeadingIcon="Sparkle" />
+                <DrylInputText @bind-Value="_inputModel.Thinking"  Label="Thinking"  Ai="AiState.Thinking"  Placeholder="Tool call running…" />
+                <DrylInputText @bind-Value="_inputModel.Streaming" Label="Streaming" Ai="AiState.Streaming" Placeholder="Tokens arriving" />
+            </div>
+
+            <div style="margin-top: var(--sp-4);">
+                <DrylTextarea @bind-Value="_inputModel.Long"
+                              Label="Generated content (mirrors lifecycle above)"
+                              Ai="_demoState"
+                              Placeholder="Press Generate to fill this with streamed AI output."
+                              Rows="4" />
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Streaming rows — <code>DrylTable</code> with <code>Ai</code></h3>
+        <p>
+            Click <em>Stream rows</em> to populate the table the way a model would: tool call fires, rows arrive one by one,
+            each with a soft rise and a brief accent flash. Existing rows are left alone — only <strong>new</strong> rows animate.
+        </p>
+
+        <div class="row">
+            <DrylButton OnClick="StreamRows" Loading="_tableRunning" LeadingIcon="Sparkle" Ai="@(_tableRunning ? AiState.Thinking : AiState.None)">
+                @if (_tableRunning) { <text>Streaming…</text> } else { <text>Stream rows</text> }
+            </DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" OnClick="ResetRows" Disabled="_tableRunning">Reset</DrylButton>
+        </div>
+
+        <DrylTable Items="@_rows" Ai="_tableState" AriaLabel="AI-generated leads">
+            <SummaryContent>
+                <DrylTableKpi Label="Leads found" Value="@_rows.Count.ToString()" />
+                <DrylTableKpi Label="Avg. score" Value="@AvgScore" />
+                <DrylTableKpi Label="Status" Value="@TableStatusLabel" />
+            </SummaryContent>
+            <HeaderContent>
+                <th>Company</th>
+                <th>Region</th>
+                <th>Score</th>
+                <th>Signal</th>
+            </HeaderContent>
+            <RowTemplate Context="r">
+                <td class="tbl-td-primary">@r.Company</td>
+                <td>@r.Region</td>
+                <td class="mono">@r.Score</td>
+                <td><DrylBadge Kind="@r.SignalKind" Dot>@r.Signal</DrylBadge></td>
+            </RowTemplate>
+            <EmptyContent>
+                <span>No leads yet. Click <em>Stream rows</em> to ask the model.</span>
+            </EmptyContent>
+        </DrylTable>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Buttons — <code>DrylButton</code> with <code>Ai</code></h3>
+        <p>The AI parameter is additive: the variant's fill stays, a rotating gradient ring is drawn around it. Useful for "Ask AI" actions.</p>
+        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+            <DrylButton Variant="DrylButton.ButtonVariant.Primary"   Ai="AiState.Active" LeadingIcon="Sparkle">Primary + Active</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Ai="AiState.Active" LeadingIcon="Sparkle">Secondary + Active</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Ai="AiState.Thinking" LeadingIcon="Sparkle">Secondary + Thinking</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"     Ai="AiState.Active" LeadingIcon="Sparkle">Ghost + Active</DrylButton>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>DrylAiIndicator</h3>
+        <p>Tiny status pill that adapts label and pulse speed to the AI state. <code>aria-live="polite"</code> announces changes to assistive tech.</p>
+        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+            <DrylAiIndicator State="AiState.Active" />
+            <DrylAiIndicator State="AiState.Thinking" />
+            <DrylAiIndicator State="AiState.Streaming" />
+            <DrylAiIndicator State="AiState.Generated" />
+            <DrylAiIndicator State="AiState.Active">Custom label</DrylAiIndicator>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Integration sketch</h3>
+        <p>Wiring with <code>Microsoft.Extensions.AI</code>:</p>
+        <pre class="code-block"><code>@_codeSample</code></pre>
+    </section>
+
+</div>
+
+@code {
+    private AiState _demoState = AiState.None;
+    private string _demoTitle = "Ready when you are.";
+    private string _demoBody = "Press Generate to see the card move through every AI state.";
+    private bool _running;
+    private CancellationTokenSource? _cts;
+    private readonly InputModel _inputModel = new();
+
+    private sealed class InputModel
+    {
+        public string None { get; set; } = "";
+        public string Active { get; set; } = "Ask the assistant…";
+        public string Thinking { get; set; } = "";
+        public string Streaming { get; set; } = "Q3 sales summa";
+        public string Long { get; set; } = "";
+    }
+
+    // ── Streaming-rows demo ─────────────────────────────────────
+    private readonly List<LeadRow> _rows = [];
+    private AiState _tableState = AiState.None;
+    private bool _tableRunning;
+    private CancellationTokenSource? _tableCts;
+
+    private static readonly LeadRow[] _seedRows =
+    [
+        new("Helios Robotics", "DACH", 94, "Active in market",   DrylBadge.BadgeKind.Success),
+        new("Northwind AI",     "DACH", 89, "Renewal due",        DrylBadge.BadgeKind.Accent),
+        new("Aperture Labs",    "UK",   83, "Recent funding",     DrylBadge.BadgeKind.Accent),
+        new("Cetus Logistics",  "NORDICS", 78, "Expanding",       DrylBadge.BadgeKind.Success),
+        new("Volta Energy",     "DACH", 71, "Watchlist",          DrylBadge.BadgeKind.Warning),
+        new("Brightline Data",  "FR",   68, "Cooling off",        DrylBadge.BadgeKind.Warning),
+    ];
+
+    public sealed record LeadRow(string Company, string Region, int Score, string Signal, DrylBadge.BadgeKind SignalKind);
+
+    private string AvgScore =>
+        _rows.Count == 0 ? "—" : ((int)_rows.Average(r => r.Score)).ToString();
+
+    private string TableStatusLabel => _tableState switch
+    {
+        AiState.Thinking  => "Thinking…",
+        AiState.Streaming => "Streaming",
+        AiState.Generated => "Just generated",
+        AiState.Active    => "Idle (AI)",
+        _ => "Idle"
+    };
+
+    private async Task StreamRows()
+    {
+        _tableCts?.Cancel();
+        _tableCts = new CancellationTokenSource();
+        var ct = _tableCts.Token;
+        try
+        {
+            _tableRunning = true;
+            _tableState = AiState.Thinking;
+            StateHasChanged();
+            await Task.Delay(900, ct);
+
+            _tableState = AiState.Streaming;
+            StateHasChanged();
+
+            foreach (var row in _seedRows)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (_rows.Any(r => r.Company == row.Company)) continue;
+                _rows.Add(row);
+                StateHasChanged();
+                await Task.Delay(420, ct);
+            }
+
+            _tableState = AiState.Generated;
+            StateHasChanged();
+            await Task.Delay(900, ct);
+
+            _tableState = AiState.Active;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _tableRunning = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetRows()
+    {
+        _tableCts?.Cancel();
+        _rows.Clear();
+        _tableState = AiState.None;
+    }
+
+    private const string _codeSample = @"private AiState _state = AiState.None;
+
+private async Task AskAi()
+{
+    _state = AiState.Thinking;
+    var response = await chatClient.GetStreamingResponseAsync(prompt);
+
+    _state = AiState.Streaming;
+    await foreach (var chunk in response)
+    {
+        _text += chunk.Text;
+        StateHasChanged();
+    }
+
+    _state = AiState.Generated;       // one-shot wash
+    await Task.Delay(900);
+    _state = AiState.Active;          // settle back to idle AI mode
+}
+
+<DrylCard Ai=""@_state"">
+    <DrylAiIndicator State=""@_state"" />
+    @@_text
+</DrylCard>";
+
+    private async Task RunLifecycle()
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        try
+        {
+            _running = true;
+
+            _demoState = AiState.Thinking;
+            _demoTitle = "Thinking…";
+            _demoBody = "Resolving tools and planning the response.";
+            _inputModel.Long = "";
+            StateHasChanged();
+            await Task.Delay(1400, ct);
+
+            _demoState = AiState.Streaming;
+            _demoTitle = "Streaming response";
+            _demoBody = "Tokens arriving from the model — the UI breathes in sync with the tool call.";
+            StateHasChanged();
+
+            const string fullText = "Q3 sales in DACH closed up 14.2% YoY. Best-performing week was 2026-W18 with 1,284 net-new accounts. Forecast for Q4 trends healthy, assuming current pipeline conversion holds.";
+            foreach (var word in fullText.Split(' '))
+            {
+                ct.ThrowIfCancellationRequested();
+                _inputModel.Long += (_inputModel.Long.Length == 0 ? "" : " ") + word;
+                StateHasChanged();
+                await Task.Delay(70, ct);
+            }
+
+            _demoState = AiState.Generated;
+            _demoTitle = "Q3 sales up 14.2%";
+            _demoBody = "Top region: DACH. Best week: 2026-W18. 1,284 net-new accounts. Forecast looks healthy heading into Q4.";
+            StateHasChanged();
+            await Task.Delay(900, ct);
+
+            _demoState = AiState.Active;
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _running = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Reset()
+    {
+        _cts?.Cancel();
+        _demoState = AiState.None;
+        _demoTitle = "Ready when you are.";
+        _demoBody = "Press Generate to see the card move through every AI state.";
+        _inputModel.Long = "";
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _tableCts?.Cancel();
+        _tableCts?.Dispose();
+    }
+}

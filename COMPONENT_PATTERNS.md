@@ -10,8 +10,9 @@ This file describes the **shape** a DRYL Blazor component takes. Every component
 src/DRYL/
 ├── DRYL.csproj
 ├── _Imports.razor                    ← Global usings
+├── AiState.cs                        ← Shared AI state enum (None / Active / Thinking / Streaming / Generated)
 ├── wwwroot/
-│   ├── dryl.css                      ← The design system (single file)
+│   ├── dryl.css                      ← The design system (single file, incl. AI mode primitives)
 │   └── js/
 │       └── dryl.js                   ← All JS interop, namespaced under `window.dryl`
 ├── Components/
@@ -19,6 +20,8 @@ src/DRYL/
 │   │   ├── DrylButton.razor
 │   │   ├── DrylButton.razor.css      ← Optional, only for things not in dryl.css
 │   │   └── DrylIconButton.razor
+│   ├── AI/
+│   │   └── DrylAiIndicator.razor     ← AI-specific components live here
 │   ├── Surfaces/
 │   │   ├── DrylCard.razor
 │   │   └── DrylModal.razor
@@ -41,6 +44,10 @@ src/DRYL/
 └── Services/
     └── ToastService.cs
 ```
+
+**Where things live**
+- `AiState.cs` sits at the project root — it's shared across categories, not owned by any one of them.
+- `Components/AI/` is reserved for components whose **primary** purpose is to signal or shape AI activity (e.g. `DrylAiIndicator`). Components that merely *opt in* to AI mode (like `DrylCard`) stay in their semantic category.
 
 ---
 
@@ -169,7 +176,10 @@ public enum ButtonSize    { Small, Medium, Large }
 public enum BadgeKind     { Neutral, Accent, Success, Warning, Danger }
 public enum AlertKind     { Info, Success, Warning, Danger }
 public enum InputState    { Default, Error, Success }
+public enum AiState       { None, Active, Thinking, Streaming, Generated }
 ```
+
+`AiState` is the single source of truth for AI activity across the library. **Never** introduce a per-component AI enum (`ChatLoadingState`, `GenerationPhase`, etc.) — every AI-aware surface must speak the same vocabulary.
 
 ---
 
@@ -247,6 +257,97 @@ Inputs that participate in `EditForm` extend `InputBase<T>`:
         validationErrorMessage = "";
         return true;
     }
+}
+```
+
+---
+
+## AI-aware components
+
+Any component whose surface can be driven by an AI (a card filled by a tool call, a textarea bound to a streaming completion, a table whose rows are populated by a model) opts in to AI mode by accepting a single parameter:
+
+```csharp
+/// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+[Parameter] public AiState Ai { get; set; } = AiState.None;
+```
+
+The render template adds the AI primitives **only when `Ai != AiState.None`** so the default cost is exactly zero — no extra DOM, no animations, no perf hit for consumers that don't use AI:
+
+```razor
+<div class="@CssClass" @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+    @ChildContent
+</div>
+```
+
+```csharp
+private AiState _prevAi = AiState.None;
+private int _genTick;
+
+protected override void OnParametersSet()
+{
+    // Re-key the wash element each time we transition into Generated so the
+    // one-shot animation replays on every completion.
+    if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+    _prevAi = Ai;
+}
+
+private string CssClass
+{
+    get
+    {
+        var classes = new List<string> { /* …existing classes… */ };
+        if (Ai != AiState.None) classes.Add("ai-aura");
+        switch (Ai)
+        {
+            case AiState.Thinking:  classes.Add("ai-thinking");  break;
+            case AiState.Streaming: classes.Add("ai-streaming"); break;
+            case AiState.Generated: classes.Add("ai-generated"); break;
+        }
+        return string.Join(' ', classes);
+    }
+}
+```
+
+### Rules
+
+- **Off by default.** `Ai` always defaults to `AiState.None`. Existing call sites must see zero change.
+- **No new visuals.** Use the existing CSS primitives (`.ai-aura*`, `.ai-indicator`) verbatim. If a state needs a new look, extend `dryl.css` first — don't fork the styling inside a component.
+- **Re-key on `Generated`.** The one-shot wash only re-fires if its DOM node is fresh. Use the `_genTick` pattern above (or `@key`) to force a new node on every transition into `Generated`.
+- **Pair with `DrylAiIndicator`** for status feedback. Don't roll your own status pill inside the component — compose them.
+- **Accessibility.** When the AI state itself is the *only* signal a screen-reader user gets that something is happening, expose it via `aria-live="polite"` on a status element (this is how `DrylAiIndicator` works). Decorative AI styling on a surface that already has its own label needs no extra ARIA.
+
+### Streaming with `Microsoft.Extensions.AI`
+
+The canonical lifecycle: `None → Thinking → Streaming → Generated → Active` (or back to `None` if the surface is only AI-driven transiently).
+
+```csharp
+private AiState _state = AiState.None;
+private string _text = "";
+
+private async Task AskAi(string prompt)
+{
+    _state = AiState.Thinking;
+    var response = chatClient.GetStreamingResponseAsync(prompt);
+
+    _state = AiState.Streaming;
+    await foreach (var chunk in response)
+    {
+        _text += chunk.Text;
+        StateHasChanged();
+    }
+
+    _state = AiState.Generated;
+    await Task.Delay(900);          // let the wash play
+    _state = AiState.Active;        // settle on idle AI mode (or AiState.None)
 }
 ```
 

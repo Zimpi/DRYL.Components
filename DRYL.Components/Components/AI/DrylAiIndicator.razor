@@ -1,0 +1,56 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAiIndicator — small status pill that marks AI activity.
+
+    Usage:
+      <DrylAiIndicator />                                       // idle "AI" pill
+      <DrylAiIndicator State="AiState.Thinking" />              // "Thinking…"
+      <DrylAiIndicator State="AiState.Streaming" />             // "Streaming…"
+      <DrylAiIndicator State="AiState.Generated">Done</DrylAiIndicator>
+
+    The default label adapts to the state. Pass ChildContent to override.
+    Sets aria-live="polite" so state changes are announced to assistive tech.
+    ───────────────────────────────────────────────────────── *@
+
+<span class="@CssClass"
+      role="status"
+      aria-live="polite"
+      @attributes="AdditionalAttributes">
+    <DrylIcon Name="Sparkle" Size="12" Class="ai-indicator-ico" />
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+    else
+    {
+        <span>@DefaultLabel</span>
+    }
+</span>
+
+@code {
+    /// <summary>Drives label and animation speed.</summary>
+    [Parameter] public AiState State { get; set; } = AiState.Active;
+
+    /// <summary>Override the default state-derived label.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => State switch
+    {
+        AiState.Thinking  => "ai-indicator is-thinking",
+        AiState.Streaming => "ai-indicator is-streaming",
+        _ => "ai-indicator"
+    };
+
+    private string DefaultLabel => State switch
+    {
+        AiState.Thinking  => "Thinking…",
+        AiState.Streaming => "Streaming…",
+        AiState.Generated => "Generated",
+        _ => "AI"
+    };
+}

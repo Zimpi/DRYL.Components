@@ -9,19 +9,22 @@ An open-source UI component library for **Blazor Server** and **Blazor WebAssemb
 
 ## Vision
 
-DRYL is **dark, glassy, alive**.
+DRYL is **dark, glassy, alive — and AI-native**.
 
 Most Blazor component libraries feel like ports of Bootstrap or Material — safe, neutral, indistinguishable. DRYL is the opposite. Surfaces are translucent layers stacked on pure black, accents glow in a violet-to-cyan gradient, and motion is intentional rather than decorative.
 
-The goal is a small, opinionated set of components — buttons, cards, inputs, tables, modals, navigation — that look like they belong in a product built in 2026, not 2014. Every component reads from a single token file ([`dryl.css`](DRYL.Components/wwwroot/dryl.css)), so the entire visual language can be re-tuned in one place.
+The goal is a small, opinionated set of components — buttons, cards, inputs, tables, modals, navigation — that look like they belong in a product built in 2026, not 2014. And because 2026 products are increasingly driven by language models and tool calling, every DRYL surface knows how to **wear its AI state**: a card filled by a model breathes with a rotating gradient border, an input bound to a streaming completion glows while tokens arrive, and a generated block reveals itself with a one-shot accent wash. The result is a system where you can feel which parts of the UI are alive with AI without ever reading a label.
+
+Every component reads from a single token file ([`dryl.css`](DRYL.Components/wwwroot/dryl.css)), so the entire visual language can be re-tuned in one place.
 
 **Principles**
 
 - **Token-driven.** Every color, spacing, radius, shadow and duration is a CSS variable. No magic numbers.
 - **Dark only.** No light theme. Dark is the design, not a toggle.
 - **Glass surfaces.** Translucent layers with `backdrop-filter`, never solid blocks.
+- **AI-aware.** Every interactive surface can opt into an `AiState` — Active, Thinking, Streaming, Generated. The system signals AI presence consistently across components, so users learn the visual language once.
 - **No JS frameworks.** Zero npm packages on top of Blazor — just CSS, Razor, and minimal interop.
-- **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings.
+- **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings. AI activity is announced via `aria-live`.
 
 ---
 
@@ -50,22 +53,69 @@ The goal is a small, opinionated set of components — buttons, cards, inputs, t
 
 ---
 
+## AI Mode
+
+DRYL treats AI as a first-class state of the UI, not an afterthought. Any AI-aware component accepts an `AiState` parameter that drives a consistent visual vocabulary across the library:
+
+| State        | Visual                                                              | When to use                                              |
+| ------------ | ------------------------------------------------------------------- | -------------------------------------------------------- |
+| `None`       | Default — no AI styling.                                            | The surface is rendered normally.                        |
+| `Active`     | Slow rotating gradient border, breathing accent glow.               | Persistent AI-driven surface (a chat panel, an LLM card).|
+| `Thinking`   | Faster pulse on border and glow.                                    | A tool call is in flight.                                |
+| `Streaming`  | Moderate pulse; content updates incrementally.                      | Tokens are arriving from the model.                      |
+| `Generated`  | One-shot accent wash sweep + soft lift.                             | Reveal moment immediately after a generation completes.  |
+
+A minimal lifecycle with `Microsoft.Extensions.AI`:
+
+```csharp
+private AiState _state = AiState.None;
+
+private async Task AskAi()
+{
+    _state = AiState.Thinking;
+    var response = await chatClient.GetStreamingResponseAsync(prompt);
+
+    _state = AiState.Streaming;
+    await foreach (var chunk in response)
+    {
+        _text += chunk.Text;
+        StateHasChanged();
+    }
+
+    _state = AiState.Generated;   // one-shot wash
+    await Task.Delay(900);
+    _state = AiState.Active;      // settle back to idle AI mode
+}
+```
+
+```razor
+<DrylCard Ai="@_state">
+    <DrylAiIndicator State="@_state" />
+    @_text
+</DrylCard>
+```
+
+The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`, `.ai-indicator`) live in [`dryl.css`](DRYL.Components/wwwroot/dryl.css) and can be applied directly when you need AI styling on a surface that isn't yet a DRYL component.
+
+---
+
 ## What's in the box (today)
 
-| Component       | Category | Status    | Notes                                                              |
-| --------------- | -------- | --------- | ------------------------------------------------------------------ |
-| `DrylButton`    | Actions  | ✅ Done   | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots  |
-| `DrylCard`      | Surfaces | ✅ Done   | Glass surface with optional cursor-tracking spotlight              |
-| `DrylBadge`     | Data     | ✅ Done   | Neutral / Accent / Success / Warning / Danger, optional dot       |
-| `DrylIcon`      | Data     | ✅ Done   | Lucide-based icon set, used by Button, Badge and others           |
-| `DrylInputText` | Inputs   | ✅ Done   | Form-bound text input with leading / trailing icon slots          |
-| `DrylCheckbox`  | Inputs   | ✅ Done   | Accessible checkbox with label                                    |
-| `DrylSelect`    | Inputs   | ✅ Done   | Styled select bound to `EditForm`                                 |
-| `DrylTextarea`  | Inputs   | ✅ Done   | Auto-resizable textarea                                           |
-| `DrylToggle`    | Inputs   | ✅ Done   | On/off toggle switch                                              |
-| `DrylTable`     | Data     | ✅ Done   | Generic table, sticky header, row selection, optional KPI summary bar |
-| `DrylModal`     | Surfaces | 🔜 Planned | Glass overlay with focus trap                                    |
-| `DrylToast`     | Surfaces | 🔜 Planned | Programmatic notifications via service                           |
+| Component         | Category     | AI mode | Status     | Notes                                                              |
+| ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
+| `DrylButton`      | Actions      | —       | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots   |
+| `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface, optional cursor spotlight, `Ai` state              |
+| `DrylBadge`       | Data         | —       | ✅ Done    | Neutral / Accent / Success / Warning / Danger, optional dot       |
+| `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
+| `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
+| `DrylInputText`   | Inputs       | 🔜      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
+| `DrylCheckbox`    | Inputs       | —       | ✅ Done    | Accessible checkbox with label                                    |
+| `DrylSelect`      | Inputs       | —       | ✅ Done    | Styled select bound to `EditForm`                                 |
+| `DrylTextarea`    | Inputs       | 🔜      | ✅ Done    | Auto-resizable textarea                                           |
+| `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
+| `DrylTable`       | Data         | 🔜      | ✅ Done    | Generic table, sticky header, row selection, optional KPI summary bar |
+| `DrylModal`       | Surfaces     | 🔜      | 🔜 Planned | Glass overlay with focus trap                                    |
+| `DrylToast`       | Surfaces     | —       | 🔜 Planned | Programmatic notifications via service                           |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 
@@ -75,13 +125,15 @@ For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`C
 
 ```
 DRYL.Components/             The library (Razor Class Library, .NET 10)
+  AiState.cs                 The AI state enum — shared across all AI-aware components
   Components/
     Actions/                 DrylButton
-    Data/                    DrylBadge, DrylIcon
+    AI/                      DrylAiIndicator (AI-specific components live here)
+    Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi
     Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
     Surfaces/                DrylCard
   wwwroot/
-    dryl.css                 The single stylesheet — every token, every primitive
+    dryl.css                 The single stylesheet — every token, every primitive (incl. AI mode)
     js/dryl.js               Minimal JS interop (namespaced as window.dryl.*)
 
 samples/DRYL.Components.Demo/   Sample Blazor app showing all components live

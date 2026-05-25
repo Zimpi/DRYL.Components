@@ -8,13 +8,13 @@ Read this file before doing any work. Read it again if you find yourself inventi
 
 ## 1. The system in one paragraph
 
-DRYL is **dark, glassy, alive**. Surfaces are translucent layers stacked on pure black. Accents glow (violet → cyan gradient) instead of shouting. Every component reads from CSS variables defined in `dryl.css` — never hardcode colors, sizes, radii, shadows or durations.
+DRYL is **dark, glassy, alive — and AI-native**. Surfaces are translucent layers stacked on pure black. Accents glow (violet → cyan gradient) instead of shouting. Every component reads from CSS variables defined in `dryl.css` — never hardcode colors, sizes, radii, shadows or durations. AI is treated as a first-class state of the UI: any AI-aware component accepts an `AiState` parameter (`None / Active / Thinking / Streaming / Generated`) that drives a shared visual vocabulary — rotating gradient border, breathing glow, one-shot reveal — so a user can feel where the AI is at work across the entire library without ever reading a label.
 
 The design system lives in three files:
 
-- `dryl.css` — every token and every primitive
+- `dryl.css` — every token and every primitive (including the AI mode primitives)
 - `DESIGN_TOKENS.md` — readable reference of every token, when to use it
-- `COMPONENT_PATTERNS.md` — how to structure a `.razor` component
+- `COMPONENT_PATTERNS.md` — how to structure a `.razor` component, including AI-aware components
 
 If a value is missing from those three files, **do not invent it** — propose adding it to `dryl.css` as a new token and ask the maintainer to review.
 
@@ -73,6 +73,16 @@ DRYL has zero npm packages, zero JS frameworks layered on top. If a component ne
 - Every icon-only button gets `aria-label` and a `DrylTooltip`.
 - `:focus-visible` must show the accent ring — already in `dryl.css`, just don't override `outline: none` without replacing it.
 - Color contrast: body text on glass surfaces must be at least `var(--fg-muted)` (≈ 0.62 alpha on white); axial info text never below `var(--fg-dim)`.
+- AI activity changes are announced via `aria-live="polite"` (already on `DrylAiIndicator` — mirror this when you build new AI-aware feedback).
+
+### 2.10 AI mode is shared, not invented per component
+DRYL has **one** AI vocabulary. Every AI-aware component re-uses it; no component invents its own.
+
+- Use the shared `AiState` enum (`None / Active / Thinking / Streaming / Generated`). Do not add per-component states like `Loading`, `Generating`, `AiBusy`.
+- The visual is delivered by the existing CSS primitives in `dryl.css`: `.ai-aura` + `.ai-aura-ring` + `.ai-aura-glow` + (optional) `.ai-aura-wash`, plus `.ai-indicator` for status pills.
+- The opt-in parameter is always named `Ai` (of type `AiState`) and defaults to `AiState.None`. AI mode must be **off by default** so existing consumers see no change.
+- Never invent a new AI animation, color, gradient, or duration. If you think you need one, propose adding it to `dryl.css` and ask the maintainer — same rule as 2.1.
+- Components that semantically can't host AI mode (e.g. `DrylBadge`, `DrylToggle`) do not get an `Ai` parameter. Don't add it "just in case".
 
 ---
 
@@ -116,8 +126,9 @@ Before you start coding a new component, confirm:
 2. **Variants** — how many shapes does this come in? (e.g. Button → Primary / Secondary / Ghost / Danger.)
 3. **Sizes** — Small / Medium / Large, or only one size?
 4. **States** — does it need Loading? Disabled? Error? Empty?
-5. **Form-integration** — does it participate in `EditForm`? Should it implement `InputBase<T>`?
-6. **Sample page** — should the demo go into the existing samples app, or do we need a new section?
+5. **AI mode** — is this an AI-aware surface? If yes, it accepts the standard `Ai` parameter (`AiState`) and must support all five states without inventing new ones. If the answer is "not obviously" (e.g. `DrylBadge`, `DrylToggle`), the default is **no AI parameter**.
+6. **Form-integration** — does it participate in `EditForm`? Should it implement `InputBase<T>`?
+7. **Sample page** — should the demo go into the existing samples app, or do we need a new section?
 
 If any of these are unclear, **ask** before writing code.
 
@@ -134,3 +145,6 @@ If any of these are unclear, **ask** before writing code.
 - ❌ Use emojis in component output (icons go through `DrylIcon`)
 - ❌ Use `setTimeout` without `using IDisposable` cleanup
 - ❌ Break public API of an existing component without a version bump
+- ❌ Invent a per-component AI state enum (e.g. `ChatLoadingState`, `AiBusy`). Use `AiState` — see rule 2.10.
+- ❌ Add a new AI animation or color. The five `AiState` values map to the existing `.ai-aura*` and `.ai-indicator` primitives. If you want a new visual, propose extending the primitive in `dryl.css`.
+- ❌ Default `Ai` to anything other than `AiState.None`. AI styling must be opt-in.

@@ -413,6 +413,57 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   align-items: center;
 }
 
+/* Textarea wrapper — gives <textarea> a positionable host so AI primitives
+   (and future extensions) have something to layer on. Visually transparent. */
+.textarea-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+.textarea-wrapper > .textarea { flex: 1; }
+
+/* AI mode on inputs needs an explicit radius on the wrapper so .ai-aura-ring
+   (which uses border-radius: inherit) traces the input's rounded corners. */
+.input-wrapper.ai-aura,
+.textarea-wrapper.ai-aura {
+  border-radius: var(--r-md);
+}
+
+/* AI mode on buttons — additive: variant's solid/glass background stays intact
+   underneath, a rotating gradient ring traces the button via ::before. No
+   wash, no breathing glow — at button size, the ring alone is enough signal. */
+.btn.ai-aura::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--ai-aura-angle, 0deg),
+    var(--accent-a),
+    var(--accent-b),
+    var(--accent-a),
+    var(--accent-b),
+    var(--accent-a)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+  animation: ai-aura-rotate 6s linear infinite;
+}
+.btn.ai-aura.ai-thinking::before  { animation-duration: 1.8s; opacity: 1; }
+.btn.ai-aura.ai-streaming::before { animation-duration: 3s; }
+.btn.ai-aura.ai-generated::before { animation-duration: 4s; opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.ai-aura::before { animation: none; opacity: 0.6; }
+}
+
 .input-wrapper .input-icon {
   position: absolute;
   color: var(--fg-dim);
@@ -958,6 +1009,45 @@ code, .code-inline {
   padding: 0;
 }
 
+/* AI-generated row — fades in with a slight rise and a brief accent flash
+   that lingers for ~1.6s before settling. Composes with the table's wrapper
+   .ai-aura ring/glow when those are active. */
+.tbl-root .tbl tbody tr.tbl-row--ai-enter td {
+  animation:
+    tbl-row-ai-rise var(--dur-slow) var(--ease-out) both,
+    tbl-row-ai-flash 1600ms var(--ease-out) both;
+}
+
+/* AI mode on the table wrapper — the .tbl-root has overflow:hidden so it can
+   clip content to its rounded corners, which would otherwise eat the outer
+   ring and glow. These overrides pull the AI signals inside the bounds:
+   the ring traces the very-outermost pixel row, and the glow uses inset
+   box-shadows so it lives within the clipped region too. */
+.tbl-root .ai-aura-ring { inset: 0; }
+.tbl-root .ai-aura-glow {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-line),
+    inset 0 0 48px rgba(124, 92, 255, 0.18),
+    inset 0 0 96px rgba(34, 211, 238, 0.08);
+}
+/* Suppress the Generated lift on the table — visually distracting on a tall
+   surface. The wash + row entry animations carry the reveal moment. */
+.tbl-root.ai-aura.ai-generated { animation: none; }
+
+@keyframes tbl-row-ai-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tbl-row-ai-flash {
+  0%   { background-color: rgba(124, 92, 255, 0.16); }
+  60%  { background-color: rgba(124, 92, 255, 0.06); }
+  100% { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tbl-root .tbl tbody tr.tbl-row--ai-enter td { animation: none; }
+}
+
 /* ============== TABLE KPI SUMMARY BAR ============== */
 
 /* Grid of KPI tiles above the table header */
@@ -1256,3 +1346,194 @@ code, .code-inline {
 .chart-card { padding: 22px 24px; }
 .chart-legend { display: flex; gap: 18px; font-size: 12px; color: var(--fg-muted); }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+/* ============================================================
+   AI MODE — ambient signal for AI-driven surfaces
+   ============================================================
+   Apply alongside any existing surface class (.glass-card, .btn, .input, …).
+   Implemented as child elements (not pseudos) so it composes with surfaces
+   that already use ::before/::after (spotlight-card, glass-card).
+
+     <div class="glass-card ai-aura">
+       <div class="ai-aura-ring"></div>
+       <div class="ai-aura-glow"></div>
+       …content…
+     </div>
+
+   Modifiers on the same host:
+     .ai-thinking   — accelerates the ring + glow for active tool calls
+     .ai-streaming  — long-running token stream (slightly slower than thinking)
+     .ai-generated  — one-shot reveal after generation completes
+*/
+
+/* Registered angle property — required so the browser can interpolate the
+   conic-gradient rotation. Without @property, --ai-aura-angle would be
+   treated as a string and the animation would step instead of sweep. */
+@property --ai-aura-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.ai-aura {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Rotating conic-gradient border — the box stays static; only the gradient sweeps. */
+.ai-aura-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--ai-aura-angle, 0deg),
+    var(--accent-a),
+    var(--accent-b),
+    var(--accent-a),
+    var(--accent-b),
+    var(--accent-a)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.7;
+  animation: ai-aura-rotate 6s linear infinite;
+}
+
+/* Breathing accent glow behind the host */
+.ai-aura-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  box-shadow:
+    0 0 0 1px var(--accent-line),
+    0 0 24px rgba(124, 92, 255, 0.25),
+    0 0 56px rgba(34, 211, 238, 0.15);
+  animation: ai-aura-breathe 4s var(--ease-in-out) infinite;
+}
+
+@keyframes ai-aura-rotate { to { --ai-aura-angle: 360deg; } }
+@keyframes ai-aura-breathe {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Thinking — fast pulse */
+.ai-aura.ai-thinking .ai-aura-ring  { animation-duration: 1.8s; opacity: 1; }
+.ai-aura.ai-thinking .ai-aura-glow  { animation-duration: 1.4s; }
+
+/* Streaming — slightly faster than idle, slower than thinking */
+.ai-aura.ai-streaming .ai-aura-ring { animation-duration: 3s; opacity: 0.9; }
+.ai-aura.ai-streaming .ai-aura-glow { animation-duration: 2.6s; }
+
+/* Generated — one-shot reveal: subtle lift + a gradient wash sweep */
+.ai-aura.ai-generated { animation: ai-generated-lift 720ms var(--ease-out) both; }
+.ai-aura.ai-generated .ai-aura-ring { opacity: 1; }
+
+@keyframes ai-generated-lift {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Optional sweep — render <div class="ai-aura-wash"></div> inside .ai-generated host.
+   The wash element itself is a static clip container; ::before holds the animated
+   gradient. This keeps the sweep visually inside the card's rounded bounds. */
+.ai-aura-wash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+}
+.ai-aura-wash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(124, 92, 255, 0.18) 40%,
+    rgba(34, 211, 238, 0.18) 60%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.ai-aura.ai-generated .ai-aura-wash::before {
+  animation: ai-aura-wash 900ms var(--ease-out) both;
+}
+@keyframes ai-aura-wash {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-aura-ring,
+  .ai-aura-glow,
+  .ai-aura-wash::before,
+  .ai-aura.ai-generated { animation: none; }
+  .ai-aura-ring { opacity: 0.6; }
+}
+
+/* ============== AI INDICATOR — small status pill ============== */
+.ai-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px 0 8px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #d6cbff;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  position: relative;
+  overflow: hidden;
+}
+.ai-indicator .ai-indicator-ico {
+  flex: 0 0 12px;
+  color: var(--accent-b);
+  animation: ai-indicator-pulse 2.4s var(--ease-in-out) infinite;
+}
+.ai-indicator.is-thinking .ai-indicator-ico  { animation-duration: 1s; }
+.ai-indicator.is-streaming .ai-indicator-ico { animation-duration: 1.6s; }
+
+/* Subtle sweep across the pill background */
+.ai-indicator::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: ai-indicator-shimmer 3.6s var(--ease-in-out) infinite;
+  pointer-events: none;
+}
+.ai-indicator.is-thinking::after  { animation-duration: 1.4s; }
+.ai-indicator.is-streaming::after { animation-duration: 2.2s; }
+
+@keyframes ai-indicator-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.12); }
+}
+@keyframes ai-indicator-shimmer {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-indicator .ai-indicator-ico,
+  .ai-indicator::after { animation: none; }
+}

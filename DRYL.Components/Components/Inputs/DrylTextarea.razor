@@ -17,17 +17,29 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <textarea id="@_id"
-              class="@TextareaCssClass"
-              value="@CurrentValueAsString"
-              @oninput="HandleInput"
-              placeholder="@Placeholder"
-              rows="@Rows"
-              disabled="@Disabled"
-              aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-              aria-invalid="@(HasValidationError ? "true" : null)"
-              aria-describedby="@(ShowHelper ? _helperId : null)"
-              @attributes="AdditionalAttributes"></textarea>
+    <div class="@WrapperCssClass">
+        @if (Ai != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (Ai == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="_genTick"></div>
+            }
+        }
+
+        <textarea id="@_id"
+                  class="@TextareaCssClass"
+                  value="@CurrentValueAsString"
+                  @oninput="HandleInput"
+                  placeholder="@Placeholder"
+                  rows="@Rows"
+                  disabled="@Disabled"
+                  aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                  aria-invalid="@(HasValidationError ? "true" : null)"
+                  aria-describedby="@(ShowHelper ? _helperId : null)"
+                  @attributes="AdditionalAttributes"></textarea>
+    </div>
 
     @if (HasValidationError)
     {
@@ -63,13 +75,41 @@
     /// <summary>Accessible label — required if <c>Label</c> is not set.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation around the textarea.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
     private readonly string _id       = $"dryl-ta-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
 
     private bool HasValidationError =>
         EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
 
     private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var classes = new List<string> { "textarea-wrapper" };
+            if (Ai != AiState.None) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
 
     private string TextareaCssClass
     {

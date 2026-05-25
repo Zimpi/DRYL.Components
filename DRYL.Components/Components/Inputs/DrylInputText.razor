@@ -25,7 +25,17 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <div class="input-wrapper">
+    <div class="@WrapperCssClass">
+        @if (Ai != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (Ai == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="_genTick"></div>
+            }
+        }
+
         @if (!string.IsNullOrEmpty(LeadingIcon))
         {
             <DrylIcon Name="@LeadingIcon" Size="16" Class="input-icon input-icon-leading" />
@@ -89,13 +99,41 @@
     /// <summary>Accessible label — required if <c>Label</c> is not set and the input has no surrounding context.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation around the input.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
     private readonly string _id       = $"dryl-input-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
 
     private bool HasValidationError =>
         EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
 
     private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var classes = new List<string> { "input-wrapper" };
+            if (Ai != AiState.None) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
 
     private string InputCssClass
     {

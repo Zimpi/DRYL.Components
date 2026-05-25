@@ -37,6 +37,16 @@
 
 <div class="@WrapperClass" @attributes="AdditionalAttributes">
 
+    @if (Ai != AiState.None && Bordered)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
     @if (SummaryContent is not null)
     {
         <div class="tbl-summary">
@@ -92,7 +102,8 @@
                     @foreach (var item in Items)
                     {
                         var selected = _selected.Contains(item);
-                        <tr class="@(selected ? "tbl-row--selected" : null)"
+                        var aiNew = ShowAiEnter(item);
+                        <tr class="@RowCssClass(selected, aiNew)"
                             @onclick="() => HandleRowClick(item)"
                             @key="item"
                             aria-selected="@(Selectable ? selected.ToString().ToLower() : null)">
@@ -170,24 +181,73 @@
     /// <summary>Accessible label for the <c>&lt;table&gt;</c> element.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
+    /// <summary>
+    /// AI ambient state for the table. <see cref="AiState.Streaming"/> and
+    /// <see cref="AiState.Generated"/> additionally make newly-inserted rows
+    /// fade in with an accent flash so users can see what the model just added.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
     /// <summary>Pass-through HTML attributes applied to the outermost element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private readonly HashSet<TItem> _selected = [];
+    private readonly HashSet<TItem> _seenItems = [];
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
 
     private bool AllSelected =>
         Items.Any() && Items.All(i => _selected.Contains(i));
 
-    private string WrapperClass =>
-        Bordered ? "glass-card p-0 tbl-root" : "tbl-root";
+    private string WrapperClass
+    {
+        get
+        {
+            var classes = new List<string> { "tbl-root" };
+            if (Bordered) { classes.Add("glass-card"); classes.Add("p-0"); }
+            if (Ai != AiState.None && Bordered) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  if (Bordered) classes.Add("ai-thinking");  break;
+                case AiState.Streaming: if (Bordered) classes.Add("ai-streaming"); break;
+                case AiState.Generated: if (Bordered) classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
 
     protected override void OnParametersSet()
     {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+
         if (SelectedItems is null) return;
         _selected.Clear();
         foreach (var item in SelectedItems)
             _selected.Add(item);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        // After every render, snapshot the currently-visible items so the next
+        // render only treats genuinely new items as "AI-fresh". Replacing rather
+        // than adding keeps memory bounded when Items is swapped wholesale.
+        _seenItems.Clear();
+        foreach (var item in Items)
+            _seenItems.Add(item);
+    }
+
+    private bool ShowAiEnter(TItem item) =>
+        (Ai == AiState.Streaming || Ai == AiState.Generated) && !_seenItems.Contains(item);
+
+    private static string RowCssClass(bool selected, bool aiNew)
+    {
+        if (selected && aiNew) return "tbl-row--selected tbl-row--ai-enter";
+        if (selected) return "tbl-row--selected";
+        if (aiNew)    return "tbl-row--ai-enter";
+        return string.Empty;
     }
 
     private async Task ToggleRow(TItem item)

@@ -164,6 +164,72 @@ Two utility classes drive every page-level entry animation. Use them; don't writ
 
 ---
 
+## AI Mode
+
+AI is a first-class state of the UI in DRYL. The system has **one** ambient vocabulary — the same border, glow and reveal animations are reused across every AI-aware component, so a user learns the language once.
+
+### The state enum
+
+| State            | Visual signal                                            | When the consumer sets it                                  |
+| ---------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
+| `AiState.None`       | No AI styling.                                           | Default. Surface renders normally.                         |
+| `AiState.Active`     | Slow rotating gradient ring, breathing accent glow.      | Persistent AI surface (chat panel, model-backed card).     |
+| `AiState.Thinking`   | Fast pulse on ring and glow.                             | A tool call is in flight.                                  |
+| `AiState.Streaming`  | Moderate pulse; content updates incrementally.           | Tokens are arriving from the model.                        |
+| `AiState.Generated`  | One-shot accent wash + soft lift, then settles.          | Reveal moment immediately after a generation completes.    |
+
+### CSS primitives
+
+| Class               | Role                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `.ai-aura`          | Marker on the host. Sets `position: relative; isolation: isolate;` so the children below can layer.   |
+| `.ai-aura-ring`     | Rotating conic-gradient border (`--accent-a` ↔ `--accent-b`). Driven by `@property --ai-aura-angle`.   |
+| `.ai-aura-glow`     | Breathing box-shadow glow behind the host (`--accent-line` + violet/cyan rings).                       |
+| `.ai-aura-wash`     | One-shot gradient sweep used only with `.ai-generated`. Internally clipped to the host's bounds.       |
+| `.ai-thinking`      | Modifier on `.ai-aura`: ring 1.8s, glow 1.4s.                                                          |
+| `.ai-streaming`     | Modifier on `.ai-aura`: ring 3s, glow 2.6s.                                                            |
+| `.ai-generated`     | Modifier on `.ai-aura`: triggers the wash + a one-shot lift on the host.                               |
+| `.ai-indicator`     | Standalone status pill (`DrylAiIndicator`) — pulsing sparkle + shimmer sweep, adapts speed to state.   |
+
+### Custom property
+
+| Token                | Type      | Initial | Use                                                       |
+| -------------------- | --------- | ------- | --------------------------------------------------------- |
+| `--ai-aura-angle`    | `<angle>` | `0deg`  | Registered via `@property`. Animated to rotate the ring's conic-gradient without rotating its bounding box. |
+
+### Durations
+
+AI mode is the one place where ambient (looping) animations exceed the standard `--dur-fast / --dur-med / --dur-slow` scale — the same way `.aurora` drifts over 22 seconds. These long, continuous values are intentional:
+
+| Animation        | Duration | Easing           |
+| ---------------- | -------- | ---------------- |
+| Ring rotation (Active)    | 6s    | `linear`         |
+| Ring rotation (Thinking)  | 1.8s  | `linear`         |
+| Ring rotation (Streaming) | 3s    | `linear`         |
+| Glow breathe (Active)     | 4s    | `--ease-in-out`  |
+| Glow breathe (Thinking)   | 1.4s  | `--ease-in-out`  |
+| Glow breathe (Streaming)  | 2.6s  | `--ease-in-out`  |
+| Wash sweep (Generated)    | 900ms | `--ease-out`     |
+| Indicator pulse / shimmer | 2.4s / 3.6s (Active), 1s / 1.4s (Thinking), 1.6s / 2.2s (Streaming) | `--ease-in-out` |
+
+All animations are suppressed under `prefers-reduced-motion: reduce` — the ring stays as a static gradient with reduced opacity.
+
+### Recipe
+
+```html
+<div class="glass-card ai-aura ai-thinking">
+    <div class="ai-aura-ring"></div>
+    <div class="ai-aura-glow"></div>
+    <!-- content -->
+</div>
+```
+
+For the Generated reveal, add a sibling `<div class="ai-aura-wash"></div>` while `.ai-generated` is active (re-key it to replay on every transition).
+
+> **Don't invent new AI states, animations, or colors.** If you need something that doesn't fit, propose extending the primitives above in `dryl.css` — same rule as every other token.
+
+---
+
 ## Composition recipes
 
 A few proven combinations — use these as starting points, don't recreate them.

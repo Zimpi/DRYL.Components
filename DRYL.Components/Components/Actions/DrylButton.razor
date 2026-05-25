@@ -76,6 +76,9 @@
     /// <summary>Button label content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>AI ambient state — adds a rotating gradient ring around the button. Additive to <see cref="Variant"/>.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
     /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
@@ -99,7 +102,15 @@
                 _ => string.Empty
             };
             var iconOnly = ChildContent is null ? "btn-icon" : string.Empty;
-            return string.Join(' ', new[] { "btn", variant, size, iconOnly }
+            var aiAura = Ai != AiState.None ? "ai-aura" : string.Empty;
+            var aiMod = Ai switch
+            {
+                AiState.Thinking  => "ai-thinking",
+                AiState.Streaming => "ai-streaming",
+                AiState.Generated => "ai-generated",
+                _ => string.Empty
+            };
+            return string.Join(' ', new[] { "btn", variant, size, iconOnly, aiAura, aiMod }
                                  .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }

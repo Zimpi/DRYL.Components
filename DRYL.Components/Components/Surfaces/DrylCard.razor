@@ -21,6 +21,15 @@
 <div @ref="_el"
      class="@CssClass"
      @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
     @if (Spotlight)
     {
         <div class="spotlight-fx"></div>
@@ -41,6 +50,9 @@
     /// <summary>Padding preset for the card. Use <see cref="CardPadding.None"/> for custom layout.</summary>
     [Parameter] public CardPadding Padding { get; set; } = CardPadding.Default;
 
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
     /// <summary>Card body content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -50,6 +62,19 @@
 
     private ElementReference _el;
     private IJSObjectReference? _handle;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+        {
+            // Force the wash element to be re-keyed so its one-shot animation re-runs
+            // every time the consumer transitions back into Generated.
+            _genTick++;
+        }
+        _prevAi = Ai;
+    }
 
     private string CssClass
     {
@@ -62,7 +87,16 @@
                 CardPadding.Loose   => "p-loose",
                 _ => "p-default"
             };
-            return Spotlight ? $"glass-card spotlight-card {pad}" : $"glass-card {pad}";
+            var classes = new List<string> { "glass-card", pad };
+            if (Spotlight) classes.Add("spotlight-card");
+            if (Ai != AiState.None) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
         }
     }
 
