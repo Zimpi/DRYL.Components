@@ -1,0 +1,26 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylMainContent — page body inside a DrylLayout.
+
+    Usage:
+      <DrylMainContent>
+          @Body
+      </DrylMainContent>
+    ───────────────────────────────────────────────────────── *@
+
+<main class="main @Class" @attributes="AdditionalAttributes">
+    @ChildContent
+</main>
+
+@code {
+    /// <summary>Page content (usually <c>@Body</c> in a layout component).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) applied to the .main root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

@@ -1,0 +1,36 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylLayout — root container for the standard app chrome.
+
+    Wraps DrylAppBar, DrylDrawer, and DrylMainContent in a CSS
+    grid (.app-shell). Provides a DrylLayoutContext so the app
+    bar can render a hamburger that toggles the drawer.
+
+    Usage:
+      <DrylLayout>
+          <DrylAppBar>...</DrylAppBar>
+          <DrylDrawer @bind-Open="drawerOpen">...</DrylDrawer>
+          <DrylMainContent>@Body</DrylMainContent>
+      </DrylLayout>
+    ───────────────────────────────────────────────────────── *@
+
+<CascadingValue Value="_ctx" IsFixed="true">
+    <div class="app-shell @Class" @attributes="AdditionalAttributes">
+        @ChildContent
+    </div>
+</CascadingValue>
+
+@code {
+    private readonly DrylLayoutContext _ctx = new();
+
+    /// <summary>Layout children (DrylAppBar, DrylDrawer, DrylMainContent).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) applied to the .app-shell root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

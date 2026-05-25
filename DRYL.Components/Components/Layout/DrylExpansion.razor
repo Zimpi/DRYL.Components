@@ -1,0 +1,136 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylExpansion — collapsible glass panel.
+
+    Usage:
+      <DrylExpansion Title="Panel One">
+          Panel One content
+      </DrylExpansion>
+
+      <DrylExpansion Title="Service health" Icon="Server" @bind-IsOpen="_open">
+          <p>All systems normal.</p>
+      </DrylExpansion>
+
+    Stack multiple <DrylExpansion> next to each other — adjacent closed panels
+    share their borders and form a single connected list. When a panel opens it
+    detaches from its siblings with a small gap and re-rounds its corners.
+
+    Body height animates via the grid-template-rows 0fr → 1fr trick so the
+    content is never visually "squeezed" — it stays at its natural size while
+    the surrounding track grows/shrinks.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass" @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    <button type="button"
+            class="expansion-header"
+            aria-expanded="@(_isOpen ? "true" : "false")"
+            aria-controls="@_bodyId"
+            disabled="@Disabled"
+            @onclick="Toggle">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <DrylIcon Name="@Icon" Size="16" Class="expansion-icon" />
+        }
+        <span class="expansion-title">@Title</span>
+        @if (HeaderTrailingContent is not null)
+        {
+            <span class="expansion-header-trailing" @onclick:stopPropagation="true">
+                @HeaderTrailingContent
+            </span>
+        }
+        <DrylIcon Name="ChevronDown" Size="16" Class="expansion-chevron" />
+    </button>
+
+    <div id="@_bodyId"
+         class="expansion-body"
+         role="region"
+         aria-hidden="@(_isOpen ? null : "true")">
+        <div class="expansion-body-inner">
+            <div class="expansion-body-content">
+                @ChildContent
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>Header label shown to the left of the chevron.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Optional leading icon name (see <see cref="DrylIcon"/>).</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Whether the panel is currently expanded. Supports two-way binding.</summary>
+    [Parameter] public bool IsOpen { get; set; }
+
+    /// <summary>Fires when the user toggles the panel.</summary>
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    /// <summary>If true, the panel cannot be toggled.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Body content revealed when the panel is open.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Optional slot rendered between the title and the chevron (e.g. a badge).</summary>
+    [Parameter] public RenderFragment? HeaderTrailingContent { get; set; }
+
+    /// <summary>AI ambient state — adds rotating gradient border, glow, and reveal wash.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _isOpen;
+    private readonly string _bodyId = $"expansion-body-{Guid.NewGuid():N}";
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        _isOpen = IsOpen;
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    private async Task Toggle()
+    {
+        if (Disabled) return;
+        _isOpen = !_isOpen;
+        IsOpen = _isOpen;
+        if (IsOpenChanged.HasDelegate)
+        {
+            await IsOpenChanged.InvokeAsync(_isOpen);
+        }
+    }
+
+    private string CssClass
+    {
+        get
+        {
+            var classes = new List<string> { "expansion" };
+            if (_isOpen) classes.Add("is-open");
+            if (Disabled) classes.Add("is-disabled");
+            if (Ai != AiState.None) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+}

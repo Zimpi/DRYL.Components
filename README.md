@@ -51,21 +51,37 @@ Every component reads from a single token file ([`dryl.css`](DRYL.Components/www
 ### Tables
 ![DrylTable — generic table with sticky header, row selection and optional KPI summary bar](docs/screenshots/tables.png)
 
+### AI Mode
+![DRYL — AI Mode demo with lifecycle simulation and streaming rows](docs/screenshots/aimode.png)
+
 ---
 
-## AI Mode
+## AI Mode — first-class citizen
 
-DRYL treats AI as a first-class state of the UI, not an afterthought. Any AI-aware component accepts an `AiState` parameter that drives a consistent visual vocabulary across the library:
+DRYL treats AI as a **first-class state of the UI**, not an afterthought. Every surface in the library that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That one parameter drives a consistent, learnable visual vocabulary — users see the same rotating gradient border on a card that's streaming tokens as they do on an expansion panel being filled by a tool call.
 
-| State        | Visual                                                              | When to use                                              |
-| ------------ | ------------------------------------------------------------------- | -------------------------------------------------------- |
-| `None`       | Default — no AI styling.                                            | The surface is rendered normally.                        |
-| `Active`     | Slow rotating gradient border, breathing accent glow.               | Persistent AI-driven surface (a chat panel, an LLM card).|
-| `Thinking`   | Faster pulse on border and glow.                                    | A tool call is in flight.                                |
-| `Streaming`  | Moderate pulse; content updates incrementally.                      | Tokens are arriving from the model.                      |
-| `Generated`  | One-shot accent wash sweep + soft lift.                             | Reveal moment immediately after a generation completes.  |
+### The five states
 
-A minimal lifecycle with `Microsoft.Extensions.AI`:
+| State        | Visual                                                          | When to use                                                |
+| ------------ | --------------------------------------------------------------- | ---------------------------------------------------------- |
+| `None`       | Default styling — no AI signal.                                 | Surface is rendered normally, unrelated to AI output.      |
+| `Active`     | Slow rotating gradient border + breathing accent glow.          | Persistent AI-driven surface (a chat panel, an LLM card).  |
+| `Thinking`   | Faster pulse on border and glow.                                | A tool call is in flight.                                  |
+| `Streaming`  | Moderate pulse; content updates incrementally.                  | Tokens are arriving from the model.                        |
+| `Generated`  | One-shot accent wash sweep + soft lift.                         | Reveal moment immediately after generation completes.       |
+
+### AI-aware components
+
+All AI-aware components share the same `Ai="AiState.X"` API. The effects are implemented entirely in CSS (`dryl.css`) with no component-specific overrides, so the ring, glow and wash look identical across:
+
+- **`DrylCard`** — glass surface with cursor spotlight; ring draws around the card border
+- **`DrylButton`** — rotating ring sits outside the variant fill; useful for "Ask AI" CTA buttons
+- **`DrylInputText` / `DrylTextarea`** — ring wraps the input field; ideal for prompts bound to streaming completions
+- **`DrylTable`** — ring wraps the full table; rows animate in as they stream
+- **`DrylExpansion`** — ring wraps the panel header; the panel can open automatically when the model starts streaming its body
+- **`DrylAiIndicator`** — companion status pill that adapts its label and pulse speed to the current state
+
+### Wiring with `Microsoft.Extensions.AI`
 
 ```csharp
 private AiState _state = AiState.None;
@@ -93,9 +109,13 @@ private async Task AskAi()
     <DrylAiIndicator State="@_state" />
     @_text
 </DrylCard>
+
+<DrylExpansion Title="AI summary" Icon="Sparkle" Ai="@_state" @bind-IsOpen="_open">
+    <ChildContent>@_text</ChildContent>
+</DrylExpansion>
 ```
 
-The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`, `.ai-indicator`) live in [`dryl.css`](DRYL.Components/wwwroot/dryl.css) and can be applied directly when you need AI styling on a surface that isn't yet a DRYL component.
+The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`) live in [`dryl.css`](DRYL.Components/wwwroot/dryl.css) and can be applied to any element that isn't yet a DRYL component.
 
 ---
 
@@ -103,17 +123,18 @@ The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
 | ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
-| `DrylButton`      | Actions      | —       | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots   |
+| `DrylButton`      | Actions      | ✅      | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots   |
 | `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface, optional cursor spotlight, `Ai` state              |
 | `DrylBadge`       | Data         | —       | ✅ Done    | Neutral / Accent / Success / Warning / Danger, optional dot       |
 | `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
 | `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
-| `DrylInputText`   | Inputs       | 🔜      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
+| `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
 | `DrylCheckbox`    | Inputs       | —       | ✅ Done    | Accessible checkbox with label                                    |
 | `DrylSelect`      | Inputs       | —       | ✅ Done    | Styled select bound to `EditForm`                                 |
-| `DrylTextarea`    | Inputs       | 🔜      | ✅ Done    | Auto-resizable textarea                                           |
+| `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
-| `DrylTable`       | Data         | 🔜      | ✅ Done    | Generic table, sticky header, row selection, optional KPI summary bar |
+| `DrylTable`       | Data         | ✅      | ✅ Done    | Generic table, sticky header, row selection, optional KPI summary bar |
+| `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
 | `DrylModal`       | Surfaces     | 🔜      | 🔜 Planned | Glass overlay with focus trap                                    |
 | `DrylToast`       | Surfaces     | —       | 🔜 Planned | Programmatic notifications via service                           |
 
@@ -131,6 +152,7 @@ DRYL.Components/             The library (Razor Class Library, .NET 10)
     AI/                      DrylAiIndicator (AI-specific components live here)
     Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi
     Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
+    Layout/                  DrylExpansion, DrylAppBar, DrylDrawer, DrylLayout, DrylNavGroup, DrylNavLink
     Surfaces/                DrylCard
   wwwroot/
     dryl.css                 The single stylesheet — every token, every primitive (incl. AI mode)

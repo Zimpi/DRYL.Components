@@ -1,0 +1,71 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAppBar — sticky top bar inside a DrylLayout.
+
+    When a sibling DrylDrawer is present and ShowDrawerToggle
+    is true, renders a hamburger button on the left that
+    toggles the drawer. The hamburger is hidden on desktop via
+    CSS (the drawer is always visible there).
+
+    Usage:
+      <DrylAppBar>
+          <div class="crumb">...</div>
+          <div style="flex:1"></div>
+          <DrylBadge>Pre-0.1</DrylBadge>
+      </DrylAppBar>
+    ───────────────────────────────────────────────────────── *@
+
+<header class="topbar @Class" @attributes="AdditionalAttributes">
+    @if (ShowDrawerToggle && Context?.HasDrawer == true)
+    {
+        <button type="button"
+                class="drawer-toggle"
+                aria-label="Toggle navigation"
+                aria-expanded="@(Context.DrawerOpen ? "true" : "false")"
+                @onclick="ToggleDrawerAsync">
+            <DrylIcon Name="Menu" Size="18" />
+        </button>
+    }
+    @ChildContent
+</header>
+
+@code {
+    /// <summary>Cascaded from <see cref="DrylLayout"/>. Null if the app bar is used outside a layout.</summary>
+    [CascadingParameter] public DrylLayoutContext? Context { get; set; }
+
+    /// <summary>Bar contents (breadcrumbs, search, badges, etc.).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>When true (default), renders a hamburger button on mobile that toggles the sibling drawer.</summary>
+    [Parameter] public bool ShowDrawerToggle { get; set; } = true;
+
+    /// <summary>Extra CSS class(es) applied to the .topbar root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private DrylLayoutContext? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_subscribed, Context))
+        {
+            if (_subscribed is not null) _subscribed.StateChanged -= OnContextChanged;
+            _subscribed = Context;
+            if (_subscribed is not null) _subscribed.StateChanged += OnContextChanged;
+        }
+    }
+
+    private void OnContextChanged() => InvokeAsync(StateHasChanged);
+
+    private Task ToggleDrawerAsync() => Context?.ToggleDrawerAsync() ?? Task.CompletedTask;
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.StateChanged -= OnContextChanged;
+    }
+}

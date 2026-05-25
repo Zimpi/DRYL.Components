@@ -1,0 +1,68 @@
+@namespace DRYL.Components
+@using Microsoft.AspNetCore.Components.Routing
+
+@*  ─────────────────────────────────────────────────────────
+    DrylNavLink — a single nav row inside a DrylNavGroup.
+
+    Wraps Blazor's <NavLink> with the .nav-item visual and an
+    optional leading icon. For external links pass External="true"
+    (renders a plain <a target="_blank">).
+
+    Usage:
+      <DrylNavLink Href="buttons" Icon="Bolt">Buttons</DrylNavLink>
+      <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+      <DrylNavLink Href="https://github.com/..." Icon="Code" External>GitHub</DrylNavLink>
+    ───────────────────────────────────────────────────────── *@
+
+@if (External)
+{
+    <a class="nav-item @Class"
+       href="@Href"
+       target="_blank"
+       rel="noopener"
+       @attributes="AdditionalAttributes">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <DrylIcon Name="@Icon" Size="16" Class="ico" />
+        }
+        <span>@ChildContent</span>
+    </a>
+}
+else
+{
+    <NavLink class="@($"nav-item {Class}")"
+             ActiveClass="active"
+             href="@Href"
+             Match="@Match"
+             @attributes="AdditionalAttributes">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <DrylIcon Name="@Icon" Size="16" Class="ico" />
+        }
+        <span>@ChildContent</span>
+    </NavLink>
+}
+
+@code {
+    /// <summary>Navigation target. For internal routes use a relative path; for external links combine with <see cref="External"/>.</summary>
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+
+    /// <summary>DrylIcon name displayed before the label. Optional.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>How to match the current URL when deciding active state. Default <see cref="NavLinkMatch.Prefix"/>.</summary>
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+
+    /// <summary>When true, renders a plain external <c>&lt;a target="_blank"&gt;</c> instead of a <c>NavLink</c>.</summary>
+    [Parameter] public bool External { get; set; }
+
+    /// <summary>Link label.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) applied to the link element.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the link element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

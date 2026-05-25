@@ -1,66 +1,31 @@
-<aside class="sidebar">
-    <div class="brand">
-        <div class="brand-mark">
-            <img src="favicon.png" alt="" class="brand-mark-logo" />
-        </div>
-        <div style="display: flex; flex-direction: column;">
-            <span class="brand-name">DRYL</span>
-            <span class="brand-sub">v0.1 · WIP</span>
-        </div>
+<div class="brand">
+    <div class="brand-mark">
+        <img src="favicon.png" alt="" class="brand-mark-logo" />
     </div>
-
-    <div class="nav-section">
-        <div class="nav-title">Library</div>
-
-        <NavLink class="nav-item" ActiveClass="active" href="" Match="NavLinkMatch.All">
-            <DrylIcon Name="Home" Size="16" Class="ico" />
-            <span>Overview</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="buttons">
-            <DrylIcon Name="Bolt" Size="16" Class="ico" />
-            <span>Buttons</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="inputs">
-            <DrylIcon Name="Type" Size="16" Class="ico" />
-            <span>Inputs</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="forms">
-            <DrylIcon Name="Folder" Size="16" Class="ico" />
-            <span>Form Controls</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="cards">
-            <DrylIcon Name="Layers" Size="16" Class="ico" />
-            <span>Cards</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="badges">
-            <DrylIcon Name="Bell" Size="16" Class="ico" />
-            <span>Badges</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="tables">
-            <DrylIcon Name="Grid" Size="16" Class="ico" />
-            <span>Tables</span>
-        </NavLink>
-        <NavLink class="nav-item" ActiveClass="active" href="icons">
-            <DrylIcon Name="Sparkle" Size="16" Class="ico" />
-            <span>Icons</span>
-        </NavLink>
+    <div style="display: flex; flex-direction: column;">
+        <span class="brand-name">DRYL</span>
+        <span class="brand-sub">v0.1 · WIP</span>
     </div>
+</div>
 
-    <div class="nav-section">
-        <div class="nav-title">Intelligence</div>
-        <NavLink class="nav-item" ActiveClass="active" href="ai">
-            <DrylIcon Name="Sparkle" Size="16" Class="ico" />
-            <span>AI Mode</span>
-        </NavLink>
-    </div>
+<DrylNavGroup Title="Library">
+    <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+    <DrylNavLink Href="buttons" Icon="Bolt">Buttons</DrylNavLink>
+    <DrylNavLink Href="inputs" Icon="Type">Inputs</DrylNavLink>
+    <DrylNavLink Href="forms" Icon="Folder">Form Controls</DrylNavLink>
+    <DrylNavLink Href="cards" Icon="Layers">Cards</DrylNavLink>
+    <DrylNavLink Href="badges" Icon="Bell">Badges</DrylNavLink>
+    <DrylNavLink Href="tables" Icon="Grid">Tables</DrylNavLink>
+    <DrylNavLink Href="expansion" Icon="ChevronDown">Expansion</DrylNavLink>
+    <DrylNavLink Href="icons" Icon="Sparkle">Icons</DrylNavLink>
+</DrylNavGroup>
 
-    <div style="flex: 1;"></div>
+<DrylNavGroup Title="Intelligence">
+    <DrylNavLink Href="ai" Icon="Sparkle">AI Mode</DrylNavLink>
+</DrylNavGroup>
 
-    <div class="nav-section">
-        <div class="nav-title">Project</div>
-        <a class="nav-item" href="https://github.com/Zimpi/DRYL.Components" target="_blank" rel="noopener" style="text-decoration: none;">
-            <DrylIcon Name="Code" Size="16" Class="ico" />
-            <span>GitHub</span>
-        </a>
-    </div>
-</aside>
+<div style="flex: 1;"></div>
+
+<DrylNavGroup Title="Project">
+    <DrylNavLink Href="https://github.com/Zimpi/DRYL.Components" Icon="Code" External>GitHub</DrylNavLink>
+</DrylNavGroup>

@@ -1,0 +1,36 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylNavGroup — a labelled section of nav links inside a
+    DrylDrawer. Renders the small uppercase title plus its
+    DrylNavLink children.
+
+    Usage:
+      <DrylNavGroup Title="Library">
+          <DrylNavLink Href="buttons" Icon="Bolt">Buttons</DrylNavLink>
+          <DrylNavLink Href="inputs" Icon="Type">Inputs</DrylNavLink>
+      </DrylNavGroup>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="nav-section @Class" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="nav-title">@Title</div>
+    }
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>Section label, rendered as a small uppercase title. Optional.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Nav links and other section content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) applied to the .nav-section root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

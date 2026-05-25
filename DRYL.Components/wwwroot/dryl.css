@@ -652,8 +652,15 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .app-shell {
   display: grid;
   grid-template-columns: 260px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "drawer topbar"
+    "drawer main";
   min-height: 100vh;
 }
+.app-shell > .sidebar { grid-area: drawer; }
+.app-shell > .topbar  { grid-area: topbar; }
+.app-shell > .main    { grid-area: main; }
 
 .sidebar {
   position: sticky;
@@ -667,6 +674,81 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   flex-direction: column;
   gap: 24px;
   z-index: 10;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-med) var(--ease-out);
+}
+
+.drawer-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.drawer-toggle:hover {
+  background: var(--glass-2);
+  border-color: var(--line-strong);
+  color: var(--fg);
+}
+.drawer-toggle:focus-visible {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+@media (max-width: 1023px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "main";
+  }
+  .app-shell > .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform var(--dur-med) var(--ease-out);
+    z-index: 50;
+    border-right: 1px solid var(--line-strong);
+  }
+  .app-shell > .sidebar.is-open {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop {
+    display: block;
+  }
+  .sidebar-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .drawer-toggle {
+    display: inline-flex;
+  }
+  .topbar { padding: 0 16px; }
+  .main   { padding: 24px 16px 64px; }
 }
 
 .brand {
@@ -1482,6 +1564,147 @@ code, .code-inline {
   .ai-aura-wash::before,
   .ai-aura.ai-generated { animation: none; }
   .ai-aura-ring { opacity: 0.6; }
+}
+
+/* ============== EXPANSION PANELS ============== */
+
+/*
+  Stacking behaviour
+  ──────────────────
+  Adjacent closed panels share their border (margin-top: -1px).
+  • First/last panels get rounded top/bottom corners.
+  • An open panel lifts out: full border-radius + gap margin + stronger shadow.
+  • The panel after an open one resets its negative margin so the gap is clean.
+
+  Body animation
+  ──────────────
+  Uses the grid-template-rows: 0fr → 1fr trick.
+  The inner overflow:hidden wrapper collapses to zero height while the content
+  itself is never "squeezed" — it always renders at its natural size.
+*/
+
+.expansion {
+  position: relative;
+  background: var(--glass-1);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border-radius: 0;
+  z-index: 0;
+  transition:
+    margin         var(--dur-med) var(--ease-out),
+    border-color   var(--dur-med) var(--ease-out),
+    border-radius  var(--dur-med) var(--ease-out),
+    box-shadow     var(--dur-med) var(--ease-out),
+    z-index        0s             var(--dur-med); /* delay z-index reset until animation is done */
+}
+
+/* Collapse shared border between adjacent panels */
+.expansion + .expansion { margin-top: -1px; }
+
+/* Round top of first panel in a stack */
+.expansion:first-child { border-radius: var(--r-md) var(--r-md) 0 0; }
+
+/* Round bottom of last panel in a stack */
+.expansion:last-child { border-radius: 0 0 var(--r-md) var(--r-md); }
+
+/* Single standalone panel */
+.expansion:first-child:last-child { border-radius: var(--r-md); }
+
+/* Open state — detach from siblings */
+.expansion.is-open {
+  margin: var(--sp-3) 0;
+  border-radius: var(--r-md);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+  z-index: 1;
+  transition:
+    margin         var(--dur-med) var(--ease-out),
+    border-color   var(--dur-med) var(--ease-out),
+    border-radius  var(--dur-med) var(--ease-out),
+    box-shadow     var(--dur-med) var(--ease-out);
+}
+
+/* Sibling right after an open panel: cancel the shared-border pull-up */
+.expansion.is-open + .expansion { margin-top: 0; }
+
+/* Disabled panel */
+.expansion.is-disabled { pointer-events: none; }
+.expansion.is-disabled .expansion-header { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Header ── */
+.expansion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-4) var(--sp-5);
+  background: none;
+  border: none;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.expansion-header:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: -2px;
+  border-radius: inherit;
+}
+
+.expansion-header:hover .expansion-chevron { color: var(--fg-muted); }
+
+.expansion-icon { color: var(--fg-muted); flex-shrink: 0; }
+
+.expansion-title { flex: 1; }
+
+.expansion-header-trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Chevron flips 180° when open */
+.expansion-chevron {
+  color: var(--fg-dim);
+  flex-shrink: 0;
+  transition: transform var(--dur-med) var(--ease-out), color var(--dur-med) var(--ease-out);
+}
+.expansion.is-open .expansion-chevron {
+  transform: rotate(180deg);
+  color: var(--fg-muted);
+}
+
+/* ── Body (grid-rows animation) ── */
+.expansion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-med) var(--ease-out);
+}
+
+.expansion.is-open .expansion-body {
+  grid-template-rows: 1fr;
+}
+
+/* overflow:hidden here is what allows 0fr to fully collapse */
+.expansion-body-inner {
+  overflow: hidden;
+}
+
+.expansion-body-content {
+  padding: 0 var(--sp-5) var(--sp-5);
+  color: var(--fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expansion,
+  .expansion-body,
+  .expansion-chevron { transition: none; }
 }
 
 /* ============== AI INDICATOR — small status pill ============== */

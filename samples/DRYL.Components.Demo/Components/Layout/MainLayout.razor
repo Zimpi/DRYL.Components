@@ -1,27 +1,27 @@
 @inherits LayoutComponentBase
 
-<div class="app-shell">
-    <NavMenu />
+<DrylLayout>
+    <DrylAppBar>
+        <div class="crumb">
+            <DrylIcon Name="Sparkle" Size="14" />
+            <span>DRYL</span>
+            <span class="sep">/</span>
+            <b>@CurrentSection</b>
+        </div>
 
-    <div>
-        <header class="topbar">
-            <div class="crumb">
-                <DrylIcon Name="Sparkle" Size="14" />
-                <span>DRYL</span>
-                <span class="sep">/</span>
-                <b>@CurrentSection</b>
-            </div>
+        <div style="flex: 1;"></div>
 
-            <div style="flex: 1;"></div>
+        <DrylBadge Kind="DrylBadge.BadgeKind.Warning">Pre-0.1</DrylBadge>
+    </DrylAppBar>
 
-            <DrylBadge Kind="DrylBadge.BadgeKind.Warning">Pre-0.1</DrylBadge>
-        </header>
+    <DrylDrawer @bind-Open="_drawerOpen">
+        <NavMenu />
+    </DrylDrawer>
 
-        <main class="main">
-            @Body
-        </main>
-    </div>
-</div>
+    <DrylMainContent>
+        @Body
+    </DrylMainContent>
+</DrylLayout>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
@@ -31,6 +31,8 @@
 
 @code {
     [CascadingParameter] private HttpContext? Http { get; set; }
+
+    private bool _drawerOpen;
 
     private string CurrentSection
     {
