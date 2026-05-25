@@ -36,6 +36,18 @@ The goal is a small, opinionated set of components — buttons, cards, inputs, t
 ### Cards
 ![DrylCard — glass surface with cursor spotlight](docs/screenshots/cards.png)
 
+### Badges
+![DrylBadge — neutral, accent, success, warning and danger variants](docs/screenshots/badges.png)
+
+### Text input
+![DrylInputText — form-bound text input with icon slots](docs/screenshots/inputtext.png)
+
+### Form controls
+![DrylCheckbox, DrylSelect, DrylTextarea and DrylToggle](docs/screenshots/form_controls.png)
+
+### Tables
+![DrylTable — generic table with sticky header, row selection and optional KPI summary bar](docs/screenshots/tables.png)
+
 ---
 
 ## What's in the box (today)
