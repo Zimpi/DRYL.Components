@@ -1,0 +1,48 @@
+@page "/badges"
+
+<PageTitle>DRYL — Badges</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Data</span>
+        <h2>DrylBadge</h2>
+        <p class="lead">
+            Small status pill. Five kinds, optional glowing dot for live indicators,
+            optional leading icon.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Kinds</h3>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylBadge>Neutral</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Accent">Accent</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Success">Success</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Warning">Warning</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Danger">Danger</DrylBadge>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>With dot</h3>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylBadge Dot="true">Idle</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Accent" Dot="true">Live</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Healthy</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot="true">Throttled</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot="true">Failing</DrylBadge>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>With icon</h3>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylBadge Kind="DrylBadge.BadgeKind.Accent" Icon="Sparkle">New</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Icon="Check">Verified</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Icon="Alert">Heads up</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Icon="X">Blocked</DrylBadge>
+        </div>
+    </section>
+
+</div>

@@ -1,0 +1,97 @@
+@namespace DRYL.Components
+@inherits InputBase<string>
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTextarea — multi-line text input bound to EditForm.
+
+    Usage:
+      <DrylTextarea @bind-Value="model.Description"
+                    Label="Description"
+                    Placeholder="Tell us about your project..."
+                    Rows="5" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_id">@Label</label>
+    }
+
+    <textarea id="@_id"
+              class="@TextareaCssClass"
+              value="@CurrentValueAsString"
+              @oninput="HandleInput"
+              placeholder="@Placeholder"
+              rows="@Rows"
+              disabled="@Disabled"
+              aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+              aria-invalid="@(HasValidationError ? "true" : null)"
+              aria-describedby="@(ShowHelper ? _helperId : null)"
+              @attributes="AdditionalAttributes"></textarea>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional label shown above the textarea.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder text shown when the textarea is empty.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Helper text shown below the textarea. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Initial visible row count. Default 4.</summary>
+    [Parameter] public int Rows { get; set; } = 4;
+
+    /// <summary>Visual state override. An active validation error overrides this.</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, the textarea is greyed out and non-editable.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required if <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    private readonly string _id       = $"dryl-ta-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string TextareaCssClass
+    {
+        get
+        {
+            var c = "textarea";
+            if (HasValidationError || State == InputState.Error)   c += " input-error";
+            else if (State == InputState.Success)                  c += " input-success";
+            return c;
+        }
+    }
+
+    private void HandleInput(ChangeEventArgs e) =>
+        CurrentValueAsString = e.Value?.ToString();
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out string result,
+        out string validationErrorMessage)
+    {
+        result = value ?? string.Empty;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+}

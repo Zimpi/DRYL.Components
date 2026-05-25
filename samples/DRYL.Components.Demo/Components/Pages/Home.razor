@@ -1,0 +1,95 @@
+@page "/"
+
+<PageTitle>DRYL — Overview</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-3);">
+        <span class="eyebrow">v0.1 — Work in progress</span>
+        <h1>DRYL <span class="gradient-text">Components</span></h1>
+        <p class="lead">
+            A modern, dark, glass-and-glow Blazor component library.
+            Pick a component from the sidebar to see it live.
+        </p>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylBadge Kind="DrylBadge.BadgeKind.Accent">v0.1.0</DrylBadge>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Demo running</DrylBadge>
+            <DrylBadge>MIT</DrylBadge>
+        </div>
+    </div>
+
+    <div class="stagger" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4);">
+        <a href="buttons" style="text-decoration: none; color: inherit;">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Bolt" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h3>Buttons</h3>
+                        <p>Primary · Secondary · Ghost · Danger. Sizes, icons, loading.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </a>
+
+        <a href="inputs" style="text-decoration: none; color: inherit;">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Type" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h3>Inputs</h3>
+                        <p>EditForm-bound text input. Icons, helper text, live validation.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </a>
+
+        <a href="forms" style="text-decoration: none; color: inherit;">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Folder" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h3>Form Controls</h3>
+                        <p>Textarea, select, checkbox, toggle. EditForm-integrated.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </a>
+
+        <a href="cards" style="text-decoration: none; color: inherit;">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Layers" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h3>Cards</h3>
+                        <p>Glass surfaces with optional cursor-tracking spotlight.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </a>
+
+        <a href="badges" style="text-decoration: none; color: inherit;">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Bell" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h3>Badges</h3>
+                        <p>Neutral · Accent · Success · Warning · Danger. Optional dot.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </a>
+
+        <a href="icons" style="text-decoration: none; color: inherit;">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Grid" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h3>Icons</h3>
+                        <p>Built-in line icon set, currentColor stroked.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </a>
+    </div>
+
+</div>

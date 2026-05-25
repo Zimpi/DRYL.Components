@@ -1,0 +1,66 @@
+@page "/cards"
+
+<PageTitle>DRYL — Cards</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Surfaces</span>
+        <h2>DrylCard</h2>
+        <p class="lead">
+            Glass surface with optional cursor-tracking spotlight.
+            Choose a padding preset, or pass <code>CardPadding.None</code> for custom layout.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Default — with spotlight</h3>
+        <div class="stagger" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-4);">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-2);">
+                    <span class="eyebrow">Service health</span>
+                    <h3>All systems normal</h3>
+                    <p>Move your cursor across the card to see the spotlight follow.</p>
+                </div>
+            </DrylCard>
+
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-2);">
+                    <DrylIcon Name="Rocket" Size="20" />
+                    <h3>Deploys</h3>
+                    <p>14 successful, 0 failed in the last 24 hours.</p>
+                    <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Healthy</DrylBadge>
+                </div>
+            </DrylCard>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Without spotlight</h3>
+        <DrylCard Spotlight="false">
+            <div class="col" style="gap: var(--sp-2);">
+                <h3>Static glass card</h3>
+                <p>No cursor effects — useful inside scrollable lists or when many cards stack on one page.</p>
+            </div>
+        </DrylCard>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Padding presets</h3>
+        <div class="stagger" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-4);">
+            <DrylCard Padding="DrylCard.CardPadding.Tight">
+                <span class="eyebrow">Tight</span>
+                <h4 style="margin-top: var(--sp-2);">var(--sp-4)</h4>
+            </DrylCard>
+            <DrylCard Padding="DrylCard.CardPadding.Default">
+                <span class="eyebrow">Default</span>
+                <h4 style="margin-top: var(--sp-2);">var(--sp-5)</h4>
+            </DrylCard>
+            <DrylCard Padding="DrylCard.CardPadding.Loose">
+                <span class="eyebrow">Loose</span>
+                <h4 style="margin-top: var(--sp-2);">var(--sp-6)</h4>
+            </DrylCard>
+        </div>
+    </section>
+
+</div>

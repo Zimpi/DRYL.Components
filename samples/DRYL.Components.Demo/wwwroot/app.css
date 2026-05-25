@@ -1,0 +1,42 @@
+/* Demo app overrides — DRYL design lives in _content/DRYL.Components/dryl.css */
+
+html, body {
+    height: 100%;
+    background: var(--ground);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Blazor reconnect / error UI — keep visible but unobtrusive */
+#blazor-error-ui {
+    color-scheme: dark;
+    background: var(--bg-2);
+    color: var(--fg);
+    border-top: 1px solid var(--line-strong);
+    bottom: 0;
+    box-shadow: var(--shadow-lg);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 12px 20px;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    font-size: 13px;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 12px;
+    top: 8px;
+    color: var(--fg-muted);
+}
+
+#blazor-error-ui .reload {
+    color: var(--accent-b);
+    margin-left: 8px;
+}

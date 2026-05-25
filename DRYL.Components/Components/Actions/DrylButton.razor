@@ -1,0 +1,112 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylButton — primary action component.
+
+    Usage:
+      <DrylButton Variant="ButtonVariant.Primary"
+                  Loading="@isSaving"
+                  OnClick="HandleSave">
+        Save changes
+      </DrylButton>
+
+      <DrylButton Variant="ButtonVariant.Secondary"
+                  LeadingIcon="Download">
+        Export
+      </DrylButton>
+
+      <DrylButton Variant="ButtonVariant.Ghost"
+                  Size="ButtonSize.Small"
+                  AriaLabel="Settings"
+                  LeadingIcon="Settings" />
+    ───────────────────────────────────────────────────────── *@
+
+<button class="@CssClass"
+        type="@(IsSubmit ? "submit" : "button")"
+        disabled="@(Disabled || Loading)"
+        aria-label="@AriaLabel"
+        @onclick="HandleClick"
+        @attributes="AdditionalAttributes">
+
+    @if (Loading)
+    {
+        <span class="spinner" aria-hidden="true"></span>
+    }
+    else if (!string.IsNullOrEmpty(LeadingIcon))
+    {
+        <DrylIcon Name="@LeadingIcon" Size="14" />
+    }
+
+    @ChildContent
+
+    @if (!string.IsNullOrEmpty(TrailingIcon) && !Loading)
+    {
+        <DrylIcon Name="@TrailingIcon" Size="14" />
+    }
+</button>
+
+@code {
+    /// <summary>Visual style of the button.</summary>
+    [Parameter] public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;
+
+    /// <summary>Size of the button.</summary>
+    [Parameter] public ButtonSize Size { get; set; } = ButtonSize.Medium;
+
+    /// <summary>If true, button shows a spinner and is non-clickable.</summary>
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>If true, button is greyed out and non-clickable.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>If true, button submits the enclosing form.</summary>
+    [Parameter] public bool IsSubmit { get; set; }
+
+    /// <summary>Icon name shown before the label.</summary>
+    [Parameter] public string? LeadingIcon { get; set; }
+
+    /// <summary>Icon name shown after the label.</summary>
+    [Parameter] public string? TrailingIcon { get; set; }
+
+    /// <summary>Accessible label — required for icon-only buttons.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Click event handler.</summary>
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    /// <summary>Button label content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass
+    {
+        get
+        {
+            var variant = Variant switch
+            {
+                ButtonVariant.Primary   => "btn-primary",
+                ButtonVariant.Secondary => "btn-secondary",
+                ButtonVariant.Ghost     => "btn-ghost",
+                ButtonVariant.Danger    => "btn-danger",
+                _ => "btn-primary"
+            };
+            var size = Size switch
+            {
+                ButtonSize.Small => "btn-sm",
+                ButtonSize.Large => "btn-lg",
+                _ => string.Empty
+            };
+            var iconOnly = ChildContent is null ? "btn-icon" : string.Empty;
+            return string.Join(' ', new[] { "btn", variant, size, iconOnly }
+                                 .Where(s => !string.IsNullOrWhiteSpace(s)));
+        }
+    }
+
+    private Task HandleClick(MouseEventArgs e) =>
+        Disabled || Loading ? Task.CompletedTask : OnClick.InvokeAsync(e);
+
+    public enum ButtonVariant { Primary, Secondary, Ghost, Danger }
+    public enum ButtonSize    { Small, Medium, Large }
+}

@@ -1,0 +1,31 @@
+@page "/icons"
+
+<PageTitle>DRYL — Icons</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Foundations</span>
+        <h2>DrylIcon</h2>
+        <p class="lead">
+            Built-in line icon set, drawn in <code>currentColor</code> so they inherit text color.
+            Reference an icon by its name string — e.g. <code>&lt;DrylIcon Name="Download" /&gt;</code>.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>All icons (@DrylIcon.Icons.Count)</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--sp-3);">
+            @foreach (var name in DrylIcon.Icons.Keys)
+            {
+                <DrylCard Padding="DrylCard.CardPadding.Tight" Spotlight="false">
+                    <div class="col" style="align-items: center; gap: var(--sp-2);">
+                        <DrylIcon Name="@name" Size="22" />
+                        <span class="mono" style="font-size: 11px; color: var(--fg-dim);">@name</span>
+                    </div>
+                </DrylCard>
+            }
+        </div>
+    </section>
+
+</div>

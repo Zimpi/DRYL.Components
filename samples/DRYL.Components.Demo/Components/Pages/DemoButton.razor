@@ -1,0 +1,68 @@
+@page "/buttons"
+
+<PageTitle>DRYL — Buttons</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Actions</span>
+        <h2>DrylButton</h2>
+        <p class="lead">
+            Primary action component. Four variants, three sizes,
+            loading and disabled states, optional leading or trailing icon.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Variants</h3>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylButton Variant="DrylButton.ButtonVariant.Primary">Primary</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Secondary</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost">Ghost</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Danger">Danger</DrylButton>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Sizes</h3>
+        <div class="row" style="align-items: center; flex-wrap: wrap;">
+            <DrylButton Size="DrylButton.ButtonSize.Small">Small</DrylButton>
+            <DrylButton Size="DrylButton.ButtonSize.Medium">Medium</DrylButton>
+            <DrylButton Size="DrylButton.ButtonSize.Large">Large</DrylButton>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>With icons</h3>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylButton LeadingIcon="Download">Export</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" TrailingIcon="ChevronRight">Continue</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                        LeadingIcon="Settings"
+                        AriaLabel="Settings" />
+            <DrylButton Variant="DrylButton.ButtonVariant.Danger" LeadingIcon="X">Delete</DrylButton>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>States</h3>
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylButton Loading="@_loading" OnClick="ToggleLoading">
+                @(_loading ? "Loading…" : "Click to load")
+            </DrylButton>
+            <DrylButton Disabled="true">Disabled</DrylButton>
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private bool _loading;
+
+    private async Task ToggleLoading()
+    {
+        _loading = true;
+        await Task.Delay(1500);
+        _loading = false;
+    }
+}

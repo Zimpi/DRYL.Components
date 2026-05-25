@@ -1,0 +1,127 @@
+@namespace DRYL.Components
+@inherits InputBase<string>
+
+@*  ─────────────────────────────────────────────────────────
+    DrylInputText — single-line text input bound to EditForm.
+
+    Usage:
+      <EditForm Model="@model">
+          <DataAnnotationsValidator />
+          <DrylInputText @bind-Value="model.Name"
+                         Label="Name"
+                         Placeholder="Jane Doe"
+                         LeadingIcon="User" />
+      </EditForm>
+
+    The component inherits InputBase<string> and so requires an enclosing
+    EditForm. Validation errors are picked up automatically and rendered
+    below the field; any explicit <c>State</c> is overridden by an active
+    validation error.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_id">@Label</label>
+    }
+
+    <div class="input-wrapper">
+        @if (!string.IsNullOrEmpty(LeadingIcon))
+        {
+            <DrylIcon Name="@LeadingIcon" Size="16" Class="input-icon input-icon-leading" />
+        }
+
+        <input id="@_id"
+               class="@InputCssClass"
+               type="@Type"
+               value="@CurrentValueAsString"
+               @oninput="HandleInput"
+               placeholder="@Placeholder"
+               disabled="@Disabled"
+               aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+               aria-invalid="@(HasValidationError ? "true" : null)"
+               aria-describedby="@(ShowHelper ? _helperId : null)"
+               @attributes="AdditionalAttributes" />
+
+        @if (!string.IsNullOrEmpty(TrailingIcon))
+        {
+            <DrylIcon Name="@TrailingIcon" Size="16" Class="input-icon input-icon-trailing" />
+        }
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional label shown above the input.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder text shown when the input is empty.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Helper text shown below the input. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Optional icon name rendered inside the input on the left.</summary>
+    [Parameter] public string? LeadingIcon { get; set; }
+
+    /// <summary>Optional icon name rendered inside the input on the right.</summary>
+    [Parameter] public string? TrailingIcon { get; set; }
+
+    /// <summary>Visual state override. An active validation error overrides this.</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, the input is greyed out and non-editable.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>HTML input type. Default "text". Common values: text, email, url, tel, search.</summary>
+    [Parameter] public string Type { get; set; } = "text";
+
+    /// <summary>Accessible label — required if <c>Label</c> is not set and the input has no surrounding context.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    private readonly string _id       = $"dryl-input-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string InputCssClass
+    {
+        get
+        {
+            var classes = "input";
+            if (!string.IsNullOrEmpty(LeadingIcon))  classes += " has-leading-icon";
+            if (!string.IsNullOrEmpty(TrailingIcon)) classes += " has-trailing-icon";
+
+            if (HasValidationError || State == InputState.Error)   classes += " input-error";
+            else if (State == InputState.Success)                  classes += " input-success";
+
+            return classes;
+        }
+    }
+
+    private void HandleInput(ChangeEventArgs e) =>
+        CurrentValueAsString = e.Value?.ToString();
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out string result,
+        out string validationErrorMessage)
+    {
+        result = value ?? string.Empty;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+}

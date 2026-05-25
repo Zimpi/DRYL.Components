@@ -1,0 +1,61 @@
+@namespace DRYL.Components
+@inherits InputBase<bool>
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCheckbox — boolean checkbox with animated checkmark.
+
+    Usage:
+      <DrylCheckbox @bind-Value="model.AcceptTerms">I accept the terms</DrylCheckbox>
+      <DrylCheckbox @bind-Value="model.HotReload" Label="Enable hot-reload" />
+
+    The check glyph scales in with a spring easing on toggle.
+    ───────────────────────────────────────────────────────── *@
+
+<label class="row" style="cursor: pointer; user-select: none;">
+    <input id="@_id"
+           type="checkbox"
+           class="checkbox"
+           checked="@CurrentValue"
+           @onchange="HandleChange"
+           disabled="@Disabled"
+           aria-label="@(ChildContent is null && string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+           @attributes="AdditionalAttributes" />
+
+    @if (ChildContent is not null)
+    {
+        <span style="font-size: 13px; color: var(--fg-muted);">@ChildContent</span>
+    }
+    else if (!string.IsNullOrEmpty(Label))
+    {
+        <span style="font-size: 13px; color: var(--fg-muted);">@Label</span>
+    }
+</label>
+
+@code {
+    /// <summary>Plain-text label displayed next to the checkbox.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Rich label content. Takes precedence over <c>Label</c>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>If true, the checkbox is greyed out and non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required when no visible label is rendered.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    private readonly string _id = $"dryl-check-{Guid.NewGuid():N}";
+
+    private void HandleChange(ChangeEventArgs e) =>
+        CurrentValue = (bool)(e.Value ?? false);
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out bool result,
+        out string validationErrorMessage)
+    {
+        result = bool.TryParse(value, out var v) && v;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+}

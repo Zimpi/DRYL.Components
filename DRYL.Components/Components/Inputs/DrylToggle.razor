@@ -1,0 +1,57 @@
+@namespace DRYL.Components
+@inherits InputBase<bool>
+
+@*  ─────────────────────────────────────────────────────────
+    DrylToggle — boolean switch with sliding thumb.
+
+    Usage:
+      <DrylToggle @bind-Value="model.DarkMode" Label="Dark mode (always on)" />
+
+    Layout is label-left / switch-right, justified. The thumb slides
+    with --ease-spring; the track glows in the accent gradient when on.
+    ───────────────────────────────────────────────────────── *@
+
+<label class="row" style="cursor: pointer; user-select: none; justify-content: space-between;">
+    <span style="font-size: 13px; color: var(--fg-muted);">
+        @if (ChildContent is not null) { @ChildContent }
+        else { @Label }
+    </span>
+
+    <input id="@_id"
+           type="checkbox"
+           class="toggle"
+           checked="@CurrentValue"
+           @onchange="HandleChange"
+           disabled="@Disabled"
+           aria-label="@(ChildContent is null && string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+           @attributes="AdditionalAttributes" />
+</label>
+
+@code {
+    /// <summary>Plain-text label displayed to the left of the switch.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Rich label content. Takes precedence over <c>Label</c>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>If true, the toggle is greyed out and non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required when no visible label is rendered.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    private readonly string _id = $"dryl-toggle-{Guid.NewGuid():N}";
+
+    private void HandleChange(ChangeEventArgs e) =>
+        CurrentValue = (bool)(e.Value ?? false);
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out bool result,
+        out string validationErrorMessage)
+    {
+        result = bool.TryParse(value, out var v) && v;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+}

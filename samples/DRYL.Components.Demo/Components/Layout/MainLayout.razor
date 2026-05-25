@@ -1,0 +1,53 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <NavMenu />
+
+    <div>
+        <header class="topbar">
+            <div class="crumb">
+                <DrylIcon Name="Sparkle" Size="14" />
+                <span>DRYL</span>
+                <span class="sep">/</span>
+                <b>@CurrentSection</b>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <DrylBadge Kind="DrylBadge.BadgeKind.Warning">Pre-1.0</DrylBadge>
+        </header>
+
+        <main class="main">
+            @Body
+        </main>
+    </div>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">x</span>
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext? Http { get; set; }
+
+    private string CurrentSection
+    {
+        get
+        {
+            var path = Http?.Request.Path.Value?.Trim('/') ?? "";
+            return path switch
+            {
+                "" => "Overview",
+                "buttons" => "Buttons",
+                "inputs" => "Inputs",
+                "forms" => "Form Controls",
+                "cards" => "Cards",
+                "badges" => "Badges",
+                "icons" => "Icons",
+                _ => "Components"
+            };
+        }
+    }
+}
