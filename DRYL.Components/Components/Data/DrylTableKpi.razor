@@ -1,0 +1,155 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTableKpi — single KPI tile for use inside DrylTable's SummaryContent slot.
+
+    Usage:
+      <DrylTableKpi Label="Requests / min"
+                    Value="12,847"
+                    Delta="+8.2%"
+                    DeltaKind="DrylTableKpi.KpiDeltaKind.Positive"
+                    Trend="DrylTableKpi.KpiTrend.Up"
+                    SparklineData="@requestData" />
+
+    SparklineData accepts any IReadOnlyList<double>. Values are normalised
+    automatically — pass raw numbers (counts, percentages, latencies).
+    ───────────────────────────────────────────────────────── *@
+
+<div class="tbl-kpi">
+    <span class="tbl-kpi-label">@Label</span>
+    <span class="tbl-kpi-value">@Value</span>
+
+    <div class="tbl-kpi-footer">
+        @if (!string.IsNullOrEmpty(Delta))
+        {
+            <span class="tbl-kpi-delta tbl-kpi-delta--@DeltaCssModifier">
+                @if (Trend == KpiTrend.Up)
+                {
+                    <DrylIcon Name="ArrowUp" Size="10" />
+                }
+                else if (Trend == KpiTrend.Down)
+                {
+                    <DrylIcon Name="ArrowDown" Size="10" />
+                }
+                @Delta
+            </span>
+        }
+
+        @if (SparklineData is { Count: >= 2 })
+        {
+            <svg class="tbl-kpi-sparkline"
+                 width="96"
+                 height="32"
+                 viewBox="0 0 96 32"
+                 preserveAspectRatio="none"
+                 aria-hidden="true">
+                <defs>
+                    <linearGradient id="spark-stroke-@_uid" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%"   stop-color="#7c5cff" />
+                        <stop offset="100%" stop-color="#22d3ee" />
+                    </linearGradient>
+                    <linearGradient id="spark-fill-@_uid" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stop-color="rgba(124,92,255,0.35)" />
+                        <stop offset="100%" stop-color="rgba(34,211,238,0)" />
+                    </linearGradient>
+                </defs>
+                <path d="@AreaPath" fill="url(#spark-fill-@_uid)" />
+                <polyline points="@SparklinePoints"
+                          style="stroke:url(#spark-stroke-@_uid); fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round;" />
+            </svg>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Short label shown above the value (e.g. "Requests / min").</summary>
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = "";
+
+    /// <summary>Formatted value string (e.g. "12,847" or "84 ms").</summary>
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = "";
+
+    /// <summary>Optional delta / change string (e.g. "+8.2%" or "-12 ms").</summary>
+    [Parameter] public string? Delta { get; set; }
+
+    /// <summary>Controls the color of the delta text. Positive = green, Negative = red, Neutral = muted.</summary>
+    [Parameter] public KpiDeltaKind DeltaKind { get; set; } = KpiDeltaKind.Neutral;
+
+    /// <summary>Direction arrow shown before the delta text. None omits the arrow.</summary>
+    [Parameter] public KpiTrend Trend { get; set; } = KpiTrend.None;
+
+    /// <summary>
+    /// Raw data points for the sparkline mini-chart. Values are auto-normalised.
+    /// Provide at least 2 points; fewer than 2 hides the sparkline.
+    /// </summary>
+    [Parameter] public IReadOnlyList<double>? SparklineData { get; set; }
+
+    /// <summary>Pass-through HTML attributes.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // Unique ID so multiple tiles on the same page don't share gradient IDs.
+    private readonly string _uid = Guid.NewGuid().ToString("N")[..8];
+
+    private string DeltaCssModifier => DeltaKind switch
+    {
+        KpiDeltaKind.Positive => "positive",
+        KpiDeltaKind.Negative => "negative",
+        _ => "neutral"
+    };
+
+    private IReadOnlyList<(double x, double y)> GetPoints()
+    {
+        if (SparklineData is not { Count: >= 2 }) return [];
+
+        var min   = SparklineData.Min();
+        var max   = SparklineData.Max();
+        var range = max - min;
+        if (range == 0) range = 1;
+
+        var n = SparklineData.Count;
+        return SparklineData.Select((v, i) =>
+        {
+            var x = (double)i / (n - 1) * 96;           // full width 0..96
+            var y = (1.0 - (v - min) / range) * 28 + 2; // 2px top/bottom margin
+            return (x, y);
+        }).ToList();
+    }
+
+    private string SparklinePoints
+    {
+        get
+        {
+            var pts = GetPoints();
+            return pts.Count == 0
+                ? string.Empty
+                : string.Join(" ", pts.Select(p =>
+                    FormattableString.Invariant($"{p.x:F1},{p.y:F1}")));
+        }
+    }
+
+    /// <summary>SVG path that closes below the sparkline to create a filled area.</summary>
+    private string AreaPath
+    {
+        get
+        {
+            var pts = GetPoints();
+            if (pts.Count == 0) return string.Empty;
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append(FormattableString.Invariant($"M {pts[0].x:F1} 32"));
+            sb.Append(FormattableString.Invariant($" L {pts[0].x:F1} {pts[0].y:F1}"));
+            foreach (var (x, y) in pts.Skip(1))
+                sb.Append(FormattableString.Invariant($" L {x:F1} {y:F1}"));
+            sb.Append(FormattableString.Invariant($" L {pts[^1].x:F1} 32 Z"));
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>Color treatment of the delta value.</summary>
+    public enum KpiDeltaKind { Positive, Negative, Neutral }
+
+    /// <summary>Direction arrow shown next to the delta text.</summary>
+    public enum KpiTrend { Up, Down, None }
+}

@@ -646,6 +646,17 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   inset: 0;
   background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
   animation: shimmer 4s ease-in-out infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+.brand-mark-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+  position: relative;
+  z-index: 2;
+  mix-blend-mode: screen;
 }
 @keyframes shimmer {
   0%, 100% { transform: translateX(-100%); }
@@ -863,7 +874,7 @@ code, .code-inline {
   opacity: 0.7;
 }
 
-/* Tables */
+/* Tables — base (used by prototype and inline usage) */
 .tbl {
   width: 100%;
   border-collapse: separate;
@@ -890,6 +901,137 @@ code, .code-inline {
 .tbl tr:hover td { background: rgba(255,255,255,0.02); color: var(--fg); }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .name { color: var(--fg); font-weight: 500; }
+
+/* ============== TABLE COMPONENT (DrylTable) ============== */
+
+/* Outer wrapper — clips overflow for rounded card corners */
+.tbl-root { overflow: hidden; }
+
+/* Sticky header — needs a semi-opaque background so content scrolls under */
+.tbl-root .tbl th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(7, 7, 10, 0.92);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Horizontal scroll container */
+.tbl-wrap { overflow-x: auto; }
+
+/* Row interaction */
+.tbl-root .tbl tbody tr {
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.tbl-root .tbl tbody tr:hover td { background: var(--glass-2); color: var(--fg); }
+
+/* Selected row */
+.tbl-root .tbl tbody tr.tbl-row--selected td {
+  background: rgba(124, 92, 255, 0.07);
+}
+.tbl-root .tbl tbody tr.tbl-row--selected:hover td {
+  background: rgba(124, 92, 255, 0.12);
+}
+
+/* Checkbox column */
+.tbl-col-check {
+  width: 44px;
+  padding-left: var(--sp-4);
+  padding-right: 0;
+}
+
+/* Primary cell — full fg color + medium weight */
+.tbl td.tbl-td-primary { color: var(--fg); font-weight: 500; }
+
+/* Empty state row */
+.tbl-root .tbl tbody tr.tbl-empty-row td {
+  text-align: center;
+  padding: var(--sp-8) var(--sp-5);
+  color: var(--fg-dim);
+  border-bottom: none;
+}
+
+/* Loading state row */
+.tbl-root .tbl tbody tr.tbl-loading-row td {
+  border-bottom: none;
+  padding: 0;
+}
+
+/* ============== TABLE KPI SUMMARY BAR ============== */
+
+/* Grid of KPI tiles above the table header */
+.tbl-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+
+/* Individual KPI tile */
+.tbl-kpi {
+  padding: var(--sp-4) var(--sp-5);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  overflow: hidden;
+}
+.tbl-kpi:last-child { border-right: none; }
+
+.tbl-kpi-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tbl-kpi-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--fg);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  font-feature-settings: "tnum";
+}
+
+.tbl-kpi-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: 34px;
+}
+
+.tbl-kpi-delta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-end;
+}
+.tbl-kpi-delta--positive { color: var(--success); }
+.tbl-kpi-delta--negative { color: var(--danger); }
+.tbl-kpi-delta--neutral  { color: var(--fg-muted); }
+
+/* Sparkline */
+.tbl-kpi-sparkline {
+  width: 96px;
+  height: 32px;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.7;
+  transition: opacity var(--dur-med) var(--ease-out);
+}
+.tbl-kpi:hover .tbl-kpi-sparkline { opacity: 1; }
+.tbl-kpi-sparkline polyline {
+  stroke: var(--accent-b);
+  fill: none;
+}
 
 /* Avatar */
 .avatar {
@@ -944,6 +1086,7 @@ code, .code-inline {
 
 /* Spinner */
 .spinner {
+  display: block;
   width: 18px; height: 18px;
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.1);

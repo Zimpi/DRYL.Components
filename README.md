@@ -51,7 +51,7 @@ The goal is a small, opinionated set of components — buttons, cards, inputs, t
 | `DrylSelect`    | Inputs   | ✅ Done   | Styled select bound to `EditForm`                                 |
 | `DrylTextarea`  | Inputs   | ✅ Done   | Auto-resizable textarea                                           |
 | `DrylToggle`    | Inputs   | ✅ Done   | On/off toggle switch                                              |
-| `DrylTable`     | Data     | 🔜 Planned | Data grid with sticky header, sortable columns                   |
+| `DrylTable`     | Data     | ✅ Done   | Generic table, sticky header, row selection, optional KPI summary bar |
 | `DrylModal`     | Surfaces | 🔜 Planned | Glass overlay with focus trap                                    |
 | `DrylToast`     | Surfaces | 🔜 Planned | Programmatic notifications via service                           |
 

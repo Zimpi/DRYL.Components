@@ -1,0 +1,252 @@
+@page "/tables"
+
+<PageTitle>DRYL — Table</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Data</span>
+        <h2>DrylTable</h2>
+        <p class="lead">
+            Glass data table with sticky header, row selection, and an optional
+            KPI summary bar. Columns are defined via template slots — no code-gen required.
+        </p>
+    </div>
+
+    @* ─── With KPI summary bar ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>With KPI summary bar</h3>
+        <p>Place <code>DrylTableKpi</code> components inside <code>&lt;SummaryContent&gt;</code>.</p>
+
+        <DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services table" Selectable
+                   SelectedItems="@_selected"
+                   SelectedItemsChanged="@(s => _selected = s)"
+                   OnRowClick="@(s => _lastClicked = s.Name)">
+
+            <SummaryContent>
+                <DrylTableKpi Label="Requests / min"
+                              Value="12,847"
+                              Delta="+8.2%"
+                              DeltaKind="DrylTableKpi.KpiDeltaKind.Positive"
+                              Trend="DrylTableKpi.KpiTrend.Up"
+                              SparklineData="@_sparkRequests" />
+
+                <DrylTableKpi Label="p95 Latency"
+                              Value="84 ms"
+                              Delta="-12 ms"
+                              DeltaKind="DrylTableKpi.KpiDeltaKind.Positive"
+                              Trend="DrylTableKpi.KpiTrend.Down"
+                              SparklineData="@_sparkLatency" />
+
+                <DrylTableKpi Label="Error Rate"
+                              Value="0.04%"
+                              Delta="+0.01%"
+                              DeltaKind="DrylTableKpi.KpiDeltaKind.Negative"
+                              Trend="DrylTableKpi.KpiTrend.Up"
+                              SparklineData="@_sparkErrors" />
+
+                <DrylTableKpi Label="Active Users"
+                              Value="1,204"
+                              Delta="+142"
+                              DeltaKind="DrylTableKpi.KpiDeltaKind.Positive"
+                              Trend="DrylTableKpi.KpiTrend.Up"
+                              SparklineData="@_sparkUsers" />
+            </SummaryContent>
+
+            <HeaderContent>
+                <th>Service</th>
+                <th>Environment</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Last seen</th>
+                <th></th>
+            </HeaderContent>
+
+            <RowTemplate Context="svc">
+                <td class="tbl-td-primary">
+                    <div class="row" style="gap: var(--sp-2);">
+                        <DrylIcon Name="Server" Size="14" />
+                        @svc.Name
+                    </div>
+                </td>
+                <td>
+                    <DrylBadge>@svc.Environment</DrylBadge>
+                </td>
+                <td>
+                    @if (svc.Status == "healthy")
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
+                    }
+                    else if (svc.Status == "throttled")
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
+                    }
+                    else
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
+                    }
+                </td>
+                <td>@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</td>
+                <td>@svc.LastSeen</td>
+                <td style="text-align: right;">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="More actions"
+                                LeadingIcon="Dots" />
+                </td>
+            </RowTemplate>
+
+        </DrylTable>
+
+        @if (_selected.Count > 0)
+        {
+            <p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">
+                @_selected.Count row(s) selected
+                @if (!string.IsNullOrEmpty(_lastClicked))
+                {
+                    <span> · last clicked: @_lastClicked</span>
+                }
+            </p>
+        }
+    </section>
+
+    @* ─── Without KPI bar ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Without summary bar</h3>
+        <p>Omit <code>&lt;SummaryContent&gt;</code> for a plain table.</p>
+
+        <DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services — plain">
+            <HeaderContent>
+                <th>Service</th>
+                <th>Environment</th>
+                <th>Status</th>
+                <th>Latency</th>
+            </HeaderContent>
+            <RowTemplate Context="svc">
+                <td class="tbl-td-primary">@svc.Name</td>
+                <td>@svc.Environment</td>
+                <td>
+                    @if (svc.Status == "healthy")
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
+                    }
+                    else if (svc.Status == "throttled")
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
+                    }
+                    else
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
+                    }
+                </td>
+                <td>@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</td>
+            </RowTemplate>
+        </DrylTable>
+    </section>
+
+    @* ─── Loading state ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Loading state</h3>
+        <div class="row" style="gap: var(--sp-2); margin-bottom: var(--sp-2);">
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                        Size="DrylButton.ButtonSize.Small"
+                        OnClick="@ToggleLoading">
+                Toggle loading
+            </DrylButton>
+        </div>
+
+        <DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services — loading" Loading="@_loading">
+            <HeaderContent>
+                <th>Service</th>
+                <th>Status</th>
+            </HeaderContent>
+            <RowTemplate Context="svc">
+                <td class="tbl-td-primary">@svc.Name</td>
+                <td>@svc.Status</td>
+            </RowTemplate>
+        </DrylTable>
+    </section>
+
+    @* ─── Empty state ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Empty state</h3>
+        <DrylTable TItem="ServiceRow" Items="@_emptyServices" AriaLabel="Services — empty">
+            <HeaderContent>
+                <th>Service</th>
+                <th>Status</th>
+            </HeaderContent>
+            <RowTemplate Context="svc">
+                <td class="tbl-td-primary">@svc.Name</td>
+                <td>@svc.Status</td>
+            </RowTemplate>
+            <EmptyContent>
+                <div class="col" style="align-items: center; gap: var(--sp-2);">
+                    <DrylIcon Name="Database" Size="24" />
+                    <span>No services found</span>
+                </div>
+            </EmptyContent>
+        </DrylTable>
+    </section>
+
+    @* ─── KPI tiles standalone ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>KPI delta kinds</h3>
+        <p>
+            <code>DeltaKind</code> controls color independently of <code>Trend</code>.
+            Lower latency is positive; higher error rate is negative.
+        </p>
+        <div class="glass-card p-0 tbl-root">
+            <div class="tbl-summary">
+                <DrylTableKpi Label="Positive delta"
+                              Value="99.9%"
+                              Delta="+0.3%"
+                              DeltaKind="DrylTableKpi.KpiDeltaKind.Positive"
+                              Trend="DrylTableKpi.KpiTrend.Up"
+                              SparklineData="@_sparkUsers" />
+
+                <DrylTableKpi Label="Negative delta"
+                              Value="2.4%"
+                              Delta="+0.8%"
+                              DeltaKind="DrylTableKpi.KpiDeltaKind.Negative"
+                              Trend="DrylTableKpi.KpiTrend.Up"
+                              SparklineData="@_sparkErrors" />
+
+                <DrylTableKpi Label="Neutral (no trend)"
+                              Value="1,024"
+                              Delta="±0"
+                              SparklineData="@_sparkRequests" />
+
+                <DrylTableKpi Label="No delta"
+                              Value="42"
+                              SparklineData="@_sparkLatency" />
+            </div>
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private IReadOnlySet<ServiceRow> _selected = new HashSet<ServiceRow>();
+    private string? _lastClicked;
+    private bool _loading;
+    private static readonly ServiceRow[] _emptyServices = [];
+
+    private readonly List<ServiceRow> _services =
+    [
+        new("auth-service",       "prod",    "healthy",   24,  "vor 12s"),
+        new("billing-worker",     "prod",    "throttled", 142, "vor 1m"),
+        new("search-index",       "staging", "healthy",   38,  "vor 3m"),
+        new("media-pipeline",     "prod",    "failed",    null,"vor 4m"),
+        new("report-generator",   "dev",     "healthy",   56,  "vor 9m"),
+    ];
+
+    // Sparkline sample data
+    private readonly IReadOnlyList<double> _sparkRequests = [9800, 10200, 10800, 11200, 12000, 11800, 12400, 12847];
+    private readonly IReadOnlyList<double> _sparkLatency  = [120, 110, 102, 98, 91, 96, 88, 84];
+    private readonly IReadOnlyList<double> _sparkErrors   = [0.01, 0.02, 0.01, 0.03, 0.04, 0.03, 0.04, 0.04];
+    private readonly IReadOnlyList<double> _sparkUsers    = [820, 900, 960, 1020, 1080, 1100, 1160, 1204];
+
+    private void ToggleLoading() => _loading = !_loading;
+
+    private record ServiceRow(string Name, string Environment, string Status, int? LatencyMs, string LastSeen);
+}

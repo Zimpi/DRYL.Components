@@ -1,0 +1,213 @@
+@namespace DRYL.Components
+@typeparam TItem
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTable<TItem> — glass data table with optional KPI summary bar.
+
+    Usage (minimal):
+      <DrylTable Items="@services" AriaLabel="Services">
+          <HeaderContent>
+              <th>Service</th>
+              <th>Status</th>
+          </HeaderContent>
+          <RowTemplate Context="s">
+              <td class="tbl-td-primary">@s.Name</td>
+              <td><DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge></td>
+          </RowTemplate>
+      </DrylTable>
+
+    Usage (with KPI summary bar):
+      <DrylTable Items="@services" AriaLabel="Services" Selectable>
+          <SummaryContent>
+              <DrylTableKpi Label="Total Services" Value="@services.Count.ToString()"
+                            Delta="+2" DeltaKind="DrylTableKpi.KpiDeltaKind.Positive" Trend="DrylTableKpi.KpiTrend.Up" />
+          </SummaryContent>
+          <HeaderContent>
+              <th>Service</th>
+          </HeaderContent>
+          <RowTemplate Context="s">
+              <td class="tbl-td-primary">@s.Name</td>
+          </RowTemplate>
+      </DrylTable>
+
+    Place <DrylTableKpi> components inside <SummaryContent>.
+    Use class="tbl-td-primary" on the main identifier cell.
+    Use class="tbl-col-check" on custom checkbox-column <th> if you add one manually.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@WrapperClass" @attributes="AdditionalAttributes">
+
+    @if (SummaryContent is not null)
+    {
+        <div class="tbl-summary">
+            @SummaryContent
+        </div>
+    }
+
+    <div class="tbl-wrap">
+        <table class="tbl" aria-label="@AriaLabel" role="grid">
+            <thead>
+                <tr>
+                    @if (Selectable)
+                    {
+                        <th class="tbl-col-check" scope="col">
+                            <input type="checkbox"
+                                   class="checkbox"
+                                   checked="@AllSelected"
+                                   @onchange="ToggleAll"
+                                   aria-label="Select all rows" />
+                        </th>
+                    }
+                    @HeaderContent
+                </tr>
+            </thead>
+            <tbody>
+                @if (Loading)
+                {
+                    <tr class="tbl-loading-row">
+                        <td colspan="99" aria-label="Loading">
+                            <div style="display:flex; align-items:center; justify-content:center; padding: var(--sp-7) 0;">
+                                <span class="spinner" role="status" aria-label="Loading data…"></span>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else if (!Items.Any())
+                {
+                    <tr class="tbl-empty-row">
+                        <td colspan="99">
+                            @if (EmptyContent is not null)
+                            {
+                                @EmptyContent
+                            }
+                            else
+                            {
+                                <span>No data</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Items)
+                    {
+                        var selected = _selected.Contains(item);
+                        <tr class="@(selected ? "tbl-row--selected" : null)"
+                            @onclick="() => HandleRowClick(item)"
+                            @key="item"
+                            aria-selected="@(Selectable ? selected.ToString().ToLower() : null)">
+
+                            @if (Selectable)
+                            {
+                                <td class="tbl-col-check" @onclick:stopPropagation>
+                                    <input type="checkbox"
+                                           class="checkbox"
+                                           checked="@selected"
+                                           @onchange="() => ToggleRow(item)"
+                                           aria-label="Select row" />
+                                </td>
+                            }
+
+                            @RowTemplate!(item)
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+@code {
+    /// <summary>The data items to display. Required.</summary>
+    [Parameter, EditorRequired]
+    public IEnumerable<TItem> Items { get; set; } = [];
+
+    /// <summary>
+    /// Optional KPI summary tiles rendered above the table headers.
+    /// Place <see cref="DrylTableKpi"/> components here.
+    /// </summary>
+    [Parameter] public RenderFragment? SummaryContent { get; set; }
+
+    /// <summary>
+    /// Table header cells. Render <c>&lt;th&gt;</c> elements directly.
+    /// The existing <c>.tbl th</c> styles apply automatically.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public RenderFragment? HeaderContent { get; set; }
+
+    /// <summary>
+    /// Row template for each item. Render <c>&lt;td&gt;</c> elements directly.
+    /// Add <c>class="tbl-td-primary"</c> to the main identifier cell.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public RenderFragment<TItem>? RowTemplate { get; set; }
+
+    /// <summary>Rendered when <see cref="Items"/> is empty. Defaults to "No data".</summary>
+    [Parameter] public RenderFragment? EmptyContent { get; set; }
+
+    /// <summary>If true, a checkbox column is prepended and row selection is enabled.</summary>
+    [Parameter] public bool Selectable { get; set; }
+
+    /// <summary>Two-way bindable set of currently selected items.</summary>
+    [Parameter] public IReadOnlySet<TItem>? SelectedItems { get; set; }
+
+    /// <summary>Raised when the selection changes.</summary>
+    [Parameter] public EventCallback<IReadOnlySet<TItem>> SelectedItemsChanged { get; set; }
+
+    /// <summary>Raised when a data row is clicked.</summary>
+    [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
+
+    /// <summary>If true, renders a loading spinner in place of rows.</summary>
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>
+    /// If true (default), wraps the table in a glass card surface.
+    /// Set to false when the table is already inside a <see cref="DrylCard"/>.
+    /// </summary>
+    [Parameter] public bool Bordered { get; set; } = true;
+
+    /// <summary>Accessible label for the <c>&lt;table&gt;</c> element.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Pass-through HTML attributes applied to the outermost element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly HashSet<TItem> _selected = [];
+
+    private bool AllSelected =>
+        Items.Any() && Items.All(i => _selected.Contains(i));
+
+    private string WrapperClass =>
+        Bordered ? "glass-card p-0 tbl-root" : "tbl-root";
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedItems is null) return;
+        _selected.Clear();
+        foreach (var item in SelectedItems)
+            _selected.Add(item);
+    }
+
+    private async Task ToggleRow(TItem item)
+    {
+        if (!_selected.Remove(item))
+            _selected.Add(item);
+        await SelectedItemsChanged.InvokeAsync(new HashSet<TItem>(_selected));
+    }
+
+    private async Task ToggleAll(ChangeEventArgs e)
+    {
+        if (e.Value is true)
+            foreach (var item in Items)
+                _selected.Add(item);
+        else
+            _selected.Clear();
+
+        await SelectedItemsChanged.InvokeAsync(new HashSet<TItem>(_selected));
+    }
+
+    private Task HandleRowClick(TItem item) =>
+        OnRowClick.InvokeAsync(item);
+}
