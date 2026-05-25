@@ -2,8 +2,8 @@
 
 An open-source UI component library for **Blazor Server** and **Blazor WebAssembly** with an unapologetically modern, dark aesthetic.
 
-> **Status: Work in progress — not production-ready.**
-> DRYL is being built in the open. The design system is in place and the first reference components exist, but the library is **not yet suitable for production use**. Expect breaking changes, missing components, and rough edges until `1.0`.
+> **Status: Early development — not production-ready.**
+> DRYL is being built in the open. The design system is in place and several reference components exist, but the library is **not yet suitable for production use**. Expect breaking changes, missing components, and rough edges until `1.0`.
 
 ---
 
@@ -27,38 +27,33 @@ The goal is a small, opinionated set of components — buttons, cards, inputs, t
 
 ## Preview
 
-> Screenshots will follow as components land. The placeholders below point to where they'll live.
-
 ### Design system overview
-<!-- screenshot: full prototype overview -->
 ![DRYL — design system overview](docs/screenshots/overview.png)
 
 ### Buttons
-<!-- screenshot: DrylButton variants (Primary / Secondary / Ghost / Danger) + sizes + loading -->
 ![DrylButton — variants and states](docs/screenshots/buttons.png)
 
 ### Cards
-<!-- screenshot: DrylCard with cursor spotlight -->
 ![DrylCard — glass surface with cursor spotlight](docs/screenshots/cards.png)
-
-### Badges
-<!-- screenshot: DrylBadge kinds (Neutral / Accent / Success / Warning / Danger) -->
-![DrylBadge — status pills](docs/screenshots/badges.png)
 
 ---
 
 ## What's in the box (today)
 
-| Component       | Status     | Notes                                              |
-| --------------- | ---------- | -------------------------------------------------- |
-| `DrylButton`    | Reference  | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots |
-| `DrylCard`      | Reference  | Glass surface with optional cursor-tracking spotlight |
-| `DrylBadge`     | Reference  | Neutral / Accent / Success / Warning / Danger, optional dot |
-| `DrylIcon`      | Planned    | Referenced by Button & Badge — next on the list    |
-| `DrylInputText` | Planned    | Form-bound input with leading/trailing icons       |
-| `DrylTable`     | Planned    | Data grid with sticky header, sortable columns     |
-| `DrylModal`     | Planned    | Glass overlay with focus trap                      |
-| `DrylToast`     | Planned    | Programmatic notifications via service             |
+| Component       | Category | Status    | Notes                                                              |
+| --------------- | -------- | --------- | ------------------------------------------------------------------ |
+| `DrylButton`    | Actions  | ✅ Done   | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots  |
+| `DrylCard`      | Surfaces | ✅ Done   | Glass surface with optional cursor-tracking spotlight              |
+| `DrylBadge`     | Data     | ✅ Done   | Neutral / Accent / Success / Warning / Danger, optional dot       |
+| `DrylIcon`      | Data     | ✅ Done   | Lucide-based icon set, used by Button, Badge and others           |
+| `DrylInputText` | Inputs   | ✅ Done   | Form-bound text input with leading / trailing icon slots          |
+| `DrylCheckbox`  | Inputs   | ✅ Done   | Accessible checkbox with label                                    |
+| `DrylSelect`    | Inputs   | ✅ Done   | Styled select bound to `EditForm`                                 |
+| `DrylTextarea`  | Inputs   | ✅ Done   | Auto-resizable textarea                                           |
+| `DrylToggle`    | Inputs   | ✅ Done   | On/off toggle switch                                              |
+| `DrylTable`     | Data     | 🔜 Planned | Data grid with sticky header, sortable columns                   |
+| `DrylModal`     | Surfaces | 🔜 Planned | Glass overlay with focus trap                                    |
+| `DrylToast`     | Surfaces | 🔜 Planned | Programmatic notifications via service                           |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 
@@ -69,19 +64,19 @@ For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`C
 ```
 DRYL.Components/             The library (Razor Class Library, .NET 10)
   Components/
-    Actions/                 DrylButton, ...
-    Surfaces/                DrylCard, ...
-    Data/                    DrylBadge, ...
+    Actions/                 DrylButton
+    Data/                    DrylBadge, DrylIcon
+    Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
+    Surfaces/                DrylCard
   wwwroot/
     dryl.css                 The single stylesheet — every token, every primitive
     js/dryl.js               Minimal JS interop (namespaced as window.dryl.*)
 
-samples/DRYL.Components.Demo/   Sample Blazor app showing the components live
-prototype/                       Original HTML/JSX prototype — visual target
+samples/DRYL.Components.Demo/   Sample Blazor app showing all components live
+prototype/                       Original HTML prototype — visual target
 CLAUDE.md                        Rules for AI agents contributing to DRYL
 DESIGN_TOKENS.md                 Token reference
 COMPONENT_PATTERNS.md            Component anatomy & folder conventions
-SETUP.md                         Quick-start guide for new consumers
 ```
 
 ---
@@ -91,7 +86,7 @@ SETUP.md                         Quick-start guide for new consumers
 DRYL is not yet published to NuGet. To explore the demo app:
 
 ```bash
-git clone https://github.com/<your-handle>/DRYL.Components.git
+git clone https://github.com/Zimpi/DRYL.Components.git
 cd DRYL.Components
 dotnet run --project samples/DRYL.Components.Demo
 ```
