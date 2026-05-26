@@ -1226,30 +1226,353 @@ code, .code-inline {
   box-shadow: 0 0 0 2px var(--bg-0), 0 0 12px rgba(124,92,255,0.4);
 }
 
-/* Toast */
-.toast {
+/* ============== TOASTS (DrylToast + DrylToastProvider) ============== */
+
+/* Fixed-position host that holds the toast stack. pointer-events:none lets
+   clicks pass through the empty space; each .toast-slot re-enables them. */
+.toast-host {
+  position: fixed;
+  z-index: var(--z-toast);
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  pointer-events: none;
+  max-width: min(440px, calc(100vw - var(--sp-7)));
+  width: max-content;
+}
+
+.toast-host.is-top-right     { top: 0;    right: 0; }
+.toast-host.is-top-left      { top: 0;    left: 0; }
+.toast-host.is-top-center    { top: 0;    left: 50%; transform: translateX(-50%); }
+.toast-host.is-bottom-right  { bottom: 0; right: 0; flex-direction: column-reverse; }
+.toast-host.is-bottom-left   { bottom: 0; left: 0; flex-direction: column-reverse; }
+.toast-host.is-bottom-center { bottom: 0; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
+
+.toast-slot { pointer-events: auto; }
+
+.toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  padding-right: 38px;          /* room for the close button */
+  padding-bottom: calc(var(--sp-4) + 2px); /* room for the progress bar */
   border-radius: var(--r-md);
-  background: rgba(20,20,28,0.85);
-  backdrop-filter: blur(16px);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    rgba(10, 10, 14, 0.78);
   border: 1px solid var(--line-strong);
-  box-shadow: var(--shadow-md);
-  min-width: 320px;
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    var(--shadow-md);
+  min-width: 280px;
+  max-width: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.45;
+  /* Direction-aware entrance is set further down per host position. */
+  animation: toast-in-right var(--dur-slow) var(--ease-spring) both;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
-.toast .ico {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  display: grid; place-content: center;
+
+/* Subtle lift on hover — combined with the pause on progress this signals
+   "I'm holding this open so you can read me". */
+.toast:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    var(--shadow-lg);
 }
-.toast.success .ico { background: rgba(52,211,153,0.15); color: var(--success); }
-.toast.warning .ico { background: rgba(251,191,36,0.15); color: var(--warning); }
-.toast.error   .ico { background: rgba(248,113,113,0.15); color: var(--danger); }
-.toast.info    .ico { background: var(--accent-soft); color: #c4b5fd; }
-.toast .title { font-weight: 500; font-size: 13px; }
-.toast .body { font-size: 12px; color: var(--fg-muted); }
+
+/* One-shot shine sweep across the toast shortly after entry. Pure delight. */
+.toast::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.09) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: toast-shine 1300ms var(--ease-out) 220ms both;
+  pointer-events: none;
+  z-index: 3;
+  mix-blend-mode: overlay;
+}
+@keyframes toast-shine {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Direction-aware entry — slide in from the edge nearest the anchor. */
+.toast-host.is-top-right .toast,
+.toast-host.is-bottom-right .toast { animation-name: toast-in-right; }
+
+.toast-host.is-top-left .toast,
+.toast-host.is-bottom-left .toast  { animation-name: toast-in-left; }
+
+.toast-host.is-top-center .toast    { animation-name: toast-in-top; }
+.toast-host.is-bottom-center .toast { animation-name: toast-in-bottom; }
+
+@keyframes toast-in-right {
+  0%   { opacity: 0; transform: translateX(120%) scale(0.85); filter: blur(6px); }
+  60%  { opacity: 1; transform: translateX(-3%)  scale(1.02); filter: blur(0); }
+  100% { opacity: 1; transform: translateX(0)    scale(1);    filter: blur(0); }
+}
+@keyframes toast-in-left {
+  0%   { opacity: 0; transform: translateX(-120%) scale(0.85); filter: blur(6px); }
+  60%  { opacity: 1; transform: translateX(3%)    scale(1.02); filter: blur(0); }
+  100% { opacity: 1; transform: translateX(0)     scale(1);    filter: blur(0); }
+}
+@keyframes toast-in-top {
+  0%   { opacity: 0; transform: translateY(-110%) scale(0.9); filter: blur(6px); }
+  60%  { opacity: 1; transform: translateY(5%)    scale(1.02); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0)     scale(1);    filter: blur(0); }
+}
+@keyframes toast-in-bottom {
+  0%   { opacity: 0; transform: translateY(110%) scale(0.9); filter: blur(6px); }
+  60%  { opacity: 1; transform: translateY(-5%)  scale(1.02); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0)    scale(1);    filter: blur(0); }
+}
+
+/* Exit keyframes — single shared animation. JS listens for `toast-out`
+   animationend and tells .NET to drop the entry from the stack. The
+   actual exit *rule* is defined further down so it wins over the
+   direction-aware and ai-generated animation overrides. */
+@keyframes toast-out {
+  to { opacity: 0; transform: scale(0.92) translateY(-6px); filter: blur(3px); }
+}
+
+/* Icon chip — pops with spring after the toast itself lands. */
+.toast-icon-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-content: center;
+  background: var(--glass-2);
+  color: var(--fg-muted);
+  border: 1px solid var(--line-strong);
+  animation: toast-icon-pop var(--dur-slow) var(--ease-spring) 120ms both;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+@keyframes toast-icon-pop {
+  0%   { opacity: 0; transform: rotate(-18deg) scale(0.3); }
+  60%  { opacity: 1; transform: rotate(8deg)   scale(1.15); }
+  100% { opacity: 1; transform: rotate(0)      scale(1); }
+}
+
+/* Body content column */
+.toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+}
+.toast-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.005em;
+}
+.toast-body {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+.toast-title + .toast-body { margin-top: 2px; }
+
+/* Close button */
+.toast-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-content: center;
+  border-radius: var(--r-xs);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition:
+    color        var(--dur-fast) var(--ease-out),
+    background   var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+  z-index: 5;
+}
+.toast-close:hover {
+  color: var(--fg);
+  background: var(--glass-2);
+  border-color: var(--line);
+}
+.toast-close:focus-visible {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* Progress bar — single source of truth for auto-dismiss. The CSS animation
+   drives both the visual countdown and (via animationend in dryl.toast.js)
+   the actual close. `animation-play-state: paused` on hover keeps the
+   timer and the bar perfectly in sync. */
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+  transform-origin: left center;
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  pointer-events: none;
+  z-index: 4;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+.toast-progress.is-hidden { opacity: 0; }
+.toast:hover .toast-progress { animation-play-state: paused; }
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ── Variants — semantic accent on icon chip, colored left rail, soft glow.
+   The left rail is drawn with an inset box-shadow so the radius still clips
+   it cleanly. */
+.toast.toast-success {
+  border-color: rgba(52, 211, 153, 0.28);
+  box-shadow:
+    inset 3px 0 0 var(--success),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    var(--shadow-md),
+    0 0 32px rgba(52, 211, 153, 0.18);
+}
+.toast.toast-success .toast-icon-chip {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--success);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+.toast.toast-success .toast-progress {
+  background: linear-gradient(90deg, var(--success), #6ee7b7);
+}
+
+.toast.toast-warning {
+  border-color: rgba(251, 191, 36, 0.28);
+  box-shadow:
+    inset 3px 0 0 var(--warning),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    var(--shadow-md),
+    0 0 32px rgba(251, 191, 36, 0.18);
+}
+.toast.toast-warning .toast-icon-chip {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+.toast.toast-warning .toast-progress {
+  background: linear-gradient(90deg, var(--warning), #fcd34d);
+}
+
+.toast.toast-error {
+  border-color: rgba(248, 113, 113, 0.32);
+  box-shadow:
+    inset 3px 0 0 var(--danger),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    var(--shadow-md),
+    0 0 36px rgba(248, 113, 113, 0.22);
+}
+.toast.toast-error .toast-icon-chip {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+.toast.toast-error .toast-progress {
+  background: linear-gradient(90deg, var(--danger), #fca5a5);
+}
+
+.toast.toast-info {
+  border-color: rgba(34, 211, 238, 0.28);
+  box-shadow:
+    inset 3px 0 0 var(--info),
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    var(--shadow-md),
+    0 0 32px rgba(34, 211, 238, 0.18);
+}
+.toast.toast-info .toast-icon-chip {
+  background: rgba(34, 211, 238, 0.15);
+  color: var(--info);
+  border-color: rgba(34, 211, 238, 0.35);
+}
+.toast.toast-info .toast-progress {
+  background: linear-gradient(90deg, var(--info), #67e8f9);
+}
+
+/* ── AI dominance (CLAUDE.md §2.10) ── When .ai-aura is set, the rotating
+   gradient ring and breathing glow take over the visual; the variant left
+   rail and tinted border step back so the AI signal reads cleanly. The
+   variant accent survives only on the icon chip so a user can still tell
+   "AI delivered a success / warning / error". */
+.toast.ai-aura {
+  border-color: var(--accent-line);
+}
+.toast.ai-aura.toast-success,
+.toast.ai-aura.toast-warning,
+.toast.ai-aura.toast-error,
+.toast.ai-aura.toast-info {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    var(--shadow-md);
+}
+/* The host has overflow:hidden so the outer ai-aura ring/glow would be
+   clipped. Pull them inside the bounds — same trick as DrylTable. */
+.toast.ai-aura .ai-aura-ring { inset: 0; }
+.toast.ai-aura .ai-aura-glow {
+  box-shadow:
+    inset 0 0 0 1px var(--accent-line),
+    inset 0 0 32px rgba(124, 92, 255, 0.18),
+    inset 0 0 64px rgba(34, 211, 238, 0.08);
+}
+.toast.ai-aura .toast-progress {
+  background: var(--accent-grad);
+}
+/* The standard ai-generated translate would conflict with the entrance lift. */
+.toast.ai-aura.ai-generated { animation: none; }
+
+/* Exit animation — placed last with .toast-host scoping so the specificity
+   (0,3,0) matches the direction rules and the ai-generated override, and
+   source order makes this rule win. Without this, .toast.is-leaving (0,2,0)
+   would lose to those, the exit animation would never play, animationend
+   would never fire for `toast-out`, and the toast would sit on screen
+   forever — close button included. */
+.toast-host .toast.is-leaving {
+  animation: toast-out var(--dur-med) var(--ease-out) forwards;
+  pointer-events: none;
+}
+.toast-host .toast.is-leaving::after          { animation: none; opacity: 0; }
+.toast-host .toast.is-leaving .toast-progress { animation: none; opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast::after,
+  .toast-icon-chip,
+  .toast-progress { animation: none; }
+  .toast:hover { transform: none; }
+}
 
 /* Skeleton */
 .skel {

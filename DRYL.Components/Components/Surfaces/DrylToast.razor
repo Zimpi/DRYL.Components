@@ -1,0 +1,199 @@
+@namespace DRYL.Components
+@using DRYL.Components.Toasts
+
+@*  ─────────────────────────────────────────────────────────
+    DrylToast — the visual shell rendered by DrylToastProvider
+    for every active toast. End users rarely place this directly;
+    they call IDrylToastService.Show* and the provider handles the
+    rendering.
+
+    A toast has three render modes:
+      1. Message only:           Toasts.Show("Saved.")
+      2. Title + message:        Toasts.ShowSuccess("Profile updated.", "Saved")
+      3. Title + custom body:    Toasts.Show<MyBody>(parameters, options)
+
+    AI dominance rule (see CLAUDE.md §2.10): when Ai != None, the
+    AI aura visuals (ring + glow) take over; the semantic variant
+    accent survives only on the icon chip.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass"
+     role="@AriaRole"
+     aria-live="@AriaLive"
+     @attributes="AdditionalAttributes">
+
+    @if (EffectiveAi != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (EffectiveAi == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    @if (!string.IsNullOrEmpty(ResolvedIcon))
+    {
+        <div class="toast-icon-chip">
+            <DrylIcon Name="@ResolvedIcon" Size="14" />
+        </div>
+    }
+
+    <div class="toast-content">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="toast-title">@Title</div>
+        }
+        @if (ChildContent is not null)
+        {
+            <div class="toast-body">@ChildContent</div>
+        }
+        else if (!string.IsNullOrEmpty(Message))
+        {
+            <div class="toast-body">@Message</div>
+        }
+    </div>
+
+    @if (ShowCloseButton)
+    {
+        <button type="button"
+                class="toast-close"
+                aria-label="Dismiss notification"
+                @onclick="HandleClose">
+            <DrylIcon Name="X" Size="12" />
+        </button>
+    }
+
+    @if (Duration > 0)
+    {
+        <div class="@(ShowProgress ? "toast-progress" : "toast-progress is-hidden")"
+             style="@ProgressStyle"></div>
+    }
+</div>
+
+@code {
+    /// <summary>Semantic flavor — drives icon, accent color, glow.</summary>
+    [Parameter] public ToastVariant Variant { get; set; } = ToastVariant.Default;
+
+    /// <summary>Optional toast title (stronger weight, above the message).</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Plain-text message body. Ignored if <see cref="ChildContent"/> is set.</summary>
+    [Parameter] public string? Message { get; set; }
+
+    /// <summary>Custom body slot — replaces <see cref="Message"/> when provided.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Icon name override. Empty string suppresses the icon entirely.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>If true (default), shows a close (×) button.</summary>
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+
+    /// <summary>If true (default) and <see cref="Duration"/> &gt; 0, shows the progress bar.</summary>
+    [Parameter] public bool ShowProgress { get; set; } = true;
+
+    /// <summary>Auto-dismiss duration in ms. Drives the progress bar length. 0 disables both.</summary>
+    [Parameter] public int Duration { get; set; } = 5000;
+
+    /// <summary>AI ambient state. Defaults to <see cref="AiState.None"/>.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>If true (set by the provider during exit), plays the exit animation.</summary>
+    [Parameter] public bool IsLeaving { get; set; }
+
+    /// <summary>Fired when the user clicks the close button.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>Cascading toast instance — present when rendered by the provider.</summary>
+    [CascadingParameter] public IDrylToastInstance? Instance { get; set; }
+
+    /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    private AiState EffectiveAi => Ai != AiState.None ? Ai : (Instance?.Ai ?? AiState.None);
+
+    private string? ResolvedIcon
+    {
+        get
+        {
+            if (Icon is not null) return Icon.Length == 0 ? null : Icon;
+            return Variant switch
+            {
+                ToastVariant.Success => "Check",
+                ToastVariant.Warning => "Alert",
+                ToastVariant.Error   => "Alert",
+                ToastVariant.Info    => "Info",
+                _ => null
+            };
+        }
+    }
+
+    private string AriaRole => Variant == ToastVariant.Error || Variant == ToastVariant.Warning
+        ? "alert"
+        : "status";
+
+    private string AriaLive => Variant == ToastVariant.Error || Variant == ToastVariant.Warning
+        ? "assertive"
+        : "polite";
+
+    private string ProgressStyle =>
+        System.FormattableString.Invariant($"animation-duration:{Duration}ms;");
+
+    protected override void OnParametersSet()
+    {
+        var current = EffectiveAi;
+        if (current == AiState.Generated && _prevAi != AiState.Generated)
+        {
+            _genTick++;
+        }
+        _prevAi = current;
+    }
+
+    private Task HandleClose()
+    {
+        if (OnClose.HasDelegate)
+        {
+            return OnClose.InvokeAsync();
+        }
+        Instance?.Close();
+        return Task.CompletedTask;
+    }
+
+    private string CssClass
+    {
+        get
+        {
+            var classes = new List<string> { "toast" };
+            classes.Add(Variant switch
+            {
+                ToastVariant.Success => "toast-success",
+                ToastVariant.Warning => "toast-warning",
+                ToastVariant.Error   => "toast-error",
+                ToastVariant.Info    => "toast-info",
+                _ => "toast-default"
+            });
+
+            if (IsLeaving) classes.Add("is-leaving");
+
+            if (Instance is not null && !string.IsNullOrWhiteSpace(Instance.Options.Class))
+            {
+                classes.Add(Instance.Options.Class);
+            }
+
+            var ai = EffectiveAi;
+            if (ai != AiState.None) classes.Add("ai-aura");
+            switch (ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+}

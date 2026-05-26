@@ -1,0 +1,210 @@
+@namespace DRYL.Components
+@using DRYL.Components.Toasts
+@inject IDrylToastService ToastService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylToastProvider — host for service-driven toasts.
+
+    Place once in your root layout (e.g. MainLayout.razor):
+        <DrylToastProvider Position="ToastPosition.BottomRight" />
+
+    It subscribes to IDrylToastService, renders the active stack
+    inside a fixed anchor, cascades IDrylToastInstance to custom
+    toast bodies, and hands the auto-dismiss timer to JS so the
+    CSS animation-play-state hover pause stays in lockstep with
+    the actual close.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@HostCssClass" aria-live="polite">
+    @foreach (var entry in _entries)
+    {
+        <CascadingValue Value="@((IDrylToastInstance)entry.Reference)" IsFixed="false">
+            <div class="toast-slot" @ref="entry.ElementRef" @key="entry.Reference.Id">
+                @if (entry.Reference.BodyType is not null)
+                {
+                    <DrylToast Variant="entry.Reference.Options.Variant"
+                               Title="@entry.Reference.Options.Title"
+                               Icon="@entry.Reference.Options.Icon"
+                               Duration="entry.Reference.Options.Duration"
+                               ShowCloseButton="entry.Reference.Options.ShowCloseButton"
+                               ShowProgress="entry.Reference.Options.ShowProgress"
+                               Ai="entry.Reference.Ai"
+                               IsLeaving="entry.IsLeaving"
+                               OnClose="@(() => RequestClose(entry))">
+                        <DynamicComponent Type="@entry.Reference.BodyType"
+                                          Parameters="@entry.Reference.BodyParameters" />
+                    </DrylToast>
+                }
+                else
+                {
+                    <DrylToast Variant="entry.Reference.Options.Variant"
+                               Title="@entry.Reference.Options.Title"
+                               Message="@entry.Reference.Message"
+                               Icon="@entry.Reference.Options.Icon"
+                               Duration="entry.Reference.Options.Duration"
+                               ShowCloseButton="entry.Reference.Options.ShowCloseButton"
+                               ShowProgress="entry.Reference.Options.ShowProgress"
+                               Ai="entry.Reference.Ai"
+                               IsLeaving="entry.IsLeaving"
+                               OnClose="@(() => RequestClose(entry))" />
+                }
+            </div>
+        </CascadingValue>
+    }
+</div>
+
+@code {
+    /// <summary>Anchor position for the toast stack. Default: BottomRight.</summary>
+    [Parameter] public ToastPosition Position { get; set; } = ToastPosition.BottomRight;
+
+    internal sealed class Entry
+    {
+        public DrylToastReference Reference { get; init; } = default!;
+        public ElementReference ElementRef;
+        public DotNetObjectReference<ToastCallbacks>? DotNetRef;
+        public bool Attached;
+        public bool IsLeaving;
+    }
+
+    private readonly List<Entry> _entries = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnToastAdded          += OnAdded;
+        ToastService.OnToastCloseRequested += OnCloseRequested;
+        ToastService.OnToastUpdated        += OnUpdated;
+    }
+
+    private void OnAdded(IDrylToastReference reference)
+    {
+        if (reference is DrylToastReference impl)
+        {
+            _entries.Add(new Entry { Reference = impl });
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnCloseRequested(IDrylToastReference reference)
+    {
+        var entry = _entries.FirstOrDefault(e => e.Reference.Id == reference.Id);
+        if (entry is null || entry.IsLeaving) return;
+        BeginLeave(entry);
+    }
+
+    private void OnUpdated(IDrylToastReference reference)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RequestClose(Entry entry)
+    {
+        if (entry.IsLeaving) return;
+        entry.Reference.Close();
+    }
+
+    private void BeginLeave(Entry entry)
+    {
+        entry.IsLeaving = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        foreach (var entry in _entries.Where(e => !e.Attached).ToList())
+        {
+            entry.DotNetRef = DotNetObjectReference.Create(new ToastCallbacks(this, entry));
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.toast.attach", entry.ElementRef, entry.DotNetRef);
+                entry.Attached = true;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+    }
+
+    private async Task FinalizeRemoval(Entry entry)
+    {
+        await DetachInterop(entry);
+        _entries.Remove(entry);
+        DrylToastService? svc = ToastService as DrylToastService;
+        svc?.NotifyRemoved(entry.Reference);
+        StateHasChanged();
+    }
+
+    private async Task DetachInterop(Entry entry)
+    {
+        if (!entry.Attached) return;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.toast.detach", entry.ElementRef);
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        entry.DotNetRef?.Dispose();
+        entry.DotNetRef = null;
+        entry.Attached = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        ToastService.OnToastAdded          -= OnAdded;
+        ToastService.OnToastCloseRequested -= OnCloseRequested;
+        ToastService.OnToastUpdated        -= OnUpdated;
+
+        foreach (var entry in _entries.ToList())
+        {
+            await DetachInterop(entry);
+        }
+        _entries.Clear();
+    }
+
+    private string HostCssClass
+    {
+        get
+        {
+            var pos = Position switch
+            {
+                ToastPosition.TopRight     => "is-top-right",
+                ToastPosition.TopLeft      => "is-top-left",
+                ToastPosition.TopCenter    => "is-top-center",
+                ToastPosition.BottomLeft   => "is-bottom-left",
+                ToastPosition.BottomCenter => "is-bottom-center",
+                _                          => "is-bottom-right"
+            };
+            return $"toast-host {pos}";
+        }
+    }
+
+    /// <summary>
+    /// Tiny bridge object exposed to JS so the toast interop can notify .NET when
+    /// auto-dismiss fires or the exit animation finishes.
+    /// </summary>
+    internal sealed class ToastCallbacks
+    {
+        private readonly DrylToastProvider _provider;
+        private readonly Entry _entry;
+
+        public ToastCallbacks(DrylToastProvider provider, Entry entry)
+        {
+            _provider = provider;
+            _entry = entry;
+        }
+
+        [JSInvokable]
+        public Task OnExpired()
+        {
+            if (_entry.IsLeaving) return Task.CompletedTask;
+            return _provider.InvokeAsync(() =>
+            {
+                _entry.Reference.Close();
+            });
+        }
+
+        [JSInvokable]
+        public Task OnExitFinished()
+        {
+            return _provider.InvokeAsync(() => _provider.FinalizeRemoval(_entry));
+        }
+    }
+}

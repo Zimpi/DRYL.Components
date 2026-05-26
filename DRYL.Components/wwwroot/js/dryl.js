@@ -110,3 +110,53 @@ window.dryl.modal = (() => {
 
     return { attach, detach };
 })();
+
+/* --------------------------------------------------------------
+ * Toast — wire the auto-dismiss timer and the exit animation
+ * lifecycle. The CSS animation on .toast-progress is the single
+ * source of truth for "how long does the toast live": browsers
+ * pause animations under `animation-play-state: paused`, which
+ * keeps hover-pause perfectly in sync with the visible bar.
+ *
+ *   OnExpired       — fired when the progress animation finishes.
+ *   OnExitFinished  — fired when the .toast.is-leaving animation
+ *                     finishes (so .NET can remove the entry).
+ * -------------------------------------------------------------- */
+window.dryl.toast = (() => {
+    function attach(slot, dotnetRef) {
+        if (!slot || slot.__drylToast) return;
+        const toast = slot.querySelector('.toast');
+        if (!toast) return;
+        const progress = toast.querySelector('.toast-progress');
+
+        const onToastAnim = (e) => {
+            // Only react to the exit animation on the toast itself.
+            if (e.target !== toast) return;
+            if (e.animationName === 'toast-out') {
+                dotnetRef.invokeMethodAsync('OnExitFinished');
+            }
+        };
+
+        const onProgressAnim = (e) => {
+            if (e.target !== progress) return;
+            if (e.animationName === 'toast-progress') {
+                dotnetRef.invokeMethodAsync('OnExpired');
+            }
+        };
+
+        toast.addEventListener('animationend', onToastAnim);
+        if (progress) progress.addEventListener('animationend', onProgressAnim);
+
+        slot.__drylToast = { toast, progress, onToastAnim, onProgressAnim };
+    }
+
+    function detach(slot) {
+        if (!slot || !slot.__drylToast) return;
+        const { toast, progress, onToastAnim, onProgressAnim } = slot.__drylToast;
+        toast.removeEventListener('animationend', onToastAnim);
+        if (progress) progress.removeEventListener('animationend', onProgressAnim);
+        delete slot.__drylToast;
+    }
+
+    return { attach, detach };
+})();

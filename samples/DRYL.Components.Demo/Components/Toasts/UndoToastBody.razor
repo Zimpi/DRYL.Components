@@ -1,0 +1,39 @@
+@*  Sample custom toast body — demonstrates rendering a button inside a toast.
+    Receives an IDrylToastInstance via cascading parameter so the "Undo" button
+    can close its own toast as part of the user's action.                       *@
+
+<div class="col" style="gap: var(--sp-2);">
+    <span style="color: var(--fg-muted); font-size: 12.5px;">
+        Project <strong style="color: var(--fg);">@ProjectName</strong> was archived.
+    </span>
+    <div class="row" style="gap: var(--sp-2);">
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                    Size="DrylButton.ButtonSize.Small"
+                    LeadingIcon="ArrowUp"
+                    OnClick="HandleUndo">
+            Undo
+        </DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                    Size="DrylButton.ButtonSize.Small"
+                    OnClick="HandleDismiss">
+            Dismiss
+        </DrylButton>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string ProjectName { get; set; } = "";
+
+    /// <summary>Called when the user clicks Undo. The toast closes regardless.</summary>
+    [Parameter] public EventCallback OnUndo { get; set; }
+
+    [CascadingParameter] public IDrylToastInstance? Toast { get; set; }
+
+    private async Task HandleUndo()
+    {
+        if (OnUndo.HasDelegate) await OnUndo.InvokeAsync();
+        Toast?.Close();
+    }
+
+    private void HandleDismiss() => Toast?.Close();
+}
