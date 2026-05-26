@@ -57,6 +57,9 @@ Every component reads from a single token file ([`dryl.css`](DRYL.Components/www
 ### Dialog
 ![DrylDialog — service-driven glass dialog with Human-in-the-Middle AI flow](docs/screenshots/dialog.png)
 
+### Alerts
+![DrylAlert — five variants with optional title, dismiss button and AI mode](docs/screenshots/alerts.png)
+
 ---
 
 ## AI Mode — first-class citizen
@@ -82,6 +85,7 @@ All AI-aware components share the same `Ai="AiState.X"` API. The effects are imp
 - **`DrylInputText` / `DrylTextarea`** — ring wraps the input field; ideal for prompts bound to streaming completions
 - **`DrylTable`** — ring wraps the full table; rows animate in as they stream
 - **`DrylExpansion`** — ring wraps the panel header; the panel can open automatically when the model starts streaming its body
+- **`DrylAlert`** — ring wraps the feedback banner; ideal for surfacing AI-generated warnings, summaries or status updates with a dedicated `Ai` kind
 - **`DrylAiIndicator`** — companion status pill that adapts its label and pulse speed to the current state
 
 ### Wiring with `Microsoft.Extensions.AI`
@@ -231,6 +235,8 @@ Every step is visible to the user through the dialog's border and glow — the m
 | `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row with icon and active highlighting; supports external links |
 | `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
 | `DrylToast`       | Surfaces     | ✅      | ✅ Done    | Service-driven toast stack; auto-dismiss, progress bar, hover-pause, 6 positions |
+| `DrylTooltip`     | Feedback     | —       | ✅ Done    | CSS-only hover tooltip; 4 placements (Top / Bottom / Left / Right), wraps any trigger |
+| `DrylAlert`       | Feedback     | ✅      | ✅ Done    | Feedback-Banner; 5 Varianten (Info / Success / Warning / Danger / Ai), optionaler Titel, Dismissible, AI-aware |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 

@@ -1,0 +1,168 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAlert — Feedback-Banner für Hinweise, Statusmeldungen und KI-Inhalte.
+
+    Usage:
+      <DrylAlert Kind="AlertKind.Success" Title="Gespeichert">
+          Alle Änderungen wurden erfolgreich übernommen.
+      </DrylAlert>
+
+      <DrylAlert Kind="AlertKind.Ai" Title="KI-generierter Inhalt"
+                 Ai="AiState.Generated" Dismissible OnDismiss="HandleDismiss">
+          Der folgende Inhalt wurde von einem KI-Modell erzeugt und sollte
+          vor der Verwendung geprüft werden.
+      </DrylAlert>
+
+    • Kind bestimmt Icon und Akzentfarbe (Info / Success / Warning / Danger / Ai).
+    • Ai treibt den animierten Gradientrahmen — unabhängig von Kind wählbar,
+      damit z. B. ein Warning-Alert signalisieren kann, dass die Prüfung noch läuft.
+    • Icon="" unterdrückt das Icon komplett.
+    • Dismissible zeigt einen Schließen-Button; OnDismiss liefert das Callback.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass"
+     role="@AriaRole"
+     aria-live="@AriaLive"
+     @attributes="AdditionalAttributes">
+
+    @* AI-Aura-Overlays — nur wenn Ai != None *@
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    @* Icon-Chip *@
+    @if (!string.IsNullOrEmpty(ResolvedIcon))
+    {
+        <div class="ico" aria-hidden="true">
+            <DrylIcon Name="@ResolvedIcon" Size="14" />
+        </div>
+    }
+
+    @* Textbereich: Titel + Body *@
+    <div class="alert-content">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="title">@Title</div>
+        }
+        @if (ChildContent is not null)
+        {
+            <div class="body">@ChildContent</div>
+        }
+    </div>
+
+    @* Optionaler Schließen-Button *@
+    @if (Dismissible)
+    {
+        <button class="alert-dismiss"
+                type="button"
+                aria-label="Benachrichtigung schließen"
+                @onclick="HandleDismiss">
+            <DrylIcon Name="X" Size="14" />
+        </button>
+    }
+</div>
+
+@code {
+    /// <summary>Semantische Variante — steuert Icon und Akzentfarbe.</summary>
+    [Parameter] public AlertKind Kind { get; set; } = AlertKind.Info;
+
+    /// <summary>Optionaler Titel, der fett über dem Body-Text erscheint.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Icon-Override. Leerstring <c>""</c> unterdrückt das Icon komplett.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Wenn true, wird ein Schließen-Button angezeigt.</summary>
+    [Parameter] public bool Dismissible { get; set; }
+
+    /// <summary>Wird ausgelöst, wenn der Nutzer den Alert schließt.</summary>
+    [Parameter] public EventCallback OnDismiss { get; set; }
+
+    /// <summary>AI-Ambient-Zustand — treibt Gradientrahmen, Glow und Reveal-Animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Body-Inhalt des Alerts.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML-Attribute (z. B. data-*, style für Layout-Overrides).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        // Wash-Element neu ankern, damit die One-Shot-Animation erneut abspielt.
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+            _genTick++;
+        _prevAi = Ai;
+    }
+
+    private string? ResolvedIcon
+    {
+        get
+        {
+            // Expliziter Override gewinnt; "" = kein Icon
+            if (Icon is not null) return Icon.Length == 0 ? null : Icon;
+            return Kind switch
+            {
+                AlertKind.Success => "Check",
+                AlertKind.Warning => "Alert",
+                AlertKind.Danger  => "Alert",
+                AlertKind.Ai      => "Sparkle",
+                _                 => "Info"         // Info + Fallback
+            };
+        }
+    }
+
+    // Danger/Warning → role="alert" + aria-live="assertive" (unterbricht Screen-Reader)
+    // Alle anderen   → role="status"  + aria-live="polite"
+    private string AriaRole  => Kind == AlertKind.Danger || Kind == AlertKind.Warning ? "alert"      : "status";
+    private string AriaLive  => Kind == AlertKind.Danger || Kind == AlertKind.Warning ? "assertive"  : "polite";
+
+    private string CssClass
+    {
+        get
+        {
+            var kind = Kind switch
+            {
+                AlertKind.Success => "success",
+                AlertKind.Warning => "warning",
+                AlertKind.Danger  => "danger",
+                AlertKind.Ai      => "ai",
+                _                 => "info"
+            };
+
+            var classes = new List<string> { "alert", kind };
+
+            if (Dismissible)              classes.Add("is-dismissible");
+            if (Ai != AiState.None)       classes.Add("ai-aura");
+
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+
+            return string.Join(' ', classes);
+        }
+    }
+
+    private async Task HandleDismiss()
+    {
+        if (OnDismiss.HasDelegate)
+            await OnDismiss.InvokeAsync();
+    }
+
+    /// <summary>Semantische Variante des Alerts.</summary>
+    public enum AlertKind { Info, Success, Warning, Danger, Ai }
+}

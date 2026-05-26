@@ -627,7 +627,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .divider-v { width: 1px; background: var(--line); align-self: stretch; }
 
 .fade-in { animation: fadeIn 480ms var(--ease-out) both; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .stagger > * { animation: rise 520ms var(--ease-out) both; }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
@@ -1793,11 +1793,41 @@ body.dryl-scroll-locked { overflow: hidden; }
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   box-shadow: var(--shadow-md);
-  z-index: 20;
+  z-index: 9000;
 }
 .tt-wrap:hover .tt {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+/* Tooltip — Bottom */
+.tt-bottom {
+  bottom: auto;
+  top: calc(100% + var(--sp-2));
+  transform: translateX(-50%) translateY(-4px);
+}
+.tt-wrap:hover .tt-bottom {
+  transform: translateX(-50%) translateY(0);
+}
+/* Tooltip — Left */
+.tt-left {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: calc(100% + var(--sp-2));
+  transform: translateY(-50%) translateX(4px);
+}
+.tt-wrap:hover .tt-left {
+  transform: translateY(-50%) translateX(0);
+}
+/* Tooltip — Right */
+.tt-right {
+  bottom: auto;
+  top: 50%;
+  left: calc(100% + var(--sp-2));
+  transform: translateY(-50%) translateX(-4px);
+}
+.tt-wrap:hover .tt-right {
+  transform: translateY(-50%) translateX(0);
 }
 
 /* Alert */
@@ -1820,8 +1850,33 @@ body.dryl-scroll-locked { overflow: hidden; }
 .alert.success .ico { background: rgba(52,211,153,0.15); color: var(--success); }
 .alert.warning .ico { background: rgba(251,191,36,0.15); color: var(--warning); }
 .alert.danger .ico  { background: rgba(248,113,113,0.15); color: var(--danger); }
+/* KI-Variante — Akzentgradient als Icon-Chip, violett-cyanfarbener Text */
+.alert.ai .ico      { background: var(--accent-soft); color: #c4b5fd; }
 .alert .title { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
 .alert .body { font-size: 12.5px; color: var(--fg-muted); }
+/* Flexibler Textbereich — nimmt verbleibenden Platz ein */
+.alert-content { flex: 1; min-width: 0; }
+/* Schließen-Button */
+.alert.is-dismissible { padding-right: var(--sp-3); }
+.alert-dismiss {
+  margin-left: auto;
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 24px; height: 24px;
+  display: grid; place-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-xs);
+  color: var(--fg-dim);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color     var(--dur-fast) var(--ease-out);
+}
+.alert-dismiss:hover { background: var(--glass-3); color: var(--fg); }
+.alert-dismiss:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+/* AI-Aura auf dem Alert — Rahmen weicht zurück, damit der Gradientring dominiert.
+   Der alert hat kein overflow:hidden, daher funktioniert der Standard-inset -1px. */
+.alert.ai-aura { border-color: var(--accent-line); }
 
 /* Spotlight card */
 .spotlight-card {

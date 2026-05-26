@@ -1,0 +1,236 @@
+@page "/alerts"
+@implements IDisposable
+
+<PageTitle>DRYL — Alerts</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Feedback</span>
+        <h2>DrylAlert</h2>
+        <p class="lead">
+            Feedback-Banner für Hinweise, Statusmeldungen und KI-generierte Inhalte.
+            Fünf Varianten, optionaler Titel, Schließen-Button und vollständige AI-Mode-Unterstützung.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Varianten</h3>
+        <div class="col" style="gap: var(--sp-3); max-width: 640px;">
+            <DrylAlert Kind="DrylAlert.AlertKind.Info" Title="Hinweis">
+                Diese Aktion ist nicht rückgängig zu machen. Bitte prüfe deine Eingaben.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Success" Title="Erfolgreich gespeichert">
+                Alle Änderungen wurden übernommen und sind jetzt aktiv.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Warning" Title="Achtung">
+                Das gewählte Datum liegt in der Vergangenheit.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="Fehler">
+                Die Verbindung zum Server konnte nicht hergestellt werden.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="KI-generierter Inhalt">
+                Das folgende Ergebnis wurde von einem KI-Modell erzeugt und sollte
+                vor der Verwendung geprüft werden.
+            </DrylAlert>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Nur Nachricht — kein Titel</h3>
+        <div class="col" style="gap: var(--sp-3); max-width: 640px;">
+            <DrylAlert Kind="DrylAlert.AlertKind.Info">Bitte überprüfe deine E-Mail-Adresse.</DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Success">Deployment erfolgreich abgeschlossen.</DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Danger">Ungültige Anmeldedaten. Bitte erneut versuchen.</DrylAlert>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Dismissible</h3>
+        <p>Alerts können mit einem Schließen-Button versehen werden. <code>OnDismiss</code> liefert das Callback.</p>
+        <div class="col" style="gap: var(--sp-3); max-width: 640px;">
+            @if (_showDismissInfo)
+            {
+                <DrylAlert Kind="DrylAlert.AlertKind.Info" Title="Neue Features verfügbar"
+                           Dismissible OnDismiss="() => _showDismissInfo = false">
+                    Version 0.2 bringt Expansion Panels, Toast-Benachrichtigungen und ein verbessertes Grid.
+                </DrylAlert>
+            }
+            @if (_showDismissWarning)
+            {
+                <DrylAlert Kind="DrylAlert.AlertKind.Warning" Title="Nicht gespeicherte Änderungen"
+                           Dismissible OnDismiss="() => _showDismissWarning = false">
+                    Beim Verlassen der Seite gehen alle Änderungen verloren.
+                </DrylAlert>
+            }
+            @if (!_showDismissInfo && !_showDismissWarning)
+            {
+                <p style="color: var(--fg-dim); font-size: 13px;">Alle Alerts geschlossen.</p>
+            }
+            <div class="row">
+                <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                            OnClick="() => { _showDismissInfo = true; _showDismissWarning = true; }">
+                    Alerts zurücksetzen
+                </DrylButton>
+            </div>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Kein Icon</h3>
+        <p>Mit <code>Icon=""</code> wird das Icon-Chip komplett unterdrückt.</p>
+        <div class="col" style="gap: var(--sp-3); max-width: 640px;">
+            <DrylAlert Kind="DrylAlert.AlertKind.Info" Title="Reiner Text-Alert" Icon="">
+                Kein Icon-Chip — für kompaktere oder sehr kurze Hinweise.
+            </DrylAlert>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>AI Mode — alle Zustände</h3>
+        <p>
+            Der <code>Ai</code>-Parameter treibt Gradientrahmen, Glow und den One-Shot-Reveal unabhängig
+            von der semantischen Variante. So kann z. B. ein Warning-Alert signalisieren, dass die
+            KI-Prüfung noch läuft.
+        </p>
+        <div class="col" style="gap: var(--sp-3); max-width: 640px;">
+            <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="Active — persistentes AI-Signal"
+                       Ai="AiState.Active">
+                Dieser Alert ist dauerhaft als KI-getriebene Oberfläche markiert.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="Thinking — Tool Call läuft"
+                       Ai="AiState.Thinking">
+                Das Modell verarbeitet gerade eine Anfrage.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="Streaming — Tokens kommen an"
+                       Ai="AiState.Streaming">
+                Inhalt wird schrittweise generiert…
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="Generated — Inhalt bereit"
+                       Ai="AiState.Generated" @key="_aiGenKey">
+                Die Analyse wurde abgeschlossen. Bitte prüfe das Ergebnis vor der Verwendung.
+            </DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Warning" Title="Warning + AI Thinking"
+                       Ai="AiState.Thinking">
+                KI-Variante ist nicht Pflicht — jede Variante kann AI-Mode aktivieren.
+            </DrylAlert>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Lifecycle-Simulation</h3>
+        <p>
+            Klicke <em>Prüfung starten</em>, um den Alert durch den typischen KI-Lebenszyklus zu führen:
+            <code>None</code> → <code>Thinking</code> → <code>Streaming</code> → <code>Generated</code> → <code>Active</code>.
+        </p>
+        <div class="row">
+            <DrylButton OnClick="RunLifecycle" Loading="_running">
+                @if (_running) { <text>Prüfung läuft…</text> } else { <text>Prüfung starten</text> }
+            </DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" OnClick="ResetLifecycle" Disabled="_running">
+                Zurücksetzen
+            </DrylButton>
+        </div>
+
+        <div style="max-width: 640px;">
+            <DrylAlert Kind="DrylAlert.AlertKind.Ai"
+                       Title="@_lifecycleTitle"
+                       Ai="@_lifecycleAi"
+                       @key="_lifecycleKey">
+                @_lifecycleBody
+            </DrylAlert>
+        </div>
+    </section>
+
+</div>
+
+@code {
+    // Dismiss-Demo
+    private bool _showDismissInfo    = true;
+    private bool _showDismissWarning = true;
+
+    // Generated-Key für Demo-Refresh
+    private int _aiGenKey = 0;
+
+    // Lifecycle-Demo
+    private bool     _running       = false;
+    private AiState  _lifecycleAi   = AiState.None;
+    private string   _lifecycleTitle = "Bereit";
+    private string   _lifecycleBody  = "Klicke auf 'Prüfung starten', um die Simulation zu beginnen.";
+    private int      _lifecycleKey   = 0;
+    private CancellationTokenSource? _cts;
+
+    private async Task RunLifecycle()
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        _running = true;
+
+        try
+        {
+            // Thinking — Tool Call simulieren
+            _lifecycleAi    = AiState.Thinking;
+            _lifecycleTitle = "Analysiere…";
+            _lifecycleBody  = "Das Modell ruft Kontextdaten ab.";
+            StateHasChanged();
+            await Task.Delay(1400, token);
+
+            // Streaming — Tokens ankommen
+            _lifecycleAi    = AiState.Streaming;
+            _lifecycleTitle = "Ergebnis wird generiert";
+            _lifecycleBody  = "Bitte warten…";
+            StateHasChanged();
+
+            var parts = new[]
+            {
+                "Alle",
+                " Datenpunkte",
+                " wurden",
+                " ausgewertet.",
+                " Es wurden",
+                " keine",
+                " Anomalien",
+                " gefunden."
+            };
+            _lifecycleBody = "";
+            foreach (var part in parts)
+            {
+                if (token.IsCancellationRequested) break;
+                _lifecycleBody += part;
+                StateHasChanged();
+                await Task.Delay(140, token);
+            }
+
+            // Generated — One-Shot-Reveal
+            _lifecycleKey++;
+            _lifecycleAi    = AiState.Generated;
+            _lifecycleTitle = "Prüfung abgeschlossen";
+            StateHasChanged();
+            await Task.Delay(900, token);
+
+            // Active — zurück zum Ruhezustand
+            _lifecycleAi = AiState.Active;
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { /* Abbruch ist in Ordnung */ }
+        finally
+        {
+            _running = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetLifecycle()
+    {
+        _cts?.Cancel();
+        _lifecycleAi    = AiState.None;
+        _lifecycleTitle = "Bereit";
+        _lifecycleBody  = "Klicke auf 'Prüfung starten', um die Simulation zu beginnen.";
+
+        _running        = false;
+    }
+
+    public void Dispose() => _cts?.Cancel();
+}

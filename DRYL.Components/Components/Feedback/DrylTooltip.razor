@@ -1,0 +1,53 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTooltip — hover-Tooltip-Wrapper für beliebige Trigger-Elemente.
+
+    Usage:
+      <DrylTooltip Text="Einstellungen öffnen">
+          <DrylButton Variant="ButtonVariant.Ghost"
+                      AriaLabel="Einstellungen"
+                      LeadingIcon="Settings" />
+      </DrylTooltip>
+
+      <DrylTooltip Text="Eintrag löschen" Placement="TooltipPlacement.Bottom">
+          <DrylButton Variant="ButtonVariant.Danger" LeadingIcon="X">Delete</DrylButton>
+      </DrylTooltip>
+
+    Der Tooltip wird per CSS-only angezeigt (kein JS).
+    Placement: Top (default) / Bottom / Left / Right.
+    ───────────────────────────────────────────────────────── *@
+
+<span class="tt-wrap" @attributes="AdditionalAttributes">
+    @ChildContent
+    @if (!string.IsNullOrEmpty(Text))
+    {
+        <span class="@TooltipClass" role="tooltip">@Text</span>
+    }
+</span>
+
+@code {
+    /// <summary>Text, der im Tooltip-Bubble angezeigt wird.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>Auf welcher Seite des Triggers der Tooltip erscheint.</summary>
+    [Parameter] public TooltipPlacement Placement { get; set; } = TooltipPlacement.Top;
+
+    /// <summary>Das Element, das den Tooltip beim Hover auslöst.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML-Attribute (werden auf den Wrapper-Span angewendet).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string TooltipClass => Placement switch
+    {
+        TooltipPlacement.Bottom => "tt tt-bottom",
+        TooltipPlacement.Left   => "tt tt-left",
+        TooltipPlacement.Right  => "tt tt-right",
+        _                       => "tt"
+    };
+
+    /// <summary>Position des Tooltips relativ zum Trigger-Element.</summary>
+    public enum TooltipPlacement { Top, Bottom, Left, Right }
+}
