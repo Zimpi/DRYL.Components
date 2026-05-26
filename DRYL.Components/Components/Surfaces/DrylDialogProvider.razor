@@ -1,0 +1,145 @@
+@namespace DRYL.Components
+@using DRYL.Components.Dialogs
+@using Microsoft.AspNetCore.Components.Rendering
+@inject IDrylDialogService DialogService
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDialogProvider — host for service-driven dialogs.
+
+    Place once in your root layout (e.g. MainLayout.razor):
+        <DrylDialogProvider />
+
+    It subscribes to IDrylDialogService, renders the active
+    dialog inside a glass backdrop, cascades IDrylDialogInstance
+    to the rendered component, and installs the JS-side scroll
+    lock + focus trap + ESC handler.
+    ───────────────────────────────────────────────────────── *@
+
+@foreach (var entry in _entries)
+{
+    <div class="dialog-backdrop"
+         @ref="entry.BackdropRef"
+         tabindex="-1"
+         @onclick="@(() => OnBackdropClick(entry))">
+        <CascadingValue Value="@((IDrylDialogInstance)entry.Reference)" IsFixed="false">
+            <div class="dialog-shell" @onclick:stopPropagation="true">
+                <DynamicComponent Type="@entry.Reference.DialogType"
+                                  Parameters="@entry.Reference.Parameters" />
+            </div>
+        </CascadingValue>
+    </div>
+}
+
+@code {
+    private sealed class Entry
+    {
+        public DrylDialogReference Reference { get; init; } = default!;
+        public ElementReference BackdropRef;
+        public DotNetObjectReference<DialogCallbacks>? DotNetRef;
+        public bool Attached;
+    }
+
+    private readonly List<Entry> _entries = new();
+
+    protected override void OnInitialized()
+    {
+        DialogService.OnDialogInstanceAdded   += OnAdded;
+        DialogService.OnDialogCloseRequested  += OnClosed;
+        DialogService.OnDialogInstanceUpdated += OnUpdated;
+    }
+
+    private void OnAdded(IDrylDialogReference reference)
+    {
+        if (reference is DrylDialogReference impl)
+        {
+            _entries.Add(new Entry { Reference = impl });
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnClosed(IDrylDialogReference reference)
+    {
+        var entry = _entries.FirstOrDefault(e => e.Reference.Id == reference.Id);
+        if (entry is null) return;
+        InvokeAsync(async () =>
+        {
+            await DetachInterop(entry);
+            _entries.Remove(entry);
+            StateHasChanged();
+        });
+    }
+
+    private void OnUpdated(IDrylDialogReference reference)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        foreach (var entry in _entries.Where(e => !e.Attached).ToList())
+        {
+            entry.DotNetRef = DotNetObjectReference.Create(new DialogCallbacks(entry.Reference));
+            var opts = new
+            {
+                closeOnEscape = entry.Reference.Options.CloseOnEscape,
+                trapFocus = true
+            };
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.modal.attach",
+                    entry.BackdropRef, entry.DotNetRef, opts);
+                entry.Attached = true;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+    }
+
+    private void OnBackdropClick(Entry entry)
+    {
+        if (entry.Reference.Options.CloseOnBackdropClick)
+        {
+            entry.Reference.Cancel();
+        }
+    }
+
+    private async Task DetachInterop(Entry entry)
+    {
+        if (!entry.Attached) return;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.modal.detach", entry.BackdropRef);
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        entry.DotNetRef?.Dispose();
+        entry.DotNetRef = null;
+        entry.Attached = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        DialogService.OnDialogInstanceAdded   -= OnAdded;
+        DialogService.OnDialogCloseRequested  -= OnClosed;
+        DialogService.OnDialogInstanceUpdated -= OnUpdated;
+
+        foreach (var entry in _entries.ToList())
+        {
+            await DetachInterop(entry);
+        }
+        _entries.Clear();
+    }
+
+    /// <summary>
+    /// Tiny bridge object exposed to JS so the modal interop can invoke ESC
+    /// back into a specific dialog without holding onto the provider itself.
+    /// </summary>
+    internal sealed class DialogCallbacks
+    {
+        private readonly DrylDialogReference _reference;
+        public DialogCallbacks(DrylDialogReference reference) => _reference = reference;
+
+        [JSInvokable]
+        public void OnEscape() => _reference.Cancel();
+    }
+}

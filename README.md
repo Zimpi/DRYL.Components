@@ -54,6 +54,9 @@ Every component reads from a single token file ([`dryl.css`](DRYL.Components/www
 ### AI Mode
 ![DRYL — AI Mode demo with lifecycle simulation and streaming rows](docs/screenshots/aimode.png)
 
+### Dialog
+![DrylDialog — service-driven glass dialog with Human-in-the-Middle AI flow](docs/screenshots/dialog.png)
+
 ---
 
 ## AI Mode — first-class citizen
@@ -119,6 +122,91 @@ The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.
 
 ---
 
+## Dialog & DialogService
+
+DRYL ships a service-driven dialog system inspired by the patterns popularised by MudBlazor's `IDialogService`, but built on the DRYL glass aesthetic and **AI-native from day one**. The dialog is the natural place to host a **"human in the middle"** flow: the model proposes, the user reviews, the user approves or edits.
+
+### Setup
+
+```csharp
+// Program.cs
+builder.Services.AddDrylComponents();
+```
+
+```razor
+@* App.razor or MainLayout.razor — once, at the root *@
+<DrylDialogProvider />
+```
+
+### Showing a dialog
+
+```csharp
+@inject IDrylDialogService Dialogs
+
+var reference = await Dialogs.ShowAsync<MyDialog>(
+    title: "Edit profile",
+    parameters: new DialogParameters { ["UserId"] = id },
+    options: new DialogOptions { Size = DialogSize.Large });
+
+var result = await reference.Result;
+if (!result.Canceled)
+{
+    var payload = result.DataAs<MyPayload>();
+}
+```
+
+### Convenience helpers
+
+```csharp
+var ok = await Dialogs.ShowConfirmAsync("Delete project?", "This cannot be undone.");
+await Dialogs.ShowAlertAsync("Deployment failed", "See logs for details.");
+```
+
+### Authoring a dialog
+
+```razor
+@* MyDialog.razor — shown via IDrylDialogService *@
+<DrylDialog Title="Edit profile" Ai="@_ai">
+    <ChildContent>
+        <DrylInputText @bind-Value="_name" Label="Name" />
+    </ChildContent>
+    <ActionContent>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="Cancel">Cancel</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary" @onclick="Save">Save</DrylButton>
+    </ActionContent>
+</DrylDialog>
+
+@code {
+    [CascadingParameter] IDrylDialogInstance Instance { get; set; } = default!;
+    [Parameter] public Guid UserId { get; set; }
+    private string _name = "";
+    private AiState _ai = AiState.None;
+
+    void Save()   => Instance.Close(DialogResult.Ok(_name));
+    void Cancel() => Instance.Cancel();
+}
+```
+
+### Human in the Middle
+
+The `Ai` parameter on `DrylDialog` walks the standard `AiState` lifecycle and the existing AI primitives carry the visual story — there is no per-component AI vocabulary. A typical wiring with `Microsoft.Extensions.AI`:
+
+```csharp
+_ai = AiState.Thinking;
+await foreach (var chunk in chatClient.GetStreamingResponseAsync(prompt))
+{
+    if (_ai != AiState.Streaming) _ai = AiState.Streaming;
+    _generated += chunk.Text;
+    StateHasChanged();
+}
+_ai = AiState.Generated;   // one-shot reveal
+// User can now edit `_generated` in a DrylTextarea and Approve / Cancel.
+```
+
+Every step is visible to the user through the dialog's border and glow — the model is at work, the model is streaming, the model is done, the user is in control.
+
+---
+
 ## What's in the box (today)
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
@@ -135,7 +223,7 @@ The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
 | `DrylTable`       | Data         | ✅      | ✅ Done    | Generic table, sticky header, row selection, optional KPI summary bar |
 | `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
-| `DrylModal`       | Surfaces     | 🔜      | 🔜 Planned | Glass overlay with focus trap                                    |
+| `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
 | `DrylToast`       | Surfaces     | —       | 🔜 Planned | Programmatic notifications via service                           |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
@@ -153,7 +241,9 @@ DRYL.Components/             The library (Razor Class Library, .NET 10)
     Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi
     Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
     Layout/                  DrylExpansion, DrylAppBar, DrylDrawer, DrylLayout, DrylNavGroup, DrylNavLink
-    Surfaces/                DrylCard
+    Surfaces/                DrylCard, DrylDialog, DrylDialogProvider
+  Dialogs/                   IDrylDialogService, DialogOptions, DialogResult, DialogParameters
+  Extensions/                ServiceCollectionExtensions (AddDrylComponents)
   wwwroot/
     dryl.css                 The single stylesheet — every token, every primitive (incl. AI mode)
     js/dryl.js               Minimal JS interop (namespaced as window.dryl.*)

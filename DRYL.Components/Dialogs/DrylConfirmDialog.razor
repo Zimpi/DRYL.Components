@@ -1,0 +1,29 @@
+@namespace DRYL.Components.Dialogs
+@using DRYL.Components
+
+@*  Internal dialog used by IDrylDialogService.ShowConfirmAsync. *@
+
+<DrylDialog>
+    <ChildContent>
+        <p style="margin: 0; color: var(--fg-muted);">@Message</p>
+    </ChildContent>
+    <ActionContent>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="Cancel">
+            @CancelLabel
+        </DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary" @onclick="Confirm">
+            @ConfirmLabel
+        </DrylButton>
+    </ActionContent>
+</DrylDialog>
+
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string ConfirmLabel { get; set; } = "Confirm";
+    [Parameter] public string CancelLabel { get; set; } = "Cancel";
+
+    [CascadingParameter] public IDrylDialogInstance Instance { get; set; } = default!;
+
+    private void Confirm() => Instance.Close(DialogResult.Ok(true));
+    private void Cancel()  => Instance.Cancel();
+}

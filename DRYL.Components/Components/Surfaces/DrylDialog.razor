@@ -1,0 +1,166 @@
+@namespace DRYL.Components
+@using DRYL.Components.Dialogs
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDialog — the shell users place inside their dialog
+    component. Receives an IDrylDialogInstance via cascading
+    parameter; calls Instance.Close()/Cancel() to dismiss.
+
+    See DemoDialog.razor / SampleDialog.razor in the demo app
+    for full usage examples.
+
+    Effective Ai state is the most explicit one available:
+      param Ai != None  →  param Ai
+      else              →  Instance.Ai (driven by the service / options)
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="@_titleId"
+     @attributes="AdditionalAttributes">
+
+    @if (EffectiveAi != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (EffectiveAi == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    @if (ShowHeader)
+    {
+        <header class="dialog-header">
+            @if (!string.IsNullOrEmpty(Icon))
+            {
+                <span class="dialog-header-icon">
+                    <DrylIcon Name="@Icon" Size="14" />
+                </span>
+            }
+            <h2 id="@_titleId" class="dialog-title">
+                @if (TitleContent is not null) { @TitleContent }
+                else { @EffectiveTitle }
+            </h2>
+            @if (EffectiveShowCloseButton)
+            {
+                <button type="button"
+                        class="dialog-close"
+                        aria-label="Close dialog"
+                        @onclick="HandleClose">
+                    <DrylIcon Name="X" Size="14" />
+                </button>
+            }
+        </header>
+    }
+
+    <div class="dialog-body">
+        @ChildContent
+    </div>
+
+    @if (ActionContent is not null)
+    {
+        <footer class="dialog-footer">
+            @ActionContent
+        </footer>
+    }
+</div>
+
+@code {
+    /// <summary>Dialog title text. Overridden by <see cref="TitleContent"/> if provided.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Optional custom title slot (replaces the plain <see cref="Title"/> string).</summary>
+    [Parameter] public RenderFragment? TitleContent { get; set; }
+
+    /// <summary>Optional leading icon shown to the left of the title (see <see cref="DrylIcon"/>).</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Dialog body content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Optional footer content (typically buttons).</summary>
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+
+    /// <summary>
+    /// AI ambient state. Defaults to <see cref="AiState.None"/>; when the dialog is
+    /// rendered by <see cref="DrylDialogProvider"/> it inherits the instance's state
+    /// unless you set this explicitly.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>If false, the header (title + close) is hidden entirely.</summary>
+    [Parameter] public bool ShowHeader { get; set; } = true;
+
+    /// <summary>
+    /// If non-null, overrides <see cref="DialogOptions.ShowCloseButton"/> from the
+    /// instance. Use sparingly — most dialogs should let the caller decide.
+    /// </summary>
+    [Parameter] public bool? ShowCloseButton { get; set; }
+
+    /// <summary>Cascading dialog instance — present when shown via the service.</summary>
+    [CascadingParameter] public IDrylDialogInstance? Instance { get; set; }
+
+    /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly string _titleId = $"dryl-dlg-title-{Guid.NewGuid():N}";
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    private AiState EffectiveAi => Ai != AiState.None ? Ai : (Instance?.Ai ?? AiState.None);
+
+    private string? EffectiveTitle => Title ?? Instance?.Title;
+
+    private bool EffectiveShowCloseButton =>
+        ShowCloseButton ?? Instance?.Options.ShowCloseButton ?? true;
+
+    private DialogSize EffectiveSize => Instance?.Options.Size ?? DialogSize.Medium;
+
+    protected override void OnParametersSet()
+    {
+        var current = EffectiveAi;
+        if (current == AiState.Generated && _prevAi != AiState.Generated)
+        {
+            _genTick++;
+        }
+        _prevAi = current;
+    }
+
+    private void HandleClose()
+    {
+        Instance?.Cancel();
+    }
+
+    private string CssClass
+    {
+        get
+        {
+            var classes = new List<string> { "dialog" };
+            classes.Add(EffectiveSize switch
+            {
+                DialogSize.Small      => "dialog-sm",
+                DialogSize.Large      => "dialog-lg",
+                DialogSize.Fullscreen => "dialog-fullscreen",
+                _ => "dialog-md"
+            });
+
+            if (!string.IsNullOrWhiteSpace(Instance?.Options.Class))
+            {
+                classes.Add(Instance.Options.Class);
+            }
+
+            var ai = EffectiveAi;
+            if (ai != AiState.None) classes.Add("ai-aura");
+            switch (ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+}

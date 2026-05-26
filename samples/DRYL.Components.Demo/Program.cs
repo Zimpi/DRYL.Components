@@ -1,3 +1,4 @@
+using DRYL.Components;
 using DRYL.Components.Demo.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -5,6 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddDrylComponents();
 
 var app = builder.Build();
 
