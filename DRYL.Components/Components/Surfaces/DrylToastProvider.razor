@@ -106,8 +106,16 @@
 
     private void BeginLeave(Entry entry)
     {
+        if (entry.IsLeaving) return;
         entry.IsLeaving = true;
-        InvokeAsync(StateHasChanged);
+        // Garantierter Fallback: DOM-Entfernung nach Exit-Animation (--dur-med 240ms + Puffer).
+        // Falls animationend aus irgendeinem Grund nicht zum slot bubbled, räumt dieser Pfad auf.
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Delay(300);
+            await FinalizeRemoval(entry);
+        });
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

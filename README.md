@@ -223,8 +223,14 @@ Every step is visible to the user through the dialog's border and glow — the m
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
 | `DrylTable`       | Data         | ✅      | ✅ Done    | Generic table, sticky header, row selection, optional KPI summary bar |
 | `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
+| `DrylLayout`      | Layout       | —       | ✅ Done    | Root shell — CSS grid with sidebar + topbar slots, cascades layout context |
+| `DrylAppBar`      | Layout       | —       | ✅ Done    | Sticky top bar with optional responsive drawer-toggle hamburger |
+| `DrylDrawer`      | Layout       | —       | ✅ Done    | Sidebar: always-visible column on desktop, overlay on mobile (`@bind-Open`) |
+| `DrylMainContent` | Layout       | —       | ✅ Done    | Main content slot inside `DrylLayout`; handles scroll and padding |
+| `DrylNavGroup`    | Layout       | —       | ✅ Done    | Labelled group of nav links inside `DrylDrawer` |
+| `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row with icon and active highlighting; supports external links |
 | `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
-| `DrylToast`       | Surfaces     | —       | 🔜 Planned | Programmatic notifications via service                           |
+| `DrylToast`       | Surfaces     | ✅      | ✅ Done    | Service-driven toast stack; auto-dismiss, progress bar, hover-pause, 6 positions |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 
@@ -240,9 +246,10 @@ DRYL.Components/             The library (Razor Class Library, .NET 10)
     AI/                      DrylAiIndicator (AI-specific components live here)
     Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi
     Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
-    Layout/                  DrylExpansion, DrylAppBar, DrylDrawer, DrylLayout, DrylNavGroup, DrylNavLink
-    Surfaces/                DrylCard, DrylDialog, DrylDialogProvider
+    Layout/                  DrylExpansion, DrylLayout, DrylMainContent, DrylAppBar, DrylDrawer, DrylNavGroup, DrylNavLink
+    Surfaces/                DrylCard, DrylDialog, DrylDialogProvider, DrylToast, DrylToastProvider
   Dialogs/                   IDrylDialogService, DialogOptions, DialogResult, DialogParameters
+  Toasts/                    IDrylToastService, ToastOptions, ToastVariant, ToastPosition
   Extensions/                ServiceCollectionExtensions (AddDrylComponents)
   wwwroot/
     dryl.css                 The single stylesheet — every token, every primitive (incl. AI mode)

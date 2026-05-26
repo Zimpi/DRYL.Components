@@ -112,49 +112,91 @@ window.dryl.modal = (() => {
 })();
 
 /* --------------------------------------------------------------
- * Toast — wire the auto-dismiss timer and the exit animation
- * lifecycle. The CSS animation on .toast-progress is the single
- * source of truth for "how long does the toast live": browsers
- * pause animations under `animation-play-state: paused`, which
- * keeps hover-pause perfectly in sync with the visible bar.
+ * Toast — auto-dismiss timer and exit animation lifecycle.
  *
- *   OnExpired       — fired when the progress animation finishes.
- *   OnExitFinished  — fired when the .toast.is-leaving animation
- *                     finishes (so .NET can remove the entry).
+ * Timer: setTimeout statt CSS-animationend, damit Blazor-Re-Renders
+ * (die das .toast-progress-Element patchen können) den Timer nicht
+ * zurücksetzen. Hover-Pause wird explizit per mouseenter/mouseleave
+ * auf dem stabilen slot-Element gehandelt.
+ *
+ * Exit: Event-Delegation auf slot (von Blazor per @key erhalten),
+ * da animationend bubbled — robuster als direkter Listener auf dem
+ * inneren .toast-div, das Blazor bei Klassenänderungen patcht.
+ *
+ *   OnExpired       — fired by setTimeout after the duration.
+ *   OnExitFinished  — fired when toast-out animationend bubbles to slot.
  * -------------------------------------------------------------- */
 window.dryl.toast = (() => {
     function attach(slot, dotnetRef) {
         if (!slot || slot.__drylToast) return;
         const toast = slot.querySelector('.toast');
         if (!toast) return;
-        const progress = toast.querySelector('.toast-progress');
 
-        const onToastAnim = (e) => {
-            // Only react to the exit animation on the toast itself.
-            if (e.target !== toast) return;
+        // Lese die Duration aus dem inline-style des Progress-Elements.
+        const progress = toast.querySelector('.toast-progress');
+        let remaining  = 0;
+        let startedAt  = 0;
+        let timerId    = null;
+
+        if (progress) {
+            const m = (progress.getAttribute('style') || '')
+                .match(/animation-duration:\s*([\d.]+)ms/);
+            if (m) remaining = parseFloat(m[1]);
+        }
+
+        function startTimer() {
+            if (remaining <= 0) return;
+            startedAt = Date.now();
+            timerId   = setTimeout(
+                () => dotnetRef.invokeMethodAsync('OnExpired'),
+                remaining
+            );
+        }
+
+        function pauseTimer() {
+            if (timerId === null) return;
+            clearTimeout(timerId);
+            timerId   = null;
+            remaining = Math.max(0, remaining - (Date.now() - startedAt));
+        }
+
+        // Hover-Listener auf stabilem slot-Element (nicht .toast, das gepatcht werden kann).
+        let onMouseEnter = () => {};
+        let onMouseLeave = () => {};
+        if (remaining > 0) {
+            onMouseEnter = pauseTimer;
+            onMouseLeave = startTimer;
+            slot.addEventListener('mouseenter', onMouseEnter);
+            slot.addEventListener('mouseleave', onMouseLeave);
+            startTimer();
+        }
+
+        // Exit-Detection per Event-Delegation auf slot — animationend bubbled,
+        // slot wird von Blazor via @key stabil gehalten.
+        const onSlotAnim = (e) => {
             if (e.animationName === 'toast-out') {
+                clearTimeout(timerId);
+                timerId = null;
                 dotnetRef.invokeMethodAsync('OnExitFinished');
             }
         };
+        slot.addEventListener('animationend', onSlotAnim);
 
-        const onProgressAnim = (e) => {
-            if (e.target !== progress) return;
-            if (e.animationName === 'toast-progress') {
-                dotnetRef.invokeMethodAsync('OnExpired');
-            }
+        slot.__drylToast = {
+            onSlotAnim,
+            onMouseEnter,
+            onMouseLeave,
+            cancel: () => { clearTimeout(timerId); timerId = null; }
         };
-
-        toast.addEventListener('animationend', onToastAnim);
-        if (progress) progress.addEventListener('animationend', onProgressAnim);
-
-        slot.__drylToast = { toast, progress, onToastAnim, onProgressAnim };
     }
 
     function detach(slot) {
         if (!slot || !slot.__drylToast) return;
-        const { toast, progress, onToastAnim, onProgressAnim } = slot.__drylToast;
-        toast.removeEventListener('animationend', onToastAnim);
-        if (progress) progress.removeEventListener('animationend', onProgressAnim);
+        const { onSlotAnim, onMouseEnter, onMouseLeave, cancel } = slot.__drylToast;
+        cancel();
+        slot.removeEventListener('animationend', onSlotAnim);
+        slot.removeEventListener('mouseenter', onMouseEnter);
+        slot.removeEventListener('mouseleave', onMouseLeave);
         delete slot.__drylToast;
     }
 
