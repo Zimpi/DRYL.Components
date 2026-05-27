@@ -1211,6 +1211,288 @@ code, .code-inline {
   fill: none;
 }
 
+/* ============== TABLE TOOLBAR + SORT (Phase 1) ============== */
+
+/* Toolbar above the table — search input on the left, extras on the right.
+   Sits between the optional KPI summary bar and the table header. */
+.tbl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Search wrapper — pins icon + input together, takes natural width on the left. */
+.tbl-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 240px;
+  max-width: 360px;
+  flex: 0 1 auto;
+}
+.tbl-search .input { width: 100%; }
+.tbl-search .input-icon-leading { left: 10px; pointer-events: none; }
+
+/* Extras slot — pushed to the far right of the toolbar. */
+.tbl-toolbar-extra {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Sortable header — click target, keyboard-focusable. */
+.tbl th.tbl-th-sort {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tbl th.tbl-th-sort:hover { color: var(--fg-muted); }
+.tbl th.tbl-th-sort:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: -1px;
+}
+.tbl th.tbl-th-sort[aria-sort="ascending"],
+.tbl th.tbl-th-sort[aria-sort="descending"] {
+  color: var(--fg);
+}
+
+/* Header inner layout — label + sort icon side-by-side. */
+.tbl th.tbl-th-sort .tbl-th-label { display: inline; }
+.tbl-th-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: -2px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tbl th.tbl-th-sort:hover .tbl-th-sort-icon { opacity: 0.5; }
+.tbl-th-sort-icon.is-active { opacity: 1; }
+
+/* Column alignment helpers */
+.tbl-align-center { text-align: center; }
+.tbl-align-end    { text-align: right; }
+
+/* Header inner layout — splits the sort-click area from the filter trigger so
+   clicking the filter icon does NOT trigger a sort. */
+.tbl-th-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.tbl-th-clickable {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tbl th.tbl-th-sort .tbl-th-clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tbl th.tbl-th-sort .tbl-th-clickable:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+/* ============== TABLE FILTERS (Phase 2) ============== */
+
+/* Tiny filter trigger button rendered in the header next to the title. */
+.tbl-filter-trigger {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-filter-trigger:hover { color: var(--fg-muted); background: var(--glass-2); }
+.tbl-filter-trigger:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 1px;
+}
+.tbl-filter-trigger.is-active {
+  color: var(--accent-a);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+/* Popover anchored to the right edge of the column header. Sits above the
+   table body via z-index and the .tbl-th-inner positioning context. */
+.tbl-filter-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-drawer);
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--bg-2);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 0;
+  /* The header has uppercase mono-styling — reset to normal body text inside. */
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--fg);
+  animation: tbl-filter-popover-in var(--dur-med) var(--ease-out);
+}
+@keyframes tbl-filter-popover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tbl-filter-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-filter-popover-title {
+  font-weight: 500;
+  color: var(--fg);
+}
+.tbl-filter-popover-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--r-xs);
+  display: inline-flex;
+}
+.tbl-filter-popover-close:hover { color: var(--fg); }
+
+.tbl-filter-popover-body {
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.tbl-filter-popover-body .input { width: 100%; }
+
+.tbl-filter-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--fg-muted);
+}
+.tbl-filter-option:hover { color: var(--fg); }
+.tbl-filter-option .checkbox { flex: 0 0 auto; }
+
+.tbl-filter-empty {
+  color: var(--fg-dim);
+  font-style: italic;
+}
+
+.tbl-filter-popover-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+/* Active-filter chips shown in the toolbar. */
+.tbl-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.tbl-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  color: var(--fg);
+}
+.tbl-filter-chip-label { color: var(--fg-muted); }
+.tbl-filter-chip-value { font-weight: 500; }
+.tbl-filter-chip-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.tbl-filter-chip-close:hover { color: var(--fg); background: rgba(0,0,0,0.25); }
+
+/* ============== TABLE FOOTER + PAGINATION (Phase 2) ============== */
+
+.tbl-footer {
+  border-top: 1px solid var(--line);
+}
+
+.tbl-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  flex-wrap: wrap;
+}
+.tbl-pagination-info {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.tbl-pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+.tbl-pagination-size .select { padding-top: 4px; padding-bottom: 4px; min-width: 64px; }
+
+.tbl-pagination-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.tbl-pagination-gap {
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  padding: 0 6px;
+  user-select: none;
+}
+
 /* Avatar */
 .avatar {
   width: 28px; height: 28px;
@@ -1613,29 +1895,150 @@ code, .code-inline {
   transition: width 600ms var(--ease-out);
 }
 
-/* Tabs */
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+/* ============== TABS (DrylTabs / DrylTab) ============== */
+
+.tabs-root {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tabs {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
 .tab {
   position: relative;
-  padding: 10px 14px;
-  font-size: 13px;
-  color: var(--fg-muted);
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  background: transparent;
+  border: 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  transition: color var(--dur-fast) var(--ease-out);
+  font-family: var(--font-sans);
+  font-size: 13px;
   font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  isolation: isolate;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
-.tab:hover { color: var(--fg); }
-.tab.active { color: var(--fg); border-bottom-color: transparent; }
-.tab.active::after {
+.tab:hover { color: var(--fg); background: var(--glass-1); }
+.tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.tab.is-active { color: var(--fg); }
+.tab.is-active::after {
   content: '';
   position: absolute;
-  left: 8px; right: 8px; bottom: -1px;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
   height: 2px;
   background: var(--accent-grad);
   border-radius: 2px;
   box-shadow: 0 0 12px var(--accent-a);
+  transform-origin: center;
+  animation: tab-underline-in var(--dur-med) var(--ease-spring) both;
+  z-index: 2;
+}
+@keyframes tab-underline-in {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+.tab.is-disabled,
+.tab[disabled] {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.tab .tab-icon {
+  flex: 0 0 14px;
+  opacity: 0.85;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tab:hover .tab-icon,
+.tab.is-active .tab-icon { opacity: 1; }
+
+/* Trailing slot for badges, counters, AI indicators etc. */
+.tab-trailing {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+/* AI mode on a single tab — additive ring drawn via ::before (kept inside
+   the tab's rounded bounds so the rotating gradient traces just this tab,
+   not the whole tab bar). The .is-active ::after underline still wins on
+   top, so an active+AI tab reads as both selected and AI-busy. */
+.tab.ai-aura {
+  color: #d6cbff;
+  background: var(--accent-soft);
+}
+.tab.ai-aura::before {
+  content: '';
+  position: absolute;
+  inset: 2px 2px 0 2px;
+  border-radius: var(--r-sm);
+  padding: 1px;
+  background: conic-gradient(
+    from var(--ai-aura-angle, 0deg),
+    var(--accent-a),
+    var(--accent-b),
+    var(--accent-a),
+    var(--accent-b),
+    var(--accent-a)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.85;
+  animation: ai-aura-rotate 6s linear infinite;
+}
+.tab.ai-aura.ai-thinking::before  { animation-duration: 1.8s; opacity: 1; }
+.tab.ai-aura.ai-streaming::before { animation-duration: 3s; }
+.tab.ai-aura.ai-generated::before { animation-duration: 4s; opacity: 1; }
+
+/* Tab panel — fades in on switch via @key on the panel element */
+.tab-panel {
+  padding: var(--sp-5) 0 0;
+  animation: tab-panel-in var(--dur-med) var(--ease-out) both;
+  min-width: 0;
+}
+@keyframes tab-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab.is-active::after,
+  .tab.ai-aura::before,
+  .tab-panel { animation: none; }
+  .tab.ai-aura::before { opacity: 0.6; }
 }
 
 /* Dialog */

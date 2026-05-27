@@ -8,17 +8,105 @@
         <span class="eyebrow">Data</span>
         <h2>DrylTable</h2>
         <p class="lead">
-            Glass data table with sticky header, row selection, and an optional
-            KPI summary bar. Columns are defined via template slots — no code-gen required.
+            Glass data table with declarative columns, click-to-sort, global search,
+            per-column filters, pagination, row selection and an optional KPI summary bar.
+            Optional <code>DataProvider</code> for server-side loading.
         </p>
     </div>
 
-    @* ─── With KPI summary bar ─── *@
+    @* ─── Filters + pagination ─── *@
     <section class="col" style="gap: var(--sp-3);">
-        <h3>With KPI summary bar</h3>
-        <p>Place <code>DrylTableKpi</code> components inside <code>&lt;SummaryContent&gt;</code>.</p>
+        <h3>Filters and pagination</h3>
+        <p>
+            Mark columns <code>Filterable</code> for a per-column filter popover (Text or
+            Select inferred from the field type). Set <code>PageSize</code> for the
+            paginated footer. Active filters appear as chips in the toolbar.
+        </p>
 
-        <DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services table" Selectable
+        <DrylTable TItem="ServiceRow"
+                   Items="@_largeServices"
+                   AriaLabel="Services — filterable"
+                   ShowToolbar
+                   Searchable
+                   PageSize="10">
+            <Columns>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Name)"
+                            Title="Service"
+                            Sortable Searchable Filterable Primary />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Environment)"
+                            Title="Environment"
+                            Sortable Searchable Filterable
+                            FilterType="ColumnFilterType.Select">
+                    <CellTemplate Context="svc">
+                        <DrylBadge>@svc.Environment</DrylBadge>
+                    </CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Status)"
+                            Title="Status"
+                            Sortable Searchable Filterable
+                            FilterType="ColumnFilterType.Select">
+                    <CellTemplate Context="svc">
+                        @if (svc.Status == "healthy")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
+                        }
+                        else if (svc.Status == "throttled")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
+                        }
+                        else
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
+                        }
+                    </CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LatencyMs)"
+                            Title="Latency"
+                            Sortable Align="ColumnAlign.End" Width="120px">
+                    <CellTemplate Context="svc">@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LastSeen)"
+                            Title="Last seen" />
+            </Columns>
+        </DrylTable>
+    </section>
+
+    @* ─── Standalone pagination ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>DrylPagination — standalone</h3>
+        <p>
+            The pagination control is also usable on its own — pass any
+            <code>CurrentPage</code>, <code>PageSize</code> and <code>TotalCount</code>.
+        </p>
+        <div class="glass-card p-0" style="overflow: hidden;">
+            <DrylPagination CurrentPage="@_standalonePage"
+                            PageSize="@_standaloneSize"
+                            TotalCount="237"
+                            OnPageChanged="@(p => _standalonePage = p)"
+                            OnPageSizeChanged="@(s => { _standaloneSize = s; _standalonePage = 0; })" />
+        </div>
+    </section>
+
+    @* ─── With toolbar (search + sort) ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Toolbar — search and sort</h3>
+        <p>
+            Add <code>Searchable</code> and <code>ShowToolbar</code> to enable the global search.
+            Mark columns <code>Sortable</code> to make their headers click-to-sort. Hold <kbd>Shift</kbd>
+            and click a second header for multi-sort.
+        </p>
+
+        <DrylTable TItem="ServiceRow"
+                   Items="@_services"
+                   AriaLabel="Services"
+                   ShowToolbar
+                   Searchable
+                   Selectable
                    SelectedItems="@_selected"
                    SelectedItemsChanged="@(s => _selected = s)"
                    OnRowClick="@(s => _lastClicked = s.Name)">
@@ -53,49 +141,70 @@
                               SparklineData="@_sparkUsers" />
             </SummaryContent>
 
-            <HeaderContent>
-                <th>Service</th>
-                <th>Environment</th>
-                <th>Status</th>
-                <th>Latency</th>
-                <th>Last seen</th>
-                <th></th>
-            </HeaderContent>
+            <Columns>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Name)"
+                            Title="Service"
+                            Sortable Searchable Primary>
+                    <CellTemplate Context="svc">
+                        <div class="row" style="gap: var(--sp-2);">
+                            <DrylIcon Name="Server" Size="14" />
+                            @svc.Name
+                        </div>
+                    </CellTemplate>
+                </DrylColumn>
 
-            <RowTemplate Context="svc">
-                <td class="tbl-td-primary">
-                    <div class="row" style="gap: var(--sp-2);">
-                        <DrylIcon Name="Server" Size="14" />
-                        @svc.Name
-                    </div>
-                </td>
-                <td>
-                    <DrylBadge>@svc.Environment</DrylBadge>
-                </td>
-                <td>
-                    @if (svc.Status == "healthy")
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
-                    }
-                    else if (svc.Status == "throttled")
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
-                    }
-                    else
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
-                    }
-                </td>
-                <td>@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</td>
-                <td>@svc.LastSeen</td>
-                <td style="text-align: right;">
-                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                                Size="DrylButton.ButtonSize.Small"
-                                AriaLabel="More actions"
-                                LeadingIcon="Dots" />
-                </td>
-            </RowTemplate>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Environment)"
+                            Title="Environment"
+                            Sortable Searchable>
+                    <CellTemplate Context="svc">
+                        <DrylBadge>@svc.Environment</DrylBadge>
+                    </CellTemplate>
+                </DrylColumn>
 
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Status)"
+                            Title="Status"
+                            Sortable Searchable>
+                    <CellTemplate Context="svc">
+                        @if (svc.Status == "healthy")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
+                        }
+                        else if (svc.Status == "throttled")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
+                        }
+                        else
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
+                        }
+                    </CellTemplate>
+                </DrylColumn>
+
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LatencyMs)"
+                            Title="Latency"
+                            Sortable Align="ColumnAlign.End" Width="120px">
+                    <CellTemplate Context="svc">
+                        @(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")
+                    </CellTemplate>
+                </DrylColumn>
+
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LastSeen)"
+                            Title="Last seen" />
+
+                <DrylColumn TItem="ServiceRow" Title="" Width="56px" Align="ColumnAlign.End">
+                    <CellTemplate Context="svc">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="More actions"
+                                    LeadingIcon="Dots" />
+                    </CellTemplate>
+                </DrylColumn>
+            </Columns>
         </DrylTable>
 
         @if (_selected.Count > 0)
@@ -110,37 +219,35 @@
         }
     </section>
 
-    @* ─── Without KPI bar ─── *@
+    @* ─── Without toolbar ─── *@
     <section class="col" style="gap: var(--sp-3);">
-        <h3>Without summary bar</h3>
-        <p>Omit <code>&lt;SummaryContent&gt;</code> for a plain table.</p>
+        <h3>Plain table — no toolbar</h3>
+        <p>Omit <code>ShowToolbar</code> for a stripped-down table with only the columns.</p>
 
         <DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services — plain">
-            <HeaderContent>
-                <th>Service</th>
-                <th>Environment</th>
-                <th>Status</th>
-                <th>Latency</th>
-            </HeaderContent>
-            <RowTemplate Context="svc">
-                <td class="tbl-td-primary">@svc.Name</td>
-                <td>@svc.Environment</td>
-                <td>
-                    @if (svc.Status == "healthy")
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
-                    }
-                    else if (svc.Status == "throttled")
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
-                    }
-                    else
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
-                    }
-                </td>
-                <td>@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</td>
-            </RowTemplate>
+            <Columns>
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service" Primary />
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Environment)" Title="Environment" />
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status">
+                    <CellTemplate Context="svc">
+                        @if (svc.Status == "healthy")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
+                        }
+                        else if (svc.Status == "throttled")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
+                        }
+                        else
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
+                        }
+                    </CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.LatencyMs)" Title="Latency" Align="ColumnAlign.End">
+                    <CellTemplate Context="svc">@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</CellTemplate>
+                </DrylColumn>
+            </Columns>
         </DrylTable>
     </section>
 
@@ -156,14 +263,10 @@
         </div>
 
         <DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services — loading" Loading="@_loading">
-            <HeaderContent>
-                <th>Service</th>
-                <th>Status</th>
-            </HeaderContent>
-            <RowTemplate Context="svc">
-                <td class="tbl-td-primary">@svc.Name</td>
-                <td>@svc.Status</td>
-            </RowTemplate>
+            <Columns>
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service" Primary />
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status" />
+            </Columns>
         </DrylTable>
     </section>
 
@@ -171,14 +274,10 @@
     <section class="col" style="gap: var(--sp-3);">
         <h3>Empty state</h3>
         <DrylTable TItem="ServiceRow" Items="@_emptyServices" AriaLabel="Services — empty">
-            <HeaderContent>
-                <th>Service</th>
-                <th>Status</th>
-            </HeaderContent>
-            <RowTemplate Context="svc">
-                <td class="tbl-td-primary">@svc.Name</td>
-                <td>@svc.Status</td>
-            </RowTemplate>
+            <Columns>
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service" Primary />
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status" />
+            </Columns>
             <EmptyContent>
                 <div class="col" style="align-items: center; gap: var(--sp-2);">
                     <DrylIcon Name="Database" Size="24" />
@@ -238,6 +337,9 @@
         new("search-index",       "staging", "healthy",   38,  "vor 3m"),
         new("media-pipeline",     "prod",    "failed",    null,"vor 4m"),
         new("report-generator",   "dev",     "healthy",   56,  "vor 9m"),
+        new("notify-dispatcher",  "prod",    "healthy",   18,  "vor 14s"),
+        new("token-rotator",      "prod",    "throttled", 210, "vor 2m"),
+        new("cdn-purge",          "staging", "healthy",   44,  "vor 6m"),
     ];
 
     // Sparkline sample data
@@ -247,6 +349,33 @@
     private readonly IReadOnlyList<double> _sparkUsers    = [820, 900, 960, 1020, 1080, 1100, 1160, 1204];
 
     private void ToggleLoading() => _loading = !_loading;
+
+    // ───── Phase 2 demo state ─────
+    private int _standalonePage;
+    private int _standaloneSize = 20;
+
+    private readonly List<ServiceRow> _largeServices = BuildLargeDataset(53);
+
+    private static List<ServiceRow> BuildLargeDataset(int count)
+    {
+        var envs = new[] { "prod", "staging", "dev" };
+        var statuses = new[] { "healthy", "throttled", "failed" };
+        var prefixes = new[] { "auth", "billing", "search", "media", "report", "notify", "cdn", "token", "image", "queue", "audit", "metric" };
+        var suffixes = new[] { "service", "worker", "index", "pipeline", "generator", "dispatcher", "rotator", "purge", "uploader" };
+        var rng = new Random(42);
+        var rows = new List<ServiceRow>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var name = $"{prefixes[i % prefixes.Length]}-{suffixes[(i * 3) % suffixes.Length]}-{i + 1:D2}";
+            rows.Add(new ServiceRow(
+                Name: name,
+                Environment: envs[rng.Next(envs.Length)],
+                Status: statuses[rng.Next(statuses.Length)],
+                LatencyMs: rng.NextDouble() < 0.15 ? null : rng.Next(8, 280),
+                LastSeen: $"vor {rng.Next(1, 59)}{(rng.NextDouble() < 0.5 ? "s" : "m")}"));
+        }
+        return rows;
+    }
 
     private record ServiceRow(string Name, string Environment, string Status, int? LatencyMs, string LastSeen);
 }

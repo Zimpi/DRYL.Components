@@ -1,39 +1,42 @@
 @namespace DRYL.Components
 @typeparam TItem
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
-    DrylTable<TItem> — glass data table with optional KPI summary bar.
+    DrylTable<TItem> — glass data table with declarative columns,
+    global search, click-to-sort, per-column filters, pagination,
+    optional KPI summary bar and optional server-side DataProvider.
 
     Usage (minimal):
-      <DrylTable Items="@services" AriaLabel="Services">
-          <HeaderContent>
-              <th>Service</th>
-              <th>Status</th>
-          </HeaderContent>
-          <RowTemplate Context="s">
-              <td class="tbl-td-primary">@s.Name</td>
-              <td><DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge></td>
-          </RowTemplate>
+      <DrylTable TItem="ServiceRow" Items="@services" AriaLabel="Services">
+          <Columns>
+              <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service" Sortable Searchable Primary />
+              <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status" Filterable FilterType="ColumnFilterType.Select" />
+          </Columns>
       </DrylTable>
 
-    Usage (with KPI summary bar):
-      <DrylTable Items="@services" AriaLabel="Services" Selectable>
-          <SummaryContent>
-              <DrylTableKpi Label="Total Services" Value="@services.Count.ToString()"
-                            Delta="+2" DeltaKind="DrylTableKpi.KpiDeltaKind.Positive" Trend="DrylTableKpi.KpiTrend.Up" />
-          </SummaryContent>
-          <HeaderContent>
-              <th>Service</th>
-          </HeaderContent>
-          <RowTemplate Context="s">
-              <td class="tbl-td-primary">@s.Name</td>
-          </RowTemplate>
+    Usage (with toolbar search, filters and pagination):
+      <DrylTable TItem="ServiceRow"
+                 Items="@services"
+                 Searchable ShowToolbar
+                 PageSize="20">
+          <Columns>
+              <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service"
+                          Sortable Searchable Filterable Primary />
+              <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status"
+                          Sortable Filterable FilterType="ColumnFilterType.Select" />
+          </Columns>
       </DrylTable>
 
-    Place <DrylTableKpi> components inside <SummaryContent>.
-    Use class="tbl-td-primary" on the main identifier cell.
-    Use class="tbl-col-check" on custom checkbox-column <th> if you add one manually.
+    Usage (server-side):
+      <DrylTable TItem="Row" DataProvider="LoadAsync" Searchable ShowToolbar PageSize="20">
+          <Columns> ... </Columns>
+      </DrylTable>
     ───────────────────────────────────────────────────────── *@
+
+<CascadingValue Value="this" IsFixed="true">
+    @Columns
+</CascadingValue>
 
 <div class="@WrapperClass" @attributes="AdditionalAttributes">
 
@@ -54,6 +57,48 @@
         </div>
     }
 
+    @if (ShowToolbar)
+    {
+        <div class="tbl-toolbar">
+            @if (Searchable)
+            {
+                <div class="tbl-search">
+                    <DrylIcon Name="Search" Size="14" Class="input-icon input-icon-leading" />
+                    <input class="input has-leading-icon"
+                           type="search"
+                           value="@_searchInput"
+                           @oninput="OnSearchInput"
+                           placeholder="@SearchPlaceholder"
+                           aria-label="@SearchPlaceholder" />
+                </div>
+            }
+            @if (_filters.Count > 0)
+            {
+                <div class="tbl-filter-chips" role="list" aria-label="Active filters">
+                    @foreach (var (key, descriptor) in _filters)
+                    {
+                        var col = _columns.FirstOrDefault(c => c.Key == key);
+                        if (col is null) continue;
+                        <span class="tbl-filter-chip" role="listitem">
+                            <span class="tbl-filter-chip-label">@col.DisplayTitle:</span>
+                            <span class="tbl-filter-chip-value">@FormatFilterValue(descriptor)</span>
+                            <button type="button"
+                                    class="tbl-filter-chip-close"
+                                    @onclick="@(() => ClearFilter(key))"
+                                    aria-label="@($"Remove filter on {col.DisplayTitle}")">
+                                <DrylIcon Name="X" Size="11" />
+                            </button>
+                        </span>
+                    }
+                </div>
+            }
+            @if (ToolbarContent is not null)
+            {
+                <div class="tbl-toolbar-extra">@ToolbarContent</div>
+            }
+        </div>
+    }
+
     <div class="tbl-wrap">
         <table class="tbl" aria-label="@AriaLabel" role="grid">
             <thead>
@@ -68,11 +113,123 @@
                                    aria-label="Select all rows" />
                         </th>
                     }
-                    @HeaderContent
+                    @foreach (var col in _columns)
+                    {
+                        <th class="@HeaderCssClass(col)"
+                            scope="col"
+                            style="@HeaderStyle(col)"
+                            aria-sort="@HeaderAriaSort(col)">
+                            <div class="tbl-th-inner">
+                                <span class="tbl-th-clickable"
+                                      tabindex="@(col.Sortable ? 0 : (int?)null)"
+                                      @onclick="@((MouseEventArgs e) => OnHeaderClick(col, e))"
+                                      @onkeydown="@((KeyboardEventArgs e) => OnHeaderKeyDown(col, e))">
+                                    <span class="tbl-th-label">
+                                        @if (col.HeaderTemplate is not null)
+                                        {
+                                            @col.HeaderTemplate
+                                        }
+                                        else
+                                        {
+                                            @col.DisplayTitle
+                                        }
+                                    </span>
+                                    @if (col.Sortable)
+                                    {
+                                        var dir = SortDirectionFor(col);
+                                        <span class="tbl-th-sort-icon @(dir.HasValue ? "is-active" : null)">
+                                            @if (dir == SortDirection.Descending)
+                                            {
+                                                <DrylIcon Name="ArrowDown" Size="12" />
+                                            }
+                                            else
+                                            {
+                                                <DrylIcon Name="ArrowUp" Size="12" />
+                                            }
+                                        </span>
+                                    }
+                                </span>
+
+                                @if (col.Filterable)
+                                {
+                                    var hasFilter = _filters.ContainsKey(col.Key);
+                                    <button type="button"
+                                            class="tbl-filter-trigger @(hasFilter ? "is-active" : null)"
+                                            @onclick="@(() => ToggleFilter(col))"
+                                            @onclick:stopPropagation
+                                            aria-label="@($"Filter {col.DisplayTitle}")"
+                                            aria-expanded="@(_openFilterColumn == col.Key ? "true" : "false")">
+                                        <DrylIcon Name="Filter" Size="11" />
+                                    </button>
+                                }
+
+                                @if (col.Filterable && _openFilterColumn == col.Key)
+                                {
+                                    var openCol = col;
+                                    var currentText = _filters.TryGetValue(openCol.Key, out var f1)
+                                        ? f1.Value as string ?? "" : "";
+                                    var currentSet = _filters.TryGetValue(openCol.Key, out var f2) && f2.Value is HashSet<object?> s
+                                        ? s : new HashSet<object?>();
+                                    <div class="tbl-filter-popover"
+                                         @onkeydown="OnPopoverKeyDown"
+                                         tabindex="-1">
+                                        <div class="tbl-filter-popover-header">
+                                            <span class="tbl-filter-popover-title">Filter @openCol.DisplayTitle</span>
+                                            <button type="button" class="tbl-filter-popover-close"
+                                                    @onclick="CloseFilter" aria-label="Close filter">
+                                                <DrylIcon Name="X" Size="12" />
+                                            </button>
+                                        </div>
+                                        <div class="tbl-filter-popover-body">
+                                            @if (openCol.ResolvedFilterType == ColumnFilterType.Select)
+                                            {
+                                                var values = GetDistinctValues(openCol).ToList();
+                                                if (values.Count == 0)
+                                                {
+                                                    <span class="tbl-filter-empty">No values</span>
+                                                }
+                                                @foreach (var value in values)
+                                                {
+                                                    var v = value;
+                                                    var isChecked = currentSet.Contains(v);
+                                                    <label class="tbl-filter-option">
+                                                        <input type="checkbox" class="checkbox"
+                                                               checked="@isChecked"
+                                                               @onchange="@((ChangeEventArgs e) => ToggleSelectFilterValue(openCol, v, e.Value is true))" />
+                                                        <span>@(v?.ToString() ?? "(empty)")</span>
+                                                    </label>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <input class="input"
+                                                       type="text"
+                                                       value="@currentText"
+                                                       placeholder="Contains…"
+                                                       @oninput="@((ChangeEventArgs e) => SetTextFilter(openCol, e.Value?.ToString()))" />
+                                            }
+                                        </div>
+                                        <div class="tbl-filter-popover-footer">
+                                            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                                        Size="DrylButton.ButtonSize.Small"
+                                                        OnClick="@(() => ClearFilter(openCol.Key))">
+                                                Clear
+                                            </DrylButton>
+                                            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                                        Size="DrylButton.ButtonSize.Small"
+                                                        OnClick="CloseFilter">
+                                                Done
+                                            </DrylButton>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </th>
+                    }
                 </tr>
             </thead>
             <tbody>
-                @if (Loading)
+                @if (Loading || _serverLoading)
                 {
                     <tr class="tbl-loading-row">
                         <td colspan="99" aria-label="Loading">
@@ -82,7 +239,7 @@
                         </td>
                     </tr>
                 }
-                else if (!Items.Any())
+                else if (_view.Count == 0)
                 {
                     <tr class="tbl-empty-row">
                         <td colspan="99">
@@ -99,7 +256,7 @@
                 }
                 else
                 {
-                    @foreach (var item in Items)
+                    @foreach (var item in _view)
                     {
                         var selected = _selected.Contains(item);
                         var aiNew = ShowAiEnter(item);
@@ -119,7 +276,19 @@
                                 </td>
                             }
 
-                            @RowTemplate!(item)
+                            @foreach (var col in _columns)
+                            {
+                                <td class="@CellCssClass(col)" style="@CellStyle(col)">
+                                    @if (col.CellTemplate is not null)
+                                    {
+                                        @col.CellTemplate(item)
+                                    }
+                                    else
+                                    {
+                                        @col.GetValue(item)
+                                    }
+                                </td>
+                            }
                         </tr>
                     }
                 }
@@ -127,35 +296,77 @@
         </table>
     </div>
 
+    @if (_pageSize > 0)
+    {
+        <div class="tbl-footer">
+            <DrylPagination CurrentPage="@_page"
+                            PageSize="@_pageSize"
+                            TotalCount="@_filteredCount"
+                            PageSizeOptions="@PageSizeOptions"
+                            OnPageChanged="OnPageChangedInternal"
+                            OnPageSizeChanged="OnPageSizeChangedInternal" />
+        </div>
+    }
+
 </div>
 
 @code {
-    /// <summary>The data items to display. Required.</summary>
-    [Parameter, EditorRequired]
-    public IEnumerable<TItem> Items { get; set; } = [];
+    /// <summary>The data items to display when no <see cref="DataProvider"/> is set.</summary>
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = [];
 
     /// <summary>
-    /// Optional KPI summary tiles rendered above the table headers.
-    /// Place <see cref="DrylTableKpi"/> components here.
+    /// Server-side loader. When set, <see cref="Items"/> is ignored and the table calls this
+    /// callback whenever search/sort/filter/page state changes. The provider receives a
+    /// <see cref="DataRequest"/> snapshot and returns the matching page plus the total count.
     /// </summary>
+    [Parameter]
+    public Func<DataRequest, CancellationToken, ValueTask<DataResult<TItem>>>? DataProvider { get; set; }
+
+    /// <summary>Declarative column definitions. Place <see cref="DrylColumn{TItem}"/> components inside.</summary>
+    [Parameter] public RenderFragment? Columns { get; set; }
+
+    /// <summary>Optional KPI summary tiles rendered above the toolbar.</summary>
     [Parameter] public RenderFragment? SummaryContent { get; set; }
 
-    /// <summary>
-    /// Table header cells. Render <c>&lt;th&gt;</c> elements directly.
-    /// The existing <c>.tbl th</c> styles apply automatically.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public RenderFragment? HeaderContent { get; set; }
+    /// <summary>Optional extra content rendered in the toolbar (right-aligned area).</summary>
+    [Parameter] public RenderFragment? ToolbarContent { get; set; }
 
-    /// <summary>
-    /// Row template for each item. Render <c>&lt;td&gt;</c> elements directly.
-    /// Add <c>class="tbl-td-primary"</c> to the main identifier cell.
-    /// </summary>
-    [Parameter, EditorRequired]
-    public RenderFragment<TItem>? RowTemplate { get; set; }
-
-    /// <summary>Rendered when <see cref="Items"/> is empty. Defaults to "No data".</summary>
+    /// <summary>Rendered when the current view is empty. Defaults to "No data".</summary>
     [Parameter] public RenderFragment? EmptyContent { get; set; }
+
+    /// <summary>Shows the toolbar above the table. Required when <see cref="Searchable"/> or extra toolbar content is used.</summary>
+    [Parameter] public bool ShowToolbar { get; set; }
+
+    /// <summary>Enables the global search input in the toolbar. Searches across all columns with <c>Searchable=true</c>.</summary>
+    [Parameter] public bool Searchable { get; set; }
+
+    /// <summary>Placeholder for the search input. Default: "Search…".</summary>
+    [Parameter] public string SearchPlaceholder { get; set; } = "Search…";
+
+    /// <summary>Debounce in milliseconds for the search input. Default 200.</summary>
+    [Parameter] public int SearchDebounceMs { get; set; } = 200;
+
+    /// <summary>
+    /// Optional override for the search predicate. Receives the row item and the current search text and
+    /// returns true to keep the row. When null, the default predicate matches when any
+    /// column with <see cref="DrylColumn{TItem}.Searchable"/> contains the search text (case-insensitive).
+    /// </summary>
+    [Parameter] public Func<TItem, string, bool>? SearchPredicate { get; set; }
+
+    /// <summary>
+    /// Items per page. Set to 0 (default) to disable pagination. Two-way bindable —
+    /// the table calls back on this when the user picks a new size in the footer.
+    /// </summary>
+    [Parameter] public int PageSize { get; set; }
+
+    /// <summary>Raised when the user picks a new page size in the pagination footer.</summary>
+    [Parameter] public EventCallback<int> PageSizeChanged { get; set; }
+
+    /// <summary>Page-size options shown in the pagination footer. Default: <c>[10, 20, 50, 100]</c>.</summary>
+    [Parameter] public IReadOnlyList<int> PageSizeOptions { get; set; } = [10, 20, 50, 100];
+
+    /// <summary>Raised when the user navigates to a different page (zero-indexed).</summary>
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
 
     /// <summary>If true, a checkbox column is prepended and row selection is enabled.</summary>
     [Parameter] public bool Selectable { get; set; }
@@ -192,13 +403,30 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    private readonly List<DrylColumn<TItem>> _columns = [];
     private readonly HashSet<TItem> _selected = [];
     private readonly HashSet<TItem> _seenItems = [];
+    private readonly List<SortDescriptor> _sort = [];
+    private readonly Dictionary<string, FilterDescriptor> _filters = new();
+    private List<TItem> _view = [];
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
+    private string? _searchInput;
+    private string? _appliedSearch;
+    private CancellationTokenSource? _searchDebounceCts;
+    private CancellationTokenSource? _dataProviderCts;
+    private bool _serverLoading;
+    private int _filteredCount;
+    private int _page;
+    private int _pageSize;
+    private int _lastSeenPageSize;
+    private IEnumerable<TItem>? _lastItemsRef;
+    private bool _columnsDirty;
+    private string? _openFilterColumn;
+
     private bool AllSelected =>
-        Items.Any() && Items.All(i => _selected.Contains(i));
+        _view.Count > 0 && _view.All(i => _selected.Contains(i));
 
     private string WrapperClass
     {
@@ -217,27 +445,406 @@
         }
     }
 
-    protected override void OnParametersSet()
+    internal void AddColumn(DrylColumn<TItem> column)
+    {
+        if (_columns.Contains(column)) return;
+        _columns.Add(column);
+        _columnsDirty = true;
+        // No StateHasChanged here — the column's own first render already queued one;
+        // OnAfterRenderAsync will pick up _columnsDirty and rebuild + re-render once.
+    }
+
+    internal void RemoveColumn(DrylColumn<TItem> column)
+    {
+        if (_columns.Remove(column))
+        {
+            _sort.RemoveAll(s => s.ColumnKey == column.Key);
+            _filters.Remove(column.Key);
+            _columnsDirty = true;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
     {
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
 
-        if (SelectedItems is null) return;
-        _selected.Clear();
-        foreach (var item in SelectedItems)
-            _selected.Add(item);
+        if (SelectedItems is not null)
+        {
+            _selected.Clear();
+            foreach (var item in SelectedItems) _selected.Add(item);
+        }
+
+        if (PageSize != _lastSeenPageSize)
+        {
+            _lastSeenPageSize = PageSize;
+            _pageSize = PageSize;
+        }
+
+        var itemsChanged = !ReferenceEquals(_lastItemsRef, Items);
+        _lastItemsRef = Items;
+
+        if (itemsChanged || _columnsDirty)
+        {
+            _columnsDirty = false;
+            await RebuildViewAsync();
+        }
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        base.OnAfterRender(firstRender);
-        // After every render, snapshot the currently-visible items so the next
-        // render only treats genuinely new items as "AI-fresh". Replacing rather
-        // than adding keeps memory bounded when Items is swapped wholesale.
+        if (_columnsDirty)
+        {
+            _columnsDirty = false;
+            await RebuildViewAsync();
+            StateHasChanged();
+        }
+
         _seenItems.Clear();
-        foreach (var item in Items)
-            _seenItems.Add(item);
+        foreach (var item in _view) _seenItems.Add(item);
     }
+
+    // ───── Search ─────
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _searchInput = e.Value?.ToString();
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts = new CancellationTokenSource();
+        var token = _searchDebounceCts.Token;
+
+        try { await Task.Delay(SearchDebounceMs, token); }
+        catch (TaskCanceledException) { return; }
+
+        _appliedSearch = string.IsNullOrWhiteSpace(_searchInput) ? null : _searchInput;
+        _page = 0;
+        await RebuildViewAsync();
+        StateHasChanged();
+    }
+
+    private bool MatchesSearch(TItem item)
+    {
+        if (string.IsNullOrEmpty(_appliedSearch)) return true;
+        if (SearchPredicate is not null) return SearchPredicate(item, _appliedSearch);
+
+        foreach (var col in _columns)
+        {
+            if (!col.Searchable || col.FieldGetter is null) continue;
+            var value = col.FieldGetter(item)?.ToString();
+            if (value is not null && value.Contains(_appliedSearch, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    // ───── Filters ─────
+
+    private async Task ToggleFilter(DrylColumn<TItem> column)
+    {
+        _openFilterColumn = _openFilterColumn == column.Key ? null : column.Key;
+        await Task.CompletedTask;
+    }
+
+    private void CloseFilter() => _openFilterColumn = null;
+
+    private async Task ClearFilter(string columnKey)
+    {
+        if (_filters.Remove(columnKey))
+        {
+            _page = 0;
+            await RebuildViewAsync();
+        }
+    }
+
+    private async Task SetTextFilter(DrylColumn<TItem> column, string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            _filters.Remove(column.Key);
+        else
+            _filters[column.Key] = new FilterDescriptor(column.Key, FilterOperator.Contains, text);
+        _page = 0;
+        await RebuildViewAsync();
+    }
+
+    private async Task ToggleSelectFilterValue(DrylColumn<TItem> column, object? value, bool include)
+    {
+        HashSet<object?> set;
+        if (_filters.TryGetValue(column.Key, out var existing) && existing.Value is HashSet<object?> existingSet)
+        {
+            set = existingSet;
+        }
+        else
+        {
+            set = new HashSet<object?>();
+        }
+
+        if (include) set.Add(value);
+        else set.Remove(value);
+
+        if (set.Count == 0)
+            _filters.Remove(column.Key);
+        else
+            _filters[column.Key] = new FilterDescriptor(column.Key, FilterOperator.In, set);
+
+        _page = 0;
+        await RebuildViewAsync();
+    }
+
+    private bool MatchesFilters(TItem item)
+    {
+        foreach (var (key, descriptor) in _filters)
+        {
+            var column = _columns.FirstOrDefault(c => c.Key == key);
+            if (column?.FieldGetter is null) continue;
+            var value = column.FieldGetter(item);
+
+            switch (descriptor.Operator)
+            {
+                case FilterOperator.Contains:
+                    if (descriptor.Value is not string needle) break;
+                    var hay = value?.ToString() ?? string.Empty;
+                    if (!hay.Contains(needle, StringComparison.OrdinalIgnoreCase)) return false;
+                    break;
+                case FilterOperator.In:
+                    if (descriptor.Value is not HashSet<object?> set) break;
+                    if (!set.Contains(value)) return false;
+                    break;
+            }
+        }
+        return true;
+    }
+
+    private string FormatFilterValue(FilterDescriptor descriptor) => descriptor.Operator switch
+    {
+        FilterOperator.Contains => $"\"{descriptor.Value}\"",
+        FilterOperator.In when descriptor.Value is HashSet<object?> set =>
+            set.Count <= 2
+                ? string.Join(", ", set.Select(v => v?.ToString() ?? "(empty)"))
+                : $"{set.Count} selected",
+        _ => descriptor.Value?.ToString() ?? string.Empty
+    };
+
+    private IEnumerable<object?> GetDistinctValues(DrylColumn<TItem> column)
+    {
+        if (column.FilterValues is not null)
+            return column.FilterValues(Items ?? []);
+        if (column.FieldGetter is null) return [];
+        return (Items ?? [])
+            .Select(column.FieldGetter)
+            .Distinct()
+            .OrderBy(v => v?.ToString(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void OnPopoverKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") CloseFilter();
+    }
+
+    // ───── Sort ─────
+
+    private SortDirection? SortDirectionFor(DrylColumn<TItem> column)
+    {
+        foreach (var s in _sort)
+            if (s.ColumnKey == column.Key) return s.Direction;
+        return null;
+    }
+
+    private async Task OnHeaderClick(DrylColumn<TItem> column, MouseEventArgs e)
+    {
+        if (!column.Sortable) return;
+        ToggleSort(column, e.ShiftKey);
+        await RebuildViewAsync();
+    }
+
+    private async Task OnHeaderKeyDown(DrylColumn<TItem> column, KeyboardEventArgs e)
+    {
+        if (!column.Sortable) return;
+        if (e.Key is not ("Enter" or " ")) return;
+        ToggleSort(column, e.ShiftKey);
+        await RebuildViewAsync();
+    }
+
+    private void ToggleSort(DrylColumn<TItem> column, bool multi)
+    {
+        var existingIndex = _sort.FindIndex(s => s.ColumnKey == column.Key);
+        var current = existingIndex >= 0 ? _sort[existingIndex].Direction : (SortDirection?)null;
+
+        // Cycle: none → asc → desc → none
+        SortDirection? next = current switch
+        {
+            null => SortDirection.Ascending,
+            SortDirection.Ascending => SortDirection.Descending,
+            _ => null
+        };
+
+        if (!multi) _sort.Clear();
+        else if (existingIndex >= 0) _sort.RemoveAt(existingIndex);
+
+        if (next is not null)
+            _sort.Add(new SortDescriptor(column.Key, next.Value));
+    }
+
+    private string? HeaderAriaSort(DrylColumn<TItem> column)
+    {
+        if (!column.Sortable) return null;
+        return SortDirectionFor(column) switch
+        {
+            SortDirection.Ascending => "ascending",
+            SortDirection.Descending => "descending",
+            _ => "none"
+        };
+    }
+
+    private static IEnumerable<TItem> ApplySort(IEnumerable<TItem> source, List<DrylColumn<TItem>> columns, List<SortDescriptor> sort)
+    {
+        if (sort.Count == 0) return source;
+
+        IOrderedEnumerable<TItem>? ordered = null;
+        foreach (var s in sort)
+        {
+            var col = columns.FirstOrDefault(c => c.Key == s.ColumnKey);
+            if (col?.FieldGetter is null) continue;
+            var getter = col.FieldGetter;
+
+            ordered = ordered is null
+                ? (s.Direction == SortDirection.Ascending
+                    ? source.OrderBy(getter, NullSafeComparer.Instance)
+                    : source.OrderByDescending(getter, NullSafeComparer.Instance))
+                : (s.Direction == SortDirection.Ascending
+                    ? ordered.ThenBy(getter, NullSafeComparer.Instance)
+                    : ordered.ThenByDescending(getter, NullSafeComparer.Instance));
+        }
+
+        return (IEnumerable<TItem>?)ordered ?? source;
+    }
+
+    private sealed class NullSafeComparer : IComparer<object?>
+    {
+        public static readonly NullSafeComparer Instance = new();
+        public int Compare(object? x, object? y)
+        {
+            if (x is null && y is null) return 0;
+            if (x is null) return -1;
+            if (y is null) return 1;
+            if (x is IComparable cx && x.GetType() == y.GetType()) return cx.CompareTo(y);
+            return string.CompareOrdinal(x.ToString(), y.ToString());
+        }
+    }
+
+    // ───── Pagination ─────
+
+    private async Task OnPageChangedInternal(int page)
+    {
+        _page = page;
+        await OnPageChanged.InvokeAsync(page);
+        await RebuildViewAsync();
+    }
+
+    private async Task OnPageSizeChangedInternal(int size)
+    {
+        _pageSize = size;
+        _lastSeenPageSize = size;
+        _page = 0;
+        await PageSizeChanged.InvokeAsync(size);
+        await RebuildViewAsync();
+    }
+
+    // ───── Pipeline ─────
+
+    private async Task RebuildViewAsync()
+    {
+        if (DataProvider is not null)
+        {
+            await LoadFromProviderAsync();
+            return;
+        }
+
+        var items = Items ?? [];
+        var filtered = items.Where(MatchesSearch).Where(MatchesFilters);
+        var sorted = ApplySort(filtered, _columns, _sort);
+        var materialized = sorted as IList<TItem> ?? sorted.ToList();
+        _filteredCount = materialized.Count;
+
+        if (_pageSize > 0)
+        {
+            var maxPage = Math.Max(0, (int)Math.Ceiling((double)_filteredCount / _pageSize) - 1);
+            if (_page > maxPage) _page = maxPage;
+            _view = materialized.Skip(_page * _pageSize).Take(_pageSize).ToList();
+        }
+        else
+        {
+            _view = materialized is List<TItem> lst ? lst : materialized.ToList();
+        }
+    }
+
+    private async Task LoadFromProviderAsync()
+    {
+        if (DataProvider is null) return;
+
+        _dataProviderCts?.Cancel();
+        _dataProviderCts = new CancellationTokenSource();
+        var token = _dataProviderCts.Token;
+
+        _serverLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var skip = _pageSize > 0 ? _page * _pageSize : 0;
+            var take = _pageSize > 0 ? _pageSize : int.MaxValue;
+            var request = new DataRequest(
+                Skip: skip,
+                Take: take,
+                SearchText: _appliedSearch,
+                Sort: _sort.ToArray(),
+                Filters: _filters.Values.ToArray());
+
+            var result = await DataProvider(request, token);
+            if (token.IsCancellationRequested) return;
+
+            _view = result.Items.ToList();
+            _filteredCount = result.TotalCount;
+        }
+        catch (OperationCanceledException) { /* superseded */ }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _serverLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    // ───── Rendering helpers ─────
+
+    private string HeaderCssClass(DrylColumn<TItem> col)
+    {
+        var classes = new List<string>();
+        if (col.Sortable) classes.Add("tbl-th-sort");
+        if (col.Filterable) classes.Add("tbl-th-filterable");
+        if (col.Align != ColumnAlign.Start) classes.Add($"tbl-align-{col.Align.ToString().ToLowerInvariant()}");
+        return string.Join(' ', classes);
+    }
+
+    private string? HeaderStyle(DrylColumn<TItem> col)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(col.Width)) parts.Add($"width: {col.Width}");
+        return parts.Count == 0 ? null : string.Join("; ", parts);
+    }
+
+    private string CellCssClass(DrylColumn<TItem> col)
+    {
+        var classes = new List<string>();
+        if (col.Primary) classes.Add("tbl-td-primary");
+        if (col.Align != ColumnAlign.Start) classes.Add($"tbl-align-{col.Align.ToString().ToLowerInvariant()}");
+        return string.Join(' ', classes);
+    }
+
+    private string? CellStyle(DrylColumn<TItem> col) =>
+        col.Align != ColumnAlign.Start ? $"text-align: {col.TextAlign}" : null;
 
     private bool ShowAiEnter(TItem item) =>
         (Ai == AiState.Streaming || Ai == AiState.Generated) && !_seenItems.Contains(item);
@@ -260,14 +867,21 @@
     private async Task ToggleAll(ChangeEventArgs e)
     {
         if (e.Value is true)
-            foreach (var item in Items)
-                _selected.Add(item);
+            foreach (var item in _view) _selected.Add(item);
         else
-            _selected.Clear();
+            foreach (var item in _view) _selected.Remove(item);
 
         await SelectedItemsChanged.InvokeAsync(new HashSet<TItem>(_selected));
     }
 
     private Task HandleRowClick(TItem item) =>
         OnRowClick.InvokeAsync(item);
+
+    public void Dispose()
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+        _dataProviderCts?.Cancel();
+        _dataProviderCts?.Dispose();
+    }
 }

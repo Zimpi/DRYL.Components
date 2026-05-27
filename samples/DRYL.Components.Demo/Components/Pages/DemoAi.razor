@@ -115,24 +115,26 @@
             <DrylButton Variant="DrylButton.ButtonVariant.Ghost" OnClick="ResetRows" Disabled="_tableRunning">Reset</DrylButton>
         </div>
 
-        <DrylTable Items="@_rows" Ai="_tableState" AriaLabel="AI-generated leads">
+        <DrylTable TItem="LeadRow" Items="@_rows" Ai="_tableState" AriaLabel="AI-generated leads">
             <SummaryContent>
                 <DrylTableKpi Label="Leads found" Value="@_rows.Count.ToString()" />
                 <DrylTableKpi Label="Avg. score" Value="@AvgScore" />
                 <DrylTableKpi Label="Status" Value="@TableStatusLabel" />
             </SummaryContent>
-            <HeaderContent>
-                <th>Company</th>
-                <th>Region</th>
-                <th>Score</th>
-                <th>Signal</th>
-            </HeaderContent>
-            <RowTemplate Context="r">
-                <td class="tbl-td-primary">@r.Company</td>
-                <td>@r.Region</td>
-                <td class="mono">@r.Score</td>
-                <td><DrylBadge Kind="@r.SignalKind" Dot>@r.Signal</DrylBadge></td>
-            </RowTemplate>
+            <Columns>
+                <DrylColumn TItem="LeadRow" Field="@(r => r.Company)" Title="Company" Primary />
+                <DrylColumn TItem="LeadRow" Field="@(r => r.Region)" Title="Region" />
+                <DrylColumn TItem="LeadRow" Field="@(r => r.Score)" Title="Score">
+                    <CellTemplate Context="r">
+                        <span class="mono">@r.Score</span>
+                    </CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="LeadRow" Field="@(r => r.Signal)" Title="Signal">
+                    <CellTemplate Context="r">
+                        <DrylBadge Kind="@r.SignalKind" Dot>@r.Signal</DrylBadge>
+                    </CellTemplate>
+                </DrylColumn>
+            </Columns>
             <EmptyContent>
                 <span>No leads yet. Click <em>Stream rows</em> to ask the model.</span>
             </EmptyContent>

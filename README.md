@@ -211,6 +211,84 @@ Every step is visible to the user through the dialog's border and glow — the m
 
 ---
 
+## DrylTable — declarative data grid
+
+`DrylTable<TItem>` is the workhorse for displaying tabular data. Columns are declared with `DrylColumn<TItem>` child components — each column knows whether it is sortable, filterable, or searchable, which removes the need to wire up headers and row templates separately.
+
+### Minimal
+
+```razor
+<DrylTable TItem="Service" Items="@services" AriaLabel="Services">
+    <Columns>
+        <DrylColumn TItem="Service" Field="@(s => s.Name)"   Title="Service" Sortable Searchable Primary />
+        <DrylColumn TItem="Service" Field="@(s => s.Status)" Title="Status" Sortable />
+    </Columns>
+</DrylTable>
+```
+
+### Full enterprise setup
+
+```razor
+<DrylTable TItem="Service"
+           Items="@services"
+           ShowToolbar Searchable
+           PageSize="20"
+           Selectable
+           AriaLabel="Services">
+    <Columns>
+        <DrylColumn TItem="Service" Field="@(s => s.Name)"
+                    Title="Service" Sortable Searchable Filterable Primary />
+        <DrylColumn TItem="Service" Field="@(s => s.Environment)"
+                    Title="Env" Sortable Filterable
+                    FilterType="ColumnFilterType.Select" />
+        <DrylColumn TItem="Service" Field="@(s => s.LatencyMs)"
+                    Title="Latency" Sortable Align="ColumnAlign.End" Width="120px">
+            <CellTemplate Context="s">@(s.LatencyMs is { } n ? $"{n} ms" : "—")</CellTemplate>
+        </DrylColumn>
+    </Columns>
+</DrylTable>
+```
+
+The pipeline runs **search → filter → sort → page** entirely client-side. Toolbar shows the global search input plus active-filter chips with one-click removal. Headers cycle `none → asc → desc → none` on click; Shift-click adds to a multi-sort. Filter popovers open inline at the header — text input for free-form columns, multi-select for enums / bools / explicit `Select` filters.
+
+### Server-side via `DataProvider`
+
+For large datasets, hand the table a `DataProvider` callback. It receives a `DataRequest` snapshot (`Skip`, `Take`, `SearchText`, `Sort`, `Filters`) and returns a `DataResult<TItem>` with the page and total count. When `DataProvider` is set, `Items` is ignored.
+
+```csharp
+async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToken ct)
+{
+    var query = repo.Services
+        .ApplySearch(req.SearchText)
+        .ApplyFilters(req.Filters)
+        .ApplySort(req.Sort);
+
+    var total = await query.CountAsync(ct);
+    var page  = await query.Skip(req.Skip).Take(req.Take).ToListAsync(ct);
+    return new DataResult<Service>(page, total);
+}
+```
+
+```razor
+<DrylTable TItem="Service" DataProvider="LoadAsync" Searchable ShowToolbar PageSize="20">
+    <Columns> ... </Columns>
+</DrylTable>
+```
+
+### Standalone pagination
+
+`DrylPagination` is also usable on its own — drop it under any list, gallery or feed.
+
+```razor
+<DrylPagination CurrentPage="@page"
+                PageSize="@size"
+                TotalCount="@total"
+                OnPageChanged="@(p => page = p)"
+                OnPageSizeChanged="@(s => { size = s; page = 0; })" />
+```
+
+---
+
 ## What's in the box (today)
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
@@ -225,7 +303,9 @@ Every step is visible to the user through the dialog's border and glow — the m
 | `DrylSelect`      | Inputs       | —       | ✅ Done    | Styled select bound to `EditForm`                                 |
 | `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
-| `DrylTable`       | Data         | ✅      | ✅ Done    | Generic table, sticky header, row selection, optional KPI summary bar |
+| `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, global search, click-to-sort (multi-sort), per-column filters, pagination, row selection, KPI summary bar, optional `DataProvider` for server-side loading |
+| `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, custom `CellTemplate` / `HeaderTemplate`, alignment |
+| `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |
 | `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
 | `DrylLayout`      | Layout       | —       | ✅ Done    | Root shell — CSS grid with sidebar + topbar slots, cascades layout context |
 | `DrylAppBar`      | Layout       | —       | ✅ Done    | Sticky top bar with optional responsive drawer-toggle hamburger |
@@ -250,7 +330,8 @@ DRYL.Components/             The library (Razor Class Library, .NET 10)
   Components/
     Actions/                 DrylButton
     AI/                      DrylAiIndicator (AI-specific components live here)
-    Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi
+    Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi, DrylColumn, DrylPagination
+      Models/                SortDescriptor, FilterDescriptor, DataRequest, DataResult, ColumnAlign, ColumnFilterType
     Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
     Layout/                  DrylExpansion, DrylLayout, DrylMainContent, DrylAppBar, DrylDrawer, DrylNavGroup, DrylNavLink
     Surfaces/                DrylCard, DrylDialog, DrylDialogProvider, DrylToast, DrylToastProvider
