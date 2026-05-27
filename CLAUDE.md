@@ -148,3 +148,66 @@ If any of these are unclear, **ask** before writing code.
 - ❌ Invent a per-component AI state enum (e.g. `ChatLoadingState`, `AiBusy`). Use `AiState` — see rule 2.10.
 - ❌ Add a new AI animation or color. The five `AiState` values map to the existing `.ai-aura*` and `.ai-indicator` primitives. If you want a new visual, propose extending the primitive in `dryl.css`.
 - ❌ Default `Ai` to anything other than `AiState.None`. AI styling must be opt-in.
+
+---
+
+## 7. Documentation maintenance — mandatory for every change
+
+Every commit that touches library code **must** also update `CHANGELOG.md` and, where relevant, `README.md`. These two files are the public face of the library.
+
+### 7.1 CHANGELOG.md
+
+The file lives at the repository root and follows [Keep a Changelog](https://keepachangelog.com/) (v1.1.0) format with [Semantic Versioning](https://semver.org/).
+
+**Always write into `[Unreleased]`** — never create a new version section; that is the maintainer's job at release time.
+
+Pick the right sub-heading for each change:
+
+| Sub-heading  | When to use                                                                      |
+| ------------ | -------------------------------------------------------------------------------- |
+| `Added`      | New component, new parameter, new CSS token, new service method                  |
+| `Changed`    | Altered behaviour or API of an existing component (non-breaking)                 |
+| `Deprecated` | Something that still works but will be removed in a future MAJOR version         |
+| `Removed`    | Something deleted (only allowed in a MAJOR bump — coordinate with maintainer)    |
+| `Fixed`      | Bug fix, visual regression, accessibility issue                                  |
+
+**Entry format** — one bullet per logical change, component name in backticks:
+
+```markdown
+### Added
+- `DrylSpinner` — New loading indicator; variants: Ring / Dots / Pulse; AI-Mode
+- `DrylCard` — New `Elevation` parameter (`Low / Mid / High`) controls shadow depth
+```
+
+**Versioning rules** (for maintainer, but good to know):
+
+| Change type              | Bump        |
+| ------------------------ | ----------- |
+| New component or feature | MINOR       |
+| Bug fix / visual tweak   | PATCH       |
+| Breaking API change      | MAJOR       |
+
+### 7.2 README.md — component table
+
+The table in the **"What's in the box (today)"** section of `README.md` must reflect every component in the library. When you add or change a component:
+
+1. **New component** → add a row with: name, category, AI mode (✅ or —), status (✅ Done), short notes (≤ 12 words describing the key features).
+2. **Changed component** → update the notes column if the change is user-visible.
+3. **Removed component** → remove the row.
+
+**Do not** rewrite or reformat unrelated rows.
+
+### 7.3 What does NOT need a changelog entry
+
+- Internal refactoring with no visible effect
+- Changes to `samples/` demo pages only
+- Typo fixes in comments or XML doc strings
+- Changes to CI/build configuration
+
+### 7.4 Checklist before you finish a task
+
+Before considering any component work done, verify:
+
+- [ ] `CHANGELOG.md` — entry added under `[Unreleased]` with the correct sub-heading
+- [ ] `README.md` — component table row added / updated if component is new or its public API changed
+- [ ] `DRYL.Components.csproj` — `<Version>` is still consistent with the changelog (maintainer sets this; don't bump without being asked)
