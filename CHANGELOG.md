@@ -1,102 +1,102 @@
 # Changelog
 
-Alle nennenswerten Änderungen an DRYL werden in dieser Datei dokumentiert.
+All notable changes to DRYL are documented in this file.
 
-Das Format folgt [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
-Die Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning follows [Semantic Versioning](https://semver.org/).
 
-Bedeutung der Versionsschritte:
-- **MAJOR** (1.x.x) — Breaking Changes an der öffentlichen API
-- **MINOR** (x.1.x) — Neue Komponenten oder Features, abwärtskompatibel
-- **PATCH** (x.x.1) — Bugfixes, Dokumentation, Style-Korrekturen ohne API-Änderung
+Version bump guide:
+- **MAJOR** (1.x.x) — Breaking changes to the public API
+- **MINOR** (x.1.x) — New components or features, backwards-compatible
+- **PATCH** (x.x.1) — Bug fixes, docs, visual tweaks with no API change
 
 ---
 
 ## [Unreleased]
 
-### Hinzugefügt
-<!-- Neue Komponenten, Features oder Token hier eintragen -->
+### Added
+<!-- New components, features or tokens go here -->
 
-### Geändert
-<!-- Änderungen an bestehenden Komponenten hier eintragen -->
+### Changed
+<!-- Changes to existing components go here -->
 
-### Veraltet
-<!-- Demnächst entfernte Features hier ankündigen -->
+### Deprecated
+<!-- Features that still work but will be removed in a future MAJOR go here -->
 
-### Entfernt
-<!-- Entfernte Features hier eintragen -->
+### Removed
+<!-- Removed features go here -->
 
-### Behoben
-<!-- Bugfixes hier eintragen -->
+### Fixed
+<!-- Bug fixes go here -->
 
 ---
 
 ## [0.1.0] — 2026-05-27
 
-Erster dokumentierter Stand der Bibliothek. Alle Komponenten befinden sich im Early-Development-Status.
+First documented state of the library. All components are in early-development status.
 
-### Hinzugefügt
+### Added
 
 #### Design System
-- `dryl.css` — Komplettes Token-System: Farben, Abstände, Radien, Schatten, Übergänge, Typografie
-- AI-Mode-Primitive: `.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`, `.ai-indicator`
-- `AiState` enum — Gemeinsamer KI-Zustand (`None / Active / Thinking / Streaming / Generated`)
-- `DESIGN_TOKENS.md` — Vollständige Token-Referenz
-- `COMPONENT_PATTERNS.md` — Bau- und Konventionsregeln für Komponenten
-- `CLAUDE.md` — Beitragsregeln für KI-Agenten und menschliche Beitragende
+- `dryl.css` — Complete token system: colors, spacing, radii, shadows, transitions, typography
+- AI-mode primitives: `.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`, `.ai-indicator`
+- `AiState` enum — Shared AI state (`None / Active / Thinking / Streaming / Generated`)
+- `DESIGN_TOKENS.md` — Full token reference
+- `COMPONENT_PATTERNS.md` — Component anatomy and folder conventions
+- `CLAUDE.md` — Contribution rules for AI agents and human contributors
 
 #### Actions
-- `DrylButton` — Primäre Interaktionsfläche; Varianten: Primary / Secondary / Ghost / Danger; Größen: Small / Medium / Large; Zustände: Loading, Disabled; Leading- und Trailing-Icon-Slots; AI-Mode
+- `DrylButton` — Primary interaction surface; variants: Primary / Secondary / Ghost / Danger; sizes: Small / Medium / Large; states: Loading, Disabled; leading and trailing icon slots; AI-Mode
 
 #### Surfaces
-- `DrylCard` — Glasoberfläche mit optionalem Cursor-Spotlight; AI-Mode mit rotierendem Gradient-Rahmen
-- `DrylDialog` — Servicebetriebener Glasdialog; Fokus-Trap; Größen: Small / Medium / Large / FullScreen; AI-Mode (Human in the Middle)
-- `DrylDialogProvider` — Root-Provider; einmalig in `App.razor` einzubinden
-- `DrylToast` — Servicebetriebener Toast-Stack; Varianten: Info / Success / Warning / Danger / Ai; 6 Positionen; Auto-Dismiss mit Progress Bar; Hover-Pause; AI-Mode
+- `DrylCard` — Glass surface with optional cursor spotlight; AI-Mode with rotating gradient border
+- `DrylDialog` — Service-driven glass dialog; focus trap; sizes: Small / Medium / Large / FullScreen; AI-Mode (Human in the Middle)
+- `DrylDialogProvider` — Root provider; placed once in `App.razor`
+- `DrylToast` — Service-driven toast stack; variants: Info / Success / Warning / Danger / Ai; 6 positions; auto-dismiss with progress bar; hover-pause; AI-Mode
 
 #### Intelligence (AI)
-- `DrylAiIndicator` — Pulsierendes Status-Pill; Label und Pulsgeschwindigkeit passen sich an `AiState` an
+- `DrylAiIndicator` — Pulsing status pill; label and pulse speed adapt to `AiState`
 
 #### Data
-- `DrylBadge` — Inline-Status-Label; Varianten: Neutral / Accent / Success / Warning / Danger; optionaler Dot
-- `DrylIcon` — Lucide-basierter Icon-Satz; verwendet von Button, Badge und weiteren
-- `DrylTable<TItem>` — Deklaratives Datengitter; globale Suche, Sortierung (Multi-Sort via Shift-Click), Spaltenfilter (Text / Select), Paginierung, Zeilenauswahl, KPI-Zusammenfassungsleiste; optionaler `DataProvider` für serverseitiges Laden; AI-Mode
-- `DrylColumn<TItem>` — Deklarative Spalte für `DrylTable`; `Sortable`, `Searchable`, `Filterable`; custom `CellTemplate` / `HeaderTemplate`; Ausrichtung; Breite
-- `DrylTableKpi` — KPI-Zusammenfassungsleiste für `DrylTable`
-- `DrylPagination` — Eigenständiger Seitennavigator; First / Prev / Zahlen (Smart-Ellipsis) / Next / Last; Seitengrößen-Selector; "Zeige X–Y von Z"
+- `DrylBadge` — Inline status label; variants: Neutral / Accent / Success / Warning / Danger; optional dot
+- `DrylIcon` — Lucide-based icon set; used by Button, Badge and others
+- `DrylTable<TItem>` — Declarative data grid; global search, sort (multi-sort via Shift-click), column filters (Text / Select), pagination, row selection, KPI summary bar; optional `DataProvider` for server-side loading; AI-Mode
+- `DrylColumn<TItem>` — Declarative column for `DrylTable`; `Sortable`, `Searchable`, `Filterable`; custom `CellTemplate` / `HeaderTemplate`; alignment; width
+- `DrylTableKpi` — KPI summary bar for `DrylTable`
+- `DrylPagination` — Standalone page navigator; First / Prev / numbers (smart-ellipsis) / Next / Last; page-size selector; "Showing X–Y of Z"
 
 #### Inputs
-- `DrylInputText` — Formular-gebundenes Texteingabefeld; Leading- und Trailing-Icon-Slots; AI-Mode
-- `DrylTextarea` — Automatisch größenverstellbares Textareafeld; AI-Mode
-- `DrylCheckbox` — Barrierefreie Checkbox mit Label
-- `DrylSelect` — Gestyltes Select, eingebunden in `EditForm`
-- `DrylToggle` — Ein/Aus-Schalter
+- `DrylInputText` — Form-bound text input; leading and trailing icon slots; AI-Mode
+- `DrylTextarea` — Auto-resizable textarea; AI-Mode
+- `DrylCheckbox` — Accessible checkbox with label
+- `DrylSelect` — Styled select bound to `EditForm`
+- `DrylToggle` — On/off toggle switch
 
 #### Layout
-- `DrylLayout` — Root-Shell; CSS-Grid mit Sidebar- und Topbar-Slots; kaskadiert Layout-Kontext
-- `DrylAppBar` — Klebriger Topbar; optionaler responsiver Drawer-Toggle-Hamburger
-- `DrylDrawer` — Seitenleiste; immer sichtbare Spalte auf Desktop, Overlay auf Mobilgerät (`@bind-Open`)
-- `DrylMainContent` — Haupt-Content-Slot innerhalb `DrylLayout`; übernimmt Scroll und Padding
-- `DrylNavGroup` — Beschriftete Gruppe von Nav-Links innerhalb `DrylDrawer`
-- `DrylNavLink` — Einzelne Nav-Zeile mit Icon und Aktiv-Hervorhebung; unterstützt externe Links
-- `DrylExpansion` — Einklappbares Glaspanel; gestapelte Panels teilen Rahmen und trennen sich beim Öffnen; AI-Mode
-- `DrylTab` / `DrylTabs` — Tab-Leiste mit Glaspanel-Inhalten
+- `DrylLayout` — Root shell; CSS grid with sidebar and topbar slots; cascades layout context
+- `DrylAppBar` — Sticky top bar; optional responsive drawer-toggle hamburger
+- `DrylDrawer` — Sidebar; always-visible column on desktop, overlay on mobile (`@bind-Open`)
+- `DrylMainContent` — Main content slot inside `DrylLayout`; handles scroll and padding
+- `DrylNavGroup` — Labelled group of nav links inside `DrylDrawer`
+- `DrylNavLink` — Single nav row with icon and active highlighting; supports external links
+- `DrylExpansion` — Collapsible glass panel; stacked panels share borders and detach on open; AI-Mode
+- `DrylTab` / `DrylTabs` — Tab bar with glass panel content
 
 #### Feedback
-- `DrylAlert` — Feedback-Banner; Varianten: Info / Success / Warning / Danger / Ai; optionaler Titel; Dismissible; AI-Mode
-- `DrylTooltip` — CSS-only Hover-Tooltip; 4 Positionen: Top / Bottom / Left / Right
+- `DrylAlert` — Feedback banner; variants: Info / Success / Warning / Danger / Ai; optional title; dismissible; AI-Mode
+- `DrylTooltip` — CSS-only hover tooltip; 4 placements: Top / Bottom / Left / Right
 
 #### Services & Extensions
-- `IDrylDialogService` / `DrylDialogService` — Servicebetriebene Dialog-Steuerung; `ShowAsync<T>`, `ShowConfirmAsync`, `ShowAlertAsync`
-- `IDrylToastService` / `DrylToastService` — Servicebetriebene Toast-Steuerung
-- `AddDrylComponents()` — Extension-Methode für `IServiceCollection`
+- `IDrylDialogService` / `DrylDialogService` — Service-driven dialog control; `ShowAsync<T>`, `ShowConfirmAsync`, `ShowAlertAsync`
+- `IDrylToastService` / `DrylToastService` — Service-driven toast control
+- `AddDrylComponents()` — `IServiceCollection` extension method
 
 #### Data Models
-- `SortDescriptor`, `FilterDescriptor`, `DataRequest`, `DataResult<TItem>` — Modelle für `DrylTable` DataProvider
-- `ColumnAlign`, `ColumnFilterType` — Enums für `DrylColumn`
-- `DialogOptions`, `DialogParameters`, `DialogResult`, `DialogSize` — Modelle für `DrylDialog`
-- `ToastOptions`, `ToastParameters`, `ToastVariant`, `ToastPosition` — Modelle für `DrylToast`
-- `InputState` — Gemeinsamer Zustand für Eingabekomponenten
+- `SortDescriptor`, `FilterDescriptor`, `DataRequest`, `DataResult<TItem>` — Models for `DrylTable` DataProvider
+- `ColumnAlign`, `ColumnFilterType` — Enums for `DrylColumn`
+- `DialogOptions`, `DialogParameters`, `DialogResult`, `DialogSize` — Models for `DrylDialog`
+- `ToastOptions`, `ToastParameters`, `ToastVariant`, `ToastPosition` — Models for `DrylToast`
+- `InputState` — Shared state enum for input components
 
 ---
 
