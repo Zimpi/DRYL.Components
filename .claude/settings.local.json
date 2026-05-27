@@ -1,7 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/janzi/Desktop/DRYL/**)"
+      "Read(//c/Users/janzi/Desktop/DRYL/**)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\janzi\\\\Desktop\\\\DRYL\\\\DRYL.Components\" -Recurse)",
+      "Bash(Select-Object -First 20 FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\janzi\\\\Desktop\\\\DRYL\\\\DRYL.Components\\\\Components\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Sort-Object Name)",
+      "Bash(dotnet build *)",
+      "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" status --short)",
+      "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" add README.md DRYL.Components/Components/Data/DrylColumn.cs DRYL.Components/Components/Data/DrylPagination.razor DRYL.Components/Components/Data/DrylTable.razor DRYL.Components/Components/Data/DrylIcon.razor DRYL.Components/Components/Data/Models/ DRYL.Components/wwwroot/dryl.css samples/DRYL.Components.Demo/Components/Pages/DemoTable.razor samples/DRYL.Components.Demo/Components/Pages/DemoAi.razor)",
+      "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" log --oneline -5)",
+      "Bash(git -C c:/Users/janzi/Desktop/DRYL/DRYL.Components commit -m ' *)",
+      "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" log --oneline -3)"
     ]
   }
 }

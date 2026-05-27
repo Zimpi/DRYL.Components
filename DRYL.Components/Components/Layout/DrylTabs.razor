@@ -1,0 +1,186 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTabs — classic horizontal tab strip with gliding
+    gradient underline.
+
+    Usage:
+      <DrylTabs @bind-Active="_active">
+          <DrylTab Id="overview" Label="Overview" Icon="Home">
+              <p>Overview content.</p>
+          </DrylTab>
+          <DrylTab Id="logs" Label="Logs" Icon="Code"
+                   Ai="AiState.Thinking">
+              <p>Logs content.</p>
+          </DrylTab>
+      </DrylTabs>
+
+    The first non-disabled tab is selected by default. Each child
+    DrylTab registers itself via the cascading parent reference;
+    DrylTab never renders its own DOM — DrylTabs collects the
+    declarations and renders the header buttons plus the active
+    tab's ChildContent inside `.tab-panel`.
+
+    Keyboard: ArrowLeft/Right walk between tabs, Home/End jump to
+    the ends, Enter/Space activate the focused tab.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="tabs-root @Class" @attributes="AdditionalAttributes">
+    <div class="tabs" role="tablist" aria-label="@AriaLabel">
+        @foreach (var tab in _tabs)
+        {
+            var isActive = ReferenceEquals(tab, ActiveTab);
+            <button type="button"
+                    class="@TabCss(tab, isActive)"
+                    role="tab"
+                    id="@($"dryl-tab-{tab.InternalId}")"
+                    aria-selected="@(isActive ? "true" : "false")"
+                    aria-controls="@($"dryl-tabpanel-{tab.InternalId}")"
+                    tabindex="@(isActive ? 0 : -1)"
+                    disabled="@tab.Disabled"
+                    @key="tab.InternalId"
+                    @onclick="() => ActivateAsync(tab)"
+                    @onkeydown="(e) => OnTabKeyDown(e, tab)">
+                @if (!string.IsNullOrEmpty(tab.Icon))
+                {
+                    <DrylIcon Name="@tab.Icon" Size="14" Class="tab-icon" />
+                }
+                <span>@tab.Label</span>
+                @if (tab.TrailingContent is not null)
+                {
+                    <span class="tab-trailing">@tab.TrailingContent</span>
+                }
+            </button>
+        }
+    </div>
+
+    @if (ActiveTab is not null)
+    {
+        <div class="tab-panel"
+             role="tabpanel"
+             id="@($"dryl-tabpanel-{ActiveTab.InternalId}")"
+             aria-labelledby="@($"dryl-tab-{ActiveTab.InternalId}")"
+             @key="ActiveTab.InternalId">
+            @ActiveTab.ChildContent
+        </div>
+    }
+
+    @* DrylTab children render no DOM of their own — this slot exists
+       so they instantiate and register against the cascading parent. *@
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</div>
+
+@code {
+    /// <summary>ID of the currently active tab. Supports two-way binding.</summary>
+    [Parameter] public string? Active { get; set; }
+
+    /// <summary>Fires when the user switches tabs.</summary>
+    [Parameter] public EventCallback<string?> ActiveChanged { get; set; }
+
+    /// <summary>Accessible label for the tablist (read by screen readers).</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Tab declarations.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) on the root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly List<DrylTab> _tabs = new();
+    private string? _activeId;
+
+    internal DrylTab? ActiveTab =>
+        _tabs.FirstOrDefault(t => t.InternalId == _activeId && !t.Disabled)
+        ?? _tabs.FirstOrDefault(t => !t.Disabled);
+
+    protected override void OnParametersSet()
+    {
+        if (Active != _activeId)
+        {
+            _activeId = Active;
+        }
+    }
+
+    internal void RegisterTab(DrylTab tab)
+    {
+        if (_tabs.Contains(tab)) return;
+        _tabs.Add(tab);
+        if (_activeId is null && !tab.Disabled)
+        {
+            _activeId = tab.InternalId;
+        }
+        StateHasChanged();
+    }
+
+    internal void UnregisterTab(DrylTab tab)
+    {
+        if (_tabs.Remove(tab))
+        {
+            if (_activeId == tab.InternalId)
+            {
+                _activeId = _tabs.FirstOrDefault(t => !t.Disabled)?.InternalId;
+                _ = ActiveChanged.InvokeAsync(_activeId);
+            }
+            StateHasChanged();
+        }
+    }
+
+    internal void NotifyTabChanged() => StateHasChanged();
+
+    private async Task ActivateAsync(DrylTab tab)
+    {
+        if (tab.Disabled || ReferenceEquals(tab, ActiveTab)) return;
+        _activeId = tab.InternalId;
+        Active = _activeId;
+        if (ActiveChanged.HasDelegate)
+        {
+            await ActiveChanged.InvokeAsync(_activeId);
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnTabKeyDown(KeyboardEventArgs e, DrylTab tab)
+    {
+        var enabled = _tabs.Where(t => !t.Disabled).ToList();
+        if (enabled.Count == 0) return;
+        var idx = enabled.IndexOf(tab);
+        if (idx < 0) return;
+
+        DrylTab? target = e.Key switch
+        {
+            "ArrowRight" => enabled[(idx + 1) % enabled.Count],
+            "ArrowLeft"  => enabled[(idx - 1 + enabled.Count) % enabled.Count],
+            "Home"       => enabled[0],
+            "End"        => enabled[^1],
+            "Enter" or " " => tab,
+            _ => null
+        };
+
+        if (target is null) return;
+        await ActivateAsync(target);
+    }
+
+    private static string TabCss(DrylTab tab, bool isActive)
+    {
+        var parts = new List<string> { "tab" };
+        if (isActive) parts.Add("is-active");
+        if (tab.Disabled) parts.Add("is-disabled");
+        if (tab.Ai != AiState.None) parts.Add("ai-aura");
+        switch (tab.Ai)
+        {
+            case AiState.Thinking:  parts.Add("ai-thinking");  break;
+            case AiState.Streaming: parts.Add("ai-streaming"); break;
+            case AiState.Generated: parts.Add("ai-generated"); break;
+        }
+        return string.Join(' ', parts);
+    }
+
+    public void Dispose() => _tabs.Clear();
+}

@@ -1,0 +1,89 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTab — single tab declaration inside a DrylTabs.
+
+    Renders no DOM of its own — the parent DrylTabs collects
+    every tab via the cascading reference and draws both the
+    header button and the active body. The ChildContent here
+    is invoked by the parent inside `.tab-panel` when this tab
+    is active.
+
+      <DrylTabs @bind-Active="_active">
+          <DrylTab Id="overview" Label="Overview" Icon="Home">
+              Overview content here.
+          </DrylTab>
+      </DrylTabs>
+    ───────────────────────────────────────────────────────── *@
+
+@code {
+    [CascadingParameter] private DrylTabs? Parent { get; set; }
+
+    /// <summary>Stable identifier — required for two-way binding via <c>@bind-Active</c>.</summary>
+    [Parameter] public string? Id { get; set; }
+
+    /// <summary>Header label shown in the tab strip.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Optional leading icon name (see <see cref="DrylIcon"/>).</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>If true, the tab is unclickable and skipped by keyboard navigation.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>AI ambient state — adds a rotating gradient ring around this single tab.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Optional slot rendered after the label (e.g. a counter badge).</summary>
+    [Parameter] public RenderFragment? TrailingContent { get; set; }
+
+    /// <summary>Body content rendered by the parent <see cref="DrylTabs"/> when this tab is active.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    internal string InternalId { get; private set; } = Guid.NewGuid().ToString("N");
+
+    private bool _registered;
+    private AiState _prevAi = AiState.None;
+    private bool _prevDisabled;
+    private string? _prevLabel;
+    private string? _prevIcon;
+
+    protected override void OnInitialized()
+    {
+        if (Parent is null)
+            throw new InvalidOperationException(
+                "DrylTab must be placed inside a DrylTabs.");
+
+        if (!string.IsNullOrEmpty(Id))
+        {
+            InternalId = Id;
+        }
+
+        Parent.RegisterTab(this);
+        _registered = true;
+        _prevAi = Ai;
+        _prevDisabled = Disabled;
+        _prevLabel = Label;
+        _prevIcon = Icon;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!_registered) return;
+
+        if (Ai != _prevAi
+            || Disabled != _prevDisabled
+            || Label != _prevLabel
+            || Icon != _prevIcon)
+        {
+            _prevAi = Ai;
+            _prevDisabled = Disabled;
+            _prevLabel = Label;
+            _prevIcon = Icon;
+            Parent?.NotifyTabChanged();
+        }
+    }
+
+    public void Dispose() => Parent?.UnregisterTab(this);
+}
