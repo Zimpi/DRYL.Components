@@ -1,0 +1,156 @@
+/* ── DrylSkeleton ─────────────────────────────────────────────
+   Extends the global .skel shimmer primitive from dryl.css with:
+   • Size-token system (sz-sm / sz-md / sz-lg) via CSS custom props
+   • Variant-specific shapes and layouts
+   • AI-state shimmer mutations:
+       Thinking  → faster shimmer (urgent computing feel)
+       Streaming → violet-cyan gradient (AI writing content)
+       Generated → fade to transparent (reveal real content)
+   ──────────────────────────────────────────────────────────── */
+
+/* ─── Host wrapper ──────────────────────────────────────────── */
+.skel-wrap {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--sp-2);
+    width:          100%;
+    min-width:      0;
+}
+
+/* ─── Size tokens — cascade to children via custom properties ─ */
+.skel-wrap.sz-sm {
+    --sk-line-h:        10px;
+    --sk-circle-d:      32px;
+    --sk-rect-h:        80px;
+    --sk-header-avatar: 28px;
+}
+.skel-wrap.sz-md {
+    --sk-line-h:        14px;
+    --sk-circle-d:      48px;
+    --sk-rect-h:       120px;
+    --sk-header-avatar: 36px;
+}
+.skel-wrap.sz-lg {
+    --sk-line-h:        18px;
+    --sk-circle-d:      64px;
+    --sk-rect-h:       160px;
+    --sk-header-avatar: 44px;
+}
+
+/* Size-responsive blocks */
+.skel-wrap .skel        { height: var(--sk-line-h,   14px);  }
+.skel-wrap .skel-circle { height: var(--sk-circle-d, 48px); width: var(--sk-circle-d, 48px); }
+.skel-wrap .skel-rect   { height: var(--sk-rect-h,  120px); }
+
+/* ─── Variant border-radius on wrapper (AI ring traces this) ─ */
+.skel-wrap.v-avatar {
+    width:           var(--sk-circle-d, 48px);
+    height:          var(--sk-circle-d, 48px);
+    border-radius:   50%;
+    display:         inline-flex;
+    flex-direction:  row;
+    align-items:     center;
+    justify-content: center;
+    flex-shrink:     0;
+}
+
+.skel-wrap.v-card  { border-radius: var(--r-lg); }
+.skel-wrap.v-image { border-radius: var(--r-md); }
+
+/* ─── Shapes ────────────────────────────────────────────────── */
+.skel-circle {
+    border-radius: 50%;
+    flex-shrink:   0;
+}
+
+.skel-rect {
+    border-radius: var(--r-md);
+    width:         100%;
+    display:       block;
+}
+
+/* Card-header avatar — smaller than the standalone Avatar variant */
+.skel-card-avatar {
+    border-radius: 50%;
+    width:         var(--sk-header-avatar, 36px);
+    height:        var(--sk-header-avatar, 36px);
+    flex-shrink:   0;
+}
+
+/* ─── Composite layouts ─────────────────────────────────────── */
+.skel-text-block {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--sp-2);
+    width:          100%;
+}
+
+.skel-card-layout {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--sp-3);
+    width:          100%;
+}
+
+.skel-card-header {
+    display:     flex;
+    align-items: center;
+    gap:         var(--sp-3);
+}
+
+.skel-card-header-text {
+    display:        flex;
+    flex-direction: column;
+    gap:            var(--sp-2);
+    flex:           1 1 auto;
+    min-width:      0;
+}
+
+/* ─── Shimmer stagger — lines shimmer at offset phases ──────── */
+.skel-text-block     .skel:nth-child(2) { animation-delay: 0.12s; }
+.skel-text-block     .skel:nth-child(3) { animation-delay: 0.24s; }
+.skel-text-block     .skel:nth-child(4) { animation-delay: 0.36s; }
+.skel-text-block     .skel:nth-child(5) { animation-delay: 0.48s; }
+.skel-text-block     .skel:nth-child(6) { animation-delay: 0.60s; }
+.skel-card-header-text .skel:nth-child(2) { animation-delay: 0.10s; }
+
+/* ─── AI state: Thinking — faster shimmer ──────────────────── */
+.skel-wrap.ai-aura.ai-thinking .skel {
+    animation-duration: 0.8s;
+}
+
+/* ─── AI state: Streaming — violet-cyan shimmer ─────────────
+   The gradient shifts from neutral white to accent violet→cyan,
+   communicating that AI content is actively flowing into these
+   placeholder blocks. Uses --accent-a / --accent-b values only
+   (no new colors invented, per CLAUDE.md §2.10 and §2.1).
+   ─────────────────────────────────────────────────────────── */
+.skel-wrap.ai-aura.ai-streaming .skel {
+    background: linear-gradient(
+        90deg,
+        rgba(124, 92, 255, 0.06) 0%,
+        rgba(34, 211, 238, 0.18) 50%,
+        rgba(124, 92, 255, 0.06) 100%
+    );
+    background-size: 200% 100%;
+    animation-duration: 1.2s;
+}
+
+/* ─── AI state: Generated — fade blocks to reveal real content ─ */
+.skel-wrap.ai-aura.ai-generated .skel {
+    animation: skel-block-out var(--dur-slow) var(--ease-out) both;
+}
+
+@keyframes skel-block-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+/* ─── Reduced motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .skel-wrap.ai-aura.ai-thinking .skel  { animation-duration: inherit; }
+    .skel-wrap.ai-aura.ai-streaming .skel { animation-duration: inherit; background-size: 200% 100%; }
+    .skel-wrap.ai-aura.ai-generated .skel { animation: none; opacity: 0.25; }
+    .skel-text-block     .skel,
+    .skel-card-header-text .skel          { animation-delay: 0s; }
+}

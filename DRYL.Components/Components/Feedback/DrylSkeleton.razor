@@ -1,0 +1,217 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSkeleton — AI-native content placeholder.
+
+    Renders shimmer blocks while content is loading. Designed
+    to pair with the AiState lifecycle: Thinking shows a faster
+    shimmer, Streaming shifts to a violet-cyan gradient to signal
+    AI is writing into the placeholder, Generated fades the blocks
+    out so real content can take their place.
+
+    Variants:
+      Line   — single shimmer bar (optional Width override)
+      Text   — stacked bars mimicking a paragraph (Lines param)
+      Avatar — circular placeholder for profile images
+      Card   — composite: avatar + header text + image + body
+      Image  — wide rectangle for image / hero placeholders
+      Custom — consumer provides own .skel layout as ChildContent
+
+    Usage:
+      <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="4" />
+
+      <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
+                    Ai="AiState.Streaming" />
+
+      <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Custom">
+          <span class="skel" style="width: 40%"></span>
+          <span class="skel skel-rect" style="height: 200px"></span>
+      </DrylSkeleton>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@WrapperClass"
+     role="status"
+     aria-label="@EffectiveLabel"
+     aria-live="polite"
+     @attributes="AdditionalAttributes">
+
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genKey"></div>
+        }
+    }
+
+    @switch (Variant)
+    {
+        case SkeletonVariant.Line:
+            <span class="skel" style="@LineStyle"></span>
+            break;
+
+        case SkeletonVariant.Text:
+            <div class="skel-text-block">
+                @for (int i = 0; i < Lines; i++)
+                {
+                    var w = LineWidth(i, Lines);
+                    <span class="skel" style="width: @w"></span>
+                }
+            </div>
+            break;
+
+        case SkeletonVariant.Avatar:
+            <span class="skel skel-circle"></span>
+            break;
+
+        case SkeletonVariant.Card:
+            <div class="skel-card-layout">
+                <div class="skel-card-header">
+                    <span class="skel skel-card-avatar"></span>
+                    <div class="skel-card-header-text">
+                        <span class="skel" style="width: 40%"></span>
+                        <span class="skel" style="width: 65%"></span>
+                    </div>
+                </div>
+                <span class="skel skel-rect"></span>
+                <div class="skel-text-block">
+                    @for (int i = 0; i < Math.Min(Lines, 5); i++)
+                    {
+                        var w = LineWidth(i, Math.Min(Lines, 5));
+                        <span class="skel" style="width: @w"></span>
+                    }
+                </div>
+            </div>
+            break;
+
+        case SkeletonVariant.Image:
+            <span class="skel skel-rect"></span>
+            break;
+
+        default: // Custom
+            @ChildContent
+            break;
+    }
+</div>
+
+@code {
+    /// <summary>Visual shape of the placeholder. Default: <see cref="SkeletonVariant.Line"/>.</summary>
+    [Parameter] public SkeletonVariant Variant { get; set; } = SkeletonVariant.Line;
+
+    /// <summary>Physical size of the skeleton blocks. Default: <see cref="SkeletonSize.Medium"/>.</summary>
+    [Parameter] public SkeletonSize Size { get; set; } = SkeletonSize.Medium;
+
+    /// <summary>
+    /// Number of shimmer lines rendered in <see cref="SkeletonVariant.Text"/> and
+    /// the body block of <see cref="SkeletonVariant.Card"/>. Default: 3.
+    /// </summary>
+    [Parameter] public int Lines { get; set; } = 3;
+
+    /// <summary>
+    /// CSS width for <see cref="SkeletonVariant.Line"/>. Accepts any CSS value
+    /// (e.g. "60%", "240px"). Null uses full container width.
+    /// </summary>
+    [Parameter] public string? Width { get; set; }
+
+    /// <summary>
+    /// AI activity state. Drives the shared DRYL AI visual vocabulary:
+    /// <see cref="AiState.Thinking"/> accelerates the shimmer;
+    /// <see cref="AiState.Streaming"/> shifts it to a violet-cyan gradient,
+    /// signalling AI content flowing into the placeholder;
+    /// <see cref="AiState.Generated"/> fades the blocks out to reveal real content.
+    /// Defaults to <see cref="AiState.None"/> — AI styling is opt-in.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Accessible label announced to screen readers.
+    /// Defaults to a state-aware description.
+    /// </summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>
+    /// Custom skeleton layout used when <see cref="Variant"/> is
+    /// <see cref="SkeletonVariant.Custom"/>. Use .skel, .skel-circle, and
+    /// .skel-rect CSS classes for the individual shimmer blocks.
+    /// </summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes applied to the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi;
+    private object _genKey = new();
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+            _genKey = new();
+        _prevAi = Ai;
+    }
+
+    private string EffectiveLabel => Label ?? Ai switch
+    {
+        AiState.Active    => "Loading — AI active",
+        AiState.Thinking  => "AI thinking…",
+        AiState.Streaming => "AI streaming content…",
+        AiState.Generated => "Content ready",
+        _                 => "Loading…"
+    };
+
+    private string LineStyle => Width is not null ? $"width: {Width}" : "width: 100%";
+
+    private string WrapperClass
+    {
+        get
+        {
+            var parts = new List<string> { "skel-wrap" };
+
+            parts.Add(Size switch
+            {
+                SkeletonSize.Small => "sz-sm",
+                SkeletonSize.Large => "sz-lg",
+                _                  => "sz-md"
+            });
+
+            parts.Add(Variant switch
+            {
+                SkeletonVariant.Avatar => "v-avatar",
+                SkeletonVariant.Card   => "v-card",
+                SkeletonVariant.Image  => "v-image",
+                SkeletonVariant.Text   => "v-text",
+                SkeletonVariant.Custom => "v-custom",
+                _                      => "v-line"
+            });
+
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                var stateClass = Ai switch
+                {
+                    AiState.Active    => "ai-active",
+                    AiState.Thinking  => "ai-thinking",
+                    AiState.Streaming => "ai-streaming",
+                    AiState.Generated => "ai-generated",
+                    _                 => string.Empty
+                };
+                if (!string.IsNullOrEmpty(stateClass))
+                    parts.Add(stateClass);
+            }
+
+            return string.Join(' ', parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+        }
+    }
+
+    private static readonly string[] _widths = ["92%", "78%", "87%", "64%", "91%", "73%", "84%", "55%"];
+
+    private string LineWidth(int index, int total) =>
+        index == total - 1 && total > 1 ? "60%" : _widths[index % _widths.Length];
+
+    /// <summary>Visual shape of the skeleton placeholder.</summary>
+    public enum SkeletonVariant { Line, Text, Avatar, Card, Image, Custom }
+
+    /// <summary>Display size of the skeleton blocks.</summary>
+    public enum SkeletonSize { Small, Medium, Large }
+}
