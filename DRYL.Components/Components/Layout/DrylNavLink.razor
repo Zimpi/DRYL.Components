@@ -8,15 +8,21 @@
     optional leading icon. For external links pass External="true"
     (renders a plain <a target="_blank">).
 
+    Use Sub="true" inside a collapsible DrylNavGroup to render
+    the link indented as a child item.
+
     Usage:
       <DrylNavLink Href="buttons" Icon="Bolt">Buttons</DrylNavLink>
       <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
       <DrylNavLink Href="https://github.com/..." Icon="Code" External>GitHub</DrylNavLink>
+
+    Sub-item inside collapsible group:
+      <DrylNavLink Href="settings/profile" Icon="User" Sub>Profile</DrylNavLink>
     ───────────────────────────────────────────────────────── *@
 
 @if (External)
 {
-    <a class="nav-item @Class"
+    <a class="nav-item @(Sub ? "nav-item--sub" : null) @Class"
        href="@Href"
        target="_blank"
        rel="noopener"
@@ -30,7 +36,7 @@
 }
 else
 {
-    <NavLink class="@($"nav-item {Class}")"
+    <NavLink class="@($"nav-item {(Sub ? "nav-item--sub " : null)}{Class}".TrimEnd())"
              ActiveClass="active"
              href="@Href"
              Match="@Match"
@@ -55,6 +61,12 @@ else
 
     /// <summary>When true, renders a plain external <c>&lt;a target="_blank"&gt;</c> instead of a <c>NavLink</c>.</summary>
     [Parameter] public bool External { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, renders the item with indentation and reduced height — intended for children
+    /// inside a collapsible <see cref="DrylNavGroup"/>.
+    /// </summary>
+    [Parameter] public bool Sub { get; set; }
 
     /// <summary>Link label.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }

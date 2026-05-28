@@ -287,3 +287,21 @@ window.dryl.toast = (() => {
     return { attach, detach };
 })();
 
+// ── Autocomplete helpers ──────────────────────────────────────────────────────
+window.dryl.autocomplete = {
+    scrollOptionIntoView(listbox, index) {
+        if (!listbox) return;
+        const items = listbox.querySelectorAll('[role="option"]');
+        if (items[index]) items[index].scrollIntoView({ block: 'nearest' });
+    }
+};
+
+// ── DatePicker helpers ────────────────────────────────────────────────────────
+window.dryl.datepicker = {
+    focusDay(panel, dayNumber) {
+        if (!panel) return;
+        const btn = panel.querySelector(`[data-day="${dayNumber}"]`);
+        btn?.focus();
+    }
+};
+

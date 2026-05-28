@@ -1,0 +1,152 @@
+/* ── Calendar panel ─────────────────────────────────────── */
+
+.date-panel {
+    position: absolute;
+    top: calc(100% + var(--sp-1));
+    left: 0;
+    z-index: var(--z-drawer);
+    min-width: 280px;
+    background: var(--bg-2);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+    padding: var(--sp-3);
+    outline: none;
+    animation: menu-in var(--dur-med) var(--ease-out) both;
+}
+
+/* ── Month navigation header ────────────────────────────── */
+
+.date-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-3);
+}
+
+.date-month-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+}
+
+/* ── Grid layout ─────────────────────────────────────────── */
+
+.date-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+}
+
+.date-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--sp-1);
+    margin-bottom: 2px;
+}
+
+.date-weekday {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    text-align: center;
+    padding: 2px 0;
+}
+
+.date-week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--sp-1);
+}
+
+/* ── Day cells ───────────────────────────────────────────── */
+
+.date-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-sm);
+    border: none;
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 12px;
+    font-weight: 400;
+    cursor: pointer;
+    padding: 0;
+    transition: background var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out);
+    line-height: 1;
+}
+
+.date-cell:hover:not(.is-disabled):not(.date-cell--empty) {
+    background: var(--glass-2);
+    color: var(--fg);
+}
+
+.date-cell:focus-visible {
+    outline: 2px solid var(--accent-b);
+    outline-offset: 1px;
+}
+
+.date-cell--empty {
+    cursor: default;
+}
+
+/* Today */
+.date-cell.is-today {
+    border: 1px solid var(--accent-line);
+    color: var(--fg);
+}
+
+/* Single selected / range endpoints */
+.date-cell.is-selected,
+.date-cell.is-range-start,
+.date-cell.is-range-end {
+    background: var(--accent-grad);
+    color: var(--fg);
+    font-weight: 600;
+}
+
+/* In-range highlight */
+.date-cell.is-in-range {
+    background: var(--accent-soft);
+    color: var(--fg);
+    border-radius: 0;
+}
+
+/* Round the edges of the range */
+.date-cell.is-range-start {
+    border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+
+.date-cell.is-range-end {
+    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+/* When start and end are the same day */
+.date-cell.is-range-start.is-range-end {
+    border-radius: var(--r-sm);
+}
+
+/* Disabled */
+.date-cell.is-disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ── Range mode hint bar ─────────────────────────────────── */
+
+.date-range-hint {
+    margin-top: var(--sp-2);
+    padding-top: var(--sp-2);
+    border-top: 1px solid var(--line);
+    text-align: center;
+    font-size: 11px;
+    color: var(--fg-dim);
+}

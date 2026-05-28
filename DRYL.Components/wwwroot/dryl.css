@@ -861,6 +861,144 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border: 1px solid var(--line);
 }
 
+/* ── Scrollable nav area ──────────────────────────────── */
+.nav-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: var(--sp-2);
+}
+.nav-scroll::-webkit-scrollbar { width: 4px; }
+.nav-scroll::-webkit-scrollbar-track { background: transparent; }
+.nav-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 2px;
+}
+
+/* ── Collapsible nav-section ──────────────────────────── */
+
+/* Header used when no Href — entire row is the toggle button */
+.nav-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 16px 12px 4px;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out);
+  line-height: 1;
+  text-align: left;
+}
+.nav-section-toggle:hover { color: var(--fg-dim); }
+.nav-section-toggle .ico { width: 14px; height: 14px; flex: 0 0 14px; opacity: 0.6; }
+.nav-section-toggle-label { flex: 1; }
+
+/* Header row used when Href is set — NavLink + separate chevron button */
+.nav-section-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 4px 2px;
+  gap: 2px;
+}
+.nav-section-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+  user-select: none;
+  min-width: 0;
+  position: relative;
+}
+.nav-section-link:hover { background: var(--glass-2); color: var(--fg); }
+.nav-section-link.active {
+  background: linear-gradient(90deg, rgba(124,92,255,0.18), rgba(34,211,238,0.04));
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px rgba(124,92,255,0.15);
+}
+.nav-section-link.active::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-grad);
+  box-shadow: 0 0 12px var(--accent-a);
+}
+.nav-section-link .ico { width: 16px; height: 16px; flex: 0 0 16px; opacity: 0.8; }
+
+.nav-section-chevron-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--fg-faint);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.nav-section-chevron-btn:hover { background: var(--glass-2); color: var(--fg-muted); }
+
+/* Rotating chevron (shared by both header variants) */
+.nav-section-chevron {
+  display: block;
+  transition: transform var(--dur-med) var(--ease-out);
+  transform: rotate(0deg);
+  flex: 0 0 auto;
+}
+.nav-section-chevron.is-open { transform: rotate(90deg); }
+
+/* Animated collapse container — CSS grid trick (no fixed max-height) */
+.nav-children {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-med) var(--ease-out);
+}
+.nav-children.is-open { grid-template-rows: 1fr; }
+.nav-children-inner {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 2px;
+}
+
+/* Indented sub nav-items */
+.nav-item--sub {
+  padding-left: 30px;
+  height: 30px;
+  font-size: 12.5px;
+}
+
 .topbar {
   height: 60px;
   display: flex;

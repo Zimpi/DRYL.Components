@@ -14,7 +14,27 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Changed
+- `DrylNavGroup` — New `Collapsible` parameter (bool, default `false`) enables accordion-style sub-menus with CSS grid animate-in/out; `DefaultExpanded` (bool, default `true`) sets initial state; `Href` parameter makes the header a `NavLink` while a separate chevron button controls collapse; `Icon` parameter adds a leading icon to the collapsible header
+- `DrylNavLink` — New `Sub` parameter (bool, default `false`) renders the item indented (`.nav-item--sub`) for use inside collapsible `DrylNavGroup` children
+- `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
+
+### Fixed
+- `DrylDatePicker` — Empty calendar cells (leading/trailing padding days) no longer show a hover highlight; hover selector now excludes `.date-cell--empty`
+- `DrylDrawer` — Sidebar navigation area is now scrollable when content overflows the viewport height; brand and Project footer remain pinned outside the scroll region
+
 ### Added
+- `DrylAutocomplete<TItem>` — Generic combobox; `ItemsProvider` for server-side async search, `SearchFunc` for client-side filtering, `ItemTemplate` for custom option rendering, `DisplayText` converter; ARIA combobox pattern; AI-aware (`Ai` parameter signals model pre-filling the value)
+- `DrylDatePicker` — Calendar panel bound to `DateOnly?`; keyboard-navigable ARIA grid (Arrow keys, PageUp/Down, Home/End, Enter/Escape); `Min` / `Max` constraints; optional date range mode via `Range` + `@bind-RangeStart` / `@bind-RangeEnd`; AI-aware
+- `DrylStepper` — Multi-step wizard container (mirrors `DrylTabs` cascading pattern); variants: Horizontal / Vertical; `@bind-ActiveStep` two-way binding; compound with `DrylStep`
+- `DrylStep` — Single step declaration inside `DrylStepper`; states: Pending / Active / Completed / Error; optional `Description`, `Icon` override; AI-aware (`Ai` parameter wraps the step header in the shared ai-aura ring vocabulary)
+- `dryl.js` — `window.dryl.autocomplete.scrollOptionIntoView` and `window.dryl.datepicker.focusDay` helpers
+- `StepperOrientation` enum — `Horizontal` / `Vertical` for `DrylStepper`
+- `StepState` enum — `Pending` / `Active` / `Completed` / `Error` for `DrylStep`
+
+### Changed
+- `DrylSelect` — Now AI-aware: added `Ai` parameter (`AiState`, default `AiState.None`); native `<select>` is wrapped in `.input-wrapper` with the shared ai-aura ring, glow, and wash primitives
+
 - `DrylSkeleton` — AI-native content placeholder; variants: Line / Text / Avatar / Card / Image / Custom; sizes: Small / Medium / Large; `Lines` and `Width` parameters; `AiState.Streaming` shifts shimmer to violet-cyan gradient to signal AI writing into placeholder blocks; `AiState.Generated` fades blocks out to reveal real content
 - `DrylIcon` — new `Blocks` icon (Lucide `layout-template`) for navigation / skeleton-related UI
 - `DrylMenu` + `DrylMenuItem` — Dropdown action menu anchored to any trigger; `MenuPlacement` (BottomStart / BottomEnd / TopStart / TopEnd), `Block` mode; `DrylMenuItem` supports icons, keyboard-shortcut hints, `Danger` variant, separators and section headers; fully keyboard-navigable (Arrow keys, Home/End, ESC, Tab)

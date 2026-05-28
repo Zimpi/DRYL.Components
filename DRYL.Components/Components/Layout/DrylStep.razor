@@ -1,0 +1,102 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylStep — single step declaration inside a DrylStepper.
+
+    Renders no DOM of its own — the parent DrylStepper collects
+    every step via the cascading reference and draws both the
+    header row and the active body.
+
+      <DrylStepper @bind-ActiveStep="_step">
+          <DrylStep Id="account" Label="Account" Description="Basic info">
+              Account form here.
+          </DrylStep>
+          <DrylStep Id="review" Label="Review"
+                    StepState="StepState.Completed">
+              Review content.
+          </DrylStep>
+      </DrylStepper>
+    ───────────────────────────────────────────────────────── *@
+
+@code {
+    [CascadingParameter] private DrylStepper? Parent { get; set; }
+
+    /// <summary>Stable identifier — required for two-way binding via <c>@bind-ActiveStep</c>.</summary>
+    [Parameter] public string? Id { get; set; }
+
+    /// <summary>Primary label shown in the step header.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Optional secondary line shown below the label.</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>Optional icon name that overrides the step-number in the indicator circle.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Visual and semantic state of this step.</summary>
+    [Parameter] public StepState StepState { get; set; } = StepState.Pending;
+
+    /// <summary>If true, the step cannot be activated by clicking.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>AI ambient state — adds a rotating gradient ring around the step header.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Body content rendered by the parent <see cref="DrylStepper"/> when this step is active.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    internal string InternalId { get; private set; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>Tick counter for the Generated wash animation — read by the parent.</summary>
+    internal int GenTick { get; private set; }
+
+    private bool _registered;
+    private AiState _prevAi = AiState.None;
+    private StepState _prevState;
+    private bool _prevDisabled;
+    private string? _prevLabel;
+    private string? _prevDescription;
+
+    protected override void OnInitialized()
+    {
+        if (Parent is null)
+            throw new InvalidOperationException(
+                "DrylStep must be placed inside a DrylStepper.");
+
+        if (!string.IsNullOrEmpty(Id))
+            InternalId = Id;
+
+        Parent.RegisterStep(this);
+        _registered = true;
+        _prevAi = Ai;
+        _prevState = StepState;
+        _prevDisabled = Disabled;
+        _prevLabel = Label;
+        _prevDescription = Description;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!_registered) return;
+
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+            GenTick++;
+
+        if (Ai          != _prevAi
+            || StepState    != _prevState
+            || Disabled     != _prevDisabled
+            || Label        != _prevLabel
+            || Description  != _prevDescription)
+        {
+            _prevAi          = Ai;
+            _prevState       = StepState;
+            _prevDisabled    = Disabled;
+            _prevLabel       = Label;
+            _prevDescription = Description;
+            Parent?.NotifyStepChanged();
+        }
+    }
+
+    public void Dispose() => Parent?.UnregisterStep(this);
+}

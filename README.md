@@ -349,9 +349,11 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
 | `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
 | `DrylCheckbox`    | Inputs       | —       | ✅ Done    | Accessible checkbox with label                                    |
-| `DrylSelect`      | Inputs       | —       | ✅ Done    | Styled select bound to `EditForm`                                 |
+| `DrylSelect`      | Inputs       | ✅      | ✅ Done    | Styled select bound to `EditForm`; now AI-aware                   |
 | `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
+| `DrylAutocomplete<TItem>` | Inputs | ✅   | ✅ Done    | Generic combobox; client-side `SearchFunc`, async `ItemsProvider`, custom `ItemTemplate`, ARIA combobox |
+| `DrylDatePicker`  | Inputs       | ✅      | ✅ Done    | Calendar panel; ARIA grid keyboard nav, Min/Max, date range mode  |
 | `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, search, multi-sort, filters, pagination, grouping, row detail, row + bulk actions, virtualization, column visibility, `PersistStateKey`, optional `DataProvider` |
 | `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, `Hidden`, custom `CellTemplate` / `HeaderTemplate`, alignment |
 | `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |
@@ -360,8 +362,10 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylAppBar`      | Layout       | —       | ✅ Done    | Sticky top bar with optional responsive drawer-toggle hamburger |
 | `DrylDrawer`      | Layout       | —       | ✅ Done    | Sidebar: always-visible column on desktop, overlay on mobile (`@bind-Open`) |
 | `DrylMainContent` | Layout       | —       | ✅ Done    | Main content slot inside `DrylLayout`; handles scroll and padding |
-| `DrylNavGroup`    | Layout       | —       | ✅ Done    | Labelled group of nav links inside `DrylDrawer` |
-| `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row with icon and active highlighting; supports external links |
+| `DrylNavGroup`    | Layout       | —       | ✅ Done    | Labelled group; `Collapsible` + `DefaultExpanded` for accordion sub-menus; optional `Href` makes the header a NavLink |
+| `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row; `Sub` renders indented child item inside a collapsible group; supports external links |
+| `DrylStepper`     | Layout       | —       | ✅ Done    | Multi-step wizard container; Horizontal / Vertical orientation, `@bind-ActiveStep` |
+| `DrylStep`        | Layout       | ✅      | ✅ Done    | Single step inside `DrylStepper`; Pending / Active / Completed / Error states, AI ring |
 | `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
 | `DrylToast`       | Surfaces     | ✅      | ✅ Done    | Service-driven toast stack; auto-dismiss, progress bar, hover-pause, 6 positions |
 | `DrylTooltip`     | Feedback     | —       | ✅ Done    | CSS-only hover tooltip; 4 placements (Top / Bottom / Left / Right), wraps any trigger |

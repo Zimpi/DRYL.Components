@@ -1,0 +1,207 @@
+@page "/autocomplete"
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>DRYL — Autocomplete</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Inputs</span>
+        <h2>DrylAutocomplete</h2>
+        <p class="lead">
+            Generic combobox with client-side filtering or server-side async search.
+            Fully keyboard-navigable (ArrowDown/Up, Enter, Escape), ARIA combobox
+            pattern, EditForm integration, and AI ambient state for when a model
+            pre-fills the selection.
+        </p>
+    </div>
+
+    @* ── Static list (default filter) ────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Static list</h3>
+        <div style="max-width: 320px;">
+            <DrylAutocomplete TItem="string"
+                              @bind-Value="_country"
+                              Items="@_countries"
+                              Label="Country"
+                              Placeholder="Type to filter…" />
+        </div>
+        @if (_country is not null)
+        {
+            <p>Selected: <strong>@_country</strong></p>
+        }
+    </section>
+
+    @* ── Custom SearchFunc ────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Custom SearchFunc (starts-with)</h3>
+        <div style="max-width: 320px;">
+            <DrylAutocomplete TItem="string"
+                              @bind-Value="_country2"
+                              Items="@_countries"
+                              SearchFunc="@((q, items) => items.Where(c => c.StartsWith(q, StringComparison.OrdinalIgnoreCase)))"
+                              Label="Country (starts-with)"
+                              Placeholder="Type a letter…" />
+        </div>
+        @if (_country2 is not null)
+        {
+            <p>Selected: <strong>@_country2</strong></p>
+        }
+    </section>
+
+    @* ── Custom ItemTemplate ──────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Custom ItemTemplate</h3>
+        <div style="max-width: 360px;">
+            <DrylAutocomplete TItem="User"
+                              @bind-Value="_user"
+                              Items="@_users"
+                              DisplayText="@(u => u.FullName)"
+                              Label="Assign to">
+                <ItemTemplate Context="user">
+                    <div style="display:flex; align-items:center; gap: var(--sp-2);">
+                        <div style="width:28px; height:28px; border-radius:50%; background: var(--glass-3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color: var(--fg); flex-shrink:0;">
+                            @user.Initials
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
+                            <span style="color: var(--fg); font-size:13px;">@user.FullName</span>
+                            <span style="color: var(--fg-dim); font-size:11px;">@user.Email</span>
+                        </div>
+                    </div>
+                </ItemTemplate>
+            </DrylAutocomplete>
+        </div>
+        @if (_user is not null)
+        {
+            <p>Assigned to: <strong>@_user.FullName</strong> (<code>@_user.Email</code>)</p>
+        }
+    </section>
+
+    @* ── Async ItemsProvider ──────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Async ItemsProvider</h3>
+        <p>Simulates a 500ms server round-trip. Rapid typing cancels in-flight requests.</p>
+        <div style="max-width: 320px;">
+            <DrylAutocomplete TItem="string"
+                              @bind-Value="_asyncResult"
+                              ItemsProvider="@SearchCountriesAsync"
+                              Label="Country (server search)"
+                              Placeholder="Type to search…" />
+        </div>
+        @if (_asyncResult is not null)
+        {
+            <p>Selected: <strong>@_asyncResult</strong></p>
+        }
+    </section>
+
+    @* ── EditForm validation ──────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>EditForm validation</h3>
+        <EditForm Model="_form" OnValidSubmit="HandleValidSubmit" style="max-width: 320px;">
+            <DataAnnotationsValidator />
+            <div class="col" style="gap: var(--sp-4);">
+                <DrylAutocomplete TItem="string"
+                                  @bind-Value="_form.Country"
+                                  Items="@_countries"
+                                  Label="Country" />
+                <DrylButton type="submit">Submit</DrylButton>
+                @if (_submitted)
+                {
+                    <DrylAlert Variant="AlertVariant.Success">Submitted: @_form.Country</DrylAlert>
+                }
+            </div>
+        </EditForm>
+    </section>
+
+    @* ── AI mode ──────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>AI mode</h3>
+        <div style="max-width: 320px;">
+            <DrylAutocomplete TItem="string"
+                              @bind-Value="_aiCountry"
+                              Items="@_countries"
+                              Label="AI-suggested country"
+                              Ai="@_aiState" />
+        </div>
+        <div style="display:flex; gap: var(--sp-2); flex-wrap: wrap;">
+            @foreach (var s in Enum.GetValues<AiState>())
+            {
+                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                            @onclick="() => _aiState = s">
+                    @s.ToString()
+                </DrylButton>
+            }
+        </div>
+    </section>
+
+    @* ── Disabled ─────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Disabled</h3>
+        <div style="max-width: 320px;">
+            <DrylAutocomplete TItem="string"
+                              @bind-Value="_disabledCountry"
+                              Items="@_countries"
+                              Label="Country"
+                              Disabled />
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private string? _country;
+    private string? _country2;
+    private string? _disabledCountry = "Germany";
+    private User? _user;
+    private string? _asyncResult;
+    private string? _aiCountry;
+    private AiState _aiState = AiState.Active;
+    private bool _submitted;
+
+    private readonly CountryForm _form = new();
+
+    private static readonly string[] _countries = new[]
+    {
+        "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia",
+        "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
+        "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg",
+        "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia",
+        "Slovenia", "Spain", "Sweden", "Switzerland", "United Kingdom",
+        "United States", "Canada", "Australia", "Japan", "South Korea",
+        "Brazil", "Mexico", "Argentina", "India", "China", "Singapore"
+    };
+
+    private static readonly User[] _users = new[]
+    {
+        new User("Alice Müller",    "alice@example.com"),
+        new User("Bob Schmidt",     "bob@example.com"),
+        new User("Clara Fischer",   "clara@example.com"),
+        new User("Daniel Wagner",   "daniel@example.com"),
+        new User("Eva Becker",      "eva@example.com"),
+        new User("Frank Schneider", "frank@example.com"),
+    };
+
+    private async Task<IEnumerable<string>> SearchCountriesAsync(string query, CancellationToken ct)
+    {
+        await Task.Delay(500, ct); // simulate network latency
+        return string.IsNullOrEmpty(query)
+            ? _countries
+            : _countries.Where(c => c.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private record User(string FullName, string Email)
+    {
+        public string Initials => string.Concat(
+            FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Take(2)
+                    .Select(w => char.ToUpperInvariant(w[0])));
+    }
+
+    private class CountryForm
+    {
+        [Required(ErrorMessage = "Please select a country.")]
+        public string? Country { get; set; }
+    }
+}

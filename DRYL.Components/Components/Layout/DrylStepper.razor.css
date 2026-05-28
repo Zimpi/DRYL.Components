@@ -1,0 +1,198 @@
+/* ── Root ───────────────────────────────────────────────── */
+
+.stepper {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ── Track (header row / column) ────────────────────────── */
+
+.stepper--horizontal .stepper-track {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.stepper--vertical .stepper-track {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* ── Step header ─────────────────────────────────────────── */
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    cursor: pointer;
+    position: relative;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-md);
+    transition: background var(--dur-fast) var(--ease-out);
+    user-select: none;
+}
+
+.step-header:hover:not(.is-disabled) {
+    background: var(--glass-1);
+}
+
+.step-header.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Horizontal: each header takes equal space, centers content vertically */
+.stepper--horizontal .step-header {
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--sp-2) var(--sp-2);
+}
+
+/* Vertical: header fills full width, row layout */
+.stepper--vertical .step-header {
+    flex-direction: row;
+    align-items: center;
+    padding: var(--sp-3) var(--sp-3);
+}
+
+/* AI aura requires explicit border-radius on the host */
+.step-header.ai-aura {
+    border-radius: var(--r-md);
+}
+
+/* ── Step indicator (the circle) ────────────────────────── */
+
+.step-indicator {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--dur-med) var(--ease-out);
+    position: relative;
+    z-index: 1;
+}
+
+.step-indicator.is-pending {
+    background: transparent;
+    border: 2px dashed var(--line-strong);
+    color: var(--fg-dim);
+}
+
+.step-indicator.is-active {
+    background: transparent;
+    border: 2px solid transparent;
+    box-shadow: 0 0 0 2px var(--accent-a), 0 0 12px rgba(124, 92, 255, 0.4);
+    color: var(--fg);
+}
+
+.step-indicator.is-completed {
+    background: var(--success);
+    border: none;
+    color: var(--bg-0);
+}
+
+.step-indicator.is-error {
+    background: var(--danger);
+    border: none;
+    color: var(--bg-0);
+}
+
+.step-number {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* ── Connector line ──────────────────────────────────────── */
+
+.step-connector {
+    background: var(--line-strong);
+    position: absolute;
+    transition: background var(--dur-med) var(--ease-out);
+}
+
+/* Horizontal connector: runs right from the center of this indicator */
+.stepper--horizontal .step-connector {
+    height: 1px;
+    /* Center of indicator is at 50% of header width.
+       Start after the indicator + a small gap, end at the right edge. */
+    top: calc(var(--sp-2) + 16px); /* top-padding + half of 32px indicator */
+    left: calc(50% + 16px + var(--sp-1));
+    right: calc(-50% + 16px + var(--sp-1));
+}
+
+/* Vertical connector: runs down from the bottom of this indicator */
+.stepper--vertical .step-connector {
+    width: 1px;
+    /* left = left-padding + half indicator width */
+    left: calc(var(--sp-3) + 16px);
+    top: calc(var(--sp-3) + 32px);  /* top-padding + full indicator height */
+    bottom: calc(-1 * var(--sp-3));
+}
+
+/* Completed connector gets accent color */
+.step-header.is-completed .step-connector {
+    background: var(--success);
+}
+
+/* ── Label group ─────────────────────────────────────────── */
+
+.step-label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.step-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg-muted);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.step-header.is-active .step-label,
+.step-header.is-completed .step-label {
+    color: var(--fg);
+}
+
+.step-description {
+    font-size: 11px;
+    color: var(--fg-dim);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Step panel (active body) ───────────────────────────── */
+
+.step-panel {
+    padding: var(--sp-4) 0;
+    animation: menu-in var(--dur-med) var(--ease-out) both;
+}
+
+/* Vertical: indent body to align under the label (past the indicator) */
+.stepper--vertical .step-panel {
+    padding-left: calc(var(--sp-3) + 32px + var(--sp-3));
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-5);
+}
+
+/* Horizontal: top border to separate from the track */
+.stepper--horizontal .step-panel {
+    border-top: 1px solid var(--line);
+    padding-top: var(--sp-4);
+    margin-top: var(--sp-2);
+}

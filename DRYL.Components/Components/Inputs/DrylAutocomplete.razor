@@ -1,0 +1,441 @@
+@namespace DRYL.Components
+@typeparam TItem where TItem : class
+@inherits InputBase<TItem?>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAutocomplete<TItem> — combobox with client-side
+    filtering or server-side async search.
+
+    Client-side (static list):
+      <DrylAutocomplete @bind-Value="_country"
+                        Items="@_countries"
+                        DisplayText="c => c.Name"
+                        Label="Country" />
+
+    Client-side with custom filter:
+      <DrylAutocomplete @bind-Value="_country"
+                        Items="@_countries"
+                        SearchFunc="@((q, items) => items.Where(c => c.Name.StartsWith(q)))"
+                        DisplayText="c => c.Name" />
+
+    Server-side async:
+      <DrylAutocomplete @bind-Value="_user"
+                        ItemsProvider="@SearchUsersAsync"
+                        DisplayText="u => u.FullName"
+                        Label="Assign to" />
+
+    Custom item template:
+      <DrylAutocomplete @bind-Value="_user" ...>
+          <ItemTemplate Context="user">
+              <strong>@user.FullName</strong>
+              <span>@user.Email</span>
+          </ItemTemplate>
+      </DrylAutocomplete>
+
+    Keyboard: ArrowDown/Up navigate options, Enter selects,
+    Escape closes, Tab accepts highlighted item (if any).
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_id">@Label</label>
+    }
+
+    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
+        <div class="@WrapperCssClass">
+            @if (Ai != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (Ai == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="_genTick"></div>
+                }
+            }
+
+            <DrylIcon Name="Search" Size="16" Class="input-icon input-icon-leading" />
+
+            <input id="@_id"
+                   type="text"
+                   class="@InputCssClass"
+                   value="@_inputText"
+                   placeholder="@Placeholder"
+                   disabled="@Disabled"
+                   autocomplete="off"
+                   autocorrect="off"
+                   spellcheck="false"
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="@(_isOpen ? "true" : "false")"
+                   aria-controls="@_listboxId"
+                   aria-activedescendant="@ActiveDescendant"
+                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                   aria-invalid="@(HasValidationError ? "true" : null)"
+                   aria-describedby="@(ShowHelper ? _helperId : null)"
+                   @oninput="HandleInput"
+                   @onkeydown="HandleKeyDown"
+                   @onfocus="HandleFocus"
+                   @attributes="AdditionalAttributes" />
+
+            @if (_isLoading)
+            {
+                <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" Class="input-icon input-icon-trailing" />
+            }
+
+            @* ── Listbox dropdown ── *@
+            @if (_isOpen)
+            {
+                <div id="@_listboxId"
+                     role="listbox"
+                     class="autocomplete-panel"
+                     @ref="_listbox"
+                     aria-label="@(string.IsNullOrEmpty(Label) ? "Suggestions" : $"{Label} suggestions")">
+
+                    @if (_isLoading && !_filteredItems.Any())
+                    {
+                        <div class="autocomplete-loading" aria-live="polite">
+                            Searching…
+                        </div>
+                    }
+                    else if (!_filteredItems.Any())
+                    {
+                        <div class="autocomplete-empty" aria-live="polite">
+                            No results
+                        </div>
+                    }
+                    else
+                    {
+                        var items = _filteredItems.ToList();
+                        for (int i = 0; i < items.Count; i++)
+                        {
+                            var item = items[i];
+                            var idx = i;
+                            var isHighlighted = idx == _highlightedIndex;
+                            var isSelected = ReferenceEquals(item, CurrentValue);
+
+                            <div id="@($"opt-{_id}-{idx}")"
+                                 role="option"
+                                 class="@OptionCss(idx, isSelected)"
+                                 aria-selected="@(isSelected ? "true" : "false")"
+                                 @onclick="() => SelectItem(item)"
+                                 @onmouseenter="() => _highlightedIndex = idx"
+                                 @key="idx">
+                                @if (ItemTemplate != null)
+                                {
+                                    @ItemTemplate(item)
+                                }
+                                else
+                                {
+                                    @GetDisplayText(item)
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional label shown above the input.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder text shown when the input is empty.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Helper text shown below the input. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Visual state override. An active validation error overrides this.</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, the input is greyed out and non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Static item list used with client-side filtering.</summary>
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+
+    /// <summary>Client-side filter function. Receives the query and the full <c>Items</c> list.</summary>
+    [Parameter] public Func<string, IEnumerable<TItem>, IEnumerable<TItem>>? SearchFunc { get; set; }
+
+    /// <summary>
+    /// Server-side search callback. Receives the current query and a CancellationToken.
+    /// Takes precedence over <c>Items</c> / <c>SearchFunc</c>.
+    /// </summary>
+    [Parameter] public Func<string, CancellationToken, Task<IEnumerable<TItem>>>? ItemsProvider { get; set; }
+
+    /// <summary>Custom template for each option in the dropdown.</summary>
+    [Parameter] public RenderFragment<TItem>? ItemTemplate { get; set; }
+
+    /// <summary>Converts an item to its display string. Defaults to <c>item.ToString()</c>.</summary>
+    [Parameter] public Func<TItem, string>? DisplayText { get; set; }
+
+    private readonly string _id       = $"dryl-ac-{Guid.NewGuid():N}";
+    private readonly string _listboxId = $"dryl-ac-lb-{Guid.NewGuid():N}";
+    private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
+
+    private string _inputText = string.Empty;
+    private IEnumerable<TItem> _filteredItems = Array.Empty<TItem>();
+    private bool _isOpen;
+    private int _highlightedIndex = -1;
+    private bool _isLoading;
+    private CancellationTokenSource? _searchCts;
+    private bool _jsReady;
+
+    private ElementReference _anchor;
+    private ElementReference _listbox;
+    private DotNetObjectReference<DrylAutocomplete<TItem>>? _dotnetRef;
+
+    private TItem? _prevValue;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+
+        // Sync input text when the bound value changes externally
+        if (!ReferenceEquals(CurrentValue, _prevValue))
+        {
+            _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
+            _prevValue = CurrentValue;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsReady = true;
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
+        }
+    }
+
+    private void HandleFocus()
+    {
+        if (Disabled || _isOpen) return;
+        if (string.IsNullOrEmpty(_inputText)) RunFilterAsync(string.Empty);
+    }
+
+    private void HandleInput(ChangeEventArgs e)
+    {
+        var query = e.Value?.ToString() ?? string.Empty;
+        _inputText = query;
+        CurrentValue = default; // clear until user explicitly picks
+        _prevValue = default;
+        _isOpen = true;
+        RunFilterAsync(query);
+    }
+
+    private void RunFilterAsync(string query)
+    {
+        // Cancel any in-flight search
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var cts = _searchCts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                IEnumerable<TItem> results;
+
+                if (ItemsProvider != null)
+                {
+                    _isLoading = true;
+                    await InvokeAsync(StateHasChanged);
+
+                    // Debounce
+                    await Task.Delay(300, cts.Token);
+
+                    results = await ItemsProvider(query, cts.Token);
+                    _isLoading = false;
+                }
+                else
+                {
+                    var source = Items ?? Array.Empty<TItem>();
+                    results = SearchFunc != null
+                        ? SearchFunc(query, source)
+                        : DefaultFilter(query, source);
+                }
+
+                if (!cts.IsCancellationRequested)
+                {
+                    _filteredItems = results;
+                    _highlightedIndex = -1;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // expected on fast typing
+            }
+            catch
+            {
+                _isLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }, cts.Token);
+    }
+
+    private static IEnumerable<TItem> DefaultFilter(string query, IEnumerable<TItem> items)
+    {
+        if (string.IsNullOrEmpty(query)) return items;
+        return items.Where(i =>
+            (i.ToString() ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void SelectItem(TItem item)
+    {
+        CurrentValue = item;
+        _prevValue = item;
+        _inputText = GetDisplayText(item);
+        _isOpen = false;
+        _highlightedIndex = -1;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        var count = _filteredItems.Count();
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (!_isOpen)
+                {
+                    _isOpen = true;
+                    RunFilterAsync(_inputText);
+                    break;
+                }
+                _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
+                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView",
+                    _listbox, _highlightedIndex);
+                break;
+
+            case "ArrowUp":
+                _highlightedIndex = Math.Max(_highlightedIndex - 1, 0);
+                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView",
+                    _listbox, _highlightedIndex);
+                break;
+
+            case "Enter":
+                if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
+                    SelectItem(_filteredItems.ElementAt(_highlightedIndex));
+                break;
+
+            case "Escape":
+                _isOpen = false;
+                _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
+                break;
+
+            case "Tab":
+                if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
+                    SelectItem(_filteredItems.ElementAt(_highlightedIndex));
+                _isOpen = false;
+                break;
+        }
+    }
+
+    /// <summary>Called by JS click-outside listener.</summary>
+    [JSInvokable]
+    public void Close()
+    {
+        _isOpen = false;
+        // Revert input text to the last selected value's display
+        _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
+        StateHasChanged();
+    }
+
+    private string GetDisplayText(TItem item) =>
+        DisplayText?.Invoke(item) ?? item.ToString() ?? string.Empty;
+
+    private string? ActiveDescendant =>
+        _highlightedIndex >= 0 ? $"opt-{_id}-{_highlightedIndex}" : null;
+
+    // ── CSS helpers ────────────────────────────────────────
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var classes = new List<string> { "input-wrapper" };
+            if (Ai != AiState.None) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string InputCssClass
+    {
+        get
+        {
+            var c = "input has-leading-icon";
+            if (_isLoading) c += " has-trailing-icon";
+            if (HasValidationError || State == InputState.Error)   c += " input-error";
+            else if (State == InputState.Success)                  c += " input-success";
+            return c;
+        }
+    }
+
+    private static string OptionCss(int idx, bool isSelected) =>
+        isSelected
+            ? "autocomplete-option is-selected"
+            : "autocomplete-option";
+
+    // ── Form plumbing ──────────────────────────────────────
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out TItem? result,
+        out string validationErrorMessage)
+    {
+        result = default;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        if (_jsReady)
+            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
+        _dotnetRef?.Dispose();
+    }
+}

@@ -1,0 +1,217 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylStepper — multi-step wizard container.
+
+    Usage:
+      <DrylStepper @bind-ActiveStep="_step" Orientation="StepperOrientation.Horizontal">
+          <DrylStep Id="info" Label="Info" Description="Basic details">
+              <p>Step 1 content.</p>
+          </DrylStep>
+          <DrylStep Id="review" Label="Review" StepState="StepState.Completed">
+              <p>Step 2 content.</p>
+          </DrylStep>
+          <DrylStep Id="confirm" Label="Confirm" Ai="AiState.Thinking">
+              <p>Step 3 content.</p>
+          </DrylStep>
+      </DrylStepper>
+
+    Each child DrylStep registers itself via the cascading parent reference.
+    DrylStep renders no DOM — DrylStepper draws the header track and the
+    active step's body. Clicking a step header navigates to it (unless Disabled).
+    AI ambient state on a step wraps its header in the shared ai-aura vocabulary.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" role="group" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
+
+    @* ── Step headers track ── *@
+    <div class="stepper-track">
+        @for (int i = 0; i < _steps.Count; i++)
+        {
+            var step = _steps[i];
+            var isActive = step.InternalId == _activeStepId;
+            var isLast = i == _steps.Count - 1;
+
+            <div class="@StepHeaderCss(step, isActive)"
+                 @onclick="() => ActivateStep(step)"
+                 @key="step.InternalId">
+
+                @* AI aura primitives on the header when AI is active *@
+                @if (step.Ai != AiState.None)
+                {
+                    <div class="ai-aura-ring"></div>
+                    <div class="ai-aura-glow"></div>
+                    @if (step.Ai == AiState.Generated)
+                    {
+                        <div class="ai-aura-wash" @key="step.GenTick"></div>
+                    }
+                }
+
+                @* Indicator circle *@
+                <div class="@IndicatorCss(step, isActive)">
+                    @if (step.StepState == StepState.Completed)
+                    {
+                        <DrylIcon Name="Check" Size="14" />
+                    }
+                    else if (step.StepState == StepState.Error)
+                    {
+                        <DrylIcon Name="X" Size="14" />
+                    }
+                    else if (!string.IsNullOrEmpty(step.Icon))
+                    {
+                        <DrylIcon Name="@step.Icon" Size="14" />
+                    }
+                    else
+                    {
+                        <span class="step-number">@(i + 1)</span>
+                    }
+                </div>
+
+                @* Label + description *@
+                <div class="step-label-group">
+                    @if (!string.IsNullOrEmpty(step.Label))
+                    {
+                        <span class="step-label">@step.Label</span>
+                    }
+                    @if (!string.IsNullOrEmpty(step.Description))
+                    {
+                        <span class="step-description">@step.Description</span>
+                    }
+                </div>
+
+                @* Connector line to the next step *@
+                @if (!isLast)
+                {
+                    <div class="step-connector"></div>
+                }
+            </div>
+        }
+    </div>
+
+    @* ── Active step body ── *@
+    @{
+        var activeStep = _steps.FirstOrDefault(s => s.InternalId == _activeStepId);
+    }
+    @if (activeStep?.ChildContent != null)
+    {
+        <div class="step-panel" @key="activeStep.InternalId">
+            @activeStep.ChildContent
+        </div>
+    }
+
+    @* DrylStep children render no DOM of their own — this slot exists
+       so they instantiate and register against the cascading parent. *@
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</div>
+
+@code {
+    /// <summary>ID of the currently active step. Supports two-way binding.</summary>
+    [Parameter] public string? ActiveStep { get; set; }
+
+    /// <summary>Fires when the user navigates to a different step.</summary>
+    [Parameter] public EventCallback<string?> ActiveStepChanged { get; set; }
+
+    /// <summary>Layout axis of the stepper.</summary>
+    [Parameter] public StepperOrientation Orientation { get; set; } = StepperOrientation.Horizontal;
+
+    /// <summary>Accessible label for the stepper group (read by screen readers).</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Step declarations.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) on the root element.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly List<DrylStep> _steps = new();
+    private string? _activeStepId;
+
+    protected override void OnParametersSet()
+    {
+        if (ActiveStep != _activeStepId)
+            _activeStepId = ActiveStep;
+    }
+
+    internal void RegisterStep(DrylStep step)
+    {
+        if (_steps.Contains(step)) return;
+        _steps.Add(step);
+        if (_activeStepId is null && !step.Disabled)
+            _activeStepId = step.InternalId;
+        StateHasChanged();
+    }
+
+    internal void UnregisterStep(DrylStep step)
+    {
+        if (_steps.Remove(step))
+        {
+            if (_activeStepId == step.InternalId)
+            {
+                _activeStepId = _steps.FirstOrDefault(s => !s.Disabled)?.InternalId;
+                _ = ActiveStepChanged.InvokeAsync(_activeStepId);
+            }
+            StateHasChanged();
+        }
+    }
+
+    internal void NotifyStepChanged() => StateHasChanged();
+
+    private async Task ActivateStep(DrylStep step)
+    {
+        if (step.Disabled || step.InternalId == _activeStepId) return;
+        _activeStepId = step.InternalId;
+        ActiveStep = _activeStepId;
+        if (ActiveStepChanged.HasDelegate)
+            await ActiveStepChanged.InvokeAsync(_activeStepId);
+        StateHasChanged();
+    }
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "stepper" };
+            parts.Add(Orientation == StepperOrientation.Vertical
+                ? "stepper--vertical"
+                : "stepper--horizontal");
+            if (!string.IsNullOrEmpty(Class)) parts.Add(Class);
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string StepHeaderCss(DrylStep step, bool isActive)
+    {
+        var parts = new List<string> { "step-header" };
+        if (isActive)                           parts.Add("is-active");
+        if (step.Disabled)                      parts.Add("is-disabled");
+        if (step.StepState == StepState.Completed) parts.Add("is-completed");
+        if (step.StepState == StepState.Error)     parts.Add("is-error");
+        if (step.Ai != AiState.None)            parts.Add("ai-aura");
+        switch (step.Ai)
+        {
+            case AiState.Thinking:  parts.Add("ai-thinking");  break;
+            case AiState.Streaming: parts.Add("ai-streaming"); break;
+            case AiState.Generated: parts.Add("ai-generated"); break;
+        }
+        return string.Join(' ', parts);
+    }
+
+    private static string IndicatorCss(DrylStep step, bool isActive)
+    {
+        var parts = new List<string> { "step-indicator" };
+        if (step.StepState == StepState.Completed)  parts.Add("is-completed");
+        else if (step.StepState == StepState.Error) parts.Add("is-error");
+        else if (isActive)                          parts.Add("is-active");
+        else                                        parts.Add("is-pending");
+        return string.Join(' ', parts);
+    }
+
+    public void Dispose() => _steps.Clear();
+}

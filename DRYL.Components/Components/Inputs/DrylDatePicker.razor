@@ -1,0 +1,539 @@
+@namespace DRYL.Components
+@inherits InputBase<DateOnly?>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDatePicker — date (or date range) input with a
+    keyboard-navigable calendar panel.
+
+    Usage:
+      <DrylDatePicker @bind-Value="model.BirthDate"
+                      Label="Date of birth"
+                      Min="@new DateOnly(1900, 1, 1)"
+                      Max="@DateOnly.FromDateTime(DateTime.Today)" />
+
+    Range mode:
+      <DrylDatePicker Range
+                      @bind-RangeStart="_from"
+                      @bind-RangeEnd="_to"
+                      Label="Date range" />
+
+    Keyboard inside calendar:
+      Arrow keys — move focus by ±1 day (±7 for Up/Down)
+      PageUp / PageDown — previous / next month
+      Home / End — first / last day of current displayed week
+      Enter / Space — select focused day
+      Escape — close without selection
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_id">@Label</label>
+    }
+
+    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
+        <div class="@WrapperCssClass">
+            @if (Ai != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (Ai == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="_genTick"></div>
+                }
+            }
+
+            <input id="@_id"
+                   type="text"
+                   class="@InputCssClass"
+                   value="@DisplayValue"
+                   readonly
+                   @onfocus="Open"
+                   @onclick="Open"
+                   placeholder="@(Range ? "Select range…" : "dd.MM.yyyy")"
+                   disabled="@Disabled"
+                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                   aria-invalid="@(HasValidationError ? "true" : null)"
+                   aria-describedby="@(ShowHelper ? _helperId : null)"
+                   aria-haspopup="dialog"
+                   aria-expanded="@(_isOpen ? "true" : "false")" />
+
+            <DrylIcon Name="Calendar" Size="16" Class="input-icon input-icon-trailing" />
+
+            @if (_isOpen)
+            {
+                <div class="date-panel"
+                     role="dialog"
+                     aria-label="@($"Pick a date — {_viewMonth.ToString("MMMM yyyy")}")"
+                     tabindex="-1"
+                     @ref="_calendarPanel"
+                     @onkeydown="HandleCalendarKeyDown"
+                     @onkeydown:preventDefault="@_preventKeyDefault">
+
+                    @* ── Month navigation header ── *@
+                    <div class="date-header">
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm date-nav-btn"
+                                @onclick="PrevMonth" aria-label="Previous month">
+                            <DrylIcon Name="ChevronLeft" Size="14" />
+                        </button>
+                        <span class="date-month-label">@_viewMonth.ToString("MMMM yyyy")</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm date-nav-btn"
+                                @onclick="NextMonth" aria-label="Next month">
+                            <DrylIcon Name="ChevronRight" Size="14" />
+                        </button>
+                    </div>
+
+                    @* ── Calendar grid ── *@
+                    <div class="date-grid" role="grid" aria-label="@_viewMonth.ToString("MMMM yyyy")">
+
+                        @* Weekday headers *@
+                        <div class="date-weekdays" role="row" aria-hidden="true">
+                            @foreach (var d in new[] { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" })
+                            {
+                                <span class="date-weekday" role="columnheader" abbr="@d">@d</span>
+                            }
+                        </div>
+
+                        @* Day cells — 6 weeks × 7 days *@
+                        @foreach (var week in GetCalendarWeeks())
+                        {
+                            <div class="date-week" role="row">
+                                @foreach (var day in week)
+                                {
+                                    @if (day is null)
+                                    {
+                                        <span class="date-cell date-cell--empty"
+                                              role="gridcell" aria-hidden="true"></span>
+                                    }
+                                    else
+                                    {
+                                        var d = day.Value;
+                                        <button type="button"
+                                                class="@DayCss(d)"
+                                                role="gridcell"
+                                                tabindex="@(d == _focusedDay ? 0 : -1)"
+                                                aria-label="@d.ToString("d MMMM yyyy")"
+                                                aria-selected="@(IsSelected(d) ? "true" : "false")"
+                                                aria-pressed="@(IsSelected(d) ? "true" : "false")"
+                                                disabled="@IsDisabled(d)"
+                                                data-day="@d.DayNumber"
+                                                @onclick="() => SelectDay(d)"
+                                                @key="d.DayNumber">
+                                            @d.Day
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @* Range mode hint *@
+                    @if (Range)
+                    {
+                        <div class="date-range-hint">
+                            @if (_selectingEnd)
+                            {
+                                <span>Select end date</span>
+                            }
+                            else
+                            {
+                                <span>Select start date</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional label shown above the input.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Helper text shown below the input. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Visual state override. An active validation error overrides this.</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, the picker is non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Earliest selectable date (inclusive).</summary>
+    [Parameter] public DateOnly? Min { get; set; }
+
+    /// <summary>Latest selectable date (inclusive).</summary>
+    [Parameter] public DateOnly? Max { get; set; }
+
+    /// <summary>When true, enables date range mode — bind <c>RangeStart</c> and <c>RangeEnd</c> instead of <c>Value</c>.</summary>
+    [Parameter] public bool Range { get; set; }
+
+    /// <summary>Start of the selected range (Range mode only).</summary>
+    [Parameter] public DateOnly? RangeStart { get; set; }
+
+    /// <summary>Fires when the range start changes.</summary>
+    [Parameter] public EventCallback<DateOnly?> RangeStartChanged { get; set; }
+
+    /// <summary>End of the selected range (Range mode only).</summary>
+    [Parameter] public DateOnly? RangeEnd { get; set; }
+
+    /// <summary>Fires when the range end changes.</summary>
+    [Parameter] public EventCallback<DateOnly?> RangeEndChanged { get; set; }
+
+    private readonly string _id       = $"dryl-datepicker-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+
+    private bool _isOpen;
+    private bool _selectingEnd;
+    private bool _preventKeyDefault;
+    private bool _jsReady;
+    private bool _shouldFocusCalendar;
+
+    private DateOnly _viewMonth = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly _focusedDay = DateOnly.FromDateTime(DateTime.Today);
+
+    private ElementReference _anchor;
+    private ElementReference _calendarPanel;
+    private DotNetObjectReference<DrylDatePicker>? _dotnetRef;
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+    private DateOnly? _rangeModeDummy; // satisfies InputBase's ValueExpression requirement in Range mode
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        // InputBase.SetParametersAsync throws when ValueExpression is null.
+        // Range mode binds via RangeStart/RangeEnd so no Value binding is needed;
+        // point ValueExpression at a dummy field so the base check passes.
+        if (Range && ValueExpression is null)
+            ValueExpression = () => _rangeModeDummy;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+
+        if (!_isOpen && CurrentValue.HasValue)
+            _viewMonth = new DateOnly(CurrentValue.Value.Year, CurrentValue.Value.Month, 1);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsReady = true;
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
+        }
+
+        if (_shouldFocusCalendar)
+        {
+            _shouldFocusCalendar = false;
+            await JS.InvokeVoidAsync("dryl.datepicker.focusDay", _calendarPanel, _focusedDay.DayNumber);
+        }
+    }
+
+    private void Open()
+    {
+        if (Disabled || _isOpen) return;
+        _viewMonth = CurrentValue.HasValue
+            ? new DateOnly(CurrentValue.Value.Year, CurrentValue.Value.Month, 1)
+            : new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+        _focusedDay = CurrentValue ?? DateOnly.FromDateTime(DateTime.Today);
+        _isOpen = true;
+        _shouldFocusCalendar = true;
+    }
+
+    /// <summary>Called by JS click-outside listener.</summary>
+    [JSInvokable]
+    public void Close()
+    {
+        _isOpen = false;
+        _selectingEnd = false;
+        StateHasChanged();
+    }
+
+    private async Task SelectDay(DateOnly day)
+    {
+        if (IsDisabled(day)) return;
+
+        if (!Range)
+        {
+            CurrentValue = day;
+            _isOpen = false;
+        }
+        else if (!_selectingEnd)
+        {
+            await RangeStartChanged.InvokeAsync(day);
+            await RangeEndChanged.InvokeAsync(null);
+            _selectingEnd = true;
+        }
+        else
+        {
+            var start = RangeStart ?? day;
+            var end = day;
+            if (end < start) (start, end) = (end, start);
+            await RangeStartChanged.InvokeAsync(start);
+            await RangeEndChanged.InvokeAsync(end);
+            _selectingEnd = false;
+            _isOpen = false;
+        }
+    }
+
+    private void PrevMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(-1);
+        _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
+    }
+
+    private void NextMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(1);
+        _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
+    }
+
+    private async Task HandleCalendarKeyDown(KeyboardEventArgs e)
+    {
+        _preventKeyDefault = false;
+
+        switch (e.Key)
+        {
+            case "ArrowRight":
+                _preventKeyDefault = true;
+                MoveFocus(1);
+                break;
+            case "ArrowLeft":
+                _preventKeyDefault = true;
+                MoveFocus(-1);
+                break;
+            case "ArrowDown":
+                _preventKeyDefault = true;
+                MoveFocus(7);
+                break;
+            case "ArrowUp":
+                _preventKeyDefault = true;
+                MoveFocus(-7);
+                break;
+            case "PageDown":
+                _preventKeyDefault = true;
+                _viewMonth = _viewMonth.AddMonths(1);
+                _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
+                _shouldFocusCalendar = true;
+                break;
+            case "PageUp":
+                _preventKeyDefault = true;
+                _viewMonth = _viewMonth.AddMonths(-1);
+                _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
+                _shouldFocusCalendar = true;
+                break;
+            case "Home":
+                _preventKeyDefault = true;
+                _focusedDay = StartOfWeek(_focusedDay);
+                EnsureMonthVisible();
+                _shouldFocusCalendar = true;
+                break;
+            case "End":
+                _preventKeyDefault = true;
+                _focusedDay = StartOfWeek(_focusedDay).AddDays(6);
+                EnsureMonthVisible();
+                _shouldFocusCalendar = true;
+                break;
+            case "Enter":
+            case " ":
+                _preventKeyDefault = true;
+                if (!IsDisabled(_focusedDay)) await SelectDay(_focusedDay);
+                break;
+            case "Escape":
+                _isOpen = false;
+                _selectingEnd = false;
+                break;
+        }
+    }
+
+    private void MoveFocus(int days)
+    {
+        _focusedDay = _focusedDay.AddDays(days);
+        EnsureMonthVisible();
+        _shouldFocusCalendar = true;
+    }
+
+    private void EnsureMonthVisible()
+    {
+        var newMonth = new DateOnly(_focusedDay.Year, _focusedDay.Month, 1);
+        if (newMonth != _viewMonth)
+            _viewMonth = newMonth;
+    }
+
+    private static DateOnly ClampToMonth(DateOnly day, DateOnly month)
+    {
+        var lastDay = DateTime.DaysInMonth(month.Year, month.Month);
+        return new DateOnly(month.Year, month.Month, Math.Min(day.Day, lastDay));
+    }
+
+    private static DateOnly StartOfWeek(DateOnly day)
+    {
+        var offset = ((int)day.DayOfWeek + 6) % 7; // Monday = 0
+        return day.AddDays(-offset);
+    }
+
+    // ── Calendar data helpers ──────────────────────────────
+
+    private List<List<DateOnly?>> GetCalendarWeeks()
+    {
+        var days = GetCalendarDays();
+        var weeks = new List<List<DateOnly?>>();
+        for (int i = 0; i < 42; i += 7)
+            weeks.Add(days.GetRange(i, 7));
+        return weeks;
+    }
+
+    private List<DateOnly?> GetCalendarDays()
+    {
+        var firstOfMonth = new DateOnly(_viewMonth.Year, _viewMonth.Month, 1);
+        var leadingBlanks = ((int)firstOfMonth.DayOfWeek + 6) % 7; // Monday-first
+        var daysInMonth   = DateTime.DaysInMonth(_viewMonth.Year, _viewMonth.Month);
+
+        var cells = new List<DateOnly?>(42);
+        for (int i = 0; i < leadingBlanks; i++)
+            cells.Add(null);
+        for (int d = 1; d <= daysInMonth; d++)
+            cells.Add(new DateOnly(_viewMonth.Year, _viewMonth.Month, d));
+        while (cells.Count < 42)
+            cells.Add(null);
+
+        return cells;
+    }
+
+    // ── CSS helpers ────────────────────────────────────────
+
+    private string DayCss(DateOnly day)
+    {
+        var classes = new List<string> { "date-cell" };
+        if (day == DateOnly.FromDateTime(DateTime.Today)) classes.Add("is-today");
+        if (IsDisabled(day))                              classes.Add("is-disabled");
+        else if (!Range && CurrentValue == day)           classes.Add("is-selected");
+        else if (Range)
+        {
+            if (day == RangeStart) classes.Add("is-range-start");
+            else if (day == RangeEnd) classes.Add("is-range-end");
+            else if (RangeStart.HasValue && RangeEnd.HasValue
+                     && day > RangeStart && day < RangeEnd)
+                classes.Add("is-in-range");
+        }
+        return string.Join(' ', classes);
+    }
+
+    private bool IsSelected(DateOnly day) =>
+        (!Range && CurrentValue == day)
+        || (Range && (day == RangeStart || day == RangeEnd));
+
+    private bool IsDisabled(DateOnly day) =>
+        (Min.HasValue && day < Min.Value) || (Max.HasValue && day > Max.Value);
+
+    // ── Display value for the input field ─────────────────
+
+    private string DisplayValue
+    {
+        get
+        {
+            if (Range)
+            {
+                if (RangeStart.HasValue && RangeEnd.HasValue)
+                    return FormattableString.Invariant($"{RangeStart:dd.MM.yyyy} – {RangeEnd:dd.MM.yyyy}");
+                if (RangeStart.HasValue)
+                    return RangeStart.Value.ToString("dd.MM.yyyy");
+                return string.Empty;
+            }
+            return CurrentValue?.ToString("dd.MM.yyyy") ?? string.Empty;
+        }
+    }
+
+    // ── Form plumbing ──────────────────────────────────────
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var classes = new List<string> { "input-wrapper" };
+            if (Ai != AiState.None) classes.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string InputCssClass
+    {
+        get
+        {
+            var c = "input has-trailing-icon";
+            if (HasValidationError || State == InputState.Error)   c += " input-error";
+            else if (State == InputState.Success)                  c += " input-success";
+            return c;
+        }
+    }
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out DateOnly? result,
+        out string validationErrorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result = null;
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        if (DateOnly.TryParseExact(value, "dd.MM.yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d))
+        {
+            result = d;
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        result = null;
+        validationErrorMessage = "Invalid date. Expected format: dd.MM.yyyy";
+        return false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsReady)
+            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
+        _dotnetRef?.Dispose();
+    }
+}

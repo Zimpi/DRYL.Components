@@ -1,27 +1,89 @@
 @namespace DRYL.Components
+@using Microsoft.AspNetCore.Components.Routing
 
 @*  ─────────────────────────────────────────────────────────
-    DrylNavGroup — a labelled section of nav links inside a
-    DrylDrawer. Renders the small uppercase title plus its
-    DrylNavLink children.
+    DrylNavGroup — a labelled (and optionally collapsible)
+    section of nav links inside a DrylDrawer.
 
-    Usage:
+    Static group (renders title + children):
       <DrylNavGroup Title="Library">
           <DrylNavLink Href="buttons" Icon="Bolt">Buttons</DrylNavLink>
-          <DrylNavLink Href="inputs" Icon="Type">Inputs</DrylNavLink>
+      </DrylNavGroup>
+
+    Collapsible group — bracket only (no own URL):
+      <DrylNavGroup Title="Settings" Collapsible Icon="Settings">
+          <DrylNavLink Href="profile" Icon="User" Sub>Profile</DrylNavLink>
+          <DrylNavLink Href="billing" Icon="CreditCard" Sub>Billing</DrylNavLink>
+      </DrylNavGroup>
+
+    Collapsible group — with own route (title is a NavLink):
+      <DrylNavGroup Title="Dashboard" Collapsible Href="dashboard" Icon="LayoutDashboard">
+          <DrylNavLink Href="dashboard/overview" Icon="BarChart" Sub>Overview</DrylNavLink>
+          <DrylNavLink Href="dashboard/reports"  Icon="FileText"  Sub>Reports</DrylNavLink>
       </DrylNavGroup>
     ───────────────────────────────────────────────────────── *@
 
 <div class="nav-section @Class" @attributes="AdditionalAttributes">
-    @if (!string.IsNullOrEmpty(Title))
+    @if (Collapsible)
     {
-        <div class="nav-title">@Title</div>
+        @if (!string.IsNullOrEmpty(Href))
+        {
+            @* Link + separate chevron toggle *@
+            <div class="nav-section-header">
+                <NavLink class="nav-section-link"
+                         href="@Href"
+                         Match="@Match">
+                    @if (!string.IsNullOrEmpty(Icon))
+                    {
+                        <DrylIcon Name="@Icon" Size="16" Class="ico" />
+                    }
+                    <span>@Title</span>
+                </NavLink>
+                <button type="button"
+                        class="nav-section-chevron-btn"
+                        @onclick="Toggle"
+                        aria-label="@(_isExpanded ? "Collapse" : "Expand") @Title">
+                    <DrylIcon Name="ChevronRight" Size="12"
+                              Class="@($"nav-section-chevron{(_isExpanded ? " is-open" : "")}")" />
+                </button>
+            </div>
+        }
+        else
+        {
+            @* Entire header row is the toggle *@
+            <button type="button"
+                    class="nav-section-toggle"
+                    @onclick="Toggle"
+                    aria-expanded="@(_isExpanded ? "true" : "false")">
+                @if (!string.IsNullOrEmpty(Icon))
+                {
+                    <DrylIcon Name="@Icon" Size="14" Class="ico" />
+                }
+                <span class="nav-section-toggle-label">@Title</span>
+                <DrylIcon Name="ChevronRight" Size="12"
+                          Class="@($"nav-section-chevron{(_isExpanded ? " is-open" : "")}")" />
+            </button>
+        }
+
+        <div class="nav-children @(_isExpanded ? "is-open" : null)"
+             aria-hidden="@(_isExpanded ? null : "true")">
+            <div class="nav-children-inner">
+                @ChildContent
+            </div>
+        </div>
     }
-    @ChildContent
+    else
+    {
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="nav-title">@Title</div>
+        }
+        @ChildContent
+    }
 </div>
 
 @code {
-    /// <summary>Section label, rendered as a small uppercase title. Optional.</summary>
+    /// <summary>Section label. For collapsible groups this is the toggle button text.</summary>
     [Parameter] public string? Title { get; set; }
 
     /// <summary>Nav links and other section content.</summary>
@@ -33,4 +95,33 @@
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> the group is collapsible — children animate in/out when the header is clicked.
+    /// Combine with <see cref="DefaultExpanded"/> to control initial state.
+    /// </summary>
+    [Parameter] public bool Collapsible { get; set; }
+
+    /// <summary>
+    /// Initial expansion state when <see cref="Collapsible"/> is <c>true</c>. Defaults to <c>true</c>.
+    /// </summary>
+    [Parameter] public bool DefaultExpanded { get; set; } = true;
+
+    /// <summary>
+    /// Optional route. When set on a collapsible group the title becomes a <c>NavLink</c> to this href,
+    /// and a separate chevron button controls collapse. Leave empty to use the whole row as the toggle.
+    /// </summary>
+    [Parameter] public string? Href { get; set; }
+
+    /// <summary>How to match the current URL when <see cref="Href"/> is set. Defaults to <see cref="NavLinkMatch.Prefix"/>.</summary>
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+
+    /// <summary>Optional DrylIcon name shown before the label in collapsible mode.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    private bool _isExpanded;
+
+    protected override void OnInitialized() => _isExpanded = DefaultExpanded;
+
+    private void Toggle() => _isExpanded = !_isExpanded;
 }

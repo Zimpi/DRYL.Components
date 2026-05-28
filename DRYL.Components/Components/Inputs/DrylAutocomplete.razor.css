@@ -1,0 +1,79 @@
+/* ── Dropdown panel ─────────────────────────────────────── */
+
+.autocomplete-panel {
+    position: absolute;
+    top: calc(100% + var(--sp-1));
+    left: 0;
+    width: 100%;
+    z-index: var(--z-drawer);
+    background: var(--bg-2);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--sp-1) 0;
+    max-height: 240px;
+    overflow-y: auto;
+    outline: none;
+    animation: menu-in var(--dur-med) var(--ease-out) both;
+
+    /* Thin accent scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.autocomplete-panel::-webkit-scrollbar { width: 4px; }
+.autocomplete-panel::-webkit-scrollbar-track { background: transparent; }
+.autocomplete-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+
+/* ── Option rows ─────────────────────────────────────────── */
+
+.autocomplete-option {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    padding: var(--sp-2) var(--sp-4);
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out);
+}
+
+.autocomplete-option:hover,
+.autocomplete-option.is-highlighted {
+    background: var(--glass-2);
+    color: var(--fg);
+}
+
+/* Currently bound value shown in the list */
+.autocomplete-option.is-selected {
+    color: var(--fg);
+}
+
+.autocomplete-option.is-selected::after {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-a);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* ── Empty / loading states ─────────────────────────────── */
+
+.autocomplete-empty,
+.autocomplete-loading {
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--fg-dim);
+    font-size: 13px;
+    text-align: center;
+}

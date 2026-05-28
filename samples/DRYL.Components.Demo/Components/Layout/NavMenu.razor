@@ -8,47 +8,50 @@
     </div>
 </div>
 
-<DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+<div class="nav-scroll">
+    <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
 
-<DrylNavGroup Title="Actions">
-    <DrylNavLink Href="buttons" Icon="Bolt">Button</DrylNavLink>
-    <DrylNavLink Href="menu" Icon="Menu">Menu</DrylNavLink>
-</DrylNavGroup>
+    <DrylNavGroup Title="Actions">
+        <DrylNavLink Href="buttons" Icon="Bolt">Button</DrylNavLink>
+        <DrylNavLink Href="menu" Icon="Menu">Menu</DrylNavLink>
+    </DrylNavGroup>
 
-<DrylNavGroup Title="Surfaces">
-    <DrylNavLink Href="cards" Icon="Layers">Card</DrylNavLink>
-    <DrylNavLink Href="dialog" Icon="Box">Dialog</DrylNavLink>
-    <DrylNavLink Href="toasts" Icon="Bell">Toast</DrylNavLink>
-</DrylNavGroup>
+    <DrylNavGroup Title="Surfaces">
+        <DrylNavLink Href="cards" Icon="Layers">Card</DrylNavLink>
+        <DrylNavLink Href="dialog" Icon="Box">Dialog</DrylNavLink>
+        <DrylNavLink Href="toasts" Icon="Bell">Toast</DrylNavLink>
+    </DrylNavGroup>
 
-<DrylNavGroup Title="Data">
-    <DrylNavLink Href="badges" Icon="Star">Badge</DrylNavLink>
-    <DrylNavLink Href="tables" Icon="Grid">Table</DrylNavLink>
-    <DrylNavLink Href="icons" Icon="Palette">Icons</DrylNavLink>
-</DrylNavGroup>
+    <DrylNavGroup Title="Data">
+        <DrylNavLink Href="badges" Icon="Star">Badge</DrylNavLink>
+        <DrylNavLink Href="tables" Icon="Grid">Table</DrylNavLink>
+        <DrylNavLink Href="icons" Icon="Palette">Icons</DrylNavLink>
+    </DrylNavGroup>
 
-<DrylNavGroup Title="Inputs">
-    <DrylNavLink Href="inputs" Icon="Type">Input Text</DrylNavLink>
-    <DrylNavLink Href="forms" Icon="Check">Form Controls</DrylNavLink>
-</DrylNavGroup>
+    <DrylNavGroup Title="Inputs" Collapsible DefaultExpanded="true">
+        <DrylNavLink Href="inputs" Icon="Type" Sub>Input Text</DrylNavLink>
+        <DrylNavLink Href="forms" Icon="Check" Sub>Form Controls</DrylNavLink>
+        <DrylNavLink Href="autocomplete" Icon="Search" Sub>Autocomplete</DrylNavLink>
+        <DrylNavLink Href="datepicker" Icon="Calendar" Sub>Date Picker</DrylNavLink>
+    </DrylNavGroup>
 
-<DrylNavGroup Title="Layout">
-    <DrylNavLink Href="expansion" Icon="ChevronDown">Expansion</DrylNavLink>
-    <DrylNavLink Href="tabs" Icon="Folder">Tabs</DrylNavLink>
-</DrylNavGroup>
+    <DrylNavGroup Title="Layout" Collapsible DefaultExpanded="true">
+        <DrylNavLink Href="expansion" Icon="ChevronDown" Sub>Expansion</DrylNavLink>
+        <DrylNavLink Href="tabs" Icon="Folder" Sub>Tabs</DrylNavLink>
+        <DrylNavLink Href="stepper" Icon="ArrowRight" Sub>Stepper</DrylNavLink>
+    </DrylNavGroup>
 
-<DrylNavGroup Title="Feedback">
-    <DrylNavLink Href="alerts" Icon="Alert">Alert</DrylNavLink>
-    <DrylNavLink Href="tooltip" Icon="Info">Tooltip</DrylNavLink>
-    <DrylNavLink Href="spinners" Icon="Activity">Spinner</DrylNavLink>
-    <DrylNavLink Href="skeleton" Icon="Blocks">Skeleton</DrylNavLink>
-</DrylNavGroup>
+    <DrylNavGroup Title="Feedback" Collapsible DefaultExpanded="true">
+        <DrylNavLink Href="alerts" Icon="Alert" Sub>Alert</DrylNavLink>
+        <DrylNavLink Href="tooltip" Icon="Info" Sub>Tooltip</DrylNavLink>
+        <DrylNavLink Href="spinners" Icon="Activity" Sub>Spinner</DrylNavLink>
+        <DrylNavLink Href="skeleton" Icon="Blocks" Sub>Skeleton</DrylNavLink>
+    </DrylNavGroup>
 
-<DrylNavGroup Title="Intelligence">
-    <DrylNavLink Href="ai" Icon="Sparkle">AI Mode</DrylNavLink>
-</DrylNavGroup>
-
-<div style="flex: 1;"></div>
+    <DrylNavGroup Title="Intelligence">
+        <DrylNavLink Href="ai" Icon="Sparkle">AI Mode</DrylNavLink>
+    </DrylNavGroup>
+</div>
 
 <DrylNavGroup Title="Project">
     <DrylNavLink Href="https://github.com/Zimpi/DRYL.Components" Icon="Code" External>GitHub</DrylNavLink>
