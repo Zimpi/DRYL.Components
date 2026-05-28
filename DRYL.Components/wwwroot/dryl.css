@@ -678,7 +678,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 4px;
   z-index: 10;
 }
 
@@ -815,7 +815,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--fg-faint);
-  padding: 12px 12px 6px;
+  padding: 16px 12px 4px;
 }
 .nav-item {
   position: relative;

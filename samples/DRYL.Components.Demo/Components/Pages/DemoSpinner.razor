@@ -1,0 +1,244 @@
+@page "/spinners"
+@using DRYL.Components
+
+<PageTitle>Spinners — DRYL</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-6);">
+
+    <header class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Feedback</span>
+        <h2>DrylSpinner</h2>
+        <p class="lead">Compact loading indicator in three variants — Ring, Dots and Pulse — with built-in AI mode support.</p>
+    </header>
+
+    <!-- ── Variants ───────────────────────────────────── -->
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Variants</h3>
+        <div class="glass-card" style="padding: var(--sp-6);">
+            <div class="row" style="gap: var(--sp-8); align-items: center; justify-content: center; flex-wrap: wrap;">
+                <div class="col" style="gap: var(--sp-3); align-items: center;">
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Ring" Size="DrylSpinner.SpinnerSize.Large" />
+                    <span style="color: var(--fg-dim); font-size: 12px; letter-spacing: 0.05em;">Ring</span>
+                </div>
+                <div class="col" style="gap: var(--sp-3); align-items: center;">
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Large" />
+                    <span style="color: var(--fg-dim); font-size: 12px; letter-spacing: 0.05em;">Dots</span>
+                </div>
+                <div class="col" style="gap: var(--sp-3); align-items: center;">
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Large" />
+                    <span style="color: var(--fg-dim); font-size: 12px; letter-spacing: 0.05em;">Pulse</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Sizes ──────────────────────────────────────── -->
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Sizes</h3>
+        <div class="glass-card" style="padding: var(--sp-5);">
+            <div class="row" style="gap: var(--sp-6); align-items: flex-end; flex-wrap: wrap;">
+
+                <div class="col" style="gap: var(--sp-4); align-items: center;">
+                    <span style="color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;">Ring</span>
+                    <div class="row" style="gap: var(--sp-5); align-items: flex-end;">
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Ring" Size="DrylSpinner.SpinnerSize.Small" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Sm</span>
+                        </div>
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Ring" Size="DrylSpinner.SpinnerSize.Medium" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Md</span>
+                        </div>
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Ring" Size="DrylSpinner.SpinnerSize.Large" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Lg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="width: 1px; height: 48px; background: var(--line);"></div>
+
+                <div class="col" style="gap: var(--sp-4); align-items: center;">
+                    <span style="color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;">Dots</span>
+                    <div class="row" style="gap: var(--sp-5); align-items: flex-end;">
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Small" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Sm</span>
+                        </div>
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Medium" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Md</span>
+                        </div>
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Large" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Lg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="width: 1px; height: 48px; background: var(--line);"></div>
+
+                <div class="col" style="gap: var(--sp-4); align-items: center;">
+                    <span style="color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;">Pulse</span>
+                    <div class="row" style="gap: var(--sp-5); align-items: flex-end;">
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Small" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Sm</span>
+                        </div>
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Medium" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Md</span>
+                        </div>
+                        <div class="col" style="gap: var(--sp-2); align-items: center;">
+                            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Large" />
+                            <span style="color: var(--fg-faint); font-size: 11px;">Lg</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ── AI Mode grid ────────────────────────────────── -->
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>AI Mode</h3>
+        <p style="color: var(--fg-muted); font-size: 13px; margin: 0;">
+            All five <code>AiState</code> values across all three variants. The spinner's own
+            animation responds — it slows on <code>Thinking</code> and sprints on <code>Streaming</code>.
+        </p>
+        <div class="glass-card" style="padding: var(--sp-5); overflow: auto;">
+            <table style="border-collapse: collapse; width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="padding: var(--sp-2) var(--sp-4); text-align: left; color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; white-space: nowrap; border-bottom: 1px solid var(--line);">State</th>
+                        <th style="padding: var(--sp-2) var(--sp-4); text-align: center; color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; border-bottom: 1px solid var(--line);">Ring</th>
+                        <th style="padding: var(--sp-2) var(--sp-4); text-align: center; color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; border-bottom: 1px solid var(--line);">Dots</th>
+                        <th style="padding: var(--sp-2) var(--sp-4); text-align: center; color: var(--fg-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; border-bottom: 1px solid var(--line);">Pulse</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (state, label) in _aiStates)
+                    {
+                        <tr>
+                            <td style="padding: var(--sp-4); border-bottom: 1px solid var(--line-soft); white-space: nowrap;">
+                                <code style="color: var(--accent-b); font-size: 12px;">@label</code>
+                            </td>
+                            <td style="padding: var(--sp-4); text-align: center; border-bottom: 1px solid var(--line-soft);">
+                                <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Ring"  Size="DrylSpinner.SpinnerSize.Large" Ai="@state" />
+                            </td>
+                            <td style="padding: var(--sp-4); text-align: center; border-bottom: 1px solid var(--line-soft);">
+                                <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots"  Size="DrylSpinner.SpinnerSize.Large" Ai="@state" />
+                            </td>
+                            <td style="padding: var(--sp-4); text-align: center; border-bottom: 1px solid var(--line-soft);">
+                                <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Large" Ai="@state" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ── Live AI lifecycle ───────────────────────────── -->
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Live AI lifecycle</h3>
+        <p style="color: var(--fg-muted); font-size: 13px; margin: 0;">
+            Simulate a full AI call: the spinner cycles through Thinking → Streaming → Generated, then idles as Active.
+        </p>
+        <div class="glass-card" style="padding: var(--sp-5);">
+            <div class="row" style="gap: var(--sp-6); align-items: center; flex-wrap: wrap;">
+
+                <div class="row" style="gap: var(--sp-7); align-items: center;">
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Ring"  Size="DrylSpinner.SpinnerSize.Large" Ai="@_liveState" />
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots"  Size="DrylSpinner.SpinnerSize.Large" Ai="@_liveState" />
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Large" Ai="@_liveState" />
+                </div>
+
+                <div class="col" style="gap: var(--sp-2); flex: 1; min-width: 160px;">
+                    <DrylAiIndicator State="@_liveState" />
+                    <span style="color: var(--fg-dim); font-size: 12px;">@_liveStatus</span>
+                </div>
+
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                            OnClick="@RunLifecycle"
+                            Disabled="@_cycling">
+                    Simulate
+                </DrylButton>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Usage in context ────────────────────────────── -->
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>In context</h3>
+        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+
+            <DrylCard style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start;">
+                <div class="row" style="gap: var(--sp-3); align-items: center;">
+                    <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" />
+                    <span style="color: var(--fg-muted); font-size: 13px;">Saving changes…</span>
+                </div>
+            </DrylCard>
+
+            <DrylCard style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start;">
+                <div class="row" style="gap: var(--sp-3); align-items: center;">
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Small" Ai="AiState.Streaming" />
+                    <span style="color: var(--fg-muted); font-size: 13px;">Model responding…</span>
+                </div>
+            </DrylCard>
+
+            <DrylCard style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start;">
+                <div class="row" style="gap: var(--sp-3); align-items: center;">
+                    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Small" Ai="AiState.Thinking" />
+                    <span style="color: var(--fg-muted); font-size: 13px;">Tool call in flight…</span>
+                </div>
+            </DrylCard>
+
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private static readonly (AiState, string)[] _aiStates =
+    [
+        (AiState.None,      "AiState.None"),
+        (AiState.Active,    "AiState.Active"),
+        (AiState.Thinking,  "AiState.Thinking"),
+        (AiState.Streaming, "AiState.Streaming"),
+        (AiState.Generated, "AiState.Generated"),
+    ];
+
+    private AiState _liveState  = AiState.None;
+    private string  _liveStatus = "Press Simulate to start.";
+    private bool    _cycling;
+
+    private async Task RunLifecycle()
+    {
+        if (_cycling) return;
+        _cycling = true;
+
+        _liveState  = AiState.Thinking;
+        _liveStatus = "Calling tools…";
+        StateHasChanged();
+        await Task.Delay(1800);
+
+        _liveState  = AiState.Streaming;
+        _liveStatus = "Tokens arriving…";
+        StateHasChanged();
+        await Task.Delay(2200);
+
+        _liveState  = AiState.Generated;
+        _liveStatus = "Done.";
+        StateHasChanged();
+        await Task.Delay(950);
+
+        _liveState  = AiState.Active;
+        _liveStatus = "Settled — AI surface active.";
+        StateHasChanged();
+
+        _cycling = false;
+    }
+}

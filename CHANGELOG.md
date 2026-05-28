@@ -15,6 +15,7 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylSpinner` — New loading indicator; variants: Ring / Dots / Pulse; sizes: Small / Medium / Large; AI-aware (`Ai` parameter drives shared AI vocabulary — spinning rate responds to Thinking/Streaming states)
 - `DrylTable` — `GroupBy` parameter clusters rows under collapsible mono-styled group headers with a per-group count badge
 - `DrylTable` — `DetailTemplate` slot adds a leading expand-chevron column; clicking it toggles a glass detail panel under each row
 - `DrylTable` — `RowActions` slot appends a trailing per-row actions column whose clicks don't propagate to the row click handler

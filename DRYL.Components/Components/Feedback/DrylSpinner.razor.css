@@ -1,0 +1,160 @@
+/* ── DrylSpinner ─────────────────────────────────────────────
+   All dimensions reference tokens defined on the wrapper so they
+   cascade to every child without repeating the size values.
+   Continuous animation durations are NOT --dur-* (those are for
+   interaction transitions). Looping spinner durations are defined
+   here as intentional motion-design values.
+   ──────────────────────────────────────────────────────────── */
+
+.spinner-wrap {
+    /* Size tokens — overridden per size modifier */
+    --sz:      var(--sp-5);  /* Medium = 24 px */
+    --track-w: 2px;
+
+    display:         inline-flex;
+    align-items:     center;
+    justify-content: center;
+    position:        relative;
+    flex-shrink:     0;
+    width:           var(--sz);
+    height:          var(--sz);
+    border-radius:   50%;
+}
+
+.spinner-wrap.sz-sm { --sz: var(--sp-4); --track-w: 1.5px; } /* 16 px */
+.spinner-wrap.sz-lg { --sz: var(--sp-6); --track-w: 3px;   } /* 32 px */
+
+/* Dots need a wider, pill-shaped container so the AI ring wraps a capsule */
+.spinner-wrap.v-dots {
+    width:         auto;
+    padding-inline: calc(var(--sz) * 0.25);
+    border-radius: var(--r-pill);
+}
+
+
+/* ── Ring variant ─────────────────────────────────────────── */
+
+.spinner-ring {
+    width:         100%;
+    height:        100%;
+    border-radius: 50%;
+    /* Gradient arc: bright cyan tip → violet body → transparent tail */
+    background: conic-gradient(
+        from 0deg,
+        var(--accent-b)  0%,
+        var(--accent-a) 50%,
+        transparent     75%,
+        transparent    100%
+    );
+    /* Mask punches out the centre, leaving only the track */
+    mask:         radial-gradient(farthest-side, transparent calc(100% - var(--track-w)), #fff calc(100% - var(--track-w) + 1px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--track-w)), #fff calc(100% - var(--track-w) + 1px));
+    animation: dryl-spin 0.9s linear infinite;
+}
+
+@keyframes dryl-spin { to { transform: rotate(360deg); } }
+
+/* Ring responds to AI state: slow breathing on Thinking, sprint on Streaming */
+.ai-aura.ai-active    .spinner-ring { animation-duration: 1.4s; }
+.ai-aura.ai-thinking  .spinner-ring { animation-duration: 2s; }
+.ai-aura.ai-streaming .spinner-ring { animation-duration: 0.6s; }
+.ai-aura.ai-generated .spinner-ring { animation: none; opacity: 0.55; }
+
+
+/* ── Dots variant ─────────────────────────────────────────── */
+
+.spinner-dots {
+    display:         flex;
+    gap:             var(--sp-1);
+    align-items:     center;
+    justify-content: center;
+}
+
+.spinner-dot {
+    width:         calc(var(--sz) * 0.28);
+    height:        calc(var(--sz) * 0.28);
+    border-radius: 50%;
+    animation:     dryl-dot-pulse 1.5s var(--ease-in-out) infinite;
+}
+
+.spinner-dot:nth-child(1) { background: var(--accent-a); animation-delay: 0s;     }
+.spinner-dot:nth-child(2) { background: var(--accent-b); animation-delay: 0.24s;  }
+.spinner-dot:nth-child(3) { background: var(--accent-a); animation-delay: 0.48s;  }
+
+@keyframes dryl-dot-pulse {
+    0%, 100% { transform: scale(0.5);  opacity: 0.35; }
+    45%      { transform: scale(1);    opacity: 1;    }
+}
+
+.ai-aura.ai-active    .spinner-dot { animation-duration: 2s;   }
+.ai-aura.ai-thinking  .spinner-dot { animation-duration: 2.6s; }
+.ai-aura.ai-streaming .spinner-dot { animation-duration: 0.85s; }
+.ai-aura.ai-generated .spinner-dot { animation: none; transform: scale(1); opacity: 1; }
+
+
+/* ── Pulse variant ─────────────────────────────────────────── */
+
+.spinner-pulse {
+    position: relative;
+    width:    100%;
+    height:   100%;
+}
+
+.spinner-pulse-ring {
+    position:      absolute;
+    inset:         0;
+    border-radius: 50%;
+    border:        1px solid;
+    opacity:       0;
+    animation:     dryl-pulse-ring 2.2s var(--ease-out) infinite;
+}
+
+.spinner-pulse-ring:nth-child(1) { border-color: var(--accent-a); animation-delay: 0s;    }
+.spinner-pulse-ring:nth-child(2) { border-color: var(--accent-b); animation-delay: 0.75s; }
+
+.spinner-pulse-core {
+    position:      absolute;
+    top:           50%;
+    left:          50%;
+    width:         30%;
+    height:        30%;
+    border-radius: 50%;
+    background:    var(--accent-grad);
+    box-shadow:    0 0 6px var(--accent-soft), 0 0 14px rgba(124, 92, 255, 0.45);
+    transform:     translate(-50%, -50%);
+    animation:     dryl-pulse-core 2.2s var(--ease-in-out) infinite;
+}
+
+@keyframes dryl-pulse-ring {
+    0%   { transform: scale(0.2); opacity: 0.9; }
+    100% { transform: scale(1);   opacity: 0;   }
+}
+
+@keyframes dryl-pulse-core {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1;   }
+}
+
+.ai-aura.ai-active    .spinner-pulse-ring  { animation-duration: 3s; }
+.ai-aura.ai-active    .spinner-pulse-core  { box-shadow: var(--glow-accent); animation-duration: 3s; }
+.ai-aura.ai-thinking  .spinner-pulse-ring  { animation-duration: 3.6s; border-width: 1.5px; }
+.ai-aura.ai-thinking  .spinner-pulse-core  { box-shadow: var(--glow-accent); animation-duration: 1.4s; }
+.ai-aura.ai-streaming .spinner-pulse-ring  { animation-duration: 1.3s; }
+.ai-aura.ai-streaming .spinner-pulse-core  { animation-duration: 0.9s; }
+.ai-aura.ai-generated .spinner-pulse-ring  { animation: none; opacity: 0; }
+.ai-aura.ai-generated .spinner-pulse-core  { animation: none; opacity: 1; box-shadow: var(--glow-accent); transform: translate(-50%, -50%) scale(1); }
+
+
+/* ── Reduced motion ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner-ring,
+    .spinner-dot,
+    .spinner-pulse-ring,
+    .spinner-pulse-core { animation: none; }
+
+    .spinner-ring                    { opacity: 0.7; }
+    .spinner-dot                     { opacity: 0.7; transform: scale(1); }
+    .spinner-pulse-ring:nth-child(1) { opacity: 0.45; transform: scale(0.75); }
+    .spinner-pulse-core              { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}

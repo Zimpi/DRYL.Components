@@ -1,0 +1,149 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSpinner — compact loading indicator.
+
+    Variants : Ring  — smooth conic-gradient arc
+               Dots  — three-dot sequential wave
+               Pulse — expanding concentric rings
+
+    Sizes    : Small | Medium | Large
+
+    AI mode  : pass Ai="AiState.Thinking" (or Streaming / Generated /
+               Active) to engage the shared DRYL AI visual vocabulary —
+               rotating gradient ring, breathing glow, one-shot wash.
+               The spinner's own animation also responds: it slows on
+               Thinking and speeds on Streaming to reinforce the signal.
+
+    <DrylSpinner />
+    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Large" />
+    <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Ai="AiState.Thinking" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@WrapperClass"
+     role="status"
+     aria-label="@EffectiveLabel"
+     aria-live="polite"
+     @attributes="AdditionalAttributes">
+
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_generatedKey"></div>
+        }
+    }
+
+    @if (Variant == SpinnerVariant.Dots)
+    {
+        <div class="spinner-dots">
+            <span class="spinner-dot"></span>
+            <span class="spinner-dot"></span>
+            <span class="spinner-dot"></span>
+        </div>
+    }
+    else if (Variant == SpinnerVariant.Pulse)
+    {
+        <div class="spinner-pulse">
+            <span class="spinner-pulse-ring"></span>
+            <span class="spinner-pulse-ring"></span>
+            <span class="spinner-pulse-core"></span>
+        </div>
+    }
+    else
+    {
+        <div class="spinner-ring"></div>
+    }
+
+</div>
+
+@code {
+    /// <summary>Visual style of the spinner. Default: <see cref="SpinnerVariant.Ring"/>.</summary>
+    [Parameter] public SpinnerVariant Variant { get; set; } = SpinnerVariant.Ring;
+
+    /// <summary>Physical size of the spinner. Default: <see cref="SpinnerSize.Medium"/>.</summary>
+    [Parameter] public SpinnerSize Size { get; set; } = SpinnerSize.Medium;
+
+    /// <summary>
+    /// AI activity state. Engages the shared DRYL AI visual vocabulary —
+    /// rotating gradient border, breathing glow, one-shot reveal wash.
+    /// Defaults to <see cref="AiState.None"/> so AI styling is opt-in.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Accessible label announced to screen readers.
+    /// Defaults to a state-aware description ("Loading", "AI thinking…", etc.).
+    /// </summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Pass-through HTML attributes applied to the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi;
+    private object _generatedKey = new();
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+            _generatedKey = new();
+        _prevAi = Ai;
+    }
+
+    private string EffectiveLabel => Label ?? Ai switch
+    {
+        AiState.Active    => "AI active",
+        AiState.Thinking  => "AI thinking…",
+        AiState.Streaming => "AI streaming…",
+        AiState.Generated => "Done",
+        _                 => "Loading"
+    };
+
+    private string WrapperClass
+    {
+        get
+        {
+            var parts = new List<string> { "spinner-wrap" };
+
+            parts.Add(Size switch
+            {
+                SpinnerSize.Small => "sz-sm",
+                SpinnerSize.Large => "sz-lg",
+                _                 => "sz-md"
+            });
+
+            parts.Add(Variant switch
+            {
+                SpinnerVariant.Dots  => "v-dots",
+                SpinnerVariant.Pulse => "v-pulse",
+                _                    => "v-ring"
+            });
+
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                var stateClass = Ai switch
+                {
+                    AiState.Active    => "ai-active",
+                    AiState.Thinking  => "ai-thinking",
+                    AiState.Streaming => "ai-streaming",
+                    AiState.Generated => "ai-generated",
+                    _                 => string.Empty
+                };
+                if (!string.IsNullOrEmpty(stateClass))
+                    parts.Add(stateClass);
+            }
+
+            return string.Join(' ', parts.Where(s => !string.IsNullOrWhiteSpace(s)));
+        }
+    }
+
+    /// <summary>Visual style of the spinner.</summary>
+    public enum SpinnerVariant { Ring, Dots, Pulse }
+
+    /// <summary>Display size of the spinner.</summary>
+    public enum SpinnerSize { Small, Medium, Large }
+}
