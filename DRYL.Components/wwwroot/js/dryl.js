@@ -133,6 +133,69 @@ window.dryl.modal = (() => {
 })();
 
 /* --------------------------------------------------------------
+ * Menu — click-outside detection and keyboard navigation for
+ * DrylMenu. The .NET component owns open/close state; JS only
+ * handles the DOM-level concerns (event listening, focus).
+ * -------------------------------------------------------------- */
+window.dryl.menu = (() => {
+    const ITEMS = '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])';
+
+    function attach(anchor, dotnetRef) {
+        if (!anchor || anchor.__drylMenu) return;
+
+        // Capture-phase listener: fires before any child click handlers.
+        const onDocClick = (e) => {
+            if (!anchor.contains(e.target)) {
+                dotnetRef.invokeMethodAsync('Close');
+            }
+        };
+
+        document.addEventListener('pointerdown', onDocClick, true);
+        anchor.__drylMenu = { onDocClick };
+    }
+
+    function detach(anchor) {
+        if (!anchor || !anchor.__drylMenu) return;
+        const { onDocClick } = anchor.__drylMenu;
+        document.removeEventListener('pointerdown', onDocClick, true);
+        delete anchor.__drylMenu;
+    }
+
+    function focusPanel(panel) {
+        if (!panel) return;
+        const first = panel.querySelector(ITEMS);
+        if (first) first.focus();
+        else panel.focus();
+    }
+
+    function navigate(panel, direction) {
+        if (!panel) return;
+        const items = Array.from(panel.querySelectorAll(ITEMS));
+        if (!items.length) return;
+        const idx = items.indexOf(document.activeElement);
+        let next;
+        if (direction === 'first') {
+            next = items[0];
+        } else if (direction === 'last') {
+            next = items[items.length - 1];
+        } else if (direction === 'down') {
+            next = items[idx < 0 ? 0 : Math.min(idx + 1, items.length - 1)];
+        } else {
+            next = items[idx < 0 ? items.length - 1 : Math.max(idx - 1, 0)];
+        }
+        next?.focus();
+    }
+
+    function focusTrigger(anchor) {
+        if (!anchor) return;
+        const btn = anchor.querySelector('.menu-trigger button:not([disabled]), .menu-trigger a, .menu-trigger [tabindex]');
+        btn?.focus();
+    }
+
+    return { attach, detach, focusPanel, navigate, focusTrigger };
+})();
+
+/* --------------------------------------------------------------
  * Toast — auto-dismiss timer and exit animation lifecycle.
  *
  * Timer: setTimeout statt CSS-animationend, damit Blazor-Re-Renders

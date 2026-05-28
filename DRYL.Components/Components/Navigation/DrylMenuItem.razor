@@ -1,0 +1,105 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylMenuItem — a single item inside a DrylMenu panel.
+
+    Usage — action item:
+      <DrylMenuItem Icon="edit" OnClick="Edit">Edit</DrylMenuItem>
+
+    Usage — danger action:
+      <DrylMenuItem Icon="trash" Variant="MenuItemVariant.Danger" OnClick="Delete">Delete</DrylMenuItem>
+
+    Usage — keyboard shortcut hint:
+      <DrylMenuItem Icon="copy" Shortcut="⌘C" OnClick="Copy">Copy</DrylMenuItem>
+
+    Usage — separator:
+      <DrylMenuItem Separator />
+
+    Usage — section header:
+      <DrylMenuItem Header="Actions" />
+    ───────────────────────────────────────────────────────── *@
+
+@if (Separator)
+{
+    <hr class="menu-separator" role="separator" aria-hidden="true" />
+}
+else if (Header is not null)
+{
+    <div class="menu-header" aria-hidden="true">@Header</div>
+}
+else
+{
+    <button class="@CssClass"
+            role="menuitem"
+            disabled="@Disabled"
+            type="button"
+            @onclick="HandleClick"
+            @attributes="AdditionalAttributes">
+
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <DrylIcon Name="@Icon" Size="14" />
+        }
+
+        @ChildContent
+
+        @if (!string.IsNullOrEmpty(Shortcut))
+        {
+            <span class="menu-item-shortcut" aria-hidden="true">@Shortcut</span>
+        }
+    </button>
+}
+
+@code {
+    [CascadingParameter] private DrylMenu? ParentMenu { get; set; }
+
+    /// <summary>If true, renders as a horizontal divider. All other parameters are ignored.</summary>
+    [Parameter] public bool Separator { get; set; }
+
+    /// <summary>If set, renders as a non-interactive section header instead of an action item.</summary>
+    [Parameter] public string? Header { get; set; }
+
+    /// <summary>Visual variant.</summary>
+    [Parameter] public MenuItemVariant Variant { get; set; } = MenuItemVariant.Default;
+
+    /// <summary>Icon name shown before the label.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Keyboard shortcut hint shown at the trailing edge (cosmetic only).</summary>
+    [Parameter] public string? Shortcut { get; set; }
+
+    /// <summary>If true, the item is shown but cannot be activated.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Fired when the item is clicked or activated via keyboard.</summary>
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    /// <summary>Label content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => Variant switch
+    {
+        MenuItemVariant.Danger => "menu-item menu-item--danger",
+        _ => "menu-item"
+    };
+
+    private async Task HandleClick()
+    {
+        if (Disabled) return;
+        ParentMenu?.CloseFromItem();
+        await OnClick.InvokeAsync();
+    }
+
+    /// <summary>Visual style of the menu item.</summary>
+    public enum MenuItemVariant
+    {
+        /// <summary>Default neutral action.</summary>
+        Default,
+        /// <summary>Destructive action — rendered in danger red.</summary>
+        Danger
+    }
+}

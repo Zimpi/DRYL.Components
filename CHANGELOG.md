@@ -15,6 +15,9 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylMenu` + `DrylMenuItem` — Dropdown action menu anchored to any trigger; `MenuPlacement` (BottomStart / BottomEnd / TopStart / TopEnd), `Block` mode; `DrylMenuItem` supports icons, keyboard-shortcut hints, `Danger` variant, separators and section headers; fully keyboard-navigable (Arrow keys, Home/End, ESC, Tab)
+- `dryl.css` — Menu primitives: `.menu-anchor`, `.menu-panel` (+ `--end`, `--top` placement modifiers), `.menu-item` (+ `--danger`), `.menu-item-shortcut`, `.menu-separator`, `.menu-header`
+- `dryl.js` — `window.dryl.menu` — click-outside detection via capture-phase `pointerdown`, `focusPanel`, `navigate`, `focusTrigger`
 - `DrylSpinner` — New loading indicator; variants: Ring / Dots / Pulse; sizes: Small / Medium / Large; AI-aware (`Ai` parameter drives shared AI vocabulary — spinning rate responds to Thinking/Streaming states)
 - `DrylTable` — `GroupBy` parameter clusters rows under collapsible mono-styled group headers with a per-group count badge
 - `DrylTable` — `DetailTemplate` slot adds a leading expand-chevron column; clicking it toggles a glass detail panel under each row

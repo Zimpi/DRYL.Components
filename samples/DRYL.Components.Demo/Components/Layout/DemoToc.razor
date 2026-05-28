@@ -21,6 +21,6 @@
     public async ValueTask DisposeAsync()
     {
         try { await JS.InvokeVoidAsync("drylToc.destroy"); }
-        catch (JSException) { }
+        catch (Exception) { }
     }
 }
