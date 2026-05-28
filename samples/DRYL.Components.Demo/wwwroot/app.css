@@ -10,6 +10,84 @@ html, body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Demo page zwei-Spalten-Layout (Content + ToC) ─── */
+.demo-page-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-6);
+    width: 100%;
+}
+
+.demo-page-content {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ─── Sticky Table of Contents ─── */
+.demo-toc {
+    display: none;  /* JS zeigt via .has-content wenn Sections vorhanden */
+    flex: 0 0 160px;
+    position: sticky;
+    top: var(--sp-7);
+    align-self: flex-start;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+.demo-toc::-webkit-scrollbar { display: none; }
+.demo-toc.has-content { display: block; }
+
+/* Auf mittelgroßen Bildschirmen ausblenden */
+@media (max-width: 1279px) {
+    .demo-toc.has-content { display: none; }
+}
+
+.demo-toc-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 var(--sp-2) 0;
+    padding-left: var(--sp-3);
+}
+
+.demo-toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 1px solid var(--line);
+}
+
+.demo-toc-link {
+    display: block;
+    padding: 3px var(--sp-2);
+    margin-left: -1px;
+    font-size: 12px;
+    color: var(--fg-dim);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    border-radius: 0 var(--r-xs) var(--r-xs) 0;
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.demo-toc-link:hover {
+    color: var(--fg-muted);
+}
+
+.demo-toc-link.is-active {
+    color: var(--fg);
+    border-left-color: var(--accent-b);
+}
+
+
 /* Blazor reconnect / error UI — keep visible but unobtrusive */
 #blazor-error-ui {
     color-scheme: dark;
