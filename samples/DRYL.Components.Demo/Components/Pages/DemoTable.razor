@@ -9,8 +9,10 @@
         <h2>DrylTable</h2>
         <p class="lead">
             Glass data table with declarative columns, click-to-sort, global search,
-            per-column filters, pagination, row selection and an optional KPI summary bar.
-            Optional <code>DataProvider</code> for server-side loading.
+            per-column filters, pagination, grouping, row-expansion, bulk-actions,
+            virtualization, column visibility, state persistence, row selection and
+            an optional KPI summary bar. Optional <code>DataProvider</code> for
+            server-side loading.
         </p>
     </div>
 
@@ -219,6 +221,179 @@
         }
     </section>
 
+    @* ─── Grouping + Row expansion + Row actions + Bulk actions ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Grouping, detail rows, row actions, bulk actions</h3>
+        <p>
+            Pass <code>GroupBy</code> to cluster rows under collapsible mono headers.
+            <code>DetailTemplate</code> adds an expand chevron with a detail panel below
+            each row. <code>RowActions</code> appends a per-row actions column and
+            <code>BulkActions</code> floats a bar above the toolbar while rows are selected.
+        </p>
+
+        <DrylTable TItem="ServiceRow"
+                   Items="@_largeServices"
+                   AriaLabel="Services — grouped"
+                   ShowToolbar Searchable
+                   Selectable
+                   SelectedItems="@_phase3Selected"
+                   SelectedItemsChanged="@(s => _phase3Selected = s)"
+                   GroupBy="@(s => s.Environment)"
+                   PageSize="20">
+            <Columns>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Name)" Title="Service"
+                            Sortable Searchable Primary />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Status)" Title="Status"
+                            Sortable Filterable FilterType="ColumnFilterType.Select">
+                    <CellTemplate Context="svc">
+                        @if (svc.Status == "healthy")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>healthy</DrylBadge>
+                        }
+                        else if (svc.Status == "throttled")
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Warning" Dot>throttled</DrylBadge>
+                        }
+                        else
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>failed</DrylBadge>
+                        }
+                    </CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LatencyMs)" Title="Latency"
+                            Sortable Align="ColumnAlign.End" Width="120px">
+                    <CellTemplate Context="svc">@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</CellTemplate>
+                </DrylColumn>
+                <DrylColumn TItem="ServiceRow" Field="@(s => s.LastSeen)" Title="Last seen" />
+            </Columns>
+
+            <DetailTemplate Context="svc">
+                <div class="col" style="gap: var(--sp-3);">
+                    <div class="row" style="gap: var(--sp-2); color: var(--fg-muted); font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;">
+                        <DrylIcon Name="Info" Size="12" />
+                        Details — @svc.Name
+                    </div>
+                    <div class="row" style="gap: var(--sp-5); flex-wrap: wrap;">
+                        <div class="col" style="gap: 2px;">
+                            <span style="color: var(--fg-dim); font-size: 11px;">Environment</span>
+                            <span>@svc.Environment</span>
+                        </div>
+                        <div class="col" style="gap: 2px;">
+                            <span style="color: var(--fg-dim); font-size: 11px;">Status</span>
+                            <span>@svc.Status</span>
+                        </div>
+                        <div class="col" style="gap: 2px;">
+                            <span style="color: var(--fg-dim); font-size: 11px;">Latency</span>
+                            <span>@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</span>
+                        </div>
+                        <div class="col" style="gap: 2px;">
+                            <span style="color: var(--fg-dim); font-size: 11px;">Last seen</span>
+                            <span>@svc.LastSeen</span>
+                        </div>
+                    </div>
+                </div>
+            </DetailTemplate>
+
+            <RowActions Context="svc">
+                <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                            Size="DrylButton.ButtonSize.Small"
+                            LeadingIcon="Settings"
+                            AriaLabel="Edit"
+                            OnClick="@(() => _lastClicked = $"Edit {svc.Name}")" />
+                <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                            Size="DrylButton.ButtonSize.Small"
+                            LeadingIcon="Dots"
+                            AriaLabel="More" />
+            </RowActions>
+
+            <BulkActions Context="selected">
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                            Size="DrylButton.ButtonSize.Small"
+                            LeadingIcon="Download">
+                    Export @selected.Count
+                </DrylButton>
+                <DrylButton Variant="DrylButton.ButtonVariant.Danger"
+                            Size="DrylButton.ButtonSize.Small"
+                            LeadingIcon="X"
+                            OnClick="@(() => DeletePhase3Selected())">
+                    Delete
+                </DrylButton>
+            </BulkActions>
+        </DrylTable>
+    </section>
+
+    @* ─── Virtualization ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Virtualization — 10 000 rows</h3>
+        <p>
+            Set <code>Virtualize</code> and a fixed <code>Height</code> to render only
+            the rows currently in view via <code>Microsoft.AspNetCore.Components.Web.Virtualization</code>.
+            Pagination is suppressed; the header stays sticky to the top of the scroll area.
+        </p>
+
+        <DrylTable TItem="ServiceRow"
+                   Items="@_virtualServices"
+                   AriaLabel="Services — virtualized"
+                   ShowToolbar Searchable
+                   Virtualize
+                   Height="480px">
+            <Columns>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Name)" Title="Service"
+                            Sortable Searchable Primary />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Environment)" Title="Environment"
+                            Sortable />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Status)" Title="Status" Sortable />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LatencyMs)" Title="Latency"
+                            Sortable Align="ColumnAlign.End" Width="120px">
+                    <CellTemplate Context="svc">@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</CellTemplate>
+                </DrylColumn>
+            </Columns>
+        </DrylTable>
+    </section>
+
+    @* ─── Column visibility + state persistence ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Column visibility &amp; state persistence</h3>
+        <p>
+            Set <code>AllowColumnVisibility</code> to expose a Settings-icon menu that
+            toggles columns on and off. Set <code>PersistStateKey</code> to remember
+            sort, filters, page, page-size and hidden columns in <code>localStorage</code>
+            across reloads. Mark a column <code>Hidden</code> to start it collapsed.
+        </p>
+
+        <DrylTable TItem="ServiceRow"
+                   Items="@_largeServices"
+                   AriaLabel="Services — persisted"
+                   ShowToolbar Searchable
+                   AllowColumnVisibility
+                   PersistStateKey="dryl-demo-services"
+                   PageSize="10">
+            <Columns>
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Name)" Title="Service"
+                            Sortable Searchable Primary />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Environment)" Title="Environment"
+                            Sortable Filterable FilterType="ColumnFilterType.Select" />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.Status)" Title="Status"
+                            Sortable Filterable FilterType="ColumnFilterType.Select" />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LatencyMs)" Title="Latency"
+                            Sortable Align="ColumnAlign.End" Width="120px" Hidden />
+                <DrylColumn TItem="ServiceRow"
+                            Field="@(s => s.LastSeen)" Title="Last seen" />
+            </Columns>
+        </DrylTable>
+    </section>
+
     @* ─── Without toolbar ─── *@
     <section class="col" style="gap: var(--sp-3);">
         <h3>Plain table — no toolbar</h3>
@@ -355,6 +530,17 @@
     private int _standaloneSize = 20;
 
     private readonly List<ServiceRow> _largeServices = BuildLargeDataset(53);
+
+    // ───── Phase 3 + 4 demo state ─────
+    private IReadOnlySet<ServiceRow> _phase3Selected = new HashSet<ServiceRow>();
+    private readonly List<ServiceRow> _virtualServices = BuildLargeDataset(10_000);
+
+    private void DeletePhase3Selected()
+    {
+        foreach (var item in _phase3Selected)
+            _largeServices.Remove(item);
+        _phase3Selected = new HashSet<ServiceRow>();
+    }
 
     private static List<ServiceRow> BuildLargeDataset(int count)
     {

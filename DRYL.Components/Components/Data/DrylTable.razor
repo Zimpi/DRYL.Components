@@ -1,36 +1,35 @@
 @namespace DRYL.Components
 @typeparam TItem
-@implements IDisposable
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylTable<TItem> — glass data table with declarative columns,
     global search, click-to-sort, per-column filters, pagination,
-    optional KPI summary bar and optional server-side DataProvider.
+    grouping, row-expansion, bulk-actions, virtualization,
+    column-visibility menu, state persistence, optional KPI summary
+    bar and optional server-side DataProvider.
 
     Usage (minimal):
       <DrylTable TItem="ServiceRow" Items="@services" AriaLabel="Services">
           <Columns>
               <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service" Sortable Searchable Primary />
-              <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status" Filterable FilterType="ColumnFilterType.Select" />
+              <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status" Filterable />
           </Columns>
       </DrylTable>
 
-    Usage (with toolbar search, filters and pagination):
+    Usage (enterprise):
       <DrylTable TItem="ServiceRow"
                  Items="@services"
                  Searchable ShowToolbar
-                 PageSize="20">
-          <Columns>
-              <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service"
-                          Sortable Searchable Filterable Primary />
-              <DrylColumn TItem="ServiceRow" Field="@(s => s.Status)" Title="Status"
-                          Sortable Filterable FilterType="ColumnFilterType.Select" />
-          </Columns>
-      </DrylTable>
-
-    Usage (server-side):
-      <DrylTable TItem="Row" DataProvider="LoadAsync" Searchable ShowToolbar PageSize="20">
+                 PageSize="20"
+                 GroupBy="@(s => s.Environment)"
+                 PersistStateKey="services-table"
+                 StickyHeader>
           <Columns> ... </Columns>
+          <DetailTemplate Context="s"> ... </DetailTemplate>
+          <RowActions    Context="s"> ... </RowActions>
+          <BulkActions   Context="selected"> ... </BulkActions>
       </DrylTable>
     ───────────────────────────────────────────────────────── *@
 
@@ -48,6 +47,25 @@
         {
             <div class="ai-aura-wash" @key="_genTick"></div>
         }
+    }
+
+    @if (BulkActions is not null && _selected.Count > 0)
+    {
+        <div class="tbl-bulk-bar" role="region" aria-label="Bulk actions">
+            <div class="tbl-bulk-bar-info">
+                <span class="tbl-bulk-bar-count">@_selected.Count</span>
+                <span class="tbl-bulk-bar-label">selected</span>
+            </div>
+            <div class="tbl-bulk-bar-actions">
+                @BulkActions(_selected)
+            </div>
+            <button type="button"
+                    class="tbl-bulk-bar-close"
+                    @onclick="ClearSelection"
+                    aria-label="Clear selection">
+                <DrylIcon Name="X" Size="14" />
+            </button>
+        </div>
     }
 
     @if (SummaryContent is not null)
@@ -96,10 +114,47 @@
             {
                 <div class="tbl-toolbar-extra">@ToolbarContent</div>
             }
+            @if (AllowColumnVisibility)
+            {
+                <div class="tbl-col-menu-wrap @(ToolbarContent is null ? "tbl-col-menu-wrap--auto" : null)">
+                    <button type="button"
+                            class="tbl-col-menu-trigger @(_colMenuOpen ? "is-active" : null)"
+                            @onclick="ToggleColMenu"
+                            aria-label="Columns"
+                            aria-expanded="@(_colMenuOpen ? "true" : "false")">
+                        <DrylIcon Name="Settings" Size="13" />
+                    </button>
+                    @if (_colMenuOpen)
+                    {
+                        <div class="tbl-col-menu" @onkeydown="OnColMenuKeyDown" tabindex="-1">
+                            <div class="tbl-col-menu-header">
+                                <span class="tbl-col-menu-title">Columns</span>
+                                <button type="button" class="tbl-col-menu-close"
+                                        @onclick="CloseColMenu" aria-label="Close">
+                                    <DrylIcon Name="X" Size="12" />
+                                </button>
+                            </div>
+                            <div class="tbl-col-menu-body">
+                                @foreach (var col in _columns)
+                                {
+                                    var c = col;
+                                    var isHidden = _hiddenColumns.Contains(c.Key);
+                                    <label class="tbl-col-menu-option">
+                                        <input type="checkbox" class="checkbox"
+                                               checked="@(!isHidden)"
+                                               @onchange="@((ChangeEventArgs e) => ToggleColumnVisible(c, e.Value is true))" />
+                                        <span>@c.DisplayTitle</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         </div>
     }
 
-    <div class="tbl-wrap">
+    <div class="@WrapClass" style="@WrapStyle">
         <table class="tbl" aria-label="@AriaLabel" role="grid">
             <thead>
                 <tr>
@@ -113,7 +168,11 @@
                                    aria-label="Select all rows" />
                         </th>
                     }
-                    @foreach (var col in _columns)
+                    @if (DetailTemplate is not null)
+                    {
+                        <th class="tbl-col-expand" scope="col" aria-label="Expand"></th>
+                    }
+                    @foreach (var col in VisibleColumns)
                     {
                         <th class="@HeaderCssClass(col)"
                             scope="col"
@@ -191,7 +250,7 @@
                                                 @foreach (var value in values)
                                                 {
                                                     var v = value;
-                                                    var isChecked = currentSet.Contains(v);
+                                                    var isChecked = SetContainsValue(currentSet, v);
                                                     <label class="tbl-filter-option">
                                                         <input type="checkbox" class="checkbox"
                                                                checked="@isChecked"
@@ -226,6 +285,10 @@
                             </div>
                         </th>
                     }
+                    @if (RowActions is not null)
+                    {
+                        <th class="tbl-col-actions" scope="col" aria-label="Actions"></th>
+                    }
                 </tr>
             </thead>
             <tbody>
@@ -254,49 +317,54 @@
                         </td>
                     </tr>
                 }
+                else if (Virtualize)
+                {
+                    <Virtualize TItem="TItem" Items="@_view" ItemSize="@VirtualizeItemSize" Context="item">
+                        @RowFragment(item)
+                    </Virtualize>
+                }
+                else if (UseGrouping)
+                {
+                    @foreach (var group in _view.GroupBy(GroupBy!))
+                    {
+                        var groupKey = group.Key;
+                        var groupId = GroupId(groupKey);
+                        var collapsed = _collapsedGroups.Contains(groupId);
+                        <tr class="tbl-group-header" @key="@($"g:{groupId}")">
+                            <td colspan="99">
+                                <button type="button"
+                                        class="tbl-group-toggle"
+                                        @onclick="@(() => ToggleGroup(groupId))"
+                                        aria-expanded="@(collapsed ? "false" : "true")">
+                                    <span class="tbl-group-chevron @(collapsed ? "is-collapsed" : null)">
+                                        <DrylIcon Name="ChevronDown" Size="12" />
+                                    </span>
+                                    <span class="tbl-group-label">@(groupKey?.ToString() ?? "(none)")</span>
+                                    <span class="tbl-group-count">@group.Count()</span>
+                                </button>
+                            </td>
+                        </tr>
+                        if (!collapsed)
+                        {
+                            @foreach (var item in group)
+                            {
+                                @RowFragment(item)
+                            }
+                        }
+                    }
+                }
                 else
                 {
                     @foreach (var item in _view)
                     {
-                        var selected = _selected.Contains(item);
-                        var aiNew = ShowAiEnter(item);
-                        <tr class="@RowCssClass(selected, aiNew)"
-                            @onclick="() => HandleRowClick(item)"
-                            @key="item"
-                            aria-selected="@(Selectable ? selected.ToString().ToLower() : null)">
-
-                            @if (Selectable)
-                            {
-                                <td class="tbl-col-check" @onclick:stopPropagation>
-                                    <input type="checkbox"
-                                           class="checkbox"
-                                           checked="@selected"
-                                           @onchange="() => ToggleRow(item)"
-                                           aria-label="Select row" />
-                                </td>
-                            }
-
-                            @foreach (var col in _columns)
-                            {
-                                <td class="@CellCssClass(col)" style="@CellStyle(col)">
-                                    @if (col.CellTemplate is not null)
-                                    {
-                                        @col.CellTemplate(item)
-                                    }
-                                    else
-                                    {
-                                        @col.GetValue(item)
-                                    }
-                                </td>
-                            }
-                        </tr>
+                        @RowFragment(item)
                     }
                 }
             </tbody>
         </table>
     </div>
 
-    @if (_pageSize > 0)
+    @if (_pageSize > 0 && !Virtualize)
     {
         <div class="tbl-footer">
             <DrylPagination CurrentPage="@_page"
@@ -309,6 +377,79 @@
     }
 
 </div>
+
+@* Templated row fragment — emits the data <tr> and the optional detail <tr>.
+   <text> is a Razor pass-through tag that lets a single template return multiple
+   top-level elements without wrapping them in an extra container. *@
+@code {
+    private RenderFragment<TItem> RowFragment => item =>
+    @<text>
+        <tr class="@RowCssClass(_selected.Contains(item), ShowAiEnter(item))"
+            @onclick="() => HandleRowClick(item)"
+            @key="item"
+            aria-selected="@(Selectable ? _selected.Contains(item).ToString().ToLower() : null)">
+
+            @if (Selectable)
+            {
+                <td class="tbl-col-check" @onclick:stopPropagation>
+                    <input type="checkbox"
+                           class="checkbox"
+                           checked="@_selected.Contains(item)"
+                           @onchange="() => ToggleRow(item)"
+                           aria-label="Select row" />
+                </td>
+            }
+
+            @if (DetailTemplate is not null)
+            {
+                var expanded = _expandedRows.Contains(item);
+                <td class="tbl-col-expand" @onclick:stopPropagation>
+                    <button type="button"
+                            class="tbl-expand-btn @(expanded ? "is-expanded" : null)"
+                            @onclick="() => ToggleExpanded(item)"
+                            aria-label="@(expanded ? "Collapse row" : "Expand row")"
+                            aria-expanded="@(expanded ? "true" : "false")">
+                        <DrylIcon Name="ChevronRight" Size="12" />
+                    </button>
+                </td>
+            }
+
+            @foreach (var col in VisibleColumns)
+            {
+                <td class="@CellCssClass(col)" style="@CellStyle(col)">
+                    @if (col.CellTemplate is not null)
+                    {
+                        @col.CellTemplate(item)
+                    }
+                    else
+                    {
+                        @col.GetValue(item)
+                    }
+                </td>
+            }
+
+            @if (RowActions is not null)
+            {
+                <td class="tbl-col-actions" @onclick:stopPropagation>
+                    <div class="tbl-row-actions">
+                        @RowActions(item)
+                    </div>
+                </td>
+            }
+        </tr>
+
+        @if (DetailTemplate is not null && _expandedRows.Contains(item))
+        {
+            <tr class="tbl-row-detail" @key="@($"d:{item!.GetHashCode()}")">
+                <td colspan="99">
+                    <div class="tbl-row-detail-inner">
+                        @DetailTemplate(item)
+                    </div>
+                </td>
+            </tr>
+        }
+    </text>;
+}
 
 @code {
     /// <summary>The data items to display when no <see cref="DataProvider"/> is set.</summary>
@@ -333,6 +474,24 @@
 
     /// <summary>Rendered when the current view is empty. Defaults to "No data".</summary>
     [Parameter] public RenderFragment? EmptyContent { get; set; }
+
+    /// <summary>
+    /// Renders an expandable detail panel for each row. When set, a leading expand-chevron
+    /// column is added; clicking the chevron toggles the panel below the row.
+    /// </summary>
+    [Parameter] public RenderFragment<TItem>? DetailTemplate { get; set; }
+
+    /// <summary>
+    /// Trailing per-row action slot. When set, an actions column is appended to the right.
+    /// Clicks inside the actions cell don't propagate to the row's click handler.
+    /// </summary>
+    [Parameter] public RenderFragment<TItem>? RowActions { get; set; }
+
+    /// <summary>
+    /// Floating bulk-action bar shown above the toolbar when the current selection is non-empty.
+    /// The context exposes the live selection as a read-only set.
+    /// </summary>
+    [Parameter] public RenderFragment<IReadOnlySet<TItem>>? BulkActions { get; set; }
 
     /// <summary>Shows the toolbar above the table. Required when <see cref="Searchable"/> or extra toolbar content is used.</summary>
     [Parameter] public bool ShowToolbar { get; set; }
@@ -367,6 +526,45 @@
 
     /// <summary>Raised when the user navigates to a different page (zero-indexed).</summary>
     [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    /// <summary>
+    /// Optional row grouping. When set, rows are grouped by the returned key (per page slice
+    /// in client mode). Mutually exclusive with <see cref="Virtualize"/> — when both are set,
+    /// Virtualize wins and a console warning is emitted.
+    /// </summary>
+    [Parameter] public Func<TItem, object?>? GroupBy { get; set; }
+
+    /// <summary>
+    /// Renders the visible portion of the rows via <c>Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize</c>.
+    /// Requires a fixed <see cref="Height"/> (or an outer scroll container) so the body can scroll.
+    /// Suppresses the pagination footer when active. Ignores grouping.
+    /// </summary>
+    [Parameter] public bool Virtualize { get; set; }
+
+    /// <summary>Estimated row height in pixels for <see cref="Virtualize"/>. Default 44.</summary>
+    [Parameter] public float VirtualizeItemSize { get; set; } = 44f;
+
+    /// <summary>
+    /// Maximum height (any CSS length) for the scroll body. When set, the table body becomes
+    /// vertically scrollable and the header sticks to the top of the scroll area.
+    /// Required for <see cref="Virtualize"/> to function.
+    /// </summary>
+    [Parameter] public string? Height { get; set; }
+
+    /// <summary>If true (default), the header sticks to the top while the body scrolls.</summary>
+    [Parameter] public bool StickyHeader { get; set; } = true;
+
+    /// <summary>
+    /// Shows the column-visibility menu in the toolbar (Settings icon → checkbox list).
+    /// Requires <see cref="ShowToolbar"/>.
+    /// </summary>
+    [Parameter] public bool AllowColumnVisibility { get; set; }
+
+    /// <summary>
+    /// Persists sort, filters, page, page-size and column-visibility state under this key
+    /// in <c>localStorage</c>. State is restored on first render.
+    /// </summary>
+    [Parameter] public string? PersistStateKey { get; set; }
 
     /// <summary>If true, a checkbox column is prepended and row selection is enabled.</summary>
     [Parameter] public bool Selectable { get; set; }
@@ -408,6 +606,9 @@
     private readonly HashSet<TItem> _seenItems = [];
     private readonly List<SortDescriptor> _sort = [];
     private readonly Dictionary<string, FilterDescriptor> _filters = new();
+    private readonly HashSet<string> _hiddenColumns = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
+    private readonly HashSet<TItem> _expandedRows = [];
     private List<TItem> _view = [];
     private AiState _prevAi = AiState.None;
     private int _genTick;
@@ -424,9 +625,18 @@
     private IEnumerable<TItem>? _lastItemsRef;
     private bool _columnsDirty;
     private string? _openFilterColumn;
+    private bool _colMenuOpen;
+    private bool _virtualizeWarned;
+    private bool _stateRestored;
+    private bool _persistDirty;
 
     private bool AllSelected =>
         _view.Count > 0 && _view.All(i => _selected.Contains(i));
+
+    private IEnumerable<DrylColumn<TItem>> VisibleColumns =>
+        _columns.Where(c => !_hiddenColumns.Contains(c.Key));
+
+    private bool UseGrouping => GroupBy is not null;
 
     private string WrapperClass
     {
@@ -435,6 +645,7 @@
             var classes = new List<string> { "tbl-root" };
             if (Bordered) { classes.Add("glass-card"); classes.Add("p-0"); }
             if (Ai != AiState.None && Bordered) classes.Add("ai-aura");
+            if (!StickyHeader) classes.Add("tbl-no-sticky");
             switch (Ai)
             {
                 case AiState.Thinking:  if (Bordered) classes.Add("ai-thinking");  break;
@@ -445,10 +656,17 @@
         }
     }
 
+    private string WrapClass =>
+        Height is not null || Virtualize ? "tbl-wrap tbl-wrap--scroll" : "tbl-wrap";
+
+    private string? WrapStyle =>
+        string.IsNullOrEmpty(Height) ? null : $"max-height: {Height}";
+
     internal void AddColumn(DrylColumn<TItem> column)
     {
         if (_columns.Contains(column)) return;
         _columns.Add(column);
+        if (column.Hidden) _hiddenColumns.Add(column.Key);
         _columnsDirty = true;
         // No StateHasChanged here — the column's own first render already queued one;
         // OnAfterRenderAsync will pick up _columnsDirty and rebuild + re-render once.
@@ -460,6 +678,7 @@
         {
             _sort.RemoveAll(s => s.ColumnKey == column.Key);
             _filters.Remove(column.Key);
+            _hiddenColumns.Remove(column.Key);
             _columnsDirty = true;
             InvokeAsync(StateHasChanged);
         }
@@ -482,6 +701,13 @@
             _pageSize = PageSize;
         }
 
+        if (Virtualize && GroupBy is not null && !_virtualizeWarned)
+        {
+            _virtualizeWarned = true;
+            Console.WriteLine(
+                "DrylTable: Virtualize and GroupBy are mutually exclusive — grouping is ignored when Virtualize is enabled.");
+        }
+
         var itemsChanged = !ReferenceEquals(_lastItemsRef, Items);
         _lastItemsRef = Items;
 
@@ -494,11 +720,22 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender && !string.IsNullOrEmpty(PersistStateKey))
+        {
+            await RestoreStateAsync(PersistStateKey);
+        }
+
         if (_columnsDirty)
         {
             _columnsDirty = false;
             await RebuildViewAsync();
             StateHasChanged();
+        }
+
+        if (_persistDirty && !string.IsNullOrEmpty(PersistStateKey) && _stateRestored)
+        {
+            _persistDirty = false;
+            await PersistStateAsync(PersistStateKey);
         }
 
         _seenItems.Clear();
@@ -553,6 +790,7 @@
         if (_filters.Remove(columnKey))
         {
             _page = 0;
+            MarkPersistDirty();
             await RebuildViewAsync();
         }
     }
@@ -564,6 +802,7 @@
         else
             _filters[column.Key] = new FilterDescriptor(column.Key, FilterOperator.Contains, text);
         _page = 0;
+        MarkPersistDirty();
         await RebuildViewAsync();
     }
 
@@ -579,8 +818,20 @@
             set = new HashSet<object?>();
         }
 
-        if (include) set.Add(value);
-        else set.Remove(value);
+        if (include)
+        {
+            // Avoid duplicate string/object entries from restored state.
+            if (!SetContainsValue(set, value)) set.Add(value);
+        }
+        else
+        {
+            if (!set.Remove(value))
+            {
+                var s = value?.ToString();
+                var match = set.FirstOrDefault(v => string.Equals(v?.ToString(), s, StringComparison.Ordinal));
+                if (match is not null) set.Remove(match);
+            }
+        }
 
         if (set.Count == 0)
             _filters.Remove(column.Key);
@@ -588,7 +839,15 @@
             _filters[column.Key] = new FilterDescriptor(column.Key, FilterOperator.In, set);
 
         _page = 0;
+        MarkPersistDirty();
         await RebuildViewAsync();
+    }
+
+    private static bool SetContainsValue(HashSet<object?> set, object? value)
+    {
+        if (set.Contains(value)) return true;
+        var s = value?.ToString();
+        return set.Any(v => string.Equals(v?.ToString(), s, StringComparison.Ordinal));
     }
 
     private bool MatchesFilters(TItem item)
@@ -608,7 +867,7 @@
                     break;
                 case FilterOperator.In:
                     if (descriptor.Value is not HashSet<object?> set) break;
-                    if (!set.Contains(value)) return false;
+                    if (!SetContainsValue(set, value)) return false;
                     break;
             }
         }
@@ -654,6 +913,7 @@
     {
         if (!column.Sortable) return;
         ToggleSort(column, e.ShiftKey);
+        MarkPersistDirty();
         await RebuildViewAsync();
     }
 
@@ -662,6 +922,7 @@
         if (!column.Sortable) return;
         if (e.Key is not ("Enter" or " ")) return;
         ToggleSort(column, e.ShiftKey);
+        MarkPersistDirty();
         await RebuildViewAsync();
     }
 
@@ -737,6 +998,7 @@
     private async Task OnPageChangedInternal(int page)
     {
         _page = page;
+        MarkPersistDirty();
         await OnPageChanged.InvokeAsync(page);
         await RebuildViewAsync();
     }
@@ -746,8 +1008,52 @@
         _pageSize = size;
         _lastSeenPageSize = size;
         _page = 0;
+        MarkPersistDirty();
         await PageSizeChanged.InvokeAsync(size);
         await RebuildViewAsync();
+    }
+
+    // ───── Grouping ─────
+
+    private static string GroupId(object? key) => key?.ToString() ?? "__null__";
+
+    private void ToggleGroup(string id)
+    {
+        if (!_collapsedGroups.Remove(id)) _collapsedGroups.Add(id);
+    }
+
+    // ───── Row expansion ─────
+
+    private void ToggleExpanded(TItem item)
+    {
+        if (!_expandedRows.Remove(item)) _expandedRows.Add(item);
+    }
+
+    // ───── Column visibility ─────
+
+    private void ToggleColMenu() => _colMenuOpen = !_colMenuOpen;
+    private void CloseColMenu() => _colMenuOpen = false;
+
+    private void OnColMenuKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") CloseColMenu();
+    }
+
+    private async Task ToggleColumnVisible(DrylColumn<TItem> column, bool visible)
+    {
+        if (visible) _hiddenColumns.Remove(column.Key);
+        else _hiddenColumns.Add(column.Key);
+        MarkPersistDirty();
+        await Task.CompletedTask;
+    }
+
+    // ───── Selection helpers ─────
+
+    private async Task ClearSelection()
+    {
+        if (_selected.Count == 0) return;
+        _selected.Clear();
+        await SelectedItemsChanged.InvokeAsync(new HashSet<TItem>());
     }
 
     // ───── Pipeline ─────
@@ -766,7 +1072,7 @@
         var materialized = sorted as IList<TItem> ?? sorted.ToList();
         _filteredCount = materialized.Count;
 
-        if (_pageSize > 0)
+        if (_pageSize > 0 && !Virtualize)
         {
             var maxPage = Math.Max(0, (int)Math.Ceiling((double)_filteredCount / _pageSize) - 1);
             if (_page > maxPage) _page = maxPage;
@@ -791,8 +1097,8 @@
 
         try
         {
-            var skip = _pageSize > 0 ? _page * _pageSize : 0;
-            var take = _pageSize > 0 ? _pageSize : int.MaxValue;
+            var skip = _pageSize > 0 && !Virtualize ? _page * _pageSize : 0;
+            var take = _pageSize > 0 && !Virtualize ? _pageSize : int.MaxValue;
             var request = new DataRequest(
                 Skip: skip,
                 Take: take,
@@ -877,11 +1183,100 @@
     private Task HandleRowClick(TItem item) =>
         OnRowClick.InvokeAsync(item);
 
-    public void Dispose()
+    // ───── State persistence ─────
+
+    private void MarkPersistDirty()
+    {
+        if (!string.IsNullOrEmpty(PersistStateKey)) _persistDirty = true;
+    }
+
+    private sealed record PersistedFilter(string Key, int Op, string? Text, List<string>? In);
+
+    private sealed record PersistedState(
+        List<SortDescriptor> Sort,
+        List<PersistedFilter> Filters,
+        int Page,
+        int PageSize,
+        List<string> Hidden);
+
+    private async Task RestoreStateAsync(string key)
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("dryl.storage.get", key);
+            _stateRestored = true;
+            if (string.IsNullOrEmpty(json)) return;
+
+            var state = System.Text.Json.JsonSerializer.Deserialize<PersistedState>(json);
+            if (state is null) return;
+
+            _sort.Clear();
+            foreach (var s in state.Sort) _sort.Add(s);
+
+            _filters.Clear();
+            foreach (var f in state.Filters)
+            {
+                var op = (FilterOperator)f.Op;
+                if (op == FilterOperator.Contains && f.Text is not null)
+                    _filters[f.Key] = new FilterDescriptor(f.Key, op, f.Text);
+                else if (op == FilterOperator.In && f.In is { Count: > 0 })
+                    _filters[f.Key] = new FilterDescriptor(f.Key, op,
+                        new HashSet<object?>(f.In.Cast<object?>()));
+            }
+
+            _page = state.Page;
+            if (state.PageSize > 0) { _pageSize = state.PageSize; _lastSeenPageSize = state.PageSize; }
+
+            _hiddenColumns.Clear();
+            foreach (var k in state.Hidden) _hiddenColumns.Add(k);
+
+            await RebuildViewAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex) when (ex is Microsoft.JSInterop.JSException or System.Text.Json.JsonException)
+        {
+            // Restore is best-effort — fall back to defaults.
+            _stateRestored = true;
+        }
+    }
+
+    private async Task PersistStateAsync(string key)
+    {
+        var filters = _filters.Values.Select(d =>
+        {
+            string? text = null;
+            List<string>? inList = null;
+            if (d.Operator == FilterOperator.Contains)
+                text = d.Value as string;
+            else if (d.Operator == FilterOperator.In && d.Value is HashSet<object?> set)
+                inList = set.Select(v => v?.ToString() ?? string.Empty).ToList();
+            return new PersistedFilter(d.ColumnKey, (int)d.Operator, text, inList);
+        }).ToList();
+
+        var state = new PersistedState(
+            Sort: _sort.ToList(),
+            Filters: filters,
+            Page: _page,
+            PageSize: _pageSize,
+            Hidden: _hiddenColumns.ToList());
+
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(state);
+            await JS.InvokeVoidAsync("dryl.storage.set", key, json);
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            // Persistence is best-effort.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
     {
         _searchDebounceCts?.Cancel();
         _searchDebounceCts?.Dispose();
         _dataProviderCts?.Cancel();
         _dataProviderCts?.Dispose();
+        await ValueTask.CompletedTask;
     }
 }

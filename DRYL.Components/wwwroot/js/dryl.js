@@ -3,6 +3,27 @@
 window.dryl = window.dryl || {};
 
 /* --------------------------------------------------------------
+ * Storage — thin wrapper over localStorage used by DrylTable's
+ * PersistStateKey. Returns null on any access failure (private
+ * browsing, quota, disabled storage) so the C# side can fall back
+ * to defaults without observing exceptions.
+ * -------------------------------------------------------------- */
+window.dryl.storage = {
+    get(key) {
+        try { return window.localStorage.getItem(key); }
+        catch (_) { return null; }
+    },
+    set(key, value) {
+        try { window.localStorage.setItem(key, value); }
+        catch (_) { /* quota or disabled — silently ignore */ }
+    },
+    remove(key) {
+        try { window.localStorage.removeItem(key); }
+        catch (_) { /* ignore */ }
+    }
+};
+
+/* --------------------------------------------------------------
  * Spotlight — track cursor on a card and expose the position via
  * CSS custom properties (--mx / --my). dryl.css picks them up to
  * render the spotlight glow.

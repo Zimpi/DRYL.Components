@@ -65,6 +65,12 @@ public class DrylColumn<TItem> : ComponentBase, IDisposable
     /// <summary>Optional explicit column width (any CSS length, e.g. <c>"120px"</c> or <c>"15%"</c>).</summary>
     [Parameter] public string? Width { get; set; }
 
+    /// <summary>
+    /// Initial visibility — when <c>true</c>, the column starts hidden. Users can toggle visibility
+    /// at runtime via the column-visibility menu (see <see cref="DrylTable{TItem}.AllowColumnVisibility"/>).
+    /// </summary>
+    [Parameter] public bool Hidden { get; set; }
+
     /// <summary>Cell renderer. Receives the row item. When omitted, the column renders <c>Field</c>'s value as text.</summary>
     [Parameter] public RenderFragment<TItem>? CellTemplate { get; set; }
 

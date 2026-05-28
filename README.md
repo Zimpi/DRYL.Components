@@ -251,6 +251,53 @@ Every step is visible to the user through the dialog's border and glow — the m
 
 The pipeline runs **search → filter → sort → page** entirely client-side. Toolbar shows the global search input plus active-filter chips with one-click removal. Headers cycle `none → asc → desc → none` on click; Shift-click adds to a multi-sort. Filter popovers open inline at the header — text input for free-form columns, multi-select for enums / bools / explicit `Select` filters.
 
+### Grouping, detail rows, row actions and bulk actions
+
+```razor
+<DrylTable TItem="Service" Items="@services"
+           ShowToolbar Searchable Selectable
+           GroupBy="@(s => s.Environment)"
+           PageSize="20">
+    <Columns> ... </Columns>
+
+    <DetailTemplate Context="s">
+        <div class="p-default">Full diagnostics for @s.Name…</div>
+    </DetailTemplate>
+
+    <RowActions Context="s">
+        <DrylButton Variant="ButtonVariant.Ghost" Size="ButtonSize.Small"
+                    LeadingIcon="Settings" AriaLabel="Edit" OnClick="() => Edit(s)" />
+    </RowActions>
+
+    <BulkActions Context="selected">
+        <DrylButton Variant="ButtonVariant.Danger" Size="ButtonSize.Small"
+                    OnClick="() => DeleteAll(selected)">
+            Delete @selected.Count
+        </DrylButton>
+    </BulkActions>
+</DrylTable>
+```
+
+`GroupBy` clusters rows under collapsible mono-styled headers. `DetailTemplate` adds an expand chevron column and reveals a glass panel under the row. `RowActions` appends a trailing actions column. `BulkActions` floats a glass action bar above the toolbar while any row is selected.
+
+### Virtualization, sticky header, column visibility and state persistence
+
+```razor
+<DrylTable TItem="Service" Items="@manyServices"
+           ShowToolbar Searchable
+           Virtualize Height="480px"
+           AllowColumnVisibility
+           PersistStateKey="services-table">
+    <Columns>
+        <DrylColumn TItem="Service" Field="@(s => s.Name)" Title="Service" Sortable Primary />
+        <DrylColumn TItem="Service" Field="@(s => s.LatencyMs)" Title="Latency" Sortable Hidden />
+        ...
+    </Columns>
+</DrylTable>
+```
+
+`Virtualize` renders only the rows in view via the framework's `Virtualize` component — pair it with a fixed `Height`. `StickyHeader` (on by default) anchors the header to the top of the scroll area. `AllowColumnVisibility` shows a Settings-icon menu in the toolbar to toggle columns. `PersistStateKey` snapshots sort / filters / page / page-size / hidden-columns to `localStorage` on every change and restores on first render. `Hidden` on a `DrylColumn` sets the initial collapsed state.
+
 ### Server-side via `DataProvider`
 
 For large datasets, hand the table a `DataProvider` callback. It receives a `DataRequest` snapshot (`Skip`, `Take`, `SearchText`, `Sort`, `Filters`) and returns a `DataResult<TItem>` with the page and total count. When `DataProvider` is set, `Items` is ignored.
@@ -303,8 +350,8 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylSelect`      | Inputs       | —       | ✅ Done    | Styled select bound to `EditForm`                                 |
 | `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
-| `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, global search, click-to-sort (multi-sort), per-column filters, pagination, row selection, KPI summary bar, optional `DataProvider` for server-side loading |
-| `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, custom `CellTemplate` / `HeaderTemplate`, alignment |
+| `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, search, multi-sort, filters, pagination, grouping, row detail, row + bulk actions, virtualization, column visibility, `PersistStateKey`, optional `DataProvider` |
+| `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, `Hidden`, custom `CellTemplate` / `HeaderTemplate`, alignment |
 | `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |
 | `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
 | `DrylLayout`      | Layout       | —       | ✅ Done    | Root shell — CSS grid with sidebar + topbar slots, cascades layout context |

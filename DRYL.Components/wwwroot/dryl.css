@@ -1493,6 +1493,310 @@ code, .code-inline {
   user-select: none;
 }
 
+/* ============== TABLE GROUPING / DETAIL / ACTIONS / BULK (Phase 3) ============== */
+
+/* Group header row — sits between groups, mono uppercase label + count badge.
+   Sticky under the table header when grouping + sticky-header are both active. */
+.tbl-root .tbl tbody tr.tbl-group-header td {
+  background: var(--glass-2);
+  border-bottom: 1px solid var(--line);
+  padding: 0;
+}
+.tbl-root .tbl tbody tr.tbl-group-header:hover td { background: var(--glass-2); }
+
+.tbl-group-toggle {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  text-align: left;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.tbl-group-toggle:hover { color: var(--fg); }
+.tbl-group-toggle:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: -1px;
+}
+
+.tbl-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--fg-dim);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.tbl-group-chevron.is-collapsed { transform: rotate(-90deg); }
+
+.tbl-group-label {
+  color: var(--fg);
+  flex: 1 1 auto;
+}
+
+.tbl-group-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-dim);
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--glass-1);
+}
+
+/* Expand column — chevron toggle on the row for DetailTemplate. */
+.tbl-col-expand {
+  width: 36px;
+  padding-left: var(--sp-3);
+  padding-right: 0;
+}
+
+.tbl-expand-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-expand-btn:hover { color: var(--fg); background: var(--glass-2); }
+.tbl-expand-btn:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 1px;
+}
+.tbl-expand-btn.is-expanded {
+  color: var(--accent-a);
+  transform: rotate(90deg);
+}
+
+/* Detail row — full-width panel that slides open under the expanded row. */
+.tbl-root .tbl tbody tr.tbl-row-detail td {
+  background: var(--bg-2);
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+.tbl-root .tbl tbody tr.tbl-row-detail:hover td {
+  background: var(--bg-2);
+  color: var(--fg-muted);
+}
+.tbl-row-detail-inner {
+  padding: var(--sp-5);
+  color: var(--fg-muted);
+  animation: tbl-detail-in var(--dur-med) var(--ease-out);
+}
+@keyframes tbl-detail-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Trailing per-row actions column. */
+th.tbl-col-actions,
+td.tbl-col-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  padding-right: var(--sp-4);
+}
+.tbl-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}
+
+/* Floating bulk-action bar — slides in from the top when a row is selected. */
+.tbl-bulk-bar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    var(--bg-2);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--accent-line);
+  box-shadow: inset 0 -1px 0 var(--accent-line);
+  animation: tbl-bulk-in var(--dur-med) var(--ease-spring);
+}
+@keyframes tbl-bulk-in {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+.tbl-bulk-bar-info {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.tbl-bulk-bar-count {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-a);
+  padding: 2px 8px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+}
+.tbl-bulk-bar-label {
+  color: var(--fg-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.tbl-bulk-bar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: var(--sp-2);
+}
+.tbl-bulk-bar-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--r-xs);
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.tbl-bulk-bar-close:hover { color: var(--fg); background: var(--glass-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tbl-bulk-bar { animation: none; }
+  .tbl-row-detail-inner { animation: none; }
+}
+
+/* ============== TABLE VIRTUALIZE / STICKY / COLUMN MENU (Phase 4) ============== */
+
+/* Scrollable body — used when Height is set or Virtualize is on. The sticky
+   header (default) anchors to the top of this scroll area. */
+.tbl-wrap--scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Opt-out for the sticky header — applied on the .tbl-root wrapper. */
+.tbl-root.tbl-no-sticky .tbl th {
+  position: static;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Column-visibility menu trigger sits in the toolbar next to extras. */
+.tbl-col-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.tbl-col-menu-wrap--auto { margin-left: auto; }
+
+.tbl-col-menu-trigger {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-col-menu-trigger:hover { color: var(--fg); border-color: var(--line-strong); background: var(--glass-2); }
+.tbl-col-menu-trigger:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 1px;
+}
+.tbl-col-menu-trigger.is-active {
+  color: var(--accent-a);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+/* Column-visibility popover — same surface vocabulary as the filter popover. */
+.tbl-col-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-drawer);
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--bg-2);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg);
+  animation: tbl-filter-popover-in var(--dur-med) var(--ease-out);
+}
+.tbl-col-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-col-menu-title { font-weight: 500; }
+.tbl-col-menu-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--r-xs);
+  display: inline-flex;
+}
+.tbl-col-menu-close:hover { color: var(--fg); }
+
+.tbl-col-menu-body {
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 280px;
+  overflow-y: auto;
+}
+.tbl-col-menu-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--fg-muted);
+}
+.tbl-col-menu-option:hover { color: var(--fg); }
+
 /* Avatar */
 .avatar {
   width: 28px; height: 28px;

@@ -15,10 +15,21 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
-<!-- New components, features or tokens go here -->
+- `DrylTable` — `GroupBy` parameter clusters rows under collapsible mono-styled group headers with a per-group count badge
+- `DrylTable` — `DetailTemplate` slot adds a leading expand-chevron column; clicking it toggles a glass detail panel under each row
+- `DrylTable` — `RowActions` slot appends a trailing per-row actions column whose clicks don't propagate to the row click handler
+- `DrylTable` — `BulkActions` slot renders a floating glass action bar above the toolbar while any row is selected, with a count chip and clear-selection close
+- `DrylTable` — `Virtualize` + `VirtualizeItemSize` parameters render only visible rows via `Microsoft.AspNetCore.Components.Web.Virtualization.Virtualize`; suppresses pagination, ignores grouping with a console warning
+- `DrylTable` — `Height` parameter constrains the scrollable body (required for `Virtualize`)
+- `DrylTable` — `StickyHeader` parameter (default `true`) keeps the header anchored to the top while the body scrolls
+- `DrylTable` — `AllowColumnVisibility` parameter exposes a Settings-icon toolbar menu that toggles individual columns on and off
+- `DrylTable` — `PersistStateKey` parameter persists sort, filters, page, page-size and column visibility in `localStorage` across reloads
+- `DrylColumn` — `Hidden` parameter sets a column's initial visibility for the visibility menu
+- `dryl.css` — Phase 3/4 primitives: `.tbl-group-header`, `.tbl-group-toggle`, `.tbl-group-chevron`, `.tbl-group-count`, `.tbl-col-expand`, `.tbl-expand-btn`, `.tbl-row-detail`, `.tbl-row-detail-inner`, `.tbl-col-actions`, `.tbl-row-actions`, `.tbl-bulk-bar` (+ `-info` / `-count` / `-label` / `-actions` / `-close`), `.tbl-wrap--scroll`, `.tbl-no-sticky`, `.tbl-col-menu-wrap`, `.tbl-col-menu-trigger`, `.tbl-col-menu` (+ `-header` / `-title` / `-close` / `-body` / `-option`)
+- `dryl.js` — `window.dryl.storage` helper (`get` / `set` / `remove`) wrapping `localStorage` with graceful failure
 
 ### Changed
-<!-- Changes to existing components go here -->
+- `DrylTable` — Now implements `IAsyncDisposable` and uses `IJSRuntime` for the new state-persistence path
 
 ### Deprecated
 <!-- Features that still work but will be removed in a future MAJOR go here -->
