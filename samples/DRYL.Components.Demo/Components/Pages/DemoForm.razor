@@ -28,11 +28,8 @@
                               Rows="4" />
 
                 <DrylSelect @bind-Value="_model.Environment"
-                            Label="Environment">
-                    <option value="Production">Production</option>
-                    <option value="Staging">Staging</option>
-                    <option value="Development">Development</option>
-                </DrylSelect>
+                            Label="Environment"
+                            Items="@_envItems" />
             </div>
 
             <div class="col" style="gap: var(--sp-4);">
@@ -73,6 +70,13 @@
 
 @code {
     private const string EmailPlaceholder = "d@dryl.dev";
+
+    private static readonly SelectItem[] _envItems =
+    [
+        new("Production",  "Production"),
+        new("Staging",     "Staging"),
+        new("Development", "Development"),
+    ];
 
     private readonly FormModel _model = new()
     {

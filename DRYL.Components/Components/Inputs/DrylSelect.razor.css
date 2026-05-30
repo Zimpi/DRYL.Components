@@ -1,0 +1,111 @@
+/* ── Trigger div overrides ───────────────────────────────── */
+
+/* The global .select class provides the base input styles.
+   These scoped rules add flex layout and open/disabled states. */
+
+.select {
+    display: flex;
+    align-items: center;
+}
+
+.select span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.select-placeholder {
+    color: var(--fg-dim);
+}
+
+/* Mirrors :focus ring while the panel is open */
+.select.select--open {
+    border-color: var(--accent-line);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124, 92, 255, 0.18);
+}
+
+.select.select--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ── Dropdown panel ──────────────────────────────────────── */
+
+.select-panel {
+    position: absolute;
+    top: calc(100% + var(--sp-1));
+    left: 0;
+    width: 100%;
+    z-index: var(--z-drawer);
+    background: var(--bg-2);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--sp-1) 0;
+    max-height: 240px;
+    overflow-y: auto;
+    outline: none;
+    animation: menu-in var(--dur-med) var(--ease-out) both;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.select-panel::-webkit-scrollbar       { width: 4px; }
+.select-panel::-webkit-scrollbar-track { background: transparent; }
+.select-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+
+/* ── Option rows ─────────────────────────────────────────── */
+
+.select-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: var(--sp-2) var(--sp-4);
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--dur-fast) var(--ease-out),
+                color      var(--dur-fast) var(--ease-out);
+}
+
+.select-option:hover,
+.select-option.is-highlighted {
+    background: var(--glass-2);
+    color: var(--fg);
+}
+
+.select-option.is-selected {
+    color: var(--fg);
+}
+
+/* Accent dot on the selected item */
+.select-option.is-selected::after {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-a);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+
+.select-empty {
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--fg-dim);
+    font-size: 13px;
+    text-align: center;
+}

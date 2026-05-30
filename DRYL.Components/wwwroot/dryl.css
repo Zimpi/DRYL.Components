@@ -374,6 +374,11 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   background: var(--glass-2);
   box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124,92,255,0.18);
 }
+/* The global :focus-visible rule adds a bright cyan outline that clashes with the
+   violet glow above. Suppress it here — the glow already satisfies WCAG focus visibility. */
+.input:focus-visible,
+.textarea:focus-visible,
+.select:focus-visible { outline: none; }
 .textarea {
   height: auto;
   padding: 12px 14px;

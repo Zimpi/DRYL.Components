@@ -1,21 +1,26 @@
 @namespace DRYL.Components
 @inherits InputBase<string>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
     DrylSelect — single-select dropdown bound to EditForm.
 
     Usage:
-      <DrylSelect @bind-Value="model.Environment" Label="Environment">
-          <option value="Production">Production</option>
-          <option value="Staging">Staging</option>
-          <option value="Development">Development</option>
-      </DrylSelect>
+      <DrylSelect @bind-Value="model.Environment" Label="Environment"
+                  Items="@_envItems" />
 
-    The native <select> is used (full accessibility + keyboard support).
-    The popup uses the browser's native dropdown — dryl.css sets
-    color-scheme: dark on :root so options render with dark UA defaults,
-    and explicit option { background; color } prevents the dim-text bug
-    that hits otherwise.
+      @code {
+          private static readonly SelectItem[] _envItems =
+          [
+              new("Production",  "Production"),
+              new("Staging",     "Staging"),
+              new("Development", "Development"),
+          ];
+      }
+
+    Keyboard: ArrowDown/Up navigate options, Enter/Space opens,
+    Enter selects highlighted, Escape closes.
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
@@ -24,33 +29,79 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <div class="@WrapperCssClass">
-        @if (Ai != AiState.None)
-        {
-            <div class="ai-aura-ring"></div>
-            <div class="ai-aura-glow"></div>
-            @if (Ai == AiState.Generated)
+    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
+        <div class="@WrapperCssClass">
+            @if (Ai != AiState.None)
             {
-                <div class="ai-aura-wash" @key="_genTick"></div>
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (Ai == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="_genTick"></div>
+                }
             }
-        }
-        <select id="@_id"
-                class="@SelectCssClass"
-                value="@CurrentValueAsString"
-                @onchange="HandleChange"
-                disabled="@Disabled"
-                aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                aria-invalid="@(HasValidationError ? "true" : null)"
-                aria-describedby="@(ShowHelper ? _helperId : null)"
-                @attributes="AdditionalAttributes">
-            @ChildContent
-        </select>
+
+            @* Trigger — styled div so keyboard events don't double-fire via button activation *@
+            <div id="@_id"
+                 class="@TriggerCssClass"
+                 tabindex="@(Disabled ? -1 : 0)"
+                 role="combobox"
+                 aria-haspopup="listbox"
+                 aria-expanded="@(_isOpen ? "true" : "false")"
+                 aria-controls="@_listboxId"
+                 aria-activedescendant="@ActiveDescendant"
+                 aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                 aria-invalid="@(HasValidationError ? "true" : null)"
+                 aria-describedby="@(ShowHelper ? _helperId : null)"
+                 @onclick="Toggle"
+                 @onkeydown="HandleKeyDown"
+                 @attributes="AdditionalAttributes">
+                <span class="@(HasSelection ? null : "select-placeholder")">@DisplayLabel</span>
+            </div>
+
+            @* Listbox panel *@
+            @if (_isOpen)
+            {
+                <div id="@_listboxId"
+                     role="listbox"
+                     class="select-panel"
+                     @ref="_panel"
+                     aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
+
+                    @if (_items.Count == 0)
+                    {
+                        <div class="select-empty">No options</div>
+                    }
+                    else
+                    {
+                        for (int i = 0; i < _items.Count; i++)
+                        {
+                            var item  = _items[i];
+                            var idx   = i;
+                            var isHl  = idx == _highlightedIndex;
+                            var isSel = item.Value == CurrentValueAsString;
+
+                            <div id="@($"sopt-{_id}-{idx}")"
+                                 role="option"
+                                 class="@OptionCss(isHl, isSel)"
+                                 aria-selected="@(isSel ? "true" : "false")"
+                                 @onclick="() => SelectItem(item)"
+                                 @onmouseenter="() => _highlightedIndex = idx"
+                                 @onmousedown:preventDefault
+                                 @key="idx">
+                                @item.Label
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
     </div>
 
     @if (HasValidationError)
     {
         <div class="input-helper input-helper-error" id="@_helperId">
-            @string.Join(" ", EditContext.GetValidationMessages(FieldIdentifier))
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
         </div>
     }
     else if (!string.IsNullOrEmpty(HelperText))
@@ -62,6 +113,9 @@
 @code {
     /// <summary>Optional label shown above the select.</summary>
     [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder text shown when no item is selected.</summary>
+    [Parameter] public string? Placeholder { get; set; }
 
     /// <summary>Helper text shown below the select. Replaced by validation errors when present.</summary>
     [Parameter] public string? HelperText { get; set; }
@@ -75,14 +129,24 @@
     /// <summary>Accessible label — required if <c>Label</c> is not set.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
-    /// <summary><c>&lt;option&gt;</c> elements that fill the dropdown.</summary>
-    [Parameter] public RenderFragment? ChildContent { get; set; }
-
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation around the select.</summary>
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    private readonly string _id       = $"dryl-select-{Guid.NewGuid():N}";
-    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    /// <summary>The selectable options.</summary>
+    [Parameter] public IEnumerable<SelectItem>? Items { get; set; }
+
+    private readonly string _id       = $"dryl-sel-{Guid.NewGuid():N}";
+    private readonly string _listboxId = $"dryl-sel-lb-{Guid.NewGuid():N}";
+    private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
+
+    private List<SelectItem> _items = [];
+    private bool _isOpen;
+    private int _highlightedIndex = -1;
+    private bool _jsReady;
+
+    private ElementReference _anchor;
+    private ElementReference _panel;
+    private DotNetObjectReference<DrylSelect>? _dotnetRef;
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
@@ -91,12 +155,103 @@
         base.OnParametersSet();
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _items = Items?.ToList() ?? [];
     }
 
-    private bool HasValidationError =>
-        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsReady = true;
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
+        }
+    }
 
-    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+    private void Toggle()
+    {
+        if (Disabled) return;
+        _isOpen = !_isOpen;
+        if (_isOpen)
+            _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
+    }
+
+    private void SelectItem(SelectItem item)
+    {
+        CurrentValueAsString = item.Value;
+        _isOpen = false;
+        _highlightedIndex = -1;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        var count = _items.Count;
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (!_isOpen)
+                {
+                    _isOpen = true;
+                    _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
+                    if (_highlightedIndex < 0) _highlightedIndex = 0;
+                    break;
+                }
+                _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
+                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
+                break;
+
+            case "ArrowUp":
+                if (_isOpen && _highlightedIndex > 0)
+                {
+                    _highlightedIndex--;
+                    await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
+                }
+                break;
+
+            case "Enter":
+            case " ":
+                if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
+                    SelectItem(_items[_highlightedIndex]);
+                else if (!_isOpen)
+                {
+                    _isOpen = true;
+                    _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
+                    if (_highlightedIndex < 0) _highlightedIndex = 0;
+                }
+                break;
+
+            case "Escape":
+                _isOpen = false;
+                break;
+
+            case "Tab":
+                if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
+                    SelectItem(_items[_highlightedIndex]);
+                _isOpen = false;
+                break;
+        }
+    }
+
+    /// <summary>Called by the JS click-outside listener.</summary>
+    [JSInvokable]
+    public void Close()
+    {
+        _isOpen = false;
+        StateHasChanged();
+    }
+
+    private bool HasSelection => !string.IsNullOrEmpty(CurrentValueAsString);
+
+    private string DisplayLabel =>
+        _items.FirstOrDefault(i => i.Value == CurrentValueAsString)?.Label
+        ?? Placeholder
+        ?? string.Empty;
+
+    private string? ActiveDescendant =>
+        _highlightedIndex >= 0 ? $"sopt-{_id}-{_highlightedIndex}" : null;
+
+    // ── CSS helpers ────────────────────────────────────────
 
     private string WrapperCssClass
     {
@@ -114,19 +269,31 @@
         }
     }
 
-    private string SelectCssClass
+    private string TriggerCssClass
     {
         get
         {
             var c = "select";
-            if (HasValidationError || State == InputState.Error)   c += " input-error";
-            else if (State == InputState.Success)                  c += " input-success";
+            if (_isOpen)                                             c += " select--open";
+            if (Disabled)                                            c += " select--disabled";
+            if (HasValidationError || State == InputState.Error)     c += " input-error";
+            else if (State == InputState.Success)                    c += " input-success";
             return c;
         }
     }
 
-    private void HandleChange(ChangeEventArgs e) =>
-        CurrentValueAsString = e.Value?.ToString();
+    private static string OptionCss(bool isHighlighted, bool isSelected)
+    {
+        var c = "select-option";
+        if (isHighlighted) c += " is-highlighted";
+        if (isSelected)    c += " is-selected";
+        return c;
+    }
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
 
     protected override bool TryParseValueFromString(
         string? value,
@@ -136,5 +303,12 @@
         result = value ?? string.Empty;
         validationErrorMessage = string.Empty;
         return true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsReady)
+            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
+        _dotnetRef?.Dispose();
     }
 }
