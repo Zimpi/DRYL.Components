@@ -1,0 +1,106 @@
+@page "/radio"
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>DRYL — Radio Group</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Inputs</span>
+        <h2>DrylRadioGroup / DrylRadio</h2>
+        <p class="lead">
+            Radio button group for mutually exclusive choices. <code>DrylRadioGroup&lt;TValue&gt;</code>
+            inherits <code>InputBase&lt;TValue&gt;</code> and wires each
+            <code>DrylRadio&lt;TValue&gt;</code> child via a cascading context.
+        </p>
+    </div>
+
+    <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="col" style="gap: var(--sp-6);">
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Vertical (default)</h3>
+                <div style="max-width: 360px;">
+                    <DrylRadioGroup @bind-Value="_model.Plan" Label="Subscription plan">
+                        <DrylRadio Value="@("free")"       Label="Free — 3 projects, community support" />
+                        <DrylRadio Value="@("pro")"        Label="Pro — unlimited projects, email support" />
+                        <DrylRadio Value="@("enterprise")" Label="Enterprise — SSO, SLA, dedicated CSM" />
+                    </DrylRadioGroup>
+                </div>
+                <p class="input-helper">Selected: <strong>@(_model.Plan ?? "—")</strong></p>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Horizontal</h3>
+                <DrylRadioGroup @bind-Value="_model.Size"
+                                Label="T-shirt size"
+                                Orientation="RadioGroupOrientation.Horizontal">
+                    <DrylRadio Value="@("xs")"  Label="XS" />
+                    <DrylRadio Value="@("s")"   Label="S" />
+                    <DrylRadio Value="@("m")"   Label="M" />
+                    <DrylRadio Value="@("l")"   Label="L" />
+                    <DrylRadio Value="@("xl")"  Label="XL" />
+                    <DrylRadio Value="@("xxl")" Label="2XL" />
+                </DrylRadioGroup>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Disabled</h3>
+                <div style="max-width: 360px;">
+                    <DrylRadioGroup @bind-Value="_model.Plan" Label="Plan (disabled)" Disabled="true">
+                        <DrylRadio Value="@("free")"  Label="Free" />
+                        <DrylRadio Value="@("pro")"   Label="Pro" />
+                    </DrylRadioGroup>
+                </div>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Live validation</h3>
+                <div style="max-width: 360px;">
+                    <DrylRadioGroup @bind-Value="_model.Region" Label="Region">
+                        <DrylRadio Value="@("eu-west")"  Label="EU West (Frankfurt)" />
+                        <DrylRadio Value="@("us-east")"  Label="US East (Virginia)" />
+                        <DrylRadio Value="@("ap-south")" Label="AP South (Singapore)" />
+                    </DrylRadioGroup>
+                </div>
+                <div class="row" style="align-items: center;">
+                    <DrylButton IsSubmit="true" LeadingIcon="Check">Deploy</DrylButton>
+                    @if (_submitted)
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Deploying to @_model.Region</DrylBadge>
+                    }
+                </div>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>AI mode</h3>
+                <div style="max-width: 360px;">
+                    <DrylRadioGroup @bind-Value="_model.Plan" Label="AI suggesting plan" Ai="AiState.Streaming">
+                        <DrylRadio Value="@("free")"  Label="Free" />
+                        <DrylRadio Value="@("pro")"   Label="Pro" />
+                    </DrylRadioGroup>
+                </div>
+            </section>
+
+        </div>
+    </EditForm>
+
+</div>
+
+@code {
+    private readonly DemoModel _model = new();
+    private bool _submitted;
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private class DemoModel
+    {
+        public string? Plan { get; set; } = "pro";
+        public string? Size { get; set; } = "m";
+
+        [Required(ErrorMessage = "Please select a region.")]
+        public string? Region { get; set; }
+    }
+}

@@ -1,0 +1,225 @@
+@namespace DRYL.Components
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylFileUpload — drag-and-drop / click-to-browse file picker.
+
+    Usage:
+      <DrylFileUpload FilesChanged="HandleFiles"
+                      Multiple="true"
+                      Accept="image/*,.pdf"
+                      Label="Attachments" />
+
+      @code {
+          private async Task HandleFiles(IReadOnlyList<IBrowserFile> files)
+          {
+              foreach (var f in files)
+                  Console.WriteLine(f.Name);
+          }
+      }
+
+    Files exceeding MaxFileSizeBytes are silently skipped on the
+    preview list; reading them server-side is the consumer's concern.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <span class="field-label">@Label</span>
+    }
+
+    <div class="@WrapperCssClass">
+        @if (Ai != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (Ai == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="_genTick"></div>
+            }
+        }
+
+        <div class="@DropZoneCssClass" @ref="_dropZone">
+            @* The InputFile sits invisible over the whole zone so clicking anywhere triggers it *@
+            <InputFile class="file-input-overlay"
+                       id="@_inputId"
+                       multiple="@Multiple"
+                       accept="@Accept"
+                       disabled="@Disabled"
+                       OnChange="HandleFilesChanged" />
+
+            <DrylIcon Name="UploadCloud" Size="32" Class="file-drop-icon" />
+            <span class="file-drop-title">Drag & drop or click to browse</span>
+            @if (!string.IsNullOrEmpty(Accept) || MaxFileSizeBytes > 0)
+            {
+                <span class="file-drop-sub">
+                    @BuildSubText()
+                </span>
+            }
+        </div>
+
+        @if (_files.Count > 0)
+        {
+            <div class="file-list">
+                @for (int i = 0; i < _files.Count; i++)
+                {
+                    var idx  = i;
+                    var file = _files[i];
+                    <div class="file-item">
+                        <DrylIcon Name="@FileIcon(file.Name)" Size="16" Class="file-item-icon" />
+                        <span class="file-item-name" title="@file.Name">@file.Name</span>
+                        <span class="file-item-size">@FormatBytes(file.Size)</span>
+                        <button type="button" class="file-item-remove"
+                                aria-label="@($"Remove {file.Name}")"
+                                @onclick="() => RemoveFile(idx)">
+                            <DrylIcon Name="X" Size="14" />
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Raised each time the file selection changes (add or remove).</summary>
+    [Parameter] public EventCallback<IReadOnlyList<IBrowserFile>> FilesChanged { get; set; }
+
+    /// <summary>Allow selecting multiple files at once.</summary>
+    [Parameter] public bool Multiple { get; set; }
+
+    /// <summary>Accepted MIME types or extensions, e.g. <c>"image/*,.pdf"</c>. Passed directly to the file input.</summary>
+    [Parameter] public string? Accept { get; set; }
+
+    /// <summary>Maximum file size in bytes shown in the hint text. Does not enforce server-side limits — validate on upload.</summary>
+    [Parameter] public long MaxFileSizeBytes { get; set; } = 10L * 1024 * 1024;
+
+    /// <summary>Optional label shown above the drop zone.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Helper text shown below the control.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>If true, the drop zone is greyed out and non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    private readonly string _inputId = $"dryl-file-{Guid.NewGuid():N}";
+
+    private List<IBrowserFile> _files = [];
+    private bool _dragActive;
+    private bool _jsReady;
+    private ElementReference _dropZone;
+    private DotNetObjectReference<DrylFileUpload>? _dotnetRef;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsReady = true;
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.fileupload.attach", _dropZone, _dotnetRef);
+        }
+    }
+
+    private async Task HandleFilesChanged(InputFileChangeEventArgs e)
+    {
+        var incoming = e.GetMultipleFiles(maximumFileCount: 100).ToList();
+        if (!Multiple) _files.Clear();
+        _files.AddRange(incoming);
+        await FilesChanged.InvokeAsync(_files.AsReadOnly());
+    }
+
+    private async Task RemoveFile(int index)
+    {
+        if (index >= 0 && index < _files.Count)
+        {
+            _files.RemoveAt(index);
+            await FilesChanged.InvokeAsync(_files.AsReadOnly());
+        }
+    }
+
+    /// <summary>Called by the JS drag-over listener.</summary>
+    [JSInvokable]
+    public void SetDragActive(bool active)
+    {
+        _dragActive = active;
+        StateHasChanged();
+    }
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            if (Ai == AiState.None) return string.Empty;
+            var classes = new List<string> { "ai-aura" };
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string DropZoneCssClass
+    {
+        get
+        {
+            var c = "file-drop";
+            if (_dragActive) c += " file-drop--active";
+            if (Disabled)    c += " file-drop--disabled";
+            return c;
+        }
+    }
+
+    private string BuildSubText()
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(Accept))
+            parts.Add(Accept);
+        if (MaxFileSizeBytes > 0)
+            parts.Add($"max {FormatBytes(MaxFileSizeBytes)}");
+        return string.Join(" · ", parts);
+    }
+
+    private static string FormatBytes(long bytes) => bytes switch
+    {
+        >= 1_073_741_824 => FormattableString.Invariant($"{bytes / 1_073_741_824.0:F1} GB"),
+        >= 1_048_576     => FormattableString.Invariant($"{bytes / 1_048_576.0:F1} MB"),
+        >= 1_024         => FormattableString.Invariant($"{bytes / 1_024.0:F0} KB"),
+        _                => $"{bytes} B"
+    };
+
+    private static string FileIcon(string name) => Path.GetExtension(name).ToLowerInvariant() switch
+    {
+        ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".svg" => "Image",
+        ".pdf" => "FileText",
+        ".zip" or ".tar" or ".gz" or ".rar" => "Archive",
+        _ => "File"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsReady)
+            await JS.InvokeVoidAsync("dryl.fileupload.detach", _dropZone);
+        _dotnetRef?.Dispose();
+    }
+}

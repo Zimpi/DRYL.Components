@@ -1,0 +1,221 @@
+@namespace DRYL.Components
+@inherits InputBase<string>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylInputOtp — fixed-length OTP / 2FA code entry.
+
+    Usage:
+      <DrylInputOtp @bind-Value="model.Code"
+                    Label="Verification code"
+                    Digits="6" />
+
+    Each digit occupies its own box. Focus advances automatically
+    as digits are entered. Paste a code from the clipboard to fill
+    all boxes at once. The bound string value is updated on every
+    keystroke; validate its length with DataAnnotations.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" id="@_labelId">@Label</label>
+    }
+
+    <div class="otp-wrapper">
+        <div class="otp-boxes"
+             @ref="_container"
+             role="group"
+             aria-labelledby="@(!string.IsNullOrEmpty(Label) ? _labelId : null)"
+             aria-label="@(string.IsNullOrEmpty(Label) ? (AriaLabel ?? $"{Digits}-digit code") : null)">
+            @for (int i = 0; i < Digits; i++)
+            {
+                var idx = i;
+                <div class="@BoxWrapClass">
+                    @if (Ai != AiState.None)
+                    {
+                        <div class="ai-aura-ring"></div>
+                        <div class="ai-aura-glow"></div>
+                        @if (Ai == AiState.Generated)
+                        {
+                            <div class="ai-aura-wash" @key="@($"gen-{idx}-{_genTick}")"></div>
+                        }
+                    }
+                    <input @key="@($"otp-{idx}")"
+                           class="@BoxCssClass"
+                           type="text"
+                           inputmode="numeric"
+                           maxlength="1"
+                           value="@_chars[idx]"
+                           autocomplete="@(idx == 0 ? "one-time-code" : "off")"
+                           disabled="@Disabled"
+                           aria-label="@($"Digit {idx + 1} of {Digits}")"
+                           @oninput="e => HandleDigitInput(e, idx)"
+                           @onkeydown="e => HandleDigitKeyDown(e, idx)" />
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Number of digit boxes. Default is 6.</summary>
+    [Parameter] public int Digits { get; set; } = 6;
+
+    /// <summary>Optional label shown above the boxes.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Helper text shown below. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Visual state override (Default / Error / Success).</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, all boxes are greyed out and non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    private readonly string _labelId  = $"dryl-otp-lbl-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    private ElementReference _container;
+    private DotNetObjectReference<DrylInputOtp>? _dotnetRef;
+    private bool _jsReady;
+    private string[] _chars = [];
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        if (ValueExpression is null)
+            ValueExpression = () => Value;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (_chars.Length != Digits)
+        {
+            var old = _chars;
+            _chars = new string[Digits];
+            for (var i = 0; i < Math.Min(old.Length, Digits); i++)
+                _chars[i] = old[i];
+        }
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsReady = true;
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.otp.attach", _container, _dotnetRef);
+        }
+    }
+
+    private async Task HandleDigitInput(ChangeEventArgs e, int idx)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+        // Accept only the first digit character
+        var digit = raw.FirstOrDefault(char.IsDigit);
+        _chars[idx] = digit != default ? digit.ToString() : string.Empty;
+        UpdateCurrentValue();
+        if (_chars[idx].Length > 0 && idx < Digits - 1)
+            await JS.InvokeVoidAsync("dryl.otp.focusNext", _container, idx);
+    }
+
+    private async Task HandleDigitKeyDown(KeyboardEventArgs e, int idx)
+    {
+        switch (e.Key)
+        {
+            case "Backspace" when string.IsNullOrEmpty(_chars[idx]) && idx > 0:
+                await JS.InvokeVoidAsync("dryl.otp.focusPrev", _container, idx);
+                break;
+            case "Backspace":
+                _chars[idx] = string.Empty;
+                UpdateCurrentValue();
+                break;
+            case "ArrowLeft" when idx > 0:
+                await JS.InvokeVoidAsync("dryl.otp.focusPrev", _container, idx);
+                break;
+            case "ArrowRight" when idx < Digits - 1:
+                await JS.InvokeVoidAsync("dryl.otp.focusNext", _container, idx);
+                break;
+        }
+    }
+
+    /// <summary>Called from JS paste handler with an array of single-digit strings.</summary>
+    [JSInvokable]
+    public void SetDigits(string[] digits)
+    {
+        for (var i = 0; i < _chars.Length; i++)
+            _chars[i] = i < digits.Length ? digits[i] : string.Empty;
+        UpdateCurrentValue();
+        StateHasChanged();
+    }
+
+    private void UpdateCurrentValue() =>
+        CurrentValueAsString = string.Join("", _chars);
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private string BoxWrapClass => Ai switch
+    {
+        AiState.Thinking  => "otp-box-wrap ai-aura ai-thinking",
+        AiState.Streaming => "otp-box-wrap ai-aura ai-streaming",
+        AiState.Generated => "otp-box-wrap ai-aura ai-generated",
+        AiState.Active    => "otp-box-wrap ai-aura",
+        _                 => "otp-box-wrap",
+    };
+
+    private string BoxCssClass
+    {
+        get
+        {
+            if (HasValidationError || State == InputState.Error) return "otp-box otp-box--error";
+            if (State == InputState.Success)                     return "otp-box otp-box--success";
+            return "otp-box";
+        }
+    }
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out string result,
+        out string validationErrorMessage)
+    {
+        result = value ?? string.Empty;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsReady)
+        {
+            try { await JS.InvokeVoidAsync("dryl.otp.detach", _container); }
+            catch { /* ignore if already gone */ }
+        }
+        _dotnetRef?.Dispose();
+    }
+}

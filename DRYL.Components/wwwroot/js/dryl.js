@@ -370,3 +370,228 @@ window.dryl.commandpalette = (() => {
     return { attachGlobal, detachGlobal, focusInput, scrollItemIntoView, portal };
 })();
 
+// ── File Upload — drag-over visual feedback ──────────────────────────────────
+window.dryl.fileupload = (() => {
+    const _map = new WeakMap();
+
+    function attach(el, dotnetRef) {
+        if (!el) return;
+        let counter = 0;
+
+        function onDragEnter(e) {
+            e.preventDefault();
+            counter++;
+            if (counter === 1) dotnetRef.invokeMethodAsync('SetDragActive', true);
+        }
+        function onDragLeave(e) {
+            e.preventDefault();
+            counter = Math.max(0, counter - 1);
+            if (counter === 0) dotnetRef.invokeMethodAsync('SetDragActive', false);
+        }
+        function onDragOver(e) { e.preventDefault(); }
+        function onDrop(e) {
+            e.preventDefault();
+            counter = 0;
+            dotnetRef.invokeMethodAsync('SetDragActive', false);
+        }
+
+        el.addEventListener('dragenter', onDragEnter);
+        el.addEventListener('dragleave', onDragLeave);
+        el.addEventListener('dragover',  onDragOver);
+        el.addEventListener('drop',      onDrop);
+
+        _map.set(el, { onDragEnter, onDragLeave, onDragOver, onDrop });
+    }
+
+    function detach(el) {
+        if (!el) return;
+        const handlers = _map.get(el);
+        if (!handlers) return;
+        el.removeEventListener('dragenter', handlers.onDragEnter);
+        el.removeEventListener('dragleave', handlers.onDragLeave);
+        el.removeEventListener('dragover',  handlers.onDragOver);
+        el.removeEventListener('drop',      handlers.onDrop);
+        _map.delete(el);
+    }
+
+    return { attach, detach };
+})();
+
+// ── OTP — digit-box focus management and paste distribution ──────────────────
+window.dryl.otp = (() => {
+    const _map = new WeakMap();
+
+    function getInputs(container) {
+        return container ? Array.from(container.querySelectorAll('input')) : [];
+    }
+
+    function focusNext(container, idx) {
+        const inputs = getInputs(container);
+        if (idx + 1 < inputs.length) inputs[idx + 1].focus();
+    }
+
+    function focusPrev(container, idx) {
+        const inputs = getInputs(container);
+        if (idx > 0) inputs[idx - 1].focus();
+    }
+
+    function attach(container, dotnetRef) {
+        if (!container) return;
+        detach(container);
+
+        const onPaste = (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+            const inputs = getInputs(container);
+            const digits = text.replace(/\D/g, '').split('').slice(0, inputs.length);
+            // Fill inputs in the DOM immediately for visual feedback
+            inputs.forEach((inp, i) => { inp.value = digits[i] ?? ''; });
+            // Focus the first unfilled box (or last if all filled)
+            const focusIdx = Math.min(digits.length, inputs.length - 1);
+            inputs[focusIdx]?.focus();
+            // Notify Blazor
+            dotnetRef.invokeMethodAsync('SetDigits', digits);
+        };
+
+        container.addEventListener('paste', onPaste);
+        _map.set(container, { onPaste });
+    }
+
+    function detach(container) {
+        if (!container) return;
+        const h = _map.get(container);
+        if (!h) return;
+        container.removeEventListener('paste', h.onPaste);
+        _map.delete(container);
+    }
+
+    return { attach, detach, focusNext, focusPrev };
+})();
+
+// ── TimePicker — click-outside and scroll-to-active ──────────────────────────
+window.dryl.timepicker = (() => {
+    const _map = new WeakMap();
+
+    function attach(anchor, dotnetRef) {
+        if (!anchor) return;
+        detach(anchor);
+
+        const onClick = (e) => {
+            if (!anchor.contains(e.target))
+                dotnetRef.invokeMethodAsync('Close');
+        };
+
+        // Use setTimeout so the click that opened the panel is not immediately
+        // caught by this listener.
+        const timerId = setTimeout(() => {
+            document.addEventListener('click', onClick, { capture: true });
+        }, 0);
+
+        _map.set(anchor, { onClick, timerId });
+    }
+
+    function detach(anchor) {
+        if (!anchor) return;
+        const h = _map.get(anchor);
+        if (!h) return;
+        clearTimeout(h.timerId);
+        document.removeEventListener('click', h.onClick, { capture: true });
+        _map.delete(anchor);
+    }
+
+    function scrollToActive(panel) {
+        if (!panel) return;
+        panel.querySelectorAll('.time-col').forEach(col => {
+            const selected = col.querySelector('.is-selected');
+            if (selected) selected.scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    return { attach, detach, scrollToActive };
+})();
+
+// ── InputMask — format-on-input with cursor preservation ─────────────────────
+window.dryl.inputmask = (() => {
+    const _map = new WeakMap();
+
+    // Strip value down to only the raw data chars (digits / letters) that
+    // correspond to placeholder positions (#, A) in the pattern.
+    function stripToData(value, pattern) {
+        let data = '';
+        let pi = 0;
+        for (const c of value) {
+            // Advance to next placeholder position
+            while (pi < pattern.length && pattern[pi] !== '#' && pattern[pi] !== 'A') pi++;
+            if (pi >= pattern.length) break;
+            if (pattern[pi] === '#' && /\d/.test(c))            { data += c;             pi++; }
+            else if (pattern[pi] === 'A' && /[a-zA-Z]/.test(c)) { data += c.toUpperCase(); pi++; }
+            // Non-matching char: skip in value without advancing pi
+        }
+        return data;
+    }
+
+    // Re-apply the mask pattern to a clean data string.
+    // Literal separators are inserted only when followed by more data.
+    function applyMask(data, pattern) {
+        let out = '';
+        let di = 0;
+        for (let pi = 0; pi < pattern.length && di < data.length; pi++) {
+            const pc = pattern[pi];
+            if (pc === '#') {
+                out += data[di++];
+            } else if (pc === 'A') {
+                out += data[di++].toUpperCase();
+            } else {
+                // Literal separator: include only when there's more data to follow
+                if (di < data.length) out += pc;
+                else break;
+            }
+        }
+        return out;
+    }
+
+    function process(el, pattern, dotnetRef) {
+        const data = stripToData(el.value, pattern);
+        const masked = applyMask(data, pattern);
+        if (el.value !== masked) {
+            el.value = masked;
+        }
+        // Place cursor after the last typed data char in the masked string
+        el.setSelectionRange(masked.length, masked.length);
+        dotnetRef.invokeMethodAsync('OnMaskedValue', masked);
+    }
+
+    function attach(el, pattern, dotnetRef) {
+        if (!el || !pattern) return;
+        detach(el);
+
+        const onInput = () => process(el, pattern, dotnetRef);
+
+        const onPaste = (e) => {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text') || '';
+            const combined = el.value.slice(0, el.selectionStart) + pasted + el.value.slice(el.selectionEnd);
+            const data = stripToData(combined, pattern);
+            const masked = applyMask(data, pattern);
+            el.value = masked;
+            el.setSelectionRange(masked.length, masked.length);
+            dotnetRef.invokeMethodAsync('OnMaskedValue', masked);
+        };
+
+        el.addEventListener('input', onInput);
+        el.addEventListener('paste', onPaste);
+        _map.set(el, { onInput, onPaste });
+    }
+
+    function detach(el) {
+        if (!el) return;
+        const h = _map.get(el);
+        if (!h) return;
+        el.removeEventListener('input', h.onInput);
+        el.removeEventListener('paste', h.onPaste);
+        _map.delete(el);
+    }
+
+    return { attach, detach };
+})();
+

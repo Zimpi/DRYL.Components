@@ -1,0 +1,57 @@
+@namespace DRYL.Components
+@typeparam TValue
+
+@*  ─────────────────────────────────────────────────────────
+    DrylRadio<TValue> — single radio option inside a DrylRadioGroup.
+
+    Must be used as a direct or indirect child of DrylRadioGroup<TValue>.
+    The group provides selection state and the shared input name via
+    a CascadingValue<RadioGroupContext<TValue>>.
+
+    Usage:
+      <DrylRadio Value="@("option-a")" Label="Option A" />
+    ───────────────────────────────────────────────────────── *@
+
+<label class="@LabelCssClass">
+    <input type="radio"
+           class="radio-input"
+           name="@(Context?.Name)"
+           value="@ValueAsString"
+           checked="@IsChecked"
+           disabled="@IsDisabled"
+           @onchange="HandleChange" />
+    <span class="radio-control"></span>
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <span class="radio-label">@Label</span>
+    }
+</label>
+
+@code {
+    /// <summary>The value represented by this radio button.</summary>
+    [Parameter, EditorRequired] public TValue? Value { get; set; }
+
+    /// <summary>Text shown next to the radio button.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>If true, this individual radio button is disabled regardless of group state.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    [CascadingParameter] private RadioGroupContext<TValue>? Context { get; set; }
+
+    private bool IsChecked =>
+        Context is not null && EqualityComparer<TValue>.Default.Equals(Context.SelectedValue, Value);
+
+    private bool IsDisabled => Disabled || (Context?.GroupDisabled ?? false);
+
+    private string ValueAsString => Value?.ToString() ?? string.Empty;
+
+    private string LabelCssClass =>
+        IsDisabled ? "radio radio--disabled" : "radio";
+
+    private async Task HandleChange()
+    {
+        if (Context is not null && Value is not null)
+            await Context.OnChange.InvokeAsync(Value);
+    }
+}

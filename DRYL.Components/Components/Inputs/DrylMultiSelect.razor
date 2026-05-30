@@ -1,32 +1,35 @@
 @namespace DRYL.Components
-@inherits InputBase<string>
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
-    DrylSelect — single-select dropdown bound to EditForm.
+    DrylMultiSelect — multi-selection dropdown.
 
     Usage:
-      <DrylSelect @bind-Value="model.Environment" Label="Environment"
-                  Items="@_envItems" />
+      <DrylMultiSelect @bind-SelectedValues="_selected"
+                       Label="Tags"
+                       Items="@_tagItems"
+                       Placeholder="Select tags…" />
 
       @code {
-          private static readonly SelectItem[] _envItems =
+          private IReadOnlyList<string> _selected = [];
+          private static readonly SelectItem[] _tagItems =
           [
-              new("Production",  "Production"),
-              new("Staging",     "Staging"),
-              new("Development", "Development"),
+              new("blazor",  "Blazor"),
+              new("dotnet",  ".NET"),
+              new("css",     "CSS"),
           ];
       }
 
-    Keyboard: ArrowDown/Up navigate options, Enter/Space opens,
-    Enter selects highlighted, Escape closes.
+    The panel stays open while selecting; use Escape or Tab to close.
+    Keyboard: ArrowDown/Up navigate, Space/Enter toggle highlighted,
+    Escape/Tab closes.
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
     @if (!string.IsNullOrEmpty(Label))
     {
-        <label class="field-label" for="@_id">@Label</label>
+        <label class="field-label" for="@_triggerId">@Label</label>
     }
 
     <div class="menu-anchor menu-anchor--block" @ref="_anchor">
@@ -41,22 +44,47 @@
                 }
             }
 
-            @* Trigger — styled div so keyboard events don't double-fire via button activation *@
-            <div id="@_id"
+            @* Trigger *@
+            <div id="@_triggerId"
                  class="@TriggerCssClass"
                  tabindex="@(Disabled ? -1 : 0)"
                  role="combobox"
                  aria-haspopup="listbox"
                  aria-expanded="@(_isOpen ? "true" : "false")"
                  aria-controls="@_listboxId"
-                 aria-activedescendant="@ActiveDescendant"
                  aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                 aria-invalid="@(HasValidationError ? "true" : null)"
                  aria-describedby="@(ShowHelper ? _helperId : null)"
                  @onclick="Toggle"
-                 @onkeydown="HandleKeyDown"
-                 @attributes="AdditionalAttributes">
-                <span class="@(HasSelection ? null : "select-placeholder")">@DisplayLabel</span>
+                 @onkeydown="HandleKeyDown">
+
+                @if (SelectedValues.Count == 0)
+                {
+                    <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? "Select options…")</span>
+                }
+                else
+                {
+                    <div class="multiselect-chips">
+                        @foreach (var val in VisibleChips)
+                        {
+                            var v = val;
+                            var lbl = _items.FirstOrDefault(i => i.Value == v)?.Label ?? v;
+                            <span class="chip">
+                                <span class="chip-text">@lbl</span>
+                                <button type="button" class="chip-remove"
+                                        tabindex="-1"
+                                        aria-label="@($"Remove {lbl}")"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => RemoveValue(v)">
+                                    <DrylIcon Name="X" Size="10" />
+                                </button>
+                            </span>
+                        }
+                        @if (OverflowCount > 0)
+                        {
+                            <span class="chip-overflow">+@OverflowCount</span>
+                        }
+                    </div>
+                }
             </div>
 
             @* Listbox panel *@
@@ -65,6 +93,7 @@
                 <div id="@_listboxId"
                      role="listbox"
                      class="select-panel"
+                     aria-multiselectable="true"
                      @ref="_panel"
                      aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
 
@@ -79,17 +108,22 @@
                             var item  = _items[i];
                             var idx   = i;
                             var isHl  = idx == _highlightedIndex;
-                            var isSel = item.Value == CurrentValueAsString;
+                            var isSel = SelectedValues.Contains(item.Value);
 
-                            <div id="@($"sopt-{_id}-{idx}")"
+                            <div id="@($"msopt-{_triggerId}-{idx}")"
                                  role="option"
                                  class="@OptionCss(isHl, isSel)"
                                  aria-selected="@(isSel ? "true" : "false")"
-                                 @onclick="() => SelectItem(item)"
+                                 @onclick="() => ToggleItem(item)"
                                  @onmouseenter="() => _highlightedIndex = idx"
                                  @onmousedown:preventDefault
                                  @key="idx">
-                                @item.Label
+                                <input type="checkbox" class="checkbox multiselect-check"
+                                       checked="@isSel"
+                                       tabindex="-1"
+                                       @onclick:stopPropagation="true"
+                                       @onchange="() => ToggleItem(item)" />
+                                <span>@item.Label</span>
                             </div>
                         }
                     }
@@ -98,32 +132,38 @@
         </div>
     </div>
 
-    @if (HasValidationError)
-    {
-        <div class="input-helper input-helper-error" id="@_helperId">
-            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
-        </div>
-    }
-    else if (!string.IsNullOrEmpty(HelperText))
+    @if (!string.IsNullOrEmpty(HelperText))
     {
         <div class="input-helper" id="@_helperId">@HelperText</div>
     }
 </div>
 
 @code {
-    /// <summary>Optional label shown above the select.</summary>
+    /// <summary>Optional label shown above the multi-select.</summary>
     [Parameter] public string? Label { get; set; }
 
-    /// <summary>Placeholder text shown when no item is selected.</summary>
+    /// <summary>Placeholder shown when nothing is selected.</summary>
     [Parameter] public string? Placeholder { get; set; }
 
-    /// <summary>Helper text shown below the select. Replaced by validation errors when present.</summary>
+    /// <summary>Helper text shown below the control.</summary>
     [Parameter] public string? HelperText { get; set; }
 
-    /// <summary>Visual state override. An active validation error overrides this.</summary>
+    /// <summary>The selectable options.</summary>
+    [Parameter] public IEnumerable<SelectItem>? Items { get; set; }
+
+    /// <summary>Currently selected values.</summary>
+    [Parameter] public IReadOnlyList<string> SelectedValues { get; set; } = [];
+
+    /// <summary>Raised when the selection changes.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<string>> SelectedValuesChanged { get; set; }
+
+    /// <summary>Maximum number of chips shown before collapsing to "+N".</summary>
+    [Parameter] public int MaxVisibleChips { get; set; } = 3;
+
+    /// <summary>Visual state.</summary>
     [Parameter] public InputState State { get; set; } = InputState.Default;
 
-    /// <summary>If true, the select is greyed out and non-interactive.</summary>
+    /// <summary>If true, the control is greyed out and non-interactive.</summary>
     [Parameter] public bool Disabled { get; set; }
 
     /// <summary>Accessible label — required if <c>Label</c> is not set.</summary>
@@ -132,11 +172,8 @@
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    /// <summary>The selectable options.</summary>
-    [Parameter] public IEnumerable<SelectItem>? Items { get; set; }
-
-    private readonly string _id       = $"dryl-sel-{Guid.NewGuid():N}";
-    private readonly string _listboxId = $"dryl-sel-lb-{Guid.NewGuid():N}";
+    private readonly string _triggerId = $"dryl-msel-{Guid.NewGuid():N}";
+    private readonly string _listboxId = $"dryl-msel-lb-{Guid.NewGuid():N}";
     private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
 
     private List<SelectItem> _items = [];
@@ -146,21 +183,12 @@
 
     private ElementReference _anchor;
     private ElementReference _panel;
-    private DotNetObjectReference<DrylSelect>? _dotnetRef;
+    private DotNetObjectReference<DrylMultiSelect>? _dotnetRef;
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
-    public override Task SetParametersAsync(ParameterView parameters)
-    {
-        parameters.SetParameterProperties(this);
-        if (ValueExpression is null)
-            ValueExpression = () => Value;
-        return base.SetParametersAsync(parameters);
-    }
-
     protected override void OnParametersSet()
     {
-        base.OnParametersSet();
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
         _items = Items?.ToList() ?? [];
@@ -180,31 +208,34 @@
     {
         if (Disabled) return;
         _isOpen = !_isOpen;
-        if (_isOpen)
-            _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
+        if (_isOpen) _highlightedIndex = -1;
     }
 
-    private void SelectItem(SelectItem item)
+    private async Task ToggleItem(SelectItem item)
     {
-        CurrentValueAsString = item.Value;
-        _isOpen = false;
-        _highlightedIndex = -1;
+        var current = new List<string>(SelectedValues);
+        if (current.Contains(item.Value))
+            current.Remove(item.Value);
+        else
+            current.Add(item.Value);
+
+        await SelectedValuesChanged.InvokeAsync(current.AsReadOnly());
+    }
+
+    private async Task RemoveValue(string value)
+    {
+        var current = new List<string>(SelectedValues);
+        current.Remove(value);
+        await SelectedValuesChanged.InvokeAsync(current.AsReadOnly());
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
         var count = _items.Count;
-
         switch (e.Key)
         {
             case "ArrowDown":
-                if (!_isOpen)
-                {
-                    _isOpen = true;
-                    _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
-                    if (_highlightedIndex < 0) _highlightedIndex = 0;
-                    break;
-                }
+                if (!_isOpen) { _isOpen = true; _highlightedIndex = 0; break; }
                 _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
                 await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
                 break;
@@ -220,22 +251,13 @@
             case "Enter":
             case " ":
                 if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
-                    SelectItem(_items[_highlightedIndex]);
+                    await ToggleItem(_items[_highlightedIndex]);
                 else if (!_isOpen)
-                {
                     _isOpen = true;
-                    _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
-                    if (_highlightedIndex < 0) _highlightedIndex = 0;
-                }
                 break;
 
             case "Escape":
-                _isOpen = false;
-                break;
-
             case "Tab":
-                if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
-                    SelectItem(_items[_highlightedIndex]);
                 _isOpen = false;
                 break;
         }
@@ -249,17 +271,11 @@
         StateHasChanged();
     }
 
-    private bool HasSelection => !string.IsNullOrEmpty(CurrentValueAsString);
+    private IEnumerable<string> VisibleChips =>
+        SelectedValues.Take(MaxVisibleChips);
 
-    private string DisplayLabel =>
-        _items.FirstOrDefault(i => i.Value == CurrentValueAsString)?.Label
-        ?? Placeholder
-        ?? string.Empty;
-
-    private string? ActiveDescendant =>
-        _highlightedIndex >= 0 ? $"sopt-{_id}-{_highlightedIndex}" : null;
-
-    // ── CSS helpers ────────────────────────────────────────
+    private int OverflowCount =>
+        Math.Max(0, SelectedValues.Count - MaxVisibleChips);
 
     private string WrapperCssClass
     {
@@ -281,37 +297,24 @@
     {
         get
         {
-            var c = "select";
-            if (_isOpen)                                             c += " select--open";
-            if (Disabled)                                            c += " select--disabled";
-            if (HasValidationError || State == InputState.Error)     c += " input-error";
-            else if (State == InputState.Success)                    c += " input-success";
+            var c = "multiselect-trigger";
+            if (_isOpen)   c += " select--open";
+            if (Disabled)  c += " select--disabled";
+            if (State == InputState.Error)   c += " input-error";
+            else if (State == InputState.Success) c += " input-success";
             return c;
         }
     }
 
     private static string OptionCss(bool isHighlighted, bool isSelected)
     {
-        var c = "select-option";
+        var c = "select-option multiselect-option";
         if (isHighlighted) c += " is-highlighted";
         if (isSelected)    c += " is-selected";
         return c;
     }
 
-    private bool HasValidationError =>
-        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
-
-    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
-
-    protected override bool TryParseValueFromString(
-        string? value,
-        out string result,
-        out string validationErrorMessage)
-    {
-        result = value ?? string.Empty;
-        validationErrorMessage = string.Empty;
-        return true;
-    }
+    private bool ShowHelper => !string.IsNullOrEmpty(HelperText);
 
     public async ValueTask DisposeAsync()
     {

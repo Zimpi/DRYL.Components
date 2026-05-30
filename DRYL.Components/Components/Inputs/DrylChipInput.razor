@@ -1,0 +1,207 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylChipInput — free-text tag/chip field.
+
+    Usage:
+      <DrylChipInput @bind-Tags="_tags"
+                     Label="Labels"
+                     Placeholder="Add a label…" />
+
+      @code { private IReadOnlyList<string> _tags = []; }
+
+    Press Enter or comma to commit a tag; Backspace on an empty
+    input removes the last tag. Duplicate and whitespace-only
+    entries are silently ignored.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_inputId">@Label</label>
+    }
+
+    <div class="@WrapperCssClass">
+        @if (Ai != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (Ai == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="_genTick"></div>
+            }
+        }
+
+        <div class="@InnerCssClass" @onclick="FocusInputAsync">
+            @foreach (var tag in Tags)
+            {
+                var t = tag;
+                <span class="chip">
+                    <span class="chip-text">@t</span>
+                    @if (!Disabled)
+                    {
+                        <button type="button"
+                                class="chip-remove"
+                                tabindex="-1"
+                                aria-label="@($"Remove {t}")"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => RemoveTagAsync(t)">
+                            <DrylIcon Name="X" Size="10" />
+                        </button>
+                    }
+                </span>
+            }
+
+            <input id="@_inputId"
+                   @ref="_inputEl"
+                   class="chip-input-field"
+                   type="text"
+                   value="@_draft"
+                   @oninput="HandleInput"
+                   @onkeydown="HandleKeyDown"
+                   placeholder="@EffectivePlaceholder"
+                   disabled="@IsInputDisabled"
+                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                   @attributes="AdditionalAttributes" />
+        </div>
+    </div>
+
+    @if (State == InputState.Error && !string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">@HelperText</div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>The current list of tags. Use @bind-Tags for two-way binding.</summary>
+    [Parameter] public IReadOnlyList<string> Tags { get; set; } = [];
+
+    /// <summary>Raised whenever the tag list changes.</summary>
+    [Parameter] public EventCallback<IReadOnlyList<string>> TagsChanged { get; set; }
+
+    /// <summary>Optional label shown above the input.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder text shown when there are no tags and the input is empty.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Helper text shown below the input.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Visual state override (Default / Error / Success).</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, no new tags can be added and existing tags cannot be removed.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Maximum number of tags. 0 means unlimited.</summary>
+    [Parameter] public int MaxTags { get; set; } = 0;
+
+    /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>AI ambient state — drives the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Additional HTML attributes forwarded to the inner input element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)] public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly string _inputId  = $"dryl-chip-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    private ElementReference _inputEl;
+    private string _draft = string.Empty;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    private bool IsInputDisabled => Disabled || (MaxTags > 0 && Tags.Count >= MaxTags);
+    private string? EffectivePlaceholder => Tags.Count == 0 ? (Placeholder ?? "Add tag…") : null;
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var cls = new List<string> { "input-wrapper" };
+            if (Ai != AiState.None) cls.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  cls.Add("ai-thinking");  break;
+                case AiState.Streaming: cls.Add("ai-streaming"); break;
+                case AiState.Generated: cls.Add("ai-generated"); break;
+            }
+            return string.Join(' ', cls);
+        }
+    }
+
+    private string InnerCssClass
+    {
+        get
+        {
+            var cls = new List<string> { "chip-input-inner" };
+            if (Disabled) cls.Add("chip-input-inner--disabled");
+            if (State == InputState.Error)   cls.Add("chip-input-inner--error");
+            else if (State == InputState.Success) cls.Add("chip-input-inner--success");
+            return string.Join(' ', cls);
+        }
+    }
+
+    private void HandleInput(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString() ?? string.Empty;
+        // If user typed a comma, treat it as a submit trigger
+        if (raw.EndsWith(','))
+        {
+            _draft = raw.TrimEnd(',');
+            _ = CommitTagAsync();
+        }
+        else
+        {
+            _draft = raw;
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await CommitTagAsync();
+        }
+        else if (e.Key == "Backspace" && string.IsNullOrEmpty(_draft) && Tags.Count > 0)
+        {
+            await RemoveTagAsync(Tags[^1]);
+        }
+    }
+
+    private async Task CommitTagAsync()
+    {
+        var tag = _draft.Trim();
+        if (string.IsNullOrEmpty(tag)) { _draft = string.Empty; return; }
+        if (Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)) { _draft = string.Empty; return; }
+        if (MaxTags > 0 && Tags.Count >= MaxTags) { _draft = string.Empty; return; }
+
+        var updated = Tags.Append(tag).ToList();
+        _draft = string.Empty;
+        await TagsChanged.InvokeAsync(updated);
+    }
+
+    private async Task RemoveTagAsync(string tag)
+    {
+        var updated = Tags.Where(t => t != tag).ToList();
+        await TagsChanged.InvokeAsync(updated);
+    }
+
+    private async Task FocusInputAsync()
+    {
+        if (!IsInputDisabled)
+            await _inputEl.FocusAsync();
+    }
+}

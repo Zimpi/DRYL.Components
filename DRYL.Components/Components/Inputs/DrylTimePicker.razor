@@ -1,0 +1,328 @@
+@namespace DRYL.Components
+@inherits InputBase<TimeOnly?>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTimePicker — time-only picker with a scrollable panel.
+
+    Usage:
+      <DrylTimePicker @bind-Value="model.MeetingTime"
+                      Label="Meeting time"
+                      MinuteStep="15" />
+
+    Panel opens on click or focus. Scroll or click a row in the
+    hour and minute columns to build the time, then press Done
+    (or Enter) to commit. Escape closes without committing.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_id">@Label</label>
+    }
+
+    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
+        <div class="@WrapperCssClass">
+            @if (Ai != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (Ai == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="_genTick"></div>
+                }
+            }
+
+            <input id="@_id"
+                   type="text"
+                   class="@InputCssClass"
+                   value="@DisplayValue"
+                   readonly
+                   @onfocus="Open"
+                   @onclick="Open"
+                   placeholder="@(Placeholder ?? "hh:mm")"
+                   disabled="@Disabled"
+                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                   aria-invalid="@(HasValidationError ? "true" : null)"
+                   aria-describedby="@(ShowHelper ? _helperId : null)"
+                   aria-haspopup="dialog"
+                   aria-expanded="@(_isOpen ? "true" : "false")" />
+
+            <DrylIcon Name="Clock" Size="16" Class="input-icon input-icon-trailing" />
+        </div>
+
+        @if (_isOpen)
+        {
+            <div class="time-panel"
+                 @ref="_panel"
+                 role="dialog"
+                 aria-label="Pick a time"
+                 tabindex="-1"
+                 @onkeydown="HandlePanelKeyDown">
+
+                <div class="time-columns">
+                    <div class="time-col" aria-label="Hours">
+                        @foreach (var h in AvailableHours)
+                        {
+                            var hour = h;
+                            <button type="button"
+                                    class="@(hour == _selectedHour ? "time-cell is-selected" : "time-cell")"
+                                    @onclick="() => SelectHour(hour)">
+                                @hour.ToString("D2")
+                            </button>
+                        }
+                    </div>
+                    <div class="time-col-sep" aria-hidden="true">:</div>
+                    <div class="time-col" aria-label="Minutes">
+                        @foreach (var m in AvailableMinutes)
+                        {
+                            var minute = m;
+                            <button type="button"
+                                    class="@(minute == _selectedMinute ? "time-cell is-selected" : "time-cell")"
+                                    @onclick="() => SelectMinute(minute)">
+                                @minute.ToString("D2")
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="time-footer">
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="Close">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm" @onclick="Commit">Done</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional label shown above the input.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder shown when no time is selected. Default "hh:mm".</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Helper text shown below. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Visual state override (Default / Error / Success).</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, the input is greyed out and non-interactive.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Earliest selectable time. Null means no lower bound.</summary>
+    [Parameter] public TimeOnly? Min { get; set; }
+
+    /// <summary>Latest selectable time. Null means no upper bound.</summary>
+    [Parameter] public TimeOnly? Max { get; set; }
+
+    /// <summary>Minute granularity shown in the panel. Common values: 1, 5, 10, 15, 30.</summary>
+    [Parameter] public int MinuteStep { get; set; } = 1;
+
+    private readonly string _id       = $"dryl-time-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    private ElementReference _anchor;
+    private ElementReference _panel;
+    private DotNetObjectReference<DrylTimePicker>? _dotnetRef;
+    private bool _jsReady;
+    private bool _isOpen;
+    private bool _shouldScroll;
+    private int? _selectedHour;
+    private int? _selectedMinute;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        if (ValueExpression is null)
+            ValueExpression = () => Value;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _jsReady = true;
+            _dotnetRef = DotNetObjectReference.Create(this);
+        }
+        if (_shouldScroll && _isOpen)
+        {
+            _shouldScroll = false;
+            await JS.InvokeVoidAsync("dryl.timepicker.scrollToActive", _panel);
+        }
+    }
+
+    private IEnumerable<int> AvailableHours
+    {
+        get
+        {
+            var start = Min?.Hour ?? 0;
+            var end   = Max?.Hour ?? 23;
+            return Enumerable.Range(start, end - start + 1);
+        }
+    }
+
+    private IEnumerable<int> AvailableMinutes
+    {
+        get
+        {
+            var step = Math.Max(1, MinuteStep);
+            var all = Enumerable.Range(0, 60).Where(m => m % step == 0);
+            if (_selectedHour is not null)
+            {
+                if (_selectedHour == Min?.Hour) all = all.Where(m => m >= (Min?.Minute ?? 0));
+                if (_selectedHour == Max?.Hour) all = all.Where(m => m <= (Max?.Minute ?? 59));
+            }
+            return all;
+        }
+    }
+
+    private string DisplayValue => CurrentValue?.ToString("HH:mm") ?? string.Empty;
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var cls = new List<string> { "input-wrapper" };
+            if (Ai != AiState.None) cls.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  cls.Add("ai-thinking");  break;
+                case AiState.Streaming: cls.Add("ai-streaming"); break;
+                case AiState.Generated: cls.Add("ai-generated"); break;
+            }
+            return string.Join(' ', cls);
+        }
+    }
+
+    private string InputCssClass
+    {
+        get
+        {
+            var cls = "input has-trailing-icon";
+            if (HasValidationError || State == InputState.Error) cls += " input-error";
+            else if (State == InputState.Success)                cls += " input-success";
+            return cls;
+        }
+    }
+
+    private async Task Open()
+    {
+        if (_isOpen || Disabled) return;
+        _isOpen = true;
+        InitPending();
+        _shouldScroll = true;
+        await JS.InvokeVoidAsync("dryl.timepicker.attach", _anchor, _dotnetRef);
+    }
+
+    private void InitPending()
+    {
+        _selectedHour   = CurrentValue?.Hour   ?? 12;
+        _selectedMinute = CurrentValue?.Minute  ?? 0;
+        // Snap minute to nearest step
+        var step = Math.Max(1, MinuteStep);
+        _selectedMinute = (int)Math.Round((double)(_selectedMinute ?? 0) / step) * step;
+        _selectedMinute = Math.Min(_selectedMinute ?? 0, 59 - (59 % step));
+    }
+
+    private void SelectHour(int hour) => _selectedHour = hour;
+
+    private void SelectMinute(int minute) => _selectedMinute = minute;
+
+    private void Commit()
+    {
+        if (_selectedHour is not null && _selectedMinute is not null)
+        {
+            int h = _selectedHour.Value;
+            int m = _selectedMinute.Value;
+            var t = new TimeOnly(h, m);
+            if (Min.HasValue && t < Min) t = Min.Value;
+            if (Max.HasValue && t > Max) t = Max.Value;
+            CurrentValue = t;
+        }
+        _ = CloseAsync();
+    }
+
+    [JSInvokable]
+    public void Close() => _ = CloseAsync();
+
+    private async Task CloseAsync()
+    {
+        if (!_isOpen) return;
+        _isOpen = false;
+        StateHasChanged();
+        if (_jsReady)
+            await JS.InvokeVoidAsync("dryl.timepicker.detach", _anchor);
+    }
+
+    private void HandlePanelKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Close();
+        else if (e.Key == "Enter") Commit();
+    }
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out TimeOnly? result,
+        out string validationErrorMessage)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            result = null;
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        if (TimeOnly.TryParseExact(value, "HH:mm", null, System.Globalization.DateTimeStyles.None, out var t))
+        {
+            result = t;
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        result = null;
+        validationErrorMessage = $"'{value}' is not a valid time.";
+        return false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsReady && _isOpen)
+        {
+            try { await JS.InvokeVoidAsync("dryl.timepicker.detach", _anchor); }
+            catch { /* ignore */ }
+        }
+        _dotnetRef?.Dispose();
+    }
+}

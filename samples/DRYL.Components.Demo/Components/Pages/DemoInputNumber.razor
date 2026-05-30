@@ -1,0 +1,121 @@
+@page "/input-number"
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>DRYL — Number Input</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Inputs</span>
+        <h2>DrylInputNumber</h2>
+        <p class="lead">
+            Generic numeric input (<code>DrylInputNumber&lt;TValue&gt;</code>) that binds to
+            <code>int</code>, <code>long</code>, <code>float</code>, <code>double</code>, <code>decimal</code>
+            and their nullable counterparts. Works inside any <code>EditForm</code>.
+        </p>
+    </div>
+
+    <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="col" style="gap: var(--sp-6);">
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Integer</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+                    <DrylInputNumber @bind-Value="_model.Count"
+                                     Label="Item count"
+                                     Min="0"
+                                     Max="999"
+                                     Step="1"
+                                     ShowStepper="true" />
+                    <DrylInputNumber @bind-Value="_model.Port"
+                                     Label="Port"
+                                     Placeholder="8080"
+                                     Min="1"
+                                     Max="65535"
+                                     LeadingIcon="Server" />
+                </div>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Decimal</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+                    <DrylInputNumber @bind-Value="_model.Price"
+                                     Label="Price"
+                                     Min="0m"
+                                     Max="9999m"
+                                     Step="0.01m"
+                                     LeadingIcon="DollarSign"
+                                     HelperText="Up to two decimal places." />
+                    <DrylInputNumber @bind-Value="_model.Ratio"
+                                     Label="Compression ratio"
+                                     Min="0.0"
+                                     Max="1.0"
+                                     Step="0.01"
+                                     HelperText="0 – 1" />
+                </div>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>States</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); max-width: 1080px;">
+                    <DrylInputNumber @bind-Value="_model.Count"
+                                     Label="Success" State="InputState.Success" />
+                    <DrylInputNumber @bind-Value="_model.Count"
+                                     Label="Error" State="InputState.Error" />
+                    <DrylInputNumber @bind-Value="_model.Count"
+                                     Label="Disabled" Disabled="true" />
+                </div>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>Live validation</h3>
+                <div style="max-width: 360px;">
+                    <DrylInputNumber @bind-Value="_model.Quantity"
+                                     Label="Quantity"
+                                     Min="1"
+                                     Max="100"
+                                     ShowStepper="true"
+                                     HelperText="Between 1 and 100." />
+                </div>
+                <div class="row" style="align-items: center;">
+                    <DrylButton IsSubmit="true" LeadingIcon="Check">Submit</DrylButton>
+                    @if (_submitted)
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">OK!</DrylBadge>
+                    }
+                </div>
+            </section>
+
+            <section class="col" style="gap: var(--sp-3);">
+                <h3>AI mode</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+                    <DrylInputNumber @bind-Value="_model.Count" Label="Thinking" Ai="AiState.Thinking" />
+                    <DrylInputNumber @bind-Value="_model.Count" Label="Generated" Ai="AiState.Generated" />
+                </div>
+            </section>
+
+        </div>
+    </EditForm>
+
+</div>
+
+@code {
+    private readonly DemoModel _model = new();
+    private bool _submitted;
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private class DemoModel
+    {
+        public int Count { get; set; } = 5;
+        public int? Port { get; set; }
+        public decimal Price { get; set; } = 29.99m;
+        public double Ratio { get; set; } = 0.75;
+
+        [Required(ErrorMessage = "Quantity is required.")]
+        [Range(1, 100, ErrorMessage = "Must be between 1 and 100.")]
+        public int? Quantity { get; set; }
+    }
+}

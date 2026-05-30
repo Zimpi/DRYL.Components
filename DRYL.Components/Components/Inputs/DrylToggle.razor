@@ -42,6 +42,14 @@
 
     private readonly string _id = $"dryl-toggle-{Guid.NewGuid():N}";
 
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        if (ValueExpression is null)
+            ValueExpression = () => Value;
+        return base.SetParametersAsync(parameters);
+    }
+
     private void HandleChange(ChangeEventArgs e) =>
         CurrentValue = (bool)(e.Value ?? false);
 

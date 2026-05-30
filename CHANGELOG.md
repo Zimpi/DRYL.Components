@@ -14,6 +14,16 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DrylChipInput` — Free-text tag field; chips created on Enter / comma; Backspace removes last chip; `@bind-Tags` (`IReadOnlyList<string>`); `MaxTags`; AI-aware
+- `DrylRating` — Star rating input inheriting `InputBase<int?>`; configurable `MaxStars`; hover preview; `AllowClear`; `ReadOnly`; keyboard navigation (arrows, Home, End); EditForm / DataAnnotations validation; AI-aware
+- `DrylInputOtp` — Fixed-box OTP/2FA code entry inheriting `InputBase<string>`; configurable `Digits` (default 6); auto-focus advance; paste-to-fill via `dryl.otp` JS helper; AI-aware
+- `DrylTimePicker` — Time-only picker inheriting `InputBase<TimeOnly?>`; scrollable hour/minute panel; `Min`/`Max`; `MinuteStep` (1, 5, 10, 15, 30…); Escape/Enter keyboard support; AI-aware
+- `DrylInputMask` — Masked input inheriting `InputBase<string>`; predefined `MaskType` (Phone / Iban / PostalCode / CreditCard) or `CustomPattern` (`#` = digit, `A` = letter); formatting enforced via `dryl.inputmask` JS helper (input + paste); `LeadingIcon` slot; AI-aware
+- `MaskType` enum — `Phone` / `Iban` / `PostalCode` / `CreditCard` / `Custom` for `DrylInputMask`
+- `dryl.js` — Three new namespaces: `dryl.otp` (focusNext, focusPrev, attach/paste), `dryl.timepicker` (click-outside attach/detach, scrollToActive), `dryl.inputmask` (format-on-input attach/detach, paste)
+- `DrylIcon` — Sechs neue Icons: `Circle` (lucide: circle), `Command` (lucide: command), `Hash` (lucide: hash), `List` (lucide: list), `Sliders` (lucide: sliders-horizontal), `Upload` (lucide: upload); werden in der Demo-Navigationsleiste verwendet
+
 ### Changed
 - `DrylSelect` — Replaced native `<select>` element with a fully custom dropdown; API changed from `ChildContent` (`<option>` elements) to `Items` (`IEnumerable<SelectItem>`); panel and option styling now matches `DrylAutocomplete` (glass background, accent scrollbar, selected-item dot); `Placeholder` parameter added; click-outside detection via `dryl.menu.attach`; keyboard navigation (ArrowDown/Up, Enter, Space, Escape, Tab)
 - `DrylNavGroup` — New `Collapsible` parameter (bool, default `false`) enables accordion-style sub-menus with CSS grid animate-in/out; `DefaultExpanded` (bool, default `true`) sets initial state; `Href` parameter makes the header a `NavLink` while a separate chevron button controls collapse; `Icon` parameter adds a leading icon to the collapsible header
@@ -21,10 +31,27 @@ Version bump guide:
 - `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
 
 ### Fixed
+- `DrylTimePicker` — Time panel rendered outside the `.ai-aura` (`isolation:isolate`) wrapper so `backdrop-filter` blurs the page correctly instead of the parent's AI glow effects
+- `DrylInputOtp` — AI aura now wraps each digit box individually (rotating gradient ring per box, box border hidden in AI mode) instead of spanning the entire group
+- `DrylRating` — AI mode wrapper gets `background: var(--glass-1)` so the gradient ring frames a proper glass surface instead of floating around bare stars
+- All `InputBase<T>`-derived components (`DrylInputText`, `DrylInputPassword`, `DrylTextarea`, `DrylInputNumber`, `DrylRating`, `DrylTimePicker`, `DrylInputOtp`, `DrylInputMask`, `DrylSlider`, `DrylToggle`, `DrylCheckbox`, `DrylRadioGroup`, `DrylSelect`, `DrylAutocomplete`) — overrode `SetParametersAsync` to supply a fallback `ValueExpression` when the component is used with one-way `Value="..."` or no value outside an `EditForm`; previously threw `InvalidOperationException: requires a value for the 'ValueExpression' parameter`
+- `DrylIcon` — Added missing `ChevronUp` icon (lucide: chevron-up); was silently rendering an empty SVG when used in `DrylInputNumber`'s stepper
+- `DrylInputNumber` — Stepper buttons are now flush with the input: wrapper uses `align-items: stretch` via `.has-stepper`, input squares off its right edge (`border-radius: var(--r-md) 0 0 var(--r-md); border-right: none`), stepper closes the shape with right-side radius; separator border syncs to input hover/focus state; buttons gain `:active` (glass-3 + accent-a) and `:focus-visible` ring; removed erroneous `has-trailing-icon` padding from the stepper mode
 - `DrylDatePicker` — Empty calendar cells (leading/trailing padding days) no longer show a hover highlight; hover selector now excludes `.date-cell--empty`
 - `DrylDrawer` — Sidebar navigation area is now scrollable when content overflows the viewport height; brand and Project footer remain pinned outside the scroll region
 
 ### Added
+- `DrylInputPassword` — Password input with show/hide eye toggle; inherits `InputBase<string>`; EditForm / DataAnnotations validation; AI-aware
+- `DrylInputNumber<TValue>` — Generic numeric input for `int`, `long`, `float`, `double`, `decimal` and nullable variants; optional `Min` / `Max` / `Step`; optional ± stepper buttons (`ShowStepper`); `inputmode="decimal"` for mobile keyboards; AI-aware; native spinners hidden in favour of custom stepper
+- `DrylRadioGroup<TValue>` — Radio button group inheriting `InputBase<TValue>`; `Orientation` (`Vertical` / `Horizontal`); cascades `RadioGroupContext<TValue>` to children; EditForm validation; AI-aware (ring wraps the group)
+- `DrylRadio<TValue>` — Single radio option inside `DrylRadioGroup`; receives group context via `[CascadingParameter]`; individual `Disabled` override; accessible `<label>` + visually-hidden `<input type="radio">` pattern
+- `DrylMultiSelect` — Multi-selection dropdown; chip display for selected items with `MaxVisibleChips` overflow count; `@bind-SelectedValues` (`IReadOnlyList<string>`); same JS click-outside / keyboard pattern as `DrylSelect`; panel stays open on selection; AI-aware
+- `DrylSlider` — Range slider inheriting `InputBase<double>`; `Min` / `Max` / `Step`; accent gradient fill tracks thumb via CSS custom property `--pct` (no JS); `ShowValue` label; AI-aware
+- `DrylFileUpload` — Drag-and-drop / click-to-browse file picker built on Blazor `InputFile`; `Multiple` / `Accept` / `MaxFileSizeBytes`; drag-active glow via `dryl.fileupload.attach` JS helper; removable file list; `FilesChanged` event callback; AI-aware
+- `RadioGroupOrientation` enum — `Vertical` / `Horizontal` for `DrylRadioGroup`
+- `RadioGroupContext<TValue>` — Internal cascading context record used by `DrylRadioGroup` / `DrylRadio`
+- `dryl.js` — `window.dryl.fileupload`: `attach` / `detach` for drag-enter/leave/over/drop event management with counter-based tracking to avoid false "drag leave" on child elements
+- `dryl.css` — New primitives: `.radio-group` / `.radio-group--vertical` / `.radio-group--horizontal` / `.radio` / `.radio-input` / `.radio-control` / `.radio-label` / `.radio--disabled`; `.chip` / `.chip-text` / `.chip-remove` / `.chip-overflow` / `.multiselect-chips`; `.num-stepper` / `.num-step-btn`; `.file-drop` / `.file-drop--active` / `.file-drop--disabled` / `.file-drop-icon` / `.file-drop-title` / `.file-drop-sub` / `.file-list` / `.file-item` / `.file-item-icon` / `.file-item-name` / `.file-item-size` / `.file-item-remove`; `.slider-wrap` / `.slider-header` / `.slider-value`; native number spinner suppression (`input[type=number]::-webkit-inner-spin-button`)
 - `DrylCommandPalette` — Full-screen command launcher overlay; accepts static `Items` or async `SearchProvider` (250 ms debounce); Ctrl+K / Cmd+K global hotkey; category grouping with `CommandItem.Category` (named categories alpha-sorted, ungrouped last); keyboard navigation (Arrow Up/Down, Enter, Escape); three item types: `Navigate` (router), `Action` (callback, closes palette), `AiIntent` (callback, keeps palette open); AI result panel via `Ai` parameter and `AiContent` slot; `@bind-Open` two-way binding; ARIA combobox + listbox pattern with `aria-activedescendant`, `aria-live` AI panel
 - `CommandItem` / `CommandItemType` — Model classes for command palette entries (`Label`, `Description`, `Icon`, `Category`, `Type`, `Href`, `Action`, `AiAction`)
 - `dryl.js` — `window.dryl.commandpalette`: `attachGlobal` / `detachGlobal` for per-instance Ctrl+K document listener (WeakMap-keyed, no leaks), `focusInput`, `scrollItemIntoView`

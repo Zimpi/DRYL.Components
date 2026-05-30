@@ -1,0 +1,114 @@
+@page "/timepicker"
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>DRYL — Time Picker</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Inputs</span>
+        <h2>DrylTimePicker</h2>
+        <p class="lead">
+            Time-only picker with a scrollable hour and minute panel.
+            Click the input to open, select hour and minute, then press
+            <strong>Done</strong> or <code>Enter</code> to commit.
+            Use <code>MinuteStep</code> to limit granularity.
+        </p>
+    </div>
+
+    <div class="col" style="gap: var(--sp-6);">
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Basics</h3>
+            <div class="col" style="gap: var(--sp-4); max-width: 320px;">
+                <DrylTimePicker @bind-Value="_time" Label="Meeting time" />
+                <DrylTimePicker @bind-Value="_stepped" Label="15-min intervals" MinuteStep="15" />
+                <DrylTimePicker @bind-Value="_time30" Label="30-min intervals" MinuteStep="30" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Min / Max</h3>
+            <div class="col" style="gap: var(--sp-4); max-width: 320px;">
+                <DrylTimePicker @bind-Value="_timeClamped"
+                                Label="Business hours"
+                                Min="@(new TimeOnly(9, 0))"
+                                Max="@(new TimeOnly(17, 0))"
+                                MinuteStep="15"
+                                HelperText="9:00 – 17:00, every 15 minutes." />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>States</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 640px;">
+                <DrylTimePicker Label="Error" State="InputState.Error"
+                                HelperText="Please select a valid time." />
+                <DrylTimePicker Label="Success" State="InputState.Success"
+                                Value="@(new TimeOnly(10, 30))" />
+                <DrylTimePicker Label="Disabled" Disabled="true"
+                                Value="@(new TimeOnly(8, 0))" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>AI mode</h3>
+            <div class="col" style="gap: var(--sp-4); max-width: 320px;">
+                <DrylTimePicker Label="Thinking" Ai="AiState.Thinking" />
+                <DrylTimePicker Label="Generated" Ai="AiState.Generated"
+                                Value="@(new TimeOnly(14, 30))" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Form validation</h3>
+            <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <div class="col" style="gap: var(--sp-4); max-width: 320px;">
+                    <DrylTimePicker @bind-Value="_model.StartTime"
+                                    Label="Start time (required)"
+                                    HelperText="When should the event start?" />
+                    <button type="submit" class="btn btn-primary" style="align-self: flex-start;">Save</button>
+                    @if (_submitted)
+                    {
+                        <p style="color: var(--success); font-size: 13px;">
+                            Saved: @_model.StartTime?.ToString("HH:mm")
+                        </p>
+                    }
+                </div>
+            </EditForm>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Live preview</h3>
+            <div class="col" style="gap: var(--sp-3);">
+                <DrylTimePicker @bind-Value="_time" Label="Time" />
+                <p style="color: var(--fg-muted); font-size: 13px;">
+                    Bound value: <code>@(_time?.ToString("HH:mm") ?? "null")</code>
+                </p>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+@code {
+    private TimeOnly? _time;
+    private TimeOnly? _stepped;
+    private TimeOnly? _time30;
+    private TimeOnly? _timeClamped = new TimeOnly(10, 0);
+    private bool _submitted;
+
+    private TimeModel _model = new();
+
+    private void HandleValidSubmit()
+    {
+        _submitted = true;
+    }
+
+    private class TimeModel
+    {
+        [Required(ErrorMessage = "Start time is required.")]
+        public TimeOnly? StartTime { get; set; }
+    }
+}

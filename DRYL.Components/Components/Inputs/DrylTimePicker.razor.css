@@ -1,0 +1,101 @@
+.time-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: var(--z-drawer);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    min-width: 180px;
+    background: var(--bg-2);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-md);
+    animation: menu-in var(--dur-med) var(--ease-spring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .time-panel { animation: none; }
+}
+
+.time-columns {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-1);
+}
+
+.time-col {
+    display: flex;
+    flex-direction: column;
+    width: 56px;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+    border-radius: var(--r-sm);
+    gap: 2px;
+    padding: 2px;
+}
+
+.time-col::-webkit-scrollbar {
+    width: 4px;
+}
+.time-col::-webkit-scrollbar-track {
+    background: transparent;
+}
+.time-col::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 2px;
+}
+
+.time-col-sep {
+    padding: 8px 0;
+    color: var(--fg-dim);
+    font-size: 16px;
+    font-weight: 600;
+    align-self: flex-start;
+    margin-top: 4px;
+    user-select: none;
+}
+
+.time-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 32px;
+    flex-shrink: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--r-xs);
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out);
+}
+
+.time-cell:hover {
+    background: var(--glass-2);
+    color: var(--fg);
+}
+
+.time-cell.is-selected {
+    background: var(--accent-soft);
+    color: var(--fg);
+    font-weight: 600;
+}
+
+.time-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding-top: var(--sp-2);
+    border-top: 1px solid var(--line);
+}

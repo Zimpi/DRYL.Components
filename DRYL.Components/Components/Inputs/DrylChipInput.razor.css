@@ -1,0 +1,72 @@
+.chip-input-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: var(--sp-2) var(--sp-3);
+    min-height: 42px;
+    width: 100%;
+    background: var(--glass-1);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    cursor: text;
+    box-sizing: border-box;
+    transition: border-color var(--dur-med) var(--ease-out),
+                background var(--dur-med) var(--ease-out),
+                box-shadow var(--dur-med) var(--ease-out);
+}
+
+.chip-input-inner:hover:not(.chip-input-inner--disabled) {
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.chip-input-inner:focus-within:not(.chip-input-inner--disabled) {
+    border-color: var(--accent-line);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124, 92, 255, 0.18);
+}
+
+.chip-input-inner--error {
+    border-color: var(--danger);
+}
+
+.chip-input-inner--error:focus-within {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
+}
+
+.chip-input-inner--success {
+    border-color: var(--success);
+}
+
+.chip-input-inner--success:focus-within {
+    border-color: var(--success);
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+}
+
+.chip-input-inner--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.chip-input-field {
+    flex: 1;
+    min-width: 100px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    color: var(--fg);
+    font: 400 13px/1 var(--font-sans);
+    outline: none;
+    caret-color: var(--accent-a);
+}
+
+.chip-input-field::placeholder {
+    color: var(--fg-dim);
+}
+
+.chip-input-field:disabled {
+    cursor: not-allowed;
+}

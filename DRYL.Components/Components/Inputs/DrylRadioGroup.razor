@@ -1,0 +1,143 @@
+@namespace DRYL.Components
+@typeparam TValue
+@inherits InputBase<TValue>
+@using System.Globalization
+
+@*  ─────────────────────────────────────────────────────────
+    DrylRadioGroup<TValue> — radio button group bound to EditForm.
+
+    Usage:
+      <DrylRadioGroup @bind-Value="model.Plan" Label="Subscription">
+          <DrylRadio Value="@("free")"   Label="Free" />
+          <DrylRadio Value="@("pro")"    Label="Pro" />
+          <DrylRadio Value="@("enterprise")" Label="Enterprise" />
+      </DrylRadioGroup>
+
+    Each <DrylRadio> picks up the group context via CascadingValue.
+    AI mode is supported on the group wrapper; individual radios do
+    not carry their own Ai parameter.
+    ───────────────────────────────────────────────────────── *@
+
+<fieldset class="field" style="border: none; padding: 0; margin: 0; min-width: 0;">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <legend class="field-label">@Label</legend>
+    }
+
+    <div class="@WrapperCssClass">
+        @if (Ai != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (Ai == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="_genTick"></div>
+            }
+        }
+
+        <div class="@GroupCssClass" role="radiogroup" aria-describedby="@(ShowHelper ? _helperId : null)">
+            <CascadingValue Value="@_context" IsFixed="false">
+                @ChildContent
+            </CascadingValue>
+        </div>
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</fieldset>
+
+@code {
+    /// <summary>The <see cref="DrylRadio{TValue}"/> children.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Optional label shown above the group.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Helper text shown below the group. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Layout direction of the radio buttons.</summary>
+    [Parameter] public RadioGroupOrientation Orientation { get; set; } = RadioGroupOrientation.Vertical;
+
+    /// <summary>If true, all radio buttons in the group are disabled.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border and glow around the group.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    private readonly string _groupName = $"dryl-rg-{Guid.NewGuid():N}";
+    private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+    private RadioGroupContext<TValue>? _context;
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        if (ValueExpression is null)
+            ValueExpression = () => Value;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+
+        _context = new RadioGroupContext<TValue>(
+            CurrentValue,
+            EventCallback.Factory.Create<TValue>(this, v => CurrentValue = v),
+            Disabled,
+            _groupName);
+    }
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            if (Ai == AiState.None) return "radio-group-wrapper";
+            var classes = new List<string> { "radio-group-wrapper", "ai-aura" };
+            switch (Ai)
+            {
+                case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                case AiState.Streaming: classes.Add("ai-streaming"); break;
+                case AiState.Generated: classes.Add("ai-generated"); break;
+            }
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string GroupCssClass =>
+        Orientation == RadioGroupOrientation.Horizontal
+            ? "radio-group radio-group--horizontal"
+            : "radio-group radio-group--vertical";
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out TValue result,
+        out string validationErrorMessage)
+    {
+        if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.InvariantCulture, out result!))
+        {
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        result = default!;
+        validationErrorMessage = "Invalid value.";
+        return false;
+    }
+}

@@ -1,0 +1,96 @@
+@page "/chip-input"
+
+<PageTitle>DRYL — Chip Input</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Inputs</span>
+        <h2>DrylChipInput</h2>
+        <p class="lead">
+            Free-text field that turns entries into chips. Press <code>Enter</code> or
+            <code>,</code> to commit a tag; <code>Backspace</code> on an empty input
+            removes the last chip. Use <code>@@bind-Tags</code> for two-way binding.
+        </p>
+    </div>
+
+    <div class="col" style="gap: var(--sp-6);">
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Basics</h3>
+            <div class="col" style="gap: var(--sp-4); max-width: 560px;">
+                <DrylChipInput @bind-Tags="_labels"
+                               Label="Labels"
+                               Placeholder="Add a label…" />
+                <DrylChipInput @bind-Tags="_emails"
+                               Label="Recipients"
+                               Placeholder="name@example.com"
+                               HelperText="Press Enter or comma to add an address." />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>MaxTags</h3>
+            <div class="col" style="gap: var(--sp-4); max-width: 560px;">
+                <DrylChipInput @bind-Tags="_limited"
+                               Label="Keywords (max 3)"
+                               MaxTags="3"
+                               HelperText="Input is locked once 3 tags are added." />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>States</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+                <DrylChipInput Tags="@(new[] { "blazor", "dotnet" })"
+                               Label="Success"
+                               State="InputState.Success"
+                               HelperText="Tags look good." />
+                <DrylChipInput Tags="@(new[] { "invalid tag" })"
+                               Label="Error"
+                               State="InputState.Error"
+                               HelperText="Some tags are invalid." />
+                <DrylChipInput Tags="@(new[] { "read", "only" })"
+                               Label="Disabled"
+                               Disabled="true" />
+                <DrylChipInput @bind-Tags="_labels"
+                               Label="No label (AriaLabel)" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>AI mode</h3>
+            <div class="col" style="gap: var(--sp-4); max-width: 560px;">
+                <DrylChipInput Tags="@(new[] { "blazor", "dryl" })"
+                               Label="Thinking"
+                               Ai="AiState.Thinking" />
+                <DrylChipInput Tags="@(new[] { "blazor", "dryl", "ui" })"
+                               Label="Streaming"
+                               Ai="AiState.Streaming" />
+                <DrylChipInput Tags="@(new[] { "auto-generated", "tags" })"
+                               Label="Generated"
+                               Ai="AiState.Generated" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Live preview</h3>
+            <div class="col" style="gap: var(--sp-3); max-width: 560px;">
+                <DrylChipInput @bind-Tags="_preview"
+                               Label="Tags"
+                               Placeholder="Type and press Enter…" />
+                <p style="color: var(--fg-muted); font-size: 13px;">
+                    Bound value: <code>[@string.Join(", ", _preview)]</code>
+                </p>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<string> _labels  = ["blazor", "ui"];
+    private IReadOnlyList<string> _emails  = [];
+    private IReadOnlyList<string> _limited = [];
+    private IReadOnlyList<string> _preview = [];
+}

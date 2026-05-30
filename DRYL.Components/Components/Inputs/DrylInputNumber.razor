@@ -1,22 +1,24 @@
 @namespace DRYL.Components
-@inherits InputBase<string>
+@typeparam TValue
+@inherits InputBase<TValue>
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
 
 @*  ─────────────────────────────────────────────────────────
-    DrylInputText — single-line text input bound to EditForm.
+    DrylInputNumber<TValue> — numeric input bound to EditForm.
+
+    Supported value types: int, long, float, double, decimal,
+    and their nullable counterparts.
 
     Usage:
-      <EditForm Model="@model">
-          <DataAnnotationsValidator />
-          <DrylInputText @bind-Value="model.Name"
-                         Label="Name"
-                         Placeholder="Jane Doe"
-                         LeadingIcon="User" />
-      </EditForm>
+      <DrylInputNumber @bind-Value="model.Price"
+                       Label="Price"
+                       Min="0m"
+                       Max="9999m"
+                       Step="0.01m"
+                       LeadingIcon="DollarSign" />
 
-    The component inherits InputBase<string> and so requires an enclosing
-    EditForm. Validation errors are picked up automatically and rendered
-    below the field; any explicit <c>State</c> is overridden by an active
-    validation error.
+    Optional ± stepper buttons are shown when ShowStepper="true".
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
@@ -43,8 +45,12 @@
 
         <input id="@_id"
                class="@InputCssClass"
-               type="@Type"
+               type="number"
+               inputmode="decimal"
                value="@CurrentValueAsString"
+               min="@FormatConstraint(Min)"
+               max="@FormatConstraint(Max)"
+               step="@FormatConstraint(Step)"
                @oninput="HandleInput"
                placeholder="@Placeholder"
                disabled="@Disabled"
@@ -53,16 +59,27 @@
                aria-describedby="@(ShowHelper ? _helperId : null)"
                @attributes="AdditionalAttributes" />
 
-        @if (!string.IsNullOrEmpty(TrailingIcon))
+        @if (ShowStepper)
         {
-            <DrylIcon Name="@TrailingIcon" Size="16" Class="input-icon input-icon-trailing" />
+            <div class="num-stepper">
+                <button type="button" class="num-step-btn" tabindex="-1"
+                        aria-label="Increase" disabled="@Disabled"
+                        @onclick="StepUp">
+                    <DrylIcon Name="ChevronUp" Size="12" />
+                </button>
+                <button type="button" class="num-step-btn" tabindex="-1"
+                        aria-label="Decrease" disabled="@Disabled"
+                        @onclick="StepDown">
+                    <DrylIcon Name="ChevronDown" Size="12" />
+                </button>
+            </div>
         }
     </div>
 
     @if (HasValidationError)
     {
         <div class="input-helper input-helper-error" id="@_helperId">
-            @string.Join(" ", EditContext.GetValidationMessages(FieldIdentifier))
+            @string.Join(" ", EditContext!.GetValidationMessages(FieldIdentifier))
         </div>
     }
     else if (!string.IsNullOrEmpty(HelperText))
@@ -84,25 +101,31 @@
     /// <summary>Optional icon name rendered inside the input on the left.</summary>
     [Parameter] public string? LeadingIcon { get; set; }
 
-    /// <summary>Optional icon name rendered inside the input on the right.</summary>
-    [Parameter] public string? TrailingIcon { get; set; }
+    /// <summary>Minimum allowed value (maps to the HTML <c>min</c> attribute).</summary>
+    [Parameter] public TValue? Min { get; set; }
+
+    /// <summary>Maximum allowed value (maps to the HTML <c>max</c> attribute).</summary>
+    [Parameter] public TValue? Max { get; set; }
+
+    /// <summary>Step size for the stepper buttons and the HTML <c>step</c> attribute.</summary>
+    [Parameter] public TValue? Step { get; set; }
 
     /// <summary>Visual state override. An active validation error overrides this.</summary>
     [Parameter] public InputState State { get; set; } = InputState.Default;
 
+    /// <summary>If true, ± buttons are shown to increment / decrement the value by <c>Step</c>.</summary>
+    [Parameter] public bool ShowStepper { get; set; }
+
     /// <summary>If true, the input is greyed out and non-editable.</summary>
     [Parameter] public bool Disabled { get; set; }
 
-    /// <summary>HTML input type. Default "text". Common values: text, email, url, tel, search.</summary>
-    [Parameter] public string Type { get; set; } = "text";
-
-    /// <summary>Accessible label — required if <c>Label</c> is not set and the input has no surrounding context.</summary>
+    /// <summary>Accessible label — required if <c>Label</c> is not set.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation around the input.</summary>
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    private readonly string _id       = $"dryl-input-{Guid.NewGuid():N}";
+    private readonly string _id       = $"dryl-num-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
     private AiState _prevAi = AiState.None;
     private int _genTick;
@@ -122,6 +145,49 @@
         _prevAi = Ai;
     }
 
+    private void HandleInput(ChangeEventArgs e) =>
+        CurrentValueAsString = e.Value?.ToString();
+
+    private void StepUp()
+    {
+        var step = GetStepDouble();
+        if (TryGetDouble(CurrentValue, out var v))
+            CurrentValueAsString = FormattableString.Invariant($"{v + step}");
+    }
+
+    private void StepDown()
+    {
+        var step = GetStepDouble();
+        if (TryGetDouble(CurrentValue, out var v))
+            CurrentValueAsString = FormattableString.Invariant($"{v - step}");
+    }
+
+    private double GetStepDouble()
+    {
+        if (Step is null) return 1;
+        return TryGetDouble(Step, out var s) ? s : 1;
+    }
+
+    private static bool TryGetDouble(TValue? value, out double result)
+    {
+        result = 0;
+        if (value is null) return false;
+        try { result = Convert.ToDouble(value, CultureInfo.InvariantCulture); return true; }
+        catch { return false; }
+    }
+
+    private static string? FormatConstraint(TValue? value)
+    {
+        if (value is null) return null;
+        return value switch
+        {
+            double d  => FormattableString.Invariant($"{d}"),
+            float f   => FormattableString.Invariant($"{f}"),
+            decimal m => FormattableString.Invariant($"{m}"),
+            _         => value.ToString()
+        };
+    }
+
     private bool HasValidationError =>
         EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
 
@@ -132,6 +198,7 @@
         get
         {
             var classes = new List<string> { "input-wrapper" };
+            if (ShowStepper) classes.Add("has-stepper");
             if (Ai != AiState.None) classes.Add("ai-aura");
             switch (Ai)
             {
@@ -148,8 +215,7 @@
         get
         {
             var classes = "input";
-            if (!string.IsNullOrEmpty(LeadingIcon))  classes += " has-leading-icon";
-            if (!string.IsNullOrEmpty(TrailingIcon)) classes += " has-trailing-icon";
+            if (!string.IsNullOrEmpty(LeadingIcon)) classes += " has-leading-icon";
 
             if (HasValidationError || State == InputState.Error)   classes += " input-error";
             else if (State == InputState.Success)                  classes += " input-success";
@@ -158,16 +224,28 @@
         }
     }
 
-    private void HandleInput(ChangeEventArgs e) =>
-        CurrentValueAsString = e.Value?.ToString();
+    protected override string? FormatValueAsString(TValue? value) =>
+        value switch
+        {
+            null    => null,
+            double d  => FormattableString.Invariant($"{d}"),
+            float f   => FormattableString.Invariant($"{f}"),
+            decimal m => FormattableString.Invariant($"{m}"),
+            _         => value.ToString()
+        };
 
     protected override bool TryParseValueFromString(
         string? value,
-        out string result,
+        out TValue result,
         out string validationErrorMessage)
     {
-        result = value ?? string.Empty;
-        validationErrorMessage = string.Empty;
-        return true;
+        if (BindConverter.TryConvertTo<TValue>(value, CultureInfo.InvariantCulture, out result!))
+        {
+            validationErrorMessage = string.Empty;
+            return true;
+        }
+        result = default!;
+        validationErrorMessage = $"The field must be a valid number.";
+        return false;
     }
 }

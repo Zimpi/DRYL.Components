@@ -440,6 +440,14 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-radius: var(--r-md);
 }
 
+/* AI mode on radio groups — give the wrapper a surface + radius so the
+   rotating ring has rounded corners and the group reads as a contained panel. */
+.radio-group-wrapper.ai-aura {
+  border-radius: var(--r-lg);
+  padding: var(--sp-3);
+  background: var(--glass-1);
+}
+
 /* AI mode on buttons — additive: variant's solid/glass background stays intact
    underneath, a rotating gradient ring traces the button via ::before. No
    wash, no breathing glow — at button size, the ring alone is enough signal. */
@@ -3223,4 +3231,310 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .menu-panel { animation: none; }
+}
+
+/* ============== NUMBER INPUT STEPPER (DrylInputNumber) ============== */
+
+/* Stretch so the stepper fills the full input height */
+.input-wrapper.has-stepper { align-items: stretch; }
+
+/* Input side: take remaining space, square off the right edge */
+.input-wrapper.has-stepper .input {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--r-md) 0 0 var(--r-md);
+  border-right: none;
+}
+
+/* Sync the separator to the input's border states */
+.input-wrapper.has-stepper:hover .num-stepper        { border-left-color: rgba(255,255,255,0.18); }
+.input-wrapper.has-stepper:focus-within .num-stepper { border-left-color: var(--accent-line); }
+
+.num-stepper {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line-strong);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  overflow: hidden;
+  transition: border-left-color var(--dur-med) var(--ease-out);
+}
+.num-step-btn {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  width: 28px;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.num-step-btn:hover:not(:disabled)  { color: var(--fg); background: var(--glass-2); }
+.num-step-btn:active:not(:disabled) { background: var(--glass-3); color: var(--accent-a); }
+.num-step-btn:first-child           { border-bottom: 1px solid var(--line); }
+.num-step-btn:disabled              { opacity: 0.4; cursor: not-allowed; }
+.num-step-btn:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid rgba(124, 92, 255, 0.5);
+  outline-offset: -2px;
+}
+
+/* hide native number spinners — we render our own */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* ============== RADIO GROUP (DrylRadioGroup / DrylRadio) ============== */
+
+.radio-group {
+  display: flex;
+  gap: var(--sp-3);
+}
+.radio-group--vertical   { flex-direction: column; }
+.radio-group--horizontal { flex-direction: row; flex-wrap: wrap; align-items: center; }
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  user-select: none;
+}
+.radio-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.radio-control {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--glass-1);
+  border: 1px solid var(--line-strong);
+  display: grid;
+  place-content: center;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background   var(--dur-fast) var(--ease-out),
+              box-shadow   var(--dur-fast) var(--ease-out);
+}
+.radio-control::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: white;
+  transform: scale(0);
+  transition: transform var(--dur-med) var(--ease-spring);
+}
+.radio:hover .radio-control {
+  border-color: var(--accent-line);
+}
+.radio-input:checked + .radio-control {
+  background: var(--accent-grad);
+  border-color: transparent;
+  box-shadow: 0 0 14px rgba(124, 92, 255, 0.45);
+}
+.radio-input:checked + .radio-control::after {
+  transform: scale(1);
+}
+.radio:focus-within .radio-control {
+  outline: 2px solid rgba(124, 92, 255, 0.5);
+  outline-offset: 2px;
+}
+.radio-label {
+  font-size: 14px;
+  color: var(--fg);
+  line-height: 1.4;
+}
+.radio--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============== CHIPS (used by DrylMultiSelect) ============== */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  background: var(--glass-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-remove {
+  flex-shrink: 0;
+  display: grid;
+  place-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--r-xs);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.chip-remove:hover { color: var(--fg); }
+.chip-overflow {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--glass-2);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.multiselect-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ============== FILE UPLOAD (DrylFileUpload) ============== */
+
+.file-drop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-5);
+  background: var(--glass-1);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  transition: border-color var(--dur-med) var(--ease-out),
+              background   var(--dur-med) var(--ease-out),
+              box-shadow   var(--dur-med) var(--ease-out);
+  text-align: center;
+  cursor: pointer;
+}
+.file-drop:hover,
+.file-drop--active {
+  border-color: var(--accent-line);
+  background: var(--glass-2);
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.08), 0 0 28px rgba(124, 92, 255, 0.14);
+}
+.file-drop--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.file-drop-icon {
+  color: var(--fg-dim);
+  transition: color var(--dur-med) var(--ease-out);
+}
+.file-drop:hover .file-drop-icon,
+.file-drop--active .file-drop-icon { color: var(--fg-muted); }
+.file-drop-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.file-drop-sub {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--glass-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  min-width: 0;
+}
+.file-item-icon { flex-shrink: 0; color: var(--fg-dim); }
+.file-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--fg);
+}
+.file-item-size {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+}
+.file-item-remove {
+  flex-shrink: 0;
+  display: grid;
+  place-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--r-xs);
+  margin-left: auto;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.file-item-remove:hover {
+  color: var(--danger);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+/* ============== SLIDER (DrylSlider) ============== */
+
+.slider-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.slider-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.slider-value {
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radio-control, .radio-control::after { transition: none; }
 }

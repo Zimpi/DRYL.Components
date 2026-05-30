@@ -1,0 +1,115 @@
+@page "/multiselect"
+
+<PageTitle>DRYL — Multi Select</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Inputs</span>
+        <h2>DrylMultiSelect</h2>
+        <p class="lead">
+            Multi-selection dropdown with removable chips. Bind via <code>@@bind-SelectedValues</code>.
+            The panel stays open while selecting — close with Escape or Tab.
+        </p>
+    </div>
+
+    <div class="col" style="gap: var(--sp-6);">
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Basics</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+                <DrylMultiSelect @bind-SelectedValues="_tags"
+                                 Label="Tags"
+                                 Items="@_tagItems"
+                                 Placeholder="Select tags…" />
+                <DrylMultiSelect @bind-SelectedValues="_features"
+                                 Label="Features"
+                                 Items="@_featureItems"
+                                 Placeholder="Select features…"
+                                 HelperText="Choose all that apply." />
+            </div>
+            <p class="input-helper">Selected tags: <strong>@string.Join(", ", _tags.Select(v => _tagItems.FirstOrDefault(i => i.Value == v)?.Label ?? v))</strong></p>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>Chip overflow</h3>
+            <p>When more than <code>MaxVisibleChips</code> items are selected, a "+N" badge appears.</p>
+            <div style="max-width: 360px;">
+                <DrylMultiSelect @bind-SelectedValues="_colors"
+                                 Label="Colors"
+                                 Items="@_colorItems"
+                                 MaxVisibleChips="2"
+                                 Placeholder="Pick colors…" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>States</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); max-width: 1080px;">
+                <DrylMultiSelect @bind-SelectedValues="_tags"
+                                 Label="Success"
+                                 Items="@_tagItems"
+                                 State="InputState.Success" />
+                <DrylMultiSelect @bind-SelectedValues="_tags"
+                                 Label="Error"
+                                 Items="@_tagItems"
+                                 State="InputState.Error" />
+                <DrylMultiSelect @bind-SelectedValues="_tags"
+                                 Label="Disabled"
+                                 Items="@_tagItems"
+                                 Disabled="true" />
+            </div>
+        </section>
+
+        <section class="col" style="gap: var(--sp-3);">
+            <h3>AI mode</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+                <DrylMultiSelect @bind-SelectedValues="_tags"
+                                 Label="Thinking"
+                                 Items="@_tagItems"
+                                 Ai="AiState.Thinking" />
+                <DrylMultiSelect @bind-SelectedValues="_features"
+                                 Label="Generated"
+                                 Items="@_featureItems"
+                                 Ai="AiState.Generated" />
+            </div>
+        </section>
+
+    </div>
+
+</div>
+
+@code {
+    private IReadOnlyList<string> _tags     = ["blazor", "dotnet"];
+    private IReadOnlyList<string> _features = [];
+    private IReadOnlyList<string> _colors   = ["red", "green", "blue", "purple"];
+
+    private static readonly SelectItem[] _tagItems =
+    [
+        new("blazor",  "Blazor"),
+        new("dotnet",  ".NET"),
+        new("css",     "CSS"),
+        new("wasm",    "WebAssembly"),
+        new("ai",      "AI"),
+        new("oss",     "Open Source"),
+    ];
+
+    private static readonly SelectItem[] _featureItems =
+    [
+        new("dark-mode",    "Dark mode"),
+        new("ai-mode",      "AI mode"),
+        new("animations",   "Animations"),
+        new("a11y",         "Accessibility"),
+        new("typescript",   "TypeScript"),
+    ];
+
+    private static readonly SelectItem[] _colorItems =
+    [
+        new("red",    "Red"),
+        new("green",  "Green"),
+        new("blue",   "Blue"),
+        new("purple", "Purple"),
+        new("cyan",   "Cyan"),
+        new("yellow", "Yellow"),
+    ];
+}

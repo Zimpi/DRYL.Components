@@ -1,0 +1,85 @@
+.slider-wrap {
+    position: relative;
+    padding: var(--sp-1) 0;
+}
+
+/* AI aura needs an explicit radius on the wrapper */
+.slider-wrap.ai-aura {
+    border-radius: var(--r-md);
+    padding: var(--sp-2);
+}
+
+.dryl-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: var(--r-pill);
+    outline: none;
+    cursor: pointer;
+    /* gradient fill from left up to var(--pct), then track color */
+    background: linear-gradient(
+        to right,
+        var(--accent-a) 0%,
+        var(--accent-b) var(--pct, 0%),
+        var(--glass-3) var(--pct, 0%),
+        var(--glass-3) 100%
+    );
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.dryl-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-pill);
+    background: white;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 2px transparent;
+    transition: box-shadow var(--dur-fast) var(--ease-out),
+                transform   var(--dur-fast) var(--ease-spring);
+    cursor: grab;
+}
+
+.dryl-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--r-pill);
+    background: white;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    cursor: grab;
+}
+
+.dryl-slider:focus::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px rgba(0,0,0,0.5);
+    transform: scale(1.1);
+}
+
+.dryl-slider:focus::-moz-range-thumb {
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.dryl-slider:active::-webkit-slider-thumb { cursor: grabbing; }
+.dryl-slider:active::-moz-range-thumb     { cursor: grabbing; }
+
+.dryl-slider:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.dryl-slider:disabled::-webkit-slider-thumb { cursor: not-allowed; }
+
+.dryl-slider.input-error {
+    background: linear-gradient(
+        to right,
+        var(--danger) 0%,
+        var(--danger) var(--pct, 0%),
+        var(--glass-3) var(--pct, 0%),
+        var(--glass-3) 100%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dryl-slider::-webkit-slider-thumb { transition: none; }
+}

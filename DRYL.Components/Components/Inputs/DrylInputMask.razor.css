@@ -1,0 +1,7 @@
+/* Input mask uses the standard .input class from dryl.css.
+   Only monospace font for structured input is added here. */
+.input {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+}

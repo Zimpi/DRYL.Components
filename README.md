@@ -349,12 +349,24 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
 | `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
 | `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
+| `DrylInputPassword` | Inputs     | ✅      | ✅ Done    | Password input with show/hide eye toggle; inherits `InputBase<string>` |
+| `DrylInputNumber<TValue>` | Inputs | ✅   | ✅ Done    | Generic numeric input; optional ± stepper; int / long / decimal / double / float |
 | `DrylCheckbox`    | Inputs       | —       | ✅ Done    | Accessible checkbox with label                                    |
 | `DrylSelect`      | Inputs       | ✅      | ✅ Done    | Custom dropdown; `Items: SelectItem[]`; glass panel, AI-aware     |
+| `DrylMultiSelect` | Inputs       | ✅      | ✅ Done    | Multi-selection dropdown; removable chips; `@bind-SelectedValues` |
+| `DrylRadioGroup<TValue>` | Inputs | ✅     | ✅ Done    | Radio group inheriting `InputBase<TValue>`; Vertical / Horizontal |
+| `DrylRadio<TValue>` | Inputs     | —       | ✅ Done    | Single radio option inside `DrylRadioGroup`; cascading context    |
 | `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
+| `DrylSlider`      | Inputs       | ✅      | ✅ Done    | Range slider bound to `double`; accent gradient fill, AI-aware    |
+| `DrylFileUpload`  | Inputs       | ✅      | ✅ Done    | Drag-and-drop / click-to-browse; multiple files; `FilesChanged` callback |
 | `DrylAutocomplete<TItem>` | Inputs | ✅   | ✅ Done    | Generic combobox; client-side `SearchFunc`, async `ItemsProvider`, custom `ItemTemplate`, ARIA combobox |
 | `DrylDatePicker`  | Inputs       | ✅      | ✅ Done    | Calendar panel; ARIA grid keyboard nav, Min/Max, date range mode  |
+| `DrylTimePicker`  | Inputs       | ✅      | ✅ Done    | Time-only picker; scrollable hour/minute panel; Min/Max; MinuteStep |
+| `DrylChipInput`   | Inputs       | ✅      | ✅ Done    | Free-text tag field; Enter/comma to commit; @bind-Tags; MaxTags   |
+| `DrylInputOtp`    | Inputs       | ✅      | ✅ Done    | Fixed-box OTP entry; auto-advance; paste-to-fill; configurable Digits |
+| `DrylInputMask`   | Inputs       | ✅      | ✅ Done    | Masked input; Phone/IBAN/PostalCode/CreditCard/Custom patterns    |
+| `DrylRating`      | Inputs       | ✅      | ✅ Done    | Star rating; hover preview; AllowClear; ReadOnly; keyboard nav    |
 | `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, search, multi-sort, filters, pagination, grouping, row detail, row + bulk actions, virtualization, column visibility, `PersistStateKey`, optional `DataProvider` |
 | `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, `Hidden`, custom `CellTemplate` / `HeaderTemplate`, alignment |
 | `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |

@@ -1,0 +1,146 @@
+/* ── Trigger ─────────────────────────────────────────────── */
+
+.multiselect-trigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 38px;
+    height: auto;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--r-md);
+    background: var(--glass-1);
+    border: 1px solid var(--line-strong);
+    color: var(--fg);
+    font: 400 13px/1 var(--font-sans);
+    cursor: pointer;
+    transition: border-color var(--dur-med) var(--ease-out),
+                background   var(--dur-med) var(--ease-out),
+                box-shadow   var(--dur-med) var(--ease-out);
+    outline: none;
+}
+
+.multiselect-trigger:hover { border-color: rgba(255,255,255,0.18); }
+
+.multiselect-trigger:focus,
+.multiselect-trigger.select--open {
+    border-color: var(--accent-line);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124, 92, 255, 0.18);
+}
+
+.multiselect-trigger:focus-visible { outline: none; }
+
+.multiselect-trigger.select--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.multiselect-placeholder {
+    color: var(--fg-dim);
+}
+
+/* ── States ──────────────────────────────────────────────── */
+
+/* .input-error / .input-success in dryl.css only target .input/.textarea/.select —
+   replicate the same visual tokens for the multiselect trigger. */
+
+.multiselect-trigger.input-error { border-color: rgba(248, 113, 113, 0.5); }
+.multiselect-trigger.input-error:focus,
+.multiselect-trigger.input-error.select--open {
+    border-color: var(--danger);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12), 0 0 24px rgba(248, 113, 113, 0.18);
+}
+
+.multiselect-trigger.input-success { border-color: rgba(52, 211, 153, 0.5); }
+.multiselect-trigger.input-success:focus,
+.multiselect-trigger.input-success.select--open {
+    border-color: var(--success);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12), 0 0 24px rgba(52, 211, 153, 0.18);
+}
+
+/* ── Option rows ─────────────────────────────────────────── */
+
+/* .select-option base styles live in DrylSelect.razor.css under a different
+   Blazor scope attribute — they never reach DrylMultiSelect elements.
+   Replicate the essentials here so options are actually styled. */
+
+.select-option {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: var(--sp-2) var(--sp-4);
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--dur-fast) var(--ease-out),
+                color      var(--dur-fast) var(--ease-out);
+}
+
+.select-option:hover,
+.select-option.is-highlighted { background: var(--glass-2); color: var(--fg); }
+
+/* Selected rows get a permanent violet tint so checked state reads
+   at a glance without only relying on the checkbox. */
+.select-option.is-selected {
+    color: var(--fg);
+    background: rgba(124, 92, 255, 0.08);
+}
+
+.select-option.is-selected.is-highlighted {
+    background: rgba(124, 92, 255, 0.15);
+}
+
+/* ── Checkbox column ─────────────────────────────────────── */
+
+/* Suppress the DrylSelect accent dot — multiselect uses checkboxes instead. */
+.multiselect-option.is-selected::after { display: none; }
+
+.multiselect-option { gap: var(--sp-3); }
+
+.multiselect-check {
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+/* ── Dropdown panel ──────────────────────────────────────── */
+
+.select-panel {
+    position: absolute;
+    top: calc(100% + var(--sp-1));
+    left: 0;
+    width: 100%;
+    z-index: var(--z-drawer);
+    background: var(--bg-2);
+    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    border: 1px solid var(--line-strong);
+    border-top-color: rgba(124, 92, 255, 0.35);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg), 0 0 24px rgba(124, 92, 255, 0.08);
+    padding: var(--sp-1) 0;
+    max-height: 240px;
+    overflow-y: auto;
+    outline: none;
+    animation: menu-in var(--dur-med) var(--ease-out) both;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.select-panel::-webkit-scrollbar       { width: 4px; }
+.select-panel::-webkit-scrollbar-track { background: transparent; }
+.select-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+
+/* ── Empty state ─────────────────────────────────────────── */
+
+.select-empty {
+    padding: var(--sp-3) var(--sp-4);
+    color: var(--fg-dim);
+    font-size: 13px;
+    text-align: center;
+}

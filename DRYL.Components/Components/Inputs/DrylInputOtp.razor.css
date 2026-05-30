@@ -1,0 +1,84 @@
+.otp-wrapper {
+    position: relative;
+    display: inline-flex;
+    border-radius: var(--r-md);
+}
+
+/* Per-box AI aura wrapper — needs position:relative and matching radius */
+.otp-box-wrap {
+    position: relative;
+    border-radius: var(--r-sm);
+}
+
+/* In AI mode hide the box's own border so only the gradient ring is visible */
+.otp-box-wrap.ai-aura .otp-box {
+    border-color: transparent;
+}
+
+.otp-boxes {
+    display: flex;
+    gap: var(--sp-2);
+}
+
+.otp-box {
+    width: 44px;
+    height: 52px;
+    padding: 0;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: var(--fg);
+    background: var(--glass-1);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    outline: none;
+    caret-color: var(--accent-a);
+    transition: border-color var(--dur-med) var(--ease-out),
+                background var(--dur-med) var(--ease-out),
+                box-shadow var(--dur-med) var(--ease-out);
+    /* suppress browser appearance */
+    -moz-appearance: textfield;
+}
+
+.otp-box::-webkit-outer-spin-button,
+.otp-box::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.otp-box:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.otp-box:focus:not(:disabled) {
+    border-color: var(--accent-line);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124, 92, 255, 0.18);
+}
+
+.otp-box:focus-visible { outline: none; }
+
+.otp-box--error {
+    border-color: var(--danger);
+}
+
+.otp-box--error:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
+}
+
+.otp-box--success {
+    border-color: var(--success);
+}
+
+.otp-box--success:focus {
+    border-color: var(--success);
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+}
+
+.otp-box:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
