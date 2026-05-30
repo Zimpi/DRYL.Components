@@ -1,0 +1,520 @@
+@namespace DRYL.Components
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCommandPalette — full-screen command launcher overlay.
+
+    Opens via @bind-Open or the global Ctrl+K (Cmd+K) hotkey.
+    Accepts a static Items array or an async SearchProvider.
+    Supports three item types: Navigate, Action, AiIntent.
+
+    Usage (static list):
+      <DrylCommandPalette @bind-Open="_open" Items="@_cmds" />
+
+    Usage (async search):
+      <DrylCommandPalette @bind-Open="_open"
+                          SearchProvider="@SearchAsync"
+                          Placeholder="Search…" />
+
+    Usage (AI intent with result panel):
+      <DrylCommandPalette @bind-Open="_open"
+                          Items="@_cmds"
+                          Ai="@_aiState">
+          <AiContent>AI response text here…</AiContent>
+      </DrylCommandPalette>
+
+    Keyboard: Arrow Up/Down navigate, Enter executes,
+    Escape closes (via dryl.modal). Ctrl+K opens from anywhere.
+    ───────────────────────────────────────────────────────── *@
+
+@if (Open)
+{
+    <div class="dialog-backdrop"
+         @ref="_backdrop"
+         @onclick="HandleBackdropClick">
+
+        <div class="@PaletteCssClass"
+             role="dialog"
+             aria-modal="true"
+             aria-label="@(AriaLabel ?? "Command palette")"
+             @onclick:stopPropagation="true"
+             @ref="_palette">
+
+            @if (Ai != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (Ai == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="_genTick"></div>
+                }
+            }
+
+            <div class="cmd-search-row">
+                <DrylIcon Name="Search" Size="16" Class="cmd-search-icon" />
+                <input class="cmd-search-input"
+                       type="text"
+                       value="@_query"
+                       placeholder="@Placeholder"
+                       autocomplete="off"
+                       autocorrect="off"
+                       spellcheck="false"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-expanded="true"
+                       aria-controls="@_listId"
+                       aria-activedescendant="@ActiveDescendant"
+                       @ref="_searchInput"
+                       @oninput="HandleInput"
+                       @onkeydown="HandleKeyDown" />
+                @if (_isLoading)
+                {
+                    <DrylSpinner Size="DrylSpinner.SpinnerSize.Small"
+                                 Class="cmd-search-spinner" />
+                }
+                <kbd class="cmd-search-kbd" aria-hidden="true">Esc</kbd>
+            </div>
+
+            <div class="cmd-divider" role="separator"></div>
+
+            <div class="cmd-results"
+                 id="@_listId"
+                 role="listbox"
+                 @ref="_list">
+
+                @if (!_isLoading && !_grouped.Any())
+                {
+                    <div class="cmd-empty" aria-live="polite">No results</div>
+                }
+                else
+                {
+                    var flatIndex = 0;
+                    foreach (var group in _grouped)
+                    {
+                        if (!string.IsNullOrEmpty(group.Key))
+                        {
+                            <div class="cmd-category" role="presentation" aria-hidden="true">
+                                @group.Key
+                            </div>
+                        }
+
+                        foreach (var item in group.Value)
+                        {
+                            var idx = flatIndex++;
+                            var isFocused = idx == _focusedIndex;
+
+                            <div id="@ItemId(idx)"
+                                 role="option"
+                                 class="@ItemCss(item, isFocused)"
+                                 aria-selected="@(isFocused ? "true" : "false")"
+                                 @onclick="() => ExecuteItemAsync(item)"
+                                 @onmouseenter="() => _focusedIndex = idx"
+                                 @key="idx">
+
+                                @if (!string.IsNullOrEmpty(item.Icon))
+                                {
+                                    <span class="cmd-item-icon">
+                                        <DrylIcon Name="@item.Icon" Size="14" />
+                                    </span>
+                                }
+
+                                <span class="cmd-item-body">
+                                    <span class="cmd-item-label">@item.Label</span>
+                                    @if (!string.IsNullOrEmpty(item.Description))
+                                    {
+                                        <span class="cmd-item-desc">@item.Description</span>
+                                    }
+                                </span>
+
+                                @if (item.Type == CommandItemType.Navigate)
+                                {
+                                    <DrylIcon Name="ArrowUpRight" Size="12" Class="cmd-item-trailing" />
+                                }
+                                else if (item.Type == CommandItemType.AiIntent)
+                                {
+                                    <DrylIcon Name="Sparkles" Size="12" Class="cmd-item-trailing cmd-item-trailing--ai" />
+                                }
+                            </div>
+                        }
+                    }
+                }
+            </div>
+
+            @if (Ai != AiState.None)
+            {
+                <div class="cmd-divider" role="separator"></div>
+                <div class="@AiPanelCssClass"
+                     aria-live="polite"
+                     aria-label="AI result">
+                    <DrylAiIndicator State="@Ai" />
+                    @AiContent
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    // ── Parameters ────────────────────────────────────────────
+
+    /// <summary>Controls whether the palette overlay is visible. Supports @bind-Open.</summary>
+    [Parameter] public bool Open { get; set; }
+
+    /// <summary>Fires when the Open state changes — enables two-way @bind-Open binding.</summary>
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>Placeholder text for the search input.</summary>
+    [Parameter] public string Placeholder { get; set; } = "Search commands…";
+
+    /// <summary>Static item list used when <see cref="SearchProvider"/> is not set.</summary>
+    [Parameter] public CommandItem[]? Items { get; set; }
+
+    /// <summary>
+    /// Async search provider invoked with the current query string.
+    /// Takes precedence over <see cref="Items"/> when set.
+    /// A 250 ms debounce prevents excessive calls during fast typing.
+    /// </summary>
+    [Parameter] public Func<string, Task<CommandItem[]>>? SearchProvider { get; set; }
+
+    /// <summary>
+    /// AI result panel state. When non-None the palette shell shows the shared AI aura
+    /// and an AI result panel appears below the results list.
+    /// Defaults to <see cref="AiState.None"/> — AI styling is opt-in.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Content rendered inside the AI result panel when <see cref="Ai"/> is non-None.</summary>
+    [Parameter] public RenderFragment? AiContent { get; set; }
+
+    /// <summary>ARIA label for the palette dialog element. Defaults to "Command palette".</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Additional CSS classes applied to the palette panel element.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    // ── State ──────────────────────────────────────────────────
+
+    private readonly string _listId     = $"dryl-cmd-list-{Guid.NewGuid():N}";
+    private readonly string _itemPrefix = $"dryl-cmd-item-{Guid.NewGuid():N}";
+
+    private string  _query         = string.Empty;
+    private bool    _isLoading;
+    private int     _focusedIndex  = 0;
+    private bool    _jsReady;
+    private bool    _prevOpen;
+    private bool    _shouldAttachModal;
+    private bool    _modalAttached;
+
+    private AiState _prevAi  = AiState.None;
+    private int     _genTick;
+
+    private CancellationTokenSource?                    _searchCts;
+    private DotNetObjectReference<DrylCommandPalette>?  _dotnetRef;
+    private Dictionary<string, List<CommandItem>>       _grouped = new();
+
+    private ElementReference _backdrop;
+    private ElementReference _palette;
+    private ElementReference _searchInput;
+    private ElementReference _list;
+
+    // ── Lifecycle ──────────────────────────────────────────────
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+            _genTick++;
+        _prevAi = Ai;
+
+        // Rising edge: palette just opened
+        if (Open && !_prevOpen)
+        {
+            _query             = string.Empty;
+            _focusedIndex      = 0;
+            _shouldAttachModal = true;
+            RunSearch(string.Empty);
+        }
+        _prevOpen = Open;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.commandpalette.attachGlobal", _dotnetRef);
+            _jsReady = true;
+        }
+
+        if (_shouldAttachModal && _jsReady && Open)
+        {
+            _shouldAttachModal = false;
+            // Portal the backdrop to <body> so it is always in the root stacking
+            // context, even when the component is rendered deep inside a page.
+            await JS.InvokeVoidAsync("dryl.commandpalette.portal", _backdrop);
+            await JS.InvokeVoidAsync("dryl.modal.attach",
+                _backdrop, _dotnetRef,
+                new { closeOnEscape = true, trapFocus = true });
+            _modalAttached = true;
+            await JS.InvokeVoidAsync("dryl.commandpalette.focusInput", _searchInput);
+        }
+    }
+
+    // ── JS-invokable callbacks ─────────────────────────────────
+
+    /// <summary>Called by dryl.modal when Escape is pressed inside the backdrop.</summary>
+    [JSInvokable]
+    public Task OnEscape() => CloseAsync();
+
+    /// <summary>Called by dryl.commandpalette when Ctrl+K is pressed outside an input.</summary>
+    [JSInvokable]
+    public async Task OnGlobalOpen()
+    {
+        if (!Open)
+        {
+            Open = true;
+            await OpenChanged.InvokeAsync(true);
+            StateHasChanged();
+        }
+    }
+
+    // ── Open / Close ───────────────────────────────────────────
+
+    private async Task CloseAsync()
+    {
+        if (_modalAttached)
+        {
+            await JS.InvokeVoidAsync("dryl.modal.detach", _backdrop);
+            _modalAttached = false;
+        }
+        Open = false;
+        await OpenChanged.InvokeAsync(false);
+        StateHasChanged();
+    }
+
+    private void HandleBackdropClick() => _ = CloseAsync();
+
+    // ── Search ─────────────────────────────────────────────────
+
+    private void HandleInput(ChangeEventArgs e)
+    {
+        _query        = e.Value?.ToString() ?? string.Empty;
+        _focusedIndex = 0;
+        RunSearch(_query);
+    }
+
+    private void RunSearch(string query)
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var cts = _searchCts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                CommandItem[] results;
+
+                if (SearchProvider != null)
+                {
+                    _isLoading = true;
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(250, cts.Token);
+                    results    = await SearchProvider(query);
+                    _isLoading = false;
+                }
+                else
+                {
+                    results = ClientFilter(Items ?? [], query);
+                }
+
+                if (!cts.IsCancellationRequested)
+                {
+                    _grouped      = BuildGrouped(results);
+                    _focusedIndex = 0;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException) { /* fast typing — expected */ }
+            catch
+            {
+                _isLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }, cts.Token);
+    }
+
+    private static CommandItem[] ClientFilter(CommandItem[] src, string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return src;
+        return src.Where(i =>
+            i.Label.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            (i.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (i.Category?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).ToArray();
+    }
+
+    private static Dictionary<string, List<CommandItem>> BuildGrouped(IEnumerable<CommandItem> items)
+    {
+        var dict  = new Dictionary<string, List<CommandItem>>(StringComparer.OrdinalIgnoreCase);
+        var order = new List<string>();
+
+        foreach (var item in items)
+        {
+            var key = item.Category ?? string.Empty;
+            if (!dict.ContainsKey(key))
+            {
+                dict[key] = [];
+                order.Add(key);
+            }
+            dict[key].Add(item);
+        }
+
+        var result = new Dictionary<string, List<CommandItem>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in order.Where(k => !string.IsNullOrEmpty(k)).OrderBy(k => k))
+            result[key] = dict[key];
+        if (dict.TryGetValue(string.Empty, out var ungrouped))
+            result[string.Empty] = ungrouped;
+
+        return result;
+    }
+
+    // ── Keyboard navigation ────────────────────────────────────
+
+    private int FlatItemCount => _grouped.Values.Sum(g => g.Count);
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        var count = FlatItemCount;
+        if (count == 0 && e.Key is not "Escape") return;
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _focusedIndex = (_focusedIndex + 1) % Math.Max(1, count);
+                await JS.InvokeVoidAsync("dryl.commandpalette.scrollItemIntoView",
+                    _list, ItemId(_focusedIndex));
+                break;
+
+            case "ArrowUp":
+                _focusedIndex = (_focusedIndex - 1 + Math.Max(1, count)) % Math.Max(1, count);
+                await JS.InvokeVoidAsync("dryl.commandpalette.scrollItemIntoView",
+                    _list, ItemId(_focusedIndex));
+                break;
+
+            case "Enter":
+                var item = FlatItemAt(_focusedIndex);
+                if (item is not null) await ExecuteItemAsync(item);
+                break;
+
+            case "Escape":
+                await CloseAsync();
+                break;
+        }
+    }
+
+    // ── Item execution ─────────────────────────────────────────
+
+    private async Task ExecuteItemAsync(CommandItem item)
+    {
+        switch (item.Type)
+        {
+            case CommandItemType.Navigate:
+                if (!string.IsNullOrEmpty(item.Href))
+                {
+                    await CloseAsync();
+                    Nav.NavigateTo(item.Href);
+                }
+                break;
+
+            case CommandItemType.Action:
+                await CloseAsync();
+                await item.Action.InvokeAsync();
+                break;
+
+            case CommandItemType.AiIntent:
+                // Keep the palette open so the AI result panel can display the response.
+                await item.AiAction.InvokeAsync();
+                break;
+        }
+    }
+
+    // ── CSS helpers ────────────────────────────────────────────
+
+    private string PaletteCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "cmd-palette" };
+            if (Ai != AiState.None) parts.Add("ai-aura");
+            switch (Ai)
+            {
+                case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                case AiState.Streaming: parts.Add("ai-streaming"); break;
+                case AiState.Generated: parts.Add("ai-generated"); break;
+            }
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class);
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string AiPanelCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "cmd-ai-panel" };
+            switch (Ai)
+            {
+                case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                case AiState.Streaming: parts.Add("ai-streaming"); break;
+                case AiState.Generated: parts.Add("ai-generated"); break;
+            }
+            return string.Join(' ', parts);
+        }
+    }
+
+    private static string ItemCss(CommandItem item, bool isFocused)
+    {
+        var parts = new List<string> { "cmd-item" };
+        if (isFocused) parts.Add("is-focused");
+        if (item.Type == CommandItemType.AiIntent) parts.Add("cmd-item--ai");
+        return string.Join(' ', parts);
+    }
+
+    private string ItemId(int index)  => $"{_itemPrefix}-{index}";
+
+    private string? ActiveDescendant =>
+        FlatItemCount > 0 ? ItemId(_focusedIndex) : null;
+
+    private CommandItem? FlatItemAt(int index)
+    {
+        var i = 0;
+        foreach (var group in _grouped.Values)
+            foreach (var item in group)
+                if (i++ == index) return item;
+        return null;
+    }
+
+    // ── Disposal ───────────────────────────────────────────────
+
+    public async ValueTask DisposeAsync()
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+
+        if (_jsReady)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.commandpalette.detachGlobal", _dotnetRef);
+                if (_modalAttached)
+                    await JS.InvokeVoidAsync("dryl.modal.detach", _backdrop);
+            }
+            catch (JSDisconnectedException) { /* circuit torn down — safe to ignore */ }
+        }
+
+        _dotnetRef?.Dispose();
+    }
+}

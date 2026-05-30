@@ -305,3 +305,68 @@ window.dryl.datepicker = {
     }
 };
 
+/* --------------------------------------------------------------
+ * CommandPalette — global Ctrl+K hotkey + result list scrolling.
+ *
+ * attachGlobal(dotnetRef) — registers a document-level keydown
+ *   listener for Ctrl+K (or Cmd+K on macOS). When triggered outside
+ *   an input or textarea, calls dotnetRef.invokeMethodAsync('OnGlobalOpen').
+ *   Uses a WeakMap so multiple DrylCommandPalette instances can
+ *   coexist without duplicate or leaked listeners.
+ *
+ * detachGlobal(dotnetRef) — removes the listener for this ref.
+ *
+ * focusInput(inputEl) — focuses the search <input> via rAF so the
+ *   browser has finished painting the overlay before focus is set.
+ *
+ * scrollItemIntoView(listEl, itemId) — scrolls the result row with
+ *   the given id to the nearest visible edge.
+ * -------------------------------------------------------------- */
+window.dryl.commandpalette = (() => {
+    const _listeners = new WeakMap();
+
+    function attachGlobal(dotnetRef) {
+        if (!dotnetRef || _listeners.has(dotnetRef)) return;
+        const fn = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                const tag = document.activeElement?.tagName?.toLowerCase();
+                if (tag === 'input' || tag === 'textarea') return;
+                e.preventDefault();
+                dotnetRef.invokeMethodAsync('OnGlobalOpen');
+            }
+        };
+        document.addEventListener('keydown', fn);
+        _listeners.set(dotnetRef, fn);
+    }
+
+    function detachGlobal(dotnetRef) {
+        if (!dotnetRef) return;
+        const fn = _listeners.get(dotnetRef);
+        if (fn) {
+            document.removeEventListener('keydown', fn);
+            _listeners.delete(dotnetRef);
+        }
+    }
+
+    function focusInput(inputEl) {
+        if (!inputEl) return;
+        requestAnimationFrame(() => { try { inputEl.focus(); } catch (_) {} });
+    }
+
+    function scrollItemIntoView(listEl, itemId) {
+        if (!listEl || !itemId) return;
+        listEl.querySelector(`#${CSS.escape(itemId)}`)?.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Move the backdrop element to <body> so it is always in the root stacking
+    // context, regardless of where <DrylCommandPalette> is placed in the DOM tree.
+    // Blazor tracks elements by reference (not parent position), so it can still
+    // diff and remove the element correctly after re-parenting.
+    function portal(el) {
+        if (!el || el.parentNode === document.body) return;
+        document.body.appendChild(el);
+    }
+
+    return { attachGlobal, detachGlobal, focusInput, scrollItemIntoView, portal };
+})();
+

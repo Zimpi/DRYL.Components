@@ -24,6 +24,9 @@ Version bump guide:
 - `DrylDrawer` — Sidebar navigation area is now scrollable when content overflows the viewport height; brand and Project footer remain pinned outside the scroll region
 
 ### Added
+- `DrylCommandPalette` — Full-screen command launcher overlay; accepts static `Items` or async `SearchProvider` (250 ms debounce); Ctrl+K / Cmd+K global hotkey; category grouping with `CommandItem.Category` (named categories alpha-sorted, ungrouped last); keyboard navigation (Arrow Up/Down, Enter, Escape); three item types: `Navigate` (router), `Action` (callback, closes palette), `AiIntent` (callback, keeps palette open); AI result panel via `Ai` parameter and `AiContent` slot; `@bind-Open` two-way binding; ARIA combobox + listbox pattern with `aria-activedescendant`, `aria-live` AI panel
+- `CommandItem` / `CommandItemType` — Model classes for command palette entries (`Label`, `Description`, `Icon`, `Category`, `Type`, `Href`, `Action`, `AiAction`)
+- `dryl.js` — `window.dryl.commandpalette`: `attachGlobal` / `detachGlobal` for per-instance Ctrl+K document listener (WeakMap-keyed, no leaks), `focusInput`, `scrollItemIntoView`
 - `DrylAutocomplete<TItem>` — Generic combobox; `ItemsProvider` for server-side async search, `SearchFunc` for client-side filtering, `ItemTemplate` for custom option rendering, `DisplayText` converter; ARIA combobox pattern; AI-aware (`Ai` parameter signals model pre-filling the value)
 - `DrylDatePicker` — Calendar panel bound to `DateOnly?`; keyboard-navigable ARIA grid (Arrow keys, PageUp/Down, Home/End, Enter/Escape); `Min` / `Max` constraints; optional date range mode via `Range` + `@bind-RangeStart` / `@bind-RangeEnd`; AI-aware
 - `DrylStepper` — Multi-step wizard container (mirrors `DrylTabs` cascading pattern); variants: Horizontal / Vertical; `@bind-ActiveStep` two-way binding; compound with `DrylStep`

@@ -343,6 +343,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylButton`      | Actions      | ✅      | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots   |
 | `DrylMenu`        | Actions      | —       | ✅ Done    | Dropdown menu; 4 placements, icons, shortcuts, Danger items, separators |
 | `DrylMenuItem`    | Actions      | —       | ✅ Done    | Menu item used inside `DrylMenu`; Default / Danger variant, separator, header |
+| `DrylCommandPalette` | Actions   | ✅      | ✅ Done    | Command launcher overlay; Ctrl+K; static + async search; Navigate / Action / AiIntent items; category grouping; AI result panel |
 | `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface, optional cursor spotlight, `Ai` state              |
 | `DrylBadge`       | Data         | —       | ✅ Done    | Neutral / Accent / Success / Warning / Danger, optional dot       |
 | `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |

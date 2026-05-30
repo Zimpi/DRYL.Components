@@ -1,0 +1,273 @@
+@page "/command-palette"
+@implements IDisposable
+
+<PageTitle>DRYL — Command Palette</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Navigation</span>
+        <h2>DrylCommandPalette</h2>
+        <p class="lead">
+            A full-screen command launcher overlay that unifies navigation, actions, and AI intents in a
+            single keyboard-first entry point. Press <kbd style="font-family: var(--font-mono); font-size: 12px;
+            padding: 2px 6px; border: 1px solid var(--line-strong); border-radius: var(--r-xs);
+            background: var(--glass-1); color: var(--fg-muted);">Ctrl K</kbd> anywhere in the demo app,
+            or use the buttons below to open each variant.
+        </p>
+    </div>
+
+    @* ── Section 1: Basic static list ── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Basic — static items</h3>
+        <p>
+            Pass a <code>CommandItem[]</code> to <code>Items</code>. The palette filters client-side as you type.
+            Three item types are supported: <code>Navigate</code>, <code>Action</code>, and <code>AiIntent</code>.
+        </p>
+
+        <div class="row">
+            <DrylButton LeadingIcon="Command" OnClick="@(() => _basicOpen = true)">
+                Open command palette
+            </DrylButton>
+        </div>
+
+        @if (_lastAction is not null)
+        {
+            <p style="font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim);">
+                Last action: @_lastAction
+            </p>
+        }
+
+        <DrylCommandPalette @bind-Open="_basicOpen"
+                            Items="@_basicItems"
+                            Placeholder="Search commands…" />
+    </section>
+
+    @* ── Section 2: Category grouping ── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Category grouping</h3>
+        <p>
+            Set <code>CommandItem.Category</code> to cluster items under named headers.
+            Named categories appear alpha-sorted before uncategorised items.
+        </p>
+
+        <div class="row">
+            <DrylButton LeadingIcon="Command"
+                        Variant="DrylButton.ButtonVariant.Secondary"
+                        OnClick="@(() => _groupOpen = true)">
+                Open grouped palette
+            </DrylButton>
+        </div>
+
+        <DrylCommandPalette @bind-Open="_groupOpen"
+                            Items="@_groupedItems"
+                            Placeholder="Search by category…" />
+    </section>
+
+    @* ── Section 3: Async search ── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Async <code>SearchProvider</code></h3>
+        <p>
+            Provide a <code>Func&lt;string, Task&lt;CommandItem[]&gt;&gt;</code> for server-driven search.
+            A 250 ms debounce prevents excessive calls during fast typing.
+            This demo simulates a 400 ms network delay.
+        </p>
+
+        <div class="row">
+            <DrylButton LeadingIcon="Search"
+                        Variant="DrylButton.ButtonVariant.Secondary"
+                        OnClick="@(() => _asyncOpen = true)">
+                Open async palette
+            </DrylButton>
+        </div>
+
+        <DrylCommandPalette @bind-Open="_asyncOpen"
+                            SearchProvider="@SimulateSearchAsync"
+                            Placeholder="Type to search (simulated async)…" />
+    </section>
+
+    @* ── Section 4: AI intent + result panel ── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>AI intent — result panel</h3>
+        <p>
+            Items with <code>Type = CommandItemType.AiIntent</code> keep the palette open after selection
+            so the AI result panel can stream its response. Drive the <code>Ai</code> parameter from outside
+            to walk through <code>Thinking → Streaming → Generated</code>.
+        </p>
+
+        <div class="row">
+            <DrylButton LeadingIcon="Sparkles"
+                        Ai="@(_aiRunning ? AiState.Thinking : AiState.None)"
+                        OnClick="@(() => _aiOpen = true)">
+                @if (_aiRunning) { <text>AI thinking…</text> } else { <text>Open AI palette</text> }
+            </DrylButton>
+        </div>
+
+        <DrylCommandPalette @bind-Open="_aiOpen"
+                            Items="@_aiItems"
+                            Placeholder="Search AI intents…"
+                            Ai="_aiState">
+            <AiContent>
+                @if (_aiState == AiState.Thinking)
+                {
+                    <span style="color: var(--fg-dim);">Calling tool…</span>
+                }
+                else if (_aiState == AiState.Streaming)
+                {
+                    <span>@_aiStreamedText</span>
+                }
+                else if (_aiState == AiState.Generated)
+                {
+                    <span>@_aiStreamedText</span>
+                }
+            </AiContent>
+        </DrylCommandPalette>
+    </section>
+
+</div>
+
+@code {
+    // ── Open flags ─────────────────────────────────────────────
+    private bool _basicOpen;
+    private bool _groupOpen;
+    private bool _asyncOpen;
+    private bool _aiOpen;
+
+    // ── Feedback ───────────────────────────────────────────────
+    private string? _lastAction;
+
+    // ── AI panel state ─────────────────────────────────────────
+    private AiState _aiState   = AiState.None;
+    private bool    _aiRunning;
+    private string  _aiStreamedText = string.Empty;
+
+    private CancellationTokenSource? _aiCts;
+
+    // ── Static item lists ──────────────────────────────────────
+
+    private CommandItem[] _basicItems =>
+    [
+        new() { Label = "Go to Dashboard",     Icon = "Home",         Type = CommandItemType.Navigate, Href = "/",           Description = "Overview page" },
+        new() { Label = "Go to Buttons",       Icon = "Zap",          Type = CommandItemType.Navigate, Href = "/buttons" },
+        new() { Label = "Go to Dialog",        Icon = "Square",       Type = CommandItemType.Navigate, Href = "/dialog" },
+        new() { Label = "Copy page URL",       Icon = "Copy",         Type = CommandItemType.Action,   Action = EventCallback.Factory.Create(this, () => Log("Copied URL")) },
+        new() { Label = "Reload page",         Icon = "RotateCcw",    Type = CommandItemType.Action,   Action = EventCallback.Factory.Create(this, () => Log("Page reloaded")) },
+        new() { Label = "Summarise this page", Icon = "Sparkles",     Type = CommandItemType.AiIntent, AiAction = EventCallback.Factory.Create(this, () => Log("AI: summarise")) },
+    ];
+
+    private CommandItem[] _groupedItems =>
+    [
+        new() { Label = "Buttons",       Icon = "Zap",        Type = CommandItemType.Navigate, Href = "/buttons",          Category = "Components" },
+        new() { Label = "Cards",         Icon = "Square",     Type = CommandItemType.Navigate, Href = "/cards",            Category = "Components" },
+        new() { Label = "Dialog",        Icon = "MessageSquare", Type = CommandItemType.Navigate, Href = "/dialog",        Category = "Components" },
+        new() { Label = "Inputs",        Icon = "Type",       Type = CommandItemType.Navigate, Href = "/inputs",           Category = "Components" },
+        new() { Label = "Copy URL",      Icon = "Copy",       Type = CommandItemType.Action,   Action = EventCallback.Factory.Create(this, () => Log("Copied")),    Category = "Actions" },
+        new() { Label = "Toggle theme",  Icon = "Sun",        Type = CommandItemType.Action,   Action = EventCallback.Factory.Create(this, () => Log("Theme toggled")), Category = "Actions" },
+        new() { Label = "Help",          Icon = "HelpCircle", Type = CommandItemType.Navigate, Href = "/" },
+    ];
+
+    private CommandItem[] _aiItems =>
+    [
+        new() { Label = "Summarise this page",       Icon = "FileText",  Type = CommandItemType.AiIntent, AiAction = EventCallback.Factory.Create(this, () => RunAiAsync("summarise")),   Category = "AI Intents" },
+        new() { Label = "Explain the selected code", Icon = "Code",      Type = CommandItemType.AiIntent, AiAction = EventCallback.Factory.Create(this, () => RunAiAsync("explain")),     Category = "AI Intents" },
+        new() { Label = "Draft a pull-request body", Icon = "GitBranch", Type = CommandItemType.AiIntent, AiAction = EventCallback.Factory.Create(this, () => RunAiAsync("draft PR")),    Category = "AI Intents" },
+        new() { Label = "Go to AI Mode docs",        Icon = "Sparkles",  Type = CommandItemType.Navigate, Href = "/ai" },
+    ];
+
+    // ── Async search simulation ────────────────────────────────
+
+    private static readonly CommandItem[] _allSearchItems =
+    [
+        new() { Label = "Buttons",     Icon = "Zap",          Type = CommandItemType.Navigate, Href = "/buttons",          Category = "Components" },
+        new() { Label = "Cards",       Icon = "Square",       Type = CommandItemType.Navigate, Href = "/cards",            Category = "Components" },
+        new() { Label = "Dialog",      Icon = "MessageSquare",Type = CommandItemType.Navigate, Href = "/dialog",           Category = "Components" },
+        new() { Label = "Table",       Icon = "Table",        Type = CommandItemType.Navigate, Href = "/tables",           Category = "Components" },
+        new() { Label = "Spinner",     Icon = "Loader",       Type = CommandItemType.Navigate, Href = "/spinner",          Category = "Components" },
+        new() { Label = "Skeleton",    Icon = "LayoutList",   Type = CommandItemType.Navigate, Href = "/skeleton",         Category = "Components" },
+        new() { Label = "Alert",       Icon = "AlertCircle",  Type = CommandItemType.Navigate, Href = "/alert",            Category = "Components" },
+        new() { Label = "Tooltip",     Icon = "Info",         Type = CommandItemType.Navigate, Href = "/tooltip",          Category = "Components" },
+        new() { Label = "Copy URL",    Icon = "Copy",         Type = CommandItemType.Action,   Action = default,           Category = "Actions" },
+        new() { Label = "Reload page", Icon = "RotateCcw",   Type = CommandItemType.Action,   Action = default,           Category = "Actions" },
+        new() { Label = "View source", Icon = "Code",         Type = CommandItemType.Action,   Action = default,           Category = "Actions" },
+    ];
+
+    private async Task<CommandItem[]> SimulateSearchAsync(string query)
+    {
+        await Task.Delay(400);
+        if (string.IsNullOrWhiteSpace(query)) return _allSearchItems;
+        return _allSearchItems
+            .Where(i => i.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
+                     || (i.Category?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToArray();
+    }
+
+    // ── AI lifecycle simulation ────────────────────────────────
+
+    private static readonly Dictionary<string, string> _aiResponses = new()
+    {
+        ["summarise"] = "This page demonstrates the DrylCommandPalette component — a full-screen command launcher. It supports static items, async search, keyboard navigation (Arrow Up/Down, Enter, Escape), category grouping, and an AI result panel driven by the shared AiState vocabulary.",
+        ["explain"]   = "The selected component uses Blazor's @ref pattern to obtain an ElementReference, then passes it to dryl.modal.attach for focus trap and scroll lock management. Arrow key navigation is handled in C# via HandleKeyDown, which calls dryl.commandpalette.scrollItemIntoView to keep the focused item visible.",
+        ["draft PR"]  = "feat: add DrylCommandPalette\n\nIntroduces a full-screen command launcher overlay. Supports @bind-Open, static Items, async SearchProvider, three CommandItemType variants (Navigate / Action / AiIntent), category grouping, keyboard navigation, and an AI result panel driven by the shared AiState enum.",
+    };
+
+    private async Task RunAiAsync(string intent)
+    {
+        if (_aiRunning) return;
+
+        _aiRunning      = true;
+        _aiStreamedText = string.Empty;
+        _aiState        = AiState.Thinking;
+        StateHasChanged();
+
+        _aiCts = new CancellationTokenSource();
+        var cts = _aiCts;
+
+        try
+        {
+            await Task.Delay(1200, cts.Token);   // simulate tool call
+
+            _aiState = AiState.Streaming;
+            StateHasChanged();
+
+            var response = _aiResponses.GetValueOrDefault(intent, "Done.");
+            foreach (var ch in response)
+            {
+                if (cts.IsCancellationRequested) break;
+                _aiStreamedText += ch;
+                if (_aiStreamedText.Length % 4 == 0)
+                {
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(18, cts.Token);
+                }
+            }
+
+            if (!cts.IsCancellationRequested)
+            {
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(300, cts.Token);
+                _aiState   = AiState.Generated;
+                _aiRunning = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { /* palette closed mid-stream */ }
+        finally
+        {
+            _aiRunning = false;
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────
+
+    private void Log(string action)
+    {
+        _lastAction = action;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _aiCts?.Cancel();
+        _aiCts?.Dispose();
+    }
+}
