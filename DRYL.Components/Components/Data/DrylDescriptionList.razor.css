@@ -1,0 +1,6 @@
+.desc-list {
+    display: grid;
+    grid-template-columns: repeat(var(--desc-cols, 1), minmax(0, 1fr));
+    gap: var(--sp-4) var(--sp-6);
+    margin: 0;
+}

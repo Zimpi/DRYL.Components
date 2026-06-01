@@ -1,0 +1,35 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDescriptionItem — a single term/value pair in a
+    DrylDescriptionList. The read-only counterpart to a form field.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@ItemCssClass">
+    <dt class="desc-term">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <DrylIcon Name="@Icon" Size="13" />
+        }
+        @Term
+    </dt>
+    <dd class="desc-value">@ChildContent</dd>
+</div>
+
+@code {
+    [CascadingParameter] private DrylDescriptionList? Parent { get; set; }
+
+    /// <summary>The term / label.</summary>
+    [Parameter] public string? Term { get; set; }
+
+    /// <summary>Optional leading icon on the term.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>The value content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string ItemCssClass =>
+        Parent?.ItemLayout == DescriptionLayout.Inline
+            ? "desc-item desc-item--inline"
+            : "desc-item";
+}

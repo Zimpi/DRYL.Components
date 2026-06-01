@@ -1,10 +1,13 @@
 @namespace DRYL.Components
 @inherits InputBase<TimeOnly?>
-@implements IAsyncDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
     DrylTimePicker — time-only picker with a scrollable panel.
+
+    Built on the shared DrylPopover primitive (anchor, positioning and
+    click-outside dismissal); DrylTimePicker keeps the hour/minute
+    columns, scroll-to-active and commit/cancel behaviour.
 
     Usage:
       <DrylTimePicker @bind-Value="model.MeetingTime"
@@ -22,40 +25,44 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
-        <div class="@WrapperCssClass">
-            @if (Ai != AiState.None)
-            {
-                <div class="ai-aura-ring"></div>
-                <div class="ai-aura-glow"></div>
-                @if (Ai == AiState.Generated)
+    <DrylPopover @ref="_popover"
+                 @bind-Open="_isOpen"
+                 Block="true"
+                 TriggerTogglesOpen="false"
+                 Surface="false"
+                 CloseOnEscape="false">
+        <TriggerContent>
+            <div class="@WrapperCssClass">
+                @if (Ai != AiState.None)
                 {
-                    <div class="ai-aura-wash" @key="_genTick"></div>
+                    <div class="ai-aura-ring"></div>
+                    <div class="ai-aura-glow"></div>
+                    @if (Ai == AiState.Generated)
+                    {
+                        <div class="ai-aura-wash" @key="_genTick"></div>
+                    }
                 }
-            }
 
-            <input id="@_id"
-                   type="text"
-                   class="@InputCssClass"
-                   value="@DisplayValue"
-                   readonly
-                   @onfocus="Open"
-                   @onclick="Open"
-                   placeholder="@(Placeholder ?? "hh:mm")"
-                   disabled="@Disabled"
-                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                   aria-invalid="@(HasValidationError ? "true" : null)"
-                   aria-describedby="@(ShowHelper ? _helperId : null)"
-                   aria-haspopup="dialog"
-                   aria-expanded="@(_isOpen ? "true" : "false")" />
+                <input id="@_id"
+                       type="text"
+                       class="@InputCssClass"
+                       value="@DisplayValue"
+                       readonly
+                       @onfocus="Open"
+                       @onclick="Open"
+                       placeholder="@(Placeholder ?? "hh:mm")"
+                       disabled="@Disabled"
+                       aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                       aria-invalid="@(HasValidationError ? "true" : null)"
+                       aria-describedby="@(ShowHelper ? _helperId : null)"
+                       aria-haspopup="dialog"
+                       aria-expanded="@(_isOpen ? "true" : "false")" />
 
-            <DrylIcon Name="Clock" Size="16" Class="input-icon input-icon-trailing" />
-        </div>
-
-        @if (_isOpen)
-        {
+                <DrylIcon Name="Clock" Size="16" Class="input-icon input-icon-trailing" />
+            </div>
+        </TriggerContent>
+        <PanelContent>
             <div class="time-panel"
-                 @ref="_panel"
                  role="dialog"
                  aria-label="Pick a time"
                  tabindex="-1"
@@ -88,12 +95,12 @@
                 </div>
 
                 <div class="time-footer">
-                    <button type="button" class="btn btn-ghost btn-sm" @onclick="Close">Cancel</button>
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="ClosePanel">Cancel</button>
                     <button type="button" class="btn btn-primary btn-sm" @onclick="Commit">Done</button>
                 </div>
             </div>
-        }
-    </div>
+        </PanelContent>
+    </DrylPopover>
 
     @if (HasValidationError)
     {
@@ -140,10 +147,7 @@
 
     private readonly string _id       = $"dryl-time-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
-    private ElementReference _anchor;
-    private ElementReference _panel;
-    private DotNetObjectReference<DrylTimePicker>? _dotnetRef;
-    private bool _jsReady;
+    private DrylPopover? _popover;
     private bool _isOpen;
     private bool _shouldScroll;
     private int? _selectedHour;
@@ -168,15 +172,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            _jsReady = true;
-            _dotnetRef = DotNetObjectReference.Create(this);
-        }
-        if (_shouldScroll && _isOpen)
+        if (_shouldScroll && _isOpen && _popover is not null)
         {
             _shouldScroll = false;
-            await JS.InvokeVoidAsync("dryl.timepicker.scrollToActive", _panel);
+            await JS.InvokeVoidAsync("dryl.timepicker.scrollToActive", _popover.PanelElement);
         }
     }
 
@@ -239,13 +238,12 @@
         }
     }
 
-    private async Task Open()
+    private void Open()
     {
         if (_isOpen || Disabled) return;
         _isOpen = true;
         InitPending();
         _shouldScroll = true;
-        await JS.InvokeVoidAsync("dryl.timepicker.attach", _anchor, _dotnetRef);
     }
 
     private void InitPending()
@@ -273,24 +271,14 @@
             if (Max.HasValue && t > Max) t = Max.Value;
             CurrentValue = t;
         }
-        _ = CloseAsync();
+        ClosePanel();
     }
 
-    [JSInvokable]
-    public void Close() => _ = CloseAsync();
-
-    private async Task CloseAsync()
-    {
-        if (!_isOpen) return;
-        _isOpen = false;
-        StateHasChanged();
-        if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.timepicker.detach", _anchor);
-    }
+    private void ClosePanel() => _isOpen = false;
 
     private void HandlePanelKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape") Close();
+        if (e.Key == "Escape") ClosePanel();
         else if (e.Key == "Enter") Commit();
     }
 
@@ -314,15 +302,5 @@
         result = null;
         validationErrorMessage = $"'{value}' is not a valid time.";
         return false;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_jsReady && _isOpen)
-        {
-            try { await JS.InvokeVoidAsync("dryl.timepicker.detach", _anchor); }
-            catch { /* ignore */ }
-        }
-        _dotnetRef?.Dispose();
     }
 }

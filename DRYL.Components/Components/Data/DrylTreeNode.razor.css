@@ -1,0 +1,84 @@
+.tree-group {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* An explicit `display` overrides the `hidden` attribute's UA display:none,
+   so collapsed groups must opt back into hiding here. */
+.tree-group[hidden] {
+    display: none;
+}
+
+.tree-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 6px var(--sp-2);
+    padding-left: calc(var(--sp-3) + var(--tree-depth, 0) * 18px);
+    border-radius: var(--r-sm);
+    color: var(--fg-muted);
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+    transition: background var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out);
+}
+
+.tree-row:hover {
+    background: var(--glass-2);
+    color: var(--fg);
+}
+
+.tree-row:focus-visible {
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.tree-row.is-selected {
+    background: var(--accent-soft);
+    color: var(--fg);
+}
+
+.tree-toggle,
+.tree-toggle-spacer {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tree-toggle {
+    color: var(--fg-dim);
+    border-radius: var(--r-xs);
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out);
+}
+
+.tree-toggle:hover {
+    color: var(--fg);
+}
+
+.tree-toggle.is-open {
+    transform: rotate(90deg);
+}
+
+.tree-icon {
+    display: inline-flex;
+    color: var(--fg-dim);
+}
+
+.tree-row.is-selected .tree-icon {
+    color: var(--accent-a);
+}
+
+.tree-label {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

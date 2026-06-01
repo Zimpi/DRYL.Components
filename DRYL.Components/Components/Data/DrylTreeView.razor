@@ -1,0 +1,182 @@
+@namespace DRYL.Components
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTreeView — hierarchical tree with keyboard navigation.
+
+    Declarative: nest DrylTreeNode elements. The view owns selection
+    (@bind-SelectedValue) and roving-tabindex focus; nodes own their
+    own expand/collapse state.
+
+    Keyboard (WAI-ARIA tree): ArrowUp/Down move focus through visible
+    nodes, ArrowRight expands / steps in, ArrowLeft collapses / steps
+    out, Home/End jump to first/last, Enter/Space select.
+
+    Usage:
+      <DrylTreeView @bind-SelectedValue="_selected" AriaLabel="Files">
+          <DrylTreeNode Text="src" Icon="Folder" Value="src" Expanded="true">
+              <DrylTreeNode Text="Program.cs" Icon="File" Value="src/Program.cs" />
+          </DrylTreeNode>
+          <DrylTreeNode Text="README.md" Icon="File" Value="README.md" />
+      </DrylTreeView>
+    ───────────────────────────────────────────────────────── *@
+
+<ul class="tree" role="tree" aria-label="@AriaLabel" @ref="_root" @attributes="AdditionalAttributes">
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</ul>
+
+@code {
+    /// <summary>Value of the currently selected node. Supports two-way binding.</summary>
+    [Parameter] public object? SelectedValue { get; set; }
+
+    /// <summary>Fires when the selected node changes.</summary>
+    [Parameter] public EventCallback<object?> SelectedValueChanged { get; set; }
+
+    /// <summary>The root nodes.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Accessible label for the tree.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Tree";
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    internal enum Move { Next, Prev, First, Last }
+
+    private readonly List<DrylTreeNode> _nodes = new();
+    private DrylTreeNode? _selectedNode;
+    private DrylTreeNode? _focusedNode;
+    private ElementReference _root;
+    private bool _attached;
+
+    protected override void OnParametersSet()
+    {
+        // Allow external pre-selection by value.
+        if (SelectedValue is not null &&
+            (_selectedNode is null || !Equals(_selectedNode.Value, SelectedValue)))
+        {
+            _selectedNode = _nodes.FirstOrDefault(n => Equals(n.Value, SelectedValue));
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("dryl.tree.attach", _root);
+            _attached = true;
+        }
+    }
+
+    internal void Register(DrylTreeNode node)
+    {
+        if (_nodes.Contains(node)) return;
+        _nodes.Add(node);
+        if (SelectedValue is not null && _selectedNode is null && Equals(node.Value, SelectedValue))
+            _selectedNode = node;
+        StateHasChanged();
+    }
+
+    internal void Unregister(DrylTreeNode node)
+    {
+        if (_nodes.Remove(node))
+        {
+            if (_selectedNode == node) _selectedNode = null;
+            if (_focusedNode == node) _focusedNode = null;
+            StateHasChanged();
+        }
+    }
+
+    internal void NotifyChanged()
+    {
+        StateHasChanged();
+        RefreshNodes();
+    }
+
+    // Selection and roving-tabindex live on the view, but each node renders its
+    // own is-selected / tabindex. A view-only StateHasChanged won't re-render the
+    // child node components, so the previously selected node keeps a stale
+    // highlight — refresh every node explicitly.
+    private void RefreshNodes()
+    {
+        foreach (var n in _nodes) n.Refresh();
+    }
+
+    internal bool HasChildren(DrylTreeNode node) => _nodes.Any(n => n.ParentNode == node);
+
+    internal IEnumerable<DrylTreeNode> ChildrenOf(DrylTreeNode? node) =>
+        _nodes.Where(n => n.ParentNode == node);
+
+    internal bool IsSelected(DrylTreeNode node) => ReferenceEquals(_selectedNode, node);
+
+    // The single roving-tabindex target. Defaults to the first visible node.
+    internal bool IsFocusTarget(DrylTreeNode node)
+    {
+        var target = _focusedNode ?? _selectedNode ?? VisibleNodes().FirstOrDefault();
+        return ReferenceEquals(target, node);
+    }
+
+    internal async Task SelectAsync(DrylTreeNode node)
+    {
+        _selectedNode = node;
+        _focusedNode = node;
+        SelectedValue = node.Value;
+        await SelectedValueChanged.InvokeAsync(node.Value);
+        StateHasChanged();
+        RefreshNodes();
+    }
+
+    internal async Task MoveFocusAsync(DrylTreeNode from, Move move)
+    {
+        var visible = VisibleNodes();
+        var idx = visible.IndexOf(from);
+        if (idx < 0) return;
+
+        DrylTreeNode? target = move switch
+        {
+            Move.Next  => idx < visible.Count - 1 ? visible[idx + 1] : null,
+            Move.Prev  => idx > 0 ? visible[idx - 1] : null,
+            Move.First => visible[0],
+            Move.Last  => visible[^1],
+            _ => null
+        };
+        if (target is not null) await FocusNodeAsync(target);
+    }
+
+    internal async Task FocusNodeAsync(DrylTreeNode node)
+    {
+        _focusedNode = node;
+        StateHasChanged();
+        RefreshNodes();
+        await node.FocusRowAsync();
+    }
+
+    // Pre-order list of nodes whose ancestors are all expanded.
+    private List<DrylTreeNode> VisibleNodes()
+    {
+        var result = new List<DrylTreeNode>();
+        void Walk(DrylTreeNode n)
+        {
+            result.Add(n);
+            if (n.IsExpanded)
+                foreach (var child in ChildrenOf(n))
+                    Walk(child);
+        }
+        foreach (var root in ChildrenOf(null))
+            Walk(root);
+        return result;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_attached) return;
+        try { await JS.InvokeVoidAsync("dryl.tree.detach", _root); }
+        catch (JSDisconnectedException) { /* circuit closing */ }
+        catch (JSException) { /* element gone */ }
+        catch (InvalidOperationException) { /* statically rendered */ }
+    }
+}

@@ -340,12 +340,22 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
 | ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
-| `DrylButton`      | Actions      | ✅      | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots   |
+| `DrylButton`      | Actions      | ✅      | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots, sheen + spring hover |
 | `DrylMenu`        | Actions      | —       | ✅ Done    | Dropdown menu; 4 placements, icons, shortcuts, Danger items, separators |
 | `DrylMenuItem`    | Actions      | —       | ✅ Done    | Menu item used inside `DrylMenu`; Default / Danger variant, separator, header |
 | `DrylCommandPalette` | Actions   | ✅      | ✅ Done    | Command launcher overlay; Ctrl+K; static + async search; Navigate / Action / AiIntent items; category grouping; AI result panel |
+| `DrylBreadcrumbs` | Navigation   | —       | ✅ Done    | Hierarchical trail; custom separator; `MaxItems` ellipsis collapse; `aria-current` on last crumb |
+| `DrylBreadcrumbItem` | Navigation | —      | ✅ Done    | Single crumb inside `DrylBreadcrumbs`; `Href` link or current page; optional icon |
 | `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface, optional cursor spotlight, `Ai` state              |
 | `DrylBadge`       | Data         | —       | ✅ Done    | Neutral / Accent / Success / Warning / Danger, optional dot       |
+| `DrylAvatar`      | Data         | —       | ✅ Done    | Image → initials → icon fallback; sizes, Circle / Square, presence status dot |
+| `DrylAvatarGroup` | Data         | —       | ✅ Done    | Overlapping stack; cascades size; `Max` collapses overflow to `+N` |
+| `DrylSparkline`   | Data         | —       | ✅ Done    | Inline-SVG trend chart (zero JS); Line / Area / Bar; accent gradient |
+| `DrylStat`        | Data         | ✅      | ✅ Done    | KPI card; value + delta chip + sparkline slot; glass surface |
+| `DrylTimeline`    | Data         | —       | ✅ Done    | Vertical event rail; hosts `DrylTimelineItem`s |
+| `DrylTimelineItem`| Data         | ✅      | ✅ Done    | Event marker (5 variants), title, timestamp, body; AI agent step traces |
+| `DrylTreeView`    | Data         | —       | ✅ Done    | Hierarchical tree; `@bind-SelectedValue`; WAI-ARIA keyboard nav, roving tabindex |
+| `DrylTreeNode`    | Data         | —       | ✅ Done    | Tree node; `Text` / `Icon` / `Value` / `@bind-Expanded`; chevron, nesting |
 | `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
 | `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
 | `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
@@ -381,9 +391,19 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylStep`        | Layout       | ✅      | ✅ Done    | Single step inside `DrylStepper`; Pending / Active / Completed / Error states, AI ring |
 | `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
 | `DrylToast`       | Surfaces     | ✅      | ✅ Done    | Service-driven toast stack; auto-dismiss, progress bar, hover-pause, 6 positions |
+| `DrylChat`        | Surfaces     | ✅      | ✅ Done    | Conversation surface; scrollable log + pinned composer slot; auto-scroll; `role="log"` aria-live |
+| `DrylMessage`     | Surfaces     | ✅      | ✅ Done    | Chat bubble; User / Assistant / System roles; author, timestamp, avatar, typing dots |
+| `DrylChatComposer`| Surfaces     | ✅      | ✅ Done    | Chat input; Enter sends, Shift+Enter newline, auto-grow textarea; `OnSend` callback |
+| `DrylPopover`     | Surfaces     | —       | ✅ Done    | Anchored floating-panel primitive; placement, click-outside / Escape, match-width |
+| `DrylEmptyState`  | Feedback     | —       | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes |
+| `DrylDescriptionList` | Data     | —       | ✅ Done    | Semantic `<dl>` key/value view; Stacked / Inline; columns |
+| `DrylDescriptionItem` | Data     | —       | ✅ Done    | Term/value pair inside `DrylDescriptionList` |
+| `DrylFormField`   | Inputs       | —       | ✅ Done    | Generic label + required + hint + inline validation wrapper (`For` expression) |
+| `DrylValidationSummary` | Inputs | —       | ✅ Done    | Glass summary of all EditForm validation errors |
 | `DrylTooltip`     | Feedback     | —       | ✅ Done    | CSS-only hover tooltip; 4 placements (Top / Bottom / Left / Right), wraps any trigger |
 | `DrylAlert`       | Feedback     | ✅      | ✅ Done    | Feedback-Banner; 5 Varianten (Info / Success / Warning / Danger / Ai), optionaler Titel, Dismissible, AI-aware |
 | `DrylSpinner`     | Feedback     | ✅      | ✅ Done    | Ring / Dots / Pulse variants; Small / Medium / Large; animation rate adapts to AI state |
+| `DrylProgress`    | Feedback     | ✅      | ✅ Done    | Linear bar; determinate / indeterminate; Accent / Success / Warning / Danger; sizes; percentage label |
 | `DrylSkeleton`    | Feedback     | ✅      | ✅ Done    | Line / Text / Avatar / Card / Image / Custom; Streaming shifts shimmer to violet-cyan gradient |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).

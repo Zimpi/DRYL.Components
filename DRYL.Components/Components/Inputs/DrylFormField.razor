@@ -1,0 +1,73 @@
+@namespace DRYL.Components
+@typeparam TValue
+@using System.Linq.Expressions
+
+@*  ─────────────────────────────────────────────────────────
+    DrylFormField — consistent label + required marker + hint wrapper.
+
+    Provides the label, an optional required marker and helper text for
+    any input. DRYL inputs render their own inline validation message,
+    so DrylFormField does not repeat it — it just hides its hint while
+    the field is invalid so hint and error never show at once. Bind For
+    to enable that (and place the field inside an EditForm).
+
+    Usage:
+      <EditForm Model="@_model">
+          <DataAnnotationsValidator />
+          <DrylFormField Label="Name" Required For="() => _model.Name"
+                         Hint="Your full name">
+              <DrylInputText @bind-Value="_model.Name" />
+          </DrylFormField>
+      </EditForm>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="field" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label">
+            @Label
+            @if (Required)
+            {
+                <span class="field-required" aria-hidden="true">*</span>
+            }
+        </label>
+    }
+
+    @ChildContent
+
+    @if (!HasError && !string.IsNullOrEmpty(Hint))
+    {
+        <div class="input-helper">@Hint</div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private EditContext? EditContext { get; set; }
+
+    /// <summary>Field label shown above the input.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Helper text shown below the input (replaced by validation errors).</summary>
+    [Parameter] public string? Hint { get; set; }
+
+    /// <summary>When true, appends a required marker to the label.</summary>
+    [Parameter] public bool Required { get; set; }
+
+    /// <summary>Expression identifying the bound field, e.g. <c>() =&gt; model.Name</c>. Enables validation display.</summary>
+    [Parameter] public Expression<Func<TValue>>? For { get; set; }
+
+    /// <summary>The input element.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the field wrapper.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private FieldIdentifier? _field;
+
+    protected override void OnParametersSet() =>
+        _field = For is not null ? FieldIdentifier.Create(For) : null;
+
+    private bool HasError =>
+        EditContext is not null && _field is { } f && EditContext.GetValidationMessages(f).Any();
+}

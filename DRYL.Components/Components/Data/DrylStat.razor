@@ -1,0 +1,125 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylStat — KPI / metric card.
+
+    A glass surface showing a label, a big value, an optional delta
+    chip and an optional sparkline. AI-aware: a model-generated value
+    can reveal with the shared Generated wash.
+
+    Usage:
+      <DrylStat Label="Active users" Value="12,480"
+                Delta="+12.4%" Direction="DeltaDirection.Up" Icon="User">
+          <Sparkline>
+              <DrylSparkline Data="@_series" Kind="SparklineKind.Area" />
+          </Sparkline>
+      </DrylStat>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    <div class="stat-head">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <span class="stat-icon"><DrylIcon Name="@Icon" Size="14" /></span>
+        }
+        <span class="stat-label">@Label</span>
+    </div>
+
+    <div class="stat-value-row">
+        <span class="stat-value">@Value</span>
+        @if (!string.IsNullOrEmpty(Delta) && Direction != DeltaDirection.None)
+        {
+            <span class="@DeltaCssClass">
+                @if (Direction == DeltaDirection.Up)
+                {
+                    <DrylIcon Name="ArrowUp" Size="12" />
+                }
+                else if (Direction == DeltaDirection.Down)
+                {
+                    <DrylIcon Name="ArrowDown" Size="12" />
+                }
+                @Delta
+            </span>
+        }
+    </div>
+
+    @if (Sparkline is not null)
+    {
+        <div class="stat-spark">
+            @Sparkline
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Label / caption for the metric.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>The headline value (pre-formatted).</summary>
+    [Parameter] public string? Value { get; set; }
+
+    /// <summary>Optional leading icon name.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Delta text, e.g. "+12.4%".</summary>
+    [Parameter] public string? Delta { get; set; }
+
+    /// <summary>Trend direction — drives delta colour and arrow.</summary>
+    [Parameter] public DeltaDirection Direction { get; set; } = DeltaDirection.None;
+
+    /// <summary>Optional sparkline slot, typically a <see cref="DrylSparkline"/>.</summary>
+    [Parameter] public RenderFragment? Sparkline { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "glass-card", "p-default", "stat" };
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string DeltaCssClass =>
+        "stat-delta " + Direction switch
+        {
+            DeltaDirection.Up => "stat-delta--up",
+            DeltaDirection.Down => "stat-delta--down",
+            _ => "stat-delta--neutral"
+        };
+}

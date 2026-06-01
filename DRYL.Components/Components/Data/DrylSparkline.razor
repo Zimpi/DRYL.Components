@@ -1,0 +1,172 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSparkline — tiny inline SVG trend chart (zero JS).
+
+    Usage:
+      <DrylSparkline Data="@(new double[]{3,5,4,8,7,9,12})" />
+      <DrylSparkline Data="@points" Kind="SparklineKind.Area" />
+      <DrylSparkline Data="@points" Kind="SparklineKind.Bar" Width="120" Height="40" />
+
+    All coordinates are formatted with InvariantCulture so the SVG
+    parses correctly under any locale (e.g. German "0,5" would break it).
+    ───────────────────────────────────────────────────────── *@
+
+@if (HasData)
+{
+    <svg class="spark"
+         width="@Width" height="@Height"
+         viewBox="@ViewBox"
+         preserveAspectRatio="none"
+         role="img"
+         aria-label="@AriaLabel"
+         @attributes="AdditionalAttributes">
+        <defs>
+            <linearGradient id="@_gradId" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" class="spark-stop-a" />
+                <stop offset="1" class="spark-stop-b" />
+            </linearGradient>
+        </defs>
+
+        @if (Kind == SparklineKind.Bar)
+        {
+            @foreach (var bar in BarRects())
+            {
+                <rect class="spark-bar" fill="url(#@_gradId)"
+                      x="@bar.X" y="@bar.Y" width="@bar.W" height="@bar.H" rx="@bar.R" />
+            }
+        }
+        else
+        {
+            @if (Kind == SparklineKind.Area)
+            {
+                <path class="spark-area" fill="url(#@_gradId)" d="@AreaPath()" />
+            }
+            <polyline class="spark-line" stroke="url(#@_gradId)" points="@LinePoints()" />
+            @if (ShowLastDot)
+            {
+                <circle class="spark-dot" cx="@LastX" cy="@LastY" r="2.4" />
+            }
+        }
+    </svg>
+}
+
+@code {
+    /// <summary>The data series to plot.</summary>
+    [Parameter] public IReadOnlyList<double>? Data { get; set; }
+
+    /// <summary>Render style.</summary>
+    [Parameter] public SparklineKind Kind { get; set; } = SparklineKind.Line;
+
+    /// <summary>SVG width in pixels.</summary>
+    [Parameter] public int Width { get; set; } = 96;
+
+    /// <summary>SVG height in pixels.</summary>
+    [Parameter] public int Height { get; set; } = 32;
+
+    /// <summary>When true (Line / Area), marks the final point with a dot.</summary>
+    [Parameter] public bool ShowLastDot { get; set; }
+
+    /// <summary>Accessible label for the chart.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Trend";
+
+    /// <summary>Pass-through HTML attributes on the SVG element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly string _gradId = $"spark-{Guid.NewGuid():N}";
+    private const double Pad = 2.5;
+
+    private bool HasData => Data is { Count: > 0 };
+
+    private string ViewBox => FormattableString.Invariant($"0 0 {Width} {Height}");
+
+    // Map a data value to a Y coordinate (inverted, with vertical padding).
+    private double ScaleY(double v, double min, double max)
+    {
+        var span = max - min;
+        var h = Height - Pad * 2;
+        if (span <= 0) return Pad + h / 2;          // flat series → centre line
+        return Pad + (1 - (v - min) / span) * h;
+    }
+
+    // Map a point index to an X coordinate.
+    private double ScaleX(int i, int count)
+    {
+        var w = Width - Pad * 2;
+        if (count <= 1) return Pad + w / 2;
+        return Pad + (double)i / (count - 1) * w;
+    }
+
+    private (double min, double max) Bounds()
+    {
+        double min = Data![0], max = Data[0];
+        foreach (var v in Data)
+        {
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+        return (min, max);
+    }
+
+    private string LinePoints()
+    {
+        var (min, max) = Bounds();
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < Data!.Count; i++)
+        {
+            var x = ScaleX(i, Data.Count);
+            var y = ScaleY(Data[i], min, max);
+            sb.Append(FormattableString.Invariant($"{x:0.##},{y:0.##} "));
+        }
+        return sb.ToString().TrimEnd();
+    }
+
+    private string AreaPath()
+    {
+        var (min, max) = Bounds();
+        var sb = new System.Text.StringBuilder();
+        var baseline = FormattableString.Invariant($"{(Height - Pad):0.##}");
+        for (var i = 0; i < Data!.Count; i++)
+        {
+            var x = ScaleX(i, Data.Count);
+            var y = ScaleY(Data[i], min, max);
+            sb.Append(FormattableString.Invariant($"{(i == 0 ? "M" : "L")}{x:0.##},{y:0.##} "));
+        }
+        var firstX = FormattableString.Invariant($"{ScaleX(0, Data.Count):0.##}");
+        var lastX = FormattableString.Invariant($"{ScaleX(Data.Count - 1, Data.Count):0.##}");
+        sb.Append(FormattableString.Invariant($"L{lastX},{baseline} L{firstX},{baseline} Z"));
+        return sb.ToString();
+    }
+
+    private IEnumerable<(string X, string Y, string W, string H, string R)> BarRects()
+    {
+        var (min, max) = Bounds();
+        var count = Data!.Count;
+        var slot = (Width - Pad * 2) / count;
+        var barW = Math.Max(1.5, slot * 0.6);
+        var bottom = Height - Pad;
+        for (var i = 0; i < count; i++)
+        {
+            var cx = Pad + slot * (i + 0.5);
+            var y = ScaleY(Data[i], min, max);
+            var h = Math.Max(1, bottom - y);
+            yield return (
+                FormattableString.Invariant($"{cx - barW / 2:0.##}"),
+                FormattableString.Invariant($"{y:0.##}"),
+                FormattableString.Invariant($"{barW:0.##}"),
+                FormattableString.Invariant($"{h:0.##}"),
+                FormattableString.Invariant($"{Math.Min(barW / 2, 1.5):0.##}"));
+        }
+    }
+
+    private string LastX
+    {
+        get { var _ = Bounds(); return FormattableString.Invariant($"{ScaleX(Data!.Count - 1, Data.Count):0.##}"); }
+    }
+
+    private string LastY
+    {
+        get { var (min, max) = Bounds(); return FormattableString.Invariant($"{ScaleY(Data![^1], min, max):0.##}"); }
+    }
+}

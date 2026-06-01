@@ -15,6 +15,37 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylPopover` — Anchored floating-panel primitive; `@bind-Open`; `TriggerContent` / `PanelContent` slots; `Placement` (BottomStart / BottomEnd / TopStart / TopEnd); `MatchTriggerWidth`; `Block`; `CloseOnClickOutside` / `CloseOnEscape`; optional glass `Surface`; exposes `PanelElement` / `AnchorElement` for panel-scoped interop
+- `DrylEmptyState` — "No data" placeholder; `Icon`, `Title`, `Description`, `ActionContent` slot; `Size` (Small / Medium)
+- `DrylDescriptionList` — Semantic `<dl>` key/value view; `Layout` (Stacked / Inline); `Columns`
+- `DrylDescriptionItem` — Single term/value pair; `Term`, `Icon`, value content
+- `DrylFormField` — Generic `<TValue>` label + required marker + hint + inline validation wrapper for any input; `For` expression binds validation messages within an `EditForm`
+- `DrylValidationSummary` — Glass-styled summary of all `EditContext` validation errors; subscribes to validation-state changes
+- `PopoverPlacement` enum — `BottomStart` / `BottomEnd` / `TopStart` / `TopEnd` for `DrylPopover`
+- `EmptyStateSize` enum — `Small` / `Medium` for `DrylEmptyState`
+- `DescriptionLayout` enum — `Stacked` / `Inline` for `DrylDescriptionList`
+- `DrylSparkline` — Tiny inline-SVG trend chart (zero JS); `Line` / `Area` / `Bar`; `Width` / `Height`; `ShowLastDot`; accent-gradient stroke/fill; all coordinates formatted with `InvariantCulture`
+- `DrylStat` — KPI / metric card on a glass surface; `Label`, `Value`, `Icon`, `Delta` + `Direction` (Up / Down / Neutral) chip; `Sparkline` slot; AI-aware
+- `DrylTimeline` — Vertical event sequence; draws the connecting rail for child `DrylTimelineItem`s; `role="list"`
+- `DrylTimelineItem` — Single event; variant-tinted marker (Default / Accent / Success / Warning / Danger), `Title`, `Timestamp`, `Icon`, body; AI-aware marker (agent step traces)
+- `DrylTreeView` — Hierarchical tree; declarative `DrylTreeNode` children; `@bind-SelectedValue`; roving-tabindex focus; full WAI-ARIA tree keyboard nav (arrows expand/collapse/move, Home/End, Enter/Space); `role="tree"`
+- `DrylTreeNode` — Tree node; `Text`, `Icon`, `Value`, `@bind-Expanded`, `Disabled`; chevron toggle; nests further nodes
+- `SparklineKind` enum — `Line` / `Area` / `Bar` for `DrylSparkline`
+- `DeltaDirection` enum — `None` / `Up` / `Down` / `Neutral` for `DrylStat`
+- `TimelineVariant` enum — `Default` / `Accent` / `Success` / `Warning` / `Danger` for `DrylTimelineItem`
+- `dryl.js` — New `dryl.tree` namespace: `attach` / `detach` prevent default page-scroll for tree navigation keys (Tab left untouched)
+- `DrylAvatar` — User / entity face; image with initials/icon/generic fallback; `Size` (Small / Medium / Large); `Shape` (Circle / Square); presence `Status` dot (Online / Busy / Away / Offline); initials derived from `Name`
+- `DrylAvatarGroup` — Overlapping avatar stack; cascades `Size` to children; `Max` collapses overflow into a `+N` tile
+- `DrylBreadcrumbs` — Hierarchical navigation trail; child `DrylBreadcrumbItem` registration; custom `Separator`; `MaxItems` collapses the middle into an ellipsis; `<nav>/<ol>` semantics, last crumb `aria-current="page"`
+- `DrylBreadcrumbItem` — Single crumb; `Href` (link) or plain text; optional leading `Icon`
+- `DrylProgress` — Linear progress bar; determinate or `Indeterminate` sweep; `Variant` (Accent / Success / Warning / Danger); `Size` (Small / Medium / Large); `ShowLabel` percentage; `role="progressbar"` ARIA; AI-aware
+- `DrylChat` — Conversation surface; scrollable message log + pinned `Footer` composer slot; `Height`; `AutoScroll` via `dryl.chat.scrollToEnd`; `role="log"` + `aria-live="polite"`; AI-aware
+- `DrylMessage` — Chat bubble; `Role` (User / Assistant / System) drives alignment & styling; `Author`, `Timestamp`, avatar slot, `Typing` dots; AI-aware
+- `DrylChatComposer` — Chat input; `@bind-Value`; `OnSend`; Enter sends, Shift+Enter newline, auto-grow textarea via `dryl.chat.attachComposer`; AI-aware
+- `AvatarSize` / `AvatarShape` / `AvatarStatus` enums for `DrylAvatar`
+- `ProgressVariant` / `ProgressSize` enums for `DrylProgress`
+- `MessageRole` enum — `User` / `Assistant` / `System` for `DrylMessage`
+- `dryl.js` — New `dryl.chat` namespace: `scrollToEnd`, `attachComposer` (Enter-to-send + auto-grow), `detachComposer`, `resize`
 - `DrylChipInput` — Free-text tag field; chips created on Enter / comma; Backspace removes last chip; `@bind-Tags` (`IReadOnlyList<string>`); `MaxTags`; AI-aware
 - `DrylRating` — Star rating input inheriting `InputBase<int?>`; configurable `MaxStars`; hover preview; `AllowClear`; `ReadOnly`; keyboard navigation (arrows, Home, End); EditForm / DataAnnotations validation; AI-aware
 - `DrylInputOtp` — Fixed-box OTP/2FA code entry inheriting `InputBase<string>`; configurable `Digits` (default 6); auto-focus advance; paste-to-fill via `dryl.otp` JS helper; AI-aware
@@ -25,12 +56,17 @@ Version bump guide:
 - `DrylIcon` — Sechs neue Icons: `Circle` (lucide: circle), `Command` (lucide: command), `Hash` (lucide: hash), `List` (lucide: list), `Sliders` (lucide: sliders-horizontal), `Upload` (lucide: upload); werden in der Demo-Navigationsleiste verwendet
 
 ### Changed
+- `DrylButton` — Tactile "Sheen & Spring" interaction polish: a soft light reflection sweeps across the surface on hover (all variants except Ghost), the press now drops-and-shrinks with a spring-back release (`--ease-spring`), and icons animate on hover (trailing slides forward, leading pops, icon-only scales). Leading/trailing icons gain marker classes `btn-ico-lead` / `btn-ico-trail`. All token-driven; honours `prefers-reduced-motion`. **No public API change**
+- `DrylMenu`, `DrylSelect`, `DrylAutocomplete`, `DrylTimePicker`, `DrylDatePicker` — Refactored onto the shared `DrylPopover` primitive for anchoring, positioning and click-outside dismissal; the duplicated panel-positioning CSS (`position:absolute; top:calc(100% + var(--sp-1)); …`) and per-component `dryl.menu.attach` boilerplate were removed. **No public API change** — parameters, keyboard navigation, ARIA and visuals are unchanged
+- `dryl.js` — `dryl.menu.focusTrigger` now also matches a trigger inside `.popover-trigger` (used by the refactored dropdowns)
 - `DrylSelect` — Replaced native `<select>` element with a fully custom dropdown; API changed from `ChildContent` (`<option>` elements) to `Items` (`IEnumerable<SelectItem>`); panel and option styling now matches `DrylAutocomplete` (glass background, accent scrollbar, selected-item dot); `Placeholder` parameter added; click-outside detection via `dryl.menu.attach`; keyboard navigation (ArrowDown/Up, Enter, Space, Escape, Tab)
 - `DrylNavGroup` — New `Collapsible` parameter (bool, default `false`) enables accordion-style sub-menus with CSS grid animate-in/out; `DefaultExpanded` (bool, default `true`) sets initial state; `Href` parameter makes the header a `NavLink` while a separate chevron button controls collapse; `Icon` parameter adds a leading icon to the collapsible header
 - `DrylNavLink` — New `Sub` parameter (bool, default `false`) renders the item indented (`.nav-item--sub`) for use inside collapsible `DrylNavGroup` children
 - `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
 
 ### Fixed
+- `DrylInputNumber` — No longer emits spurious `min`/`max`/`step="0"` attributes for non-nullable value types (e.g. `TValue="int"`), which made the browser reject any positive value ("Value must be 0") and the stepper increment by 0. The native constraints are now emitted only when `Min`/`Max`/`Step` are explicitly set
+- `DrylFormField` — No longer renders its own validation message (the wrapped DRYL input already shows one), so errors no longer appear twice; its hint is hidden while the field is invalid
 - `DrylTimePicker` — Time panel rendered outside the `.ai-aura` (`isolation:isolate`) wrapper so `backdrop-filter` blurs the page correctly instead of the parent's AI glow effects
 - `DrylInputOtp` — AI aura now wraps each digit box individually (rotating gradient ring per box, box border hidden in AI mode) instead of spanning the entire group
 - `DrylRating` — AI mode wrapper gets `background: var(--glass-1)` so the gradient ring frames a proper glass surface instead of floating around bare stars

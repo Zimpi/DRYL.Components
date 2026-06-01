@@ -48,9 +48,9 @@
                type="number"
                inputmode="decimal"
                value="@CurrentValueAsString"
-               min="@FormatConstraint(Min)"
-               max="@FormatConstraint(Max)"
-               step="@FormatConstraint(Step)"
+               min="@(_hasMin ? FormatConstraint(Min) : null)"
+               max="@(_hasMax ? FormatConstraint(Max) : null)"
+               step="@(_hasStep ? FormatConstraint(Step) : null)"
                @oninput="HandleInput"
                placeholder="@Placeholder"
                disabled="@Disabled"
@@ -130,8 +130,18 @@
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
+    // For a non-nullable value type TValue (int, decimal, …) the parameter
+    // type TValue? is just TValue, so an unset Min/Max/Step defaults to 0 — not
+    // null. Track whether the consumer actually supplied each so we only emit the
+    // native min/max/step attributes when intended (otherwise max="0" would make
+    // the browser reject every positive value).
+    private bool _hasMin, _hasMax, _hasStep;
+
     public override Task SetParametersAsync(ParameterView parameters)
     {
+        _hasMin  = parameters.TryGetValue<TValue?>(nameof(Min),  out _);
+        _hasMax  = parameters.TryGetValue<TValue?>(nameof(Max),  out _);
+        _hasStep = parameters.TryGetValue<TValue?>(nameof(Step), out _);
         parameters.SetParameterProperties(this);
         if (ValueExpression is null)
             ValueExpression = () => Value;
@@ -164,8 +174,8 @@
 
     private double GetStepDouble()
     {
-        if (Step is null) return 1;
-        return TryGetDouble(Step, out var s) ? s : 1;
+        if (!_hasStep || Step is null) return 1;
+        return TryGetDouble(Step, out var s) && s != 0 ? s : 1;
     }
 
     private static bool TryGetDouble(TValue? value, out double result)

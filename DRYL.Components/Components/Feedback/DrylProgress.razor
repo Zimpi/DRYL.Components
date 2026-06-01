@@ -1,0 +1,165 @@
+@namespace DRYL.Components
+@using System.Globalization
+
+@*  ─────────────────────────────────────────────────────────
+    DrylProgress — linear progress bar.
+
+    Usage:
+      <DrylProgress Value="64" ShowLabel="true" />
+      <DrylProgress Value="3" Max="5" Variant="ProgressVariant.Success" />
+      <DrylProgress Indeterminate="true" />
+      <DrylProgress Value="42" Ai="AiState.Streaming" />
+
+    The fill width is driven by an inline style; the AI aura ring is
+    hosted on a wrapper so it is not clipped by the track's overflow.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="progress-field" @attributes="AdditionalAttributes">
+    @if (ShowLabelRow)
+    {
+        <div class="progress-label-row">
+            <span>
+                @if (Label is not null)
+                {
+                    @Label
+                }
+                else if (!string.IsNullOrEmpty(LabelText))
+                {
+                    @LabelText
+                }
+            </span>
+            @if (ShowLabel && !Indeterminate)
+            {
+                <span class="progress-pct">@PctText</span>
+            }
+        </div>
+    }
+
+    <div class="@WrapCssClass">
+        @if (Ai != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (Ai == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="_genTick"></div>
+            }
+        }
+
+        <div class="@TrackCssClass"
+             role="progressbar"
+             aria-valuemin="0"
+             aria-valuemax="@Max.ToString(CultureInfo.InvariantCulture)"
+             aria-valuenow="@AriaValueNow"
+             aria-label="@AriaLabel">
+            <div class="@BarCssClass" style="@BarStyle"></div>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>Current value, between 0 and <see cref="Max"/>.</summary>
+    [Parameter] public double Value { get; set; }
+
+    /// <summary>Maximum value. Default 100.</summary>
+    [Parameter] public double Max { get; set; } = 100;
+
+    /// <summary>When true, shows an animated sweep instead of a fixed fill.</summary>
+    [Parameter] public bool Indeterminate { get; set; }
+
+    /// <summary>Colour treatment of the fill.</summary>
+    [Parameter] public ProgressVariant Variant { get; set; } = ProgressVariant.Accent;
+
+    /// <summary>Bar thickness.</summary>
+    [Parameter] public ProgressSize Size { get; set; } = ProgressSize.Medium;
+
+    /// <summary>When true, shows the percentage at the trailing edge of the label row.</summary>
+    [Parameter] public bool ShowLabel { get; set; }
+
+    /// <summary>Plain-text label shown at the leading edge of the label row.</summary>
+    [Parameter] public string? LabelText { get; set; }
+
+    /// <summary>Custom label content — overrides <see cref="LabelText"/>.</summary>
+    [Parameter] public RenderFragment? Label { get; set; }
+
+    /// <summary>Accessible label for the progress bar.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    private double Percent
+    {
+        get
+        {
+            if (Max <= 0) return 0;
+            return Math.Clamp(Value / Max * 100, 0, 100);
+        }
+    }
+
+    private string PctText => FormattableString.Invariant($"{Percent:0}%");
+
+    private string? AriaValueNow =>
+        Indeterminate ? null : Value.ToString(CultureInfo.InvariantCulture);
+
+    private string? BarStyle =>
+        Indeterminate ? null : FormattableString.Invariant($"width: {Percent:0.##}%");
+
+    private bool ShowLabelRow =>
+        Label is not null
+        || !string.IsNullOrEmpty(LabelText)
+        || (ShowLabel && !Indeterminate);
+
+    private string WrapCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "progress-wrap" };
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string TrackCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "progress" };
+            if (Size == ProgressSize.Small) parts.Add("progress--sm");
+            else if (Size == ProgressSize.Large) parts.Add("progress--lg");
+            if (Indeterminate) parts.Add("progress--indeterminate");
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string BarCssClass =>
+        "progress-bar " + Variant switch
+        {
+            ProgressVariant.Success => "progress-bar--success",
+            ProgressVariant.Warning => "progress-bar--warning",
+            ProgressVariant.Danger  => "progress-bar--danger",
+            _ => string.Empty
+        };
+}

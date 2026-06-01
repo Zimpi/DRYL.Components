@@ -1,0 +1,38 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDescriptionList — key/value detail view (read-only).
+
+    Semantic <dl>; each DrylDescriptionItem renders a term/value pair.
+    Layout switches between stacked and inline; Columns lays the pairs
+    out in a responsive grid.
+
+    Usage:
+      <DrylDescriptionList Layout="DescriptionLayout.Inline" Columns="2">
+          <DrylDescriptionItem Term="Status" Icon="Activity">Online</DrylDescriptionItem>
+          <DrylDescriptionItem Term="Region">eu-central-1</DrylDescriptionItem>
+      </DrylDescriptionList>
+    ───────────────────────────────────────────────────────── *@
+
+<dl class="desc-list" style="--desc-cols: @Columns" @attributes="AdditionalAttributes">
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</dl>
+
+@code {
+    /// <summary>Term/value arrangement applied to every item.</summary>
+    [Parameter] public DescriptionLayout Layout { get; set; } = DescriptionLayout.Stacked;
+
+    /// <summary>Number of pairs per row.</summary>
+    [Parameter] public int Columns { get; set; } = 1;
+
+    /// <summary>The description items.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the &lt;dl&gt; element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    internal DescriptionLayout ItemLayout => Layout;
+}

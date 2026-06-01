@@ -1,0 +1,162 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAvatar — user / entity representation.
+
+    Resolution order for the face:
+      1. Image (Src)               → shown, falls back to 2 on load error
+      2. Initials (explicit or derived from Name)
+      3. Icon
+      4. A generic user icon
+
+    Usage:
+      <DrylAvatar Name="Ada Lovelace" Status="AvatarStatus.Online" />
+      <DrylAvatar Src="/img/ada.png" Alt="Ada" Size="AvatarSize.Large" />
+      <DrylAvatar Icon="Bot" Shape="AvatarShape.Square" />
+    ───────────────────────────────────────────────────────── *@
+
+@if (!HiddenInGroup)
+{
+    @if (Status == AvatarStatus.None)
+    {
+        @AvatarBody
+    }
+    else
+    {
+        <span class="@WrapCssClass">
+            @AvatarBody
+            <span class="@StatusCssClass" aria-hidden="true"></span>
+        </span>
+    }
+}
+
+@code {
+    [CascadingParameter] private DrylAvatarGroup? Group { get; set; }
+
+    /// <summary>Image URL. When it fails to load, the avatar falls back to initials / icon.</summary>
+    [Parameter] public string? Src { get; set; }
+
+    /// <summary>Alternative text for the image — also used as the accessible label.</summary>
+    [Parameter] public string? Alt { get; set; }
+
+    /// <summary>Full name. Used to derive initials when <see cref="Initials"/> is not set.</summary>
+    [Parameter] public string? Name { get; set; }
+
+    /// <summary>Explicit initials. Overrides the value derived from <see cref="Name"/>.</summary>
+    [Parameter] public string? Initials { get; set; }
+
+    /// <summary>Fallback icon name shown when there is no image and no initials.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Rendered diameter.</summary>
+    [Parameter] public AvatarSize Size { get; set; } = AvatarSize.Medium;
+
+    /// <summary>Outline shape.</summary>
+    [Parameter] public AvatarShape Shape { get; set; } = AvatarShape.Circle;
+
+    /// <summary>Presence indicator dot.</summary>
+    [Parameter] public AvatarStatus Status { get; set; } = AvatarStatus.None;
+
+    /// <summary>Pass-through HTML attributes applied to the avatar element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _imageFailed;
+
+    protected override void OnInitialized() => Group?.Register(this);
+
+    public void Dispose() => Group?.Unregister(this);
+
+    /// <summary>Size dictated by the parent group, falling back to this avatar's own size.</summary>
+    private AvatarSize EffectiveSize => Group?.Size ?? Size;
+
+    /// <summary>True when this avatar is collapsed behind a group's "+N" counter.</summary>
+    private bool HiddenInGroup => Group is not null && Group.IsHidden(this);
+
+    private RenderFragment AvatarBody => __builder =>
+    {
+        <span class="@AvatarCssClass"
+              role="img"
+              aria-label="@AccessibleLabel"
+              @attributes="AdditionalAttributes">
+            @if (ShowImage)
+            {
+                <img src="@Src" alt="@Alt" @onerror="() => _imageFailed = true" />
+            }
+            else if (!string.IsNullOrEmpty(DerivedInitials))
+            {
+                @DerivedInitials
+            }
+            else if (!string.IsNullOrEmpty(Icon))
+            {
+                <DrylIcon Name="@Icon" Size="@IconSize" />
+            }
+            else
+            {
+                <DrylIcon Name="User" Size="@IconSize" />
+            }
+        </span>
+    };
+
+    private bool ShowImage => !string.IsNullOrEmpty(Src) && !_imageFailed;
+
+    private string? DerivedInitials
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Initials)) return Initials.Trim().ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(Name)) return null;
+
+            var parts = Name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length switch
+            {
+                0 => null,
+                1 => parts[0][..1].ToUpperInvariant(),
+                _ => $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant()
+            };
+        }
+    }
+
+    private string? AccessibleLabel =>
+        !string.IsNullOrEmpty(Alt) ? Alt
+        : !string.IsNullOrEmpty(Name) ? Name
+        : "Avatar";
+
+    private int IconSize => EffectiveSize switch
+    {
+        AvatarSize.Small => 13,
+        AvatarSize.Large => 20,
+        _ => 15
+    };
+
+    private string AvatarCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "avatar" };
+            if (EffectiveSize == AvatarSize.Small) parts.Add("avatar--sm");
+            else if (EffectiveSize == AvatarSize.Large) parts.Add("avatar--lg");
+            if (Shape == AvatarShape.Square) parts.Add("avatar--square");
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string WrapCssClass =>
+        EffectiveSize switch
+        {
+            AvatarSize.Small => "avatar-wrap avatar-wrap--sm",
+            AvatarSize.Large => "avatar-wrap avatar-wrap--lg",
+            _ => "avatar-wrap"
+        };
+
+    private string StatusCssClass =>
+        "avatar-status " + Status switch
+        {
+            AvatarStatus.Online => "avatar-status--online",
+            AvatarStatus.Busy => "avatar-status--busy",
+            AvatarStatus.Away => "avatar-status--away",
+            AvatarStatus.Offline => "avatar-status--offline",
+            _ => string.Empty
+        };
+}

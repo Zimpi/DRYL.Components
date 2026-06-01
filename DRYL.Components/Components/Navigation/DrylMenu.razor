@@ -1,14 +1,17 @@
 @namespace DRYL.Components
-@implements IAsyncDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
     DrylMenu — dropdown action menu anchored to a trigger.
 
+    Built on the shared DrylPopover primitive: the popover owns
+    open/close, positioning and click-outside dismissal; DrylMenu adds
+    the menu role, keyboard navigation and item-driven close.
+
     Usage:
       <DrylMenu>
         <Trigger>
-          <DrylButton TrailingIcon="chevron-down">Actions</DrylButton>
+          <DrylButton TrailingIcon="ChevronDown">Actions</DrylButton>
         </Trigger>
         <Items>
           <DrylMenuItem Icon="edit" OnClick="Edit">Edit</DrylMenuItem>
@@ -20,25 +23,25 @@
       </DrylMenu>
     ───────────────────────────────────────────────────────── *@
 
-<div class="@AnchorClass" @ref="_anchor" @attributes="AdditionalAttributes">
-    <div @onclick="Toggle" class="menu-trigger">
+<DrylPopover @ref="_popover"
+             @bind-Open="_isOpen"
+             Block="@Block"
+             Placement="@MappedPlacement"
+             PanelRole="menu"
+             PanelAriaLabel="@Label"
+             CloseOnEscape="false"
+             OnOpen="HandleOpened"
+             OnKeyDown="HandleKeyDown"
+             @attributes="AdditionalAttributes">
+    <TriggerContent>
         @Trigger
-    </div>
-
-    @if (_isOpen)
-    {
+    </TriggerContent>
+    <PanelContent>
         <CascadingValue Value="this" IsFixed="true">
-            <div class="@PanelClass"
-                 role="menu"
-                 aria-label="@Label"
-                 @onkeydown="HandleKeyDown"
-                 tabindex="-1"
-                 @ref="_panel">
-                @Items
-            </div>
+            @Items
         </CascadingValue>
-    }
-</div>
+    </PanelContent>
+</DrylPopover>
 
 @code {
     /// <summary>Content that opens the menu — typically a DrylButton.</summary>
@@ -62,90 +65,62 @@
 
     private bool _isOpen;
     private bool _shouldFocusPanel;
-    private bool _jsReady;
-    private ElementReference _anchor;
-    private ElementReference _panel;
-    private DotNetObjectReference<DrylMenu>? _dotnetRef;
+    private DrylPopover? _popover;
 
-    private string AnchorClass => Block ? "menu-anchor menu-anchor--block" : "menu-anchor";
-
-    private string PanelClass => Placement switch
+    private PopoverPlacement MappedPlacement => Placement switch
     {
-        MenuPlacement.BottomEnd => "menu-panel menu-panel--end",
-        MenuPlacement.TopStart  => "menu-panel menu-panel--top",
-        MenuPlacement.TopEnd    => "menu-panel menu-panel--top menu-panel--end",
-        _                       => "menu-panel"
+        MenuPlacement.BottomEnd => PopoverPlacement.BottomEnd,
+        MenuPlacement.TopStart  => PopoverPlacement.TopStart,
+        MenuPlacement.TopEnd    => PopoverPlacement.TopEnd,
+        _                       => PopoverPlacement.BottomStart
     };
+
+    private void HandleOpened() => _shouldFocusPanel = true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            _jsReady = true;
-            _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
-        }
-
-        if (_shouldFocusPanel)
+        if (_shouldFocusPanel && _isOpen && _popover is not null)
         {
             _shouldFocusPanel = false;
-            await JS.InvokeVoidAsync("dryl.menu.focusPanel", _panel);
+            await JS.InvokeVoidAsync("dryl.menu.focusPanel", _popover.PanelElement);
         }
-    }
-
-    private void Toggle()
-    {
-        _isOpen = !_isOpen;
-        if (_isOpen) _shouldFocusPanel = true;
-    }
-
-    /// <summary>Closes the menu and returns focus to the trigger.</summary>
-    [JSInvokable]
-    public void Close()
-    {
-        _isOpen = false;
-        StateHasChanged();
     }
 
     internal void CloseFromItem()
     {
         _isOpen = false;
         StateHasChanged();
-        if (_jsReady)
-            _ = JS.InvokeVoidAsync("dryl.menu.focusTrigger", _anchor).AsTask();
+        if (_popover is not null)
+            _ = JS.InvokeVoidAsync("dryl.menu.focusTrigger", _popover.AnchorElement).AsTask();
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
+        if (_popover is null) return;
         switch (e.Key)
         {
             case "Escape":
                 _isOpen = false;
-                await JS.InvokeVoidAsync("dryl.menu.focusTrigger", _anchor);
+                StateHasChanged();
+                await JS.InvokeVoidAsync("dryl.menu.focusTrigger", _popover.AnchorElement);
                 break;
             case "ArrowDown":
-                await JS.InvokeVoidAsync("dryl.menu.navigate", _panel, "down");
+                await JS.InvokeVoidAsync("dryl.menu.navigate", _popover.PanelElement, "down");
                 break;
             case "ArrowUp":
-                await JS.InvokeVoidAsync("dryl.menu.navigate", _panel, "up");
+                await JS.InvokeVoidAsync("dryl.menu.navigate", _popover.PanelElement, "up");
                 break;
             case "Home":
-                await JS.InvokeVoidAsync("dryl.menu.navigate", _panel, "first");
+                await JS.InvokeVoidAsync("dryl.menu.navigate", _popover.PanelElement, "first");
                 break;
             case "End":
-                await JS.InvokeVoidAsync("dryl.menu.navigate", _panel, "last");
+                await JS.InvokeVoidAsync("dryl.menu.navigate", _popover.PanelElement, "last");
                 break;
             case "Tab":
                 _isOpen = false;
+                StateHasChanged();
                 break;
         }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
-        _dotnetRef?.Dispose();
     }
 
     /// <summary>Controls where the menu panel opens relative to its trigger.</summary>

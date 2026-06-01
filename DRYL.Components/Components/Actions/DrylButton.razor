@@ -34,14 +34,14 @@
     }
     else if (!string.IsNullOrEmpty(LeadingIcon))
     {
-        <DrylIcon Name="@LeadingIcon" Size="14" />
+        <DrylIcon Name="@LeadingIcon" Size="14" Class="btn-ico-lead" />
     }
 
     @ChildContent
 
     @if (!string.IsNullOrEmpty(TrailingIcon) && !Loading)
     {
-        <DrylIcon Name="@TrailingIcon" Size="14" />
+        <DrylIcon Name="@TrailingIcon" Size="14" Class="btn-ico-trail" />
     }
 </button>
 

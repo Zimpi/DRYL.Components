@@ -188,7 +188,9 @@ window.dryl.menu = (() => {
 
     function focusTrigger(anchor) {
         if (!anchor) return;
-        const btn = anchor.querySelector('.menu-trigger button:not([disabled]), .menu-trigger a, .menu-trigger [tabindex]');
+        const sel = '.menu-trigger button:not([disabled]), .menu-trigger a, .menu-trigger [tabindex],'
+                  + '.popover-trigger button:not([disabled]), .popover-trigger a, .popover-trigger [tabindex]';
+        const btn = anchor.querySelector(sel);
         btn?.focus();
     }
 
@@ -589,6 +591,88 @@ window.dryl.inputmask = (() => {
         if (!h) return;
         el.removeEventListener('input', h.onInput);
         el.removeEventListener('paste', h.onPaste);
+        _map.delete(el);
+    }
+
+    return { attach, detach };
+})();
+
+/* ──────────────────────────────────────────────────────────
+ * dryl.chat — DrylChat scroll + composer helpers.
+ *   scrollToEnd(el)             pins a scroll region to the bottom.
+ *   attachComposer(el, ref)     Enter sends (Shift+Enter = newline),
+ *                               textarea auto-grows on input.
+ *   detachComposer(el)          cleans up listeners.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.chat = (() => {
+    const _map = new WeakMap();
+
+    function scrollToEnd(el) {
+        if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    function autoGrow(el) {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+    }
+
+    function attachComposer(el, dotnetRef) {
+        if (!el) return;
+        detachComposer(el);
+
+        const onKeyDown = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+                e.preventDefault();
+                dotnetRef.invokeMethodAsync('SubmitFromJs');
+            }
+        };
+        const onInput = () => autoGrow(el);
+
+        el.addEventListener('keydown', onKeyDown);
+        el.addEventListener('input', onInput);
+        _map.set(el, { onKeyDown, onInput });
+        autoGrow(el);
+    }
+
+    function detachComposer(el) {
+        if (!el) return;
+        const h = _map.get(el);
+        if (!h) return;
+        el.removeEventListener('keydown', h.onKeyDown);
+        el.removeEventListener('input', h.onInput);
+        _map.delete(el);
+    }
+
+    function resize(el) {
+        if (el) autoGrow(el);
+    }
+
+    return { scrollToEnd, attachComposer, detachComposer, resize };
+})();
+
+/* ──────────────────────────────────────────────────────────
+ * dryl.tree — DrylTreeView keyboard helper.
+ *   Prevents the default page-scroll for the navigation keys so the
+ *   Blazor @onkeydown handler can move roving focus. Tab is left
+ *   untouched so focus can still leave the tree.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.tree = (() => {
+    const _map = new WeakMap();
+    const navKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
+
+    function attach(el) {
+        if (!el) return;
+        detach(el);
+        const onKey = (e) => { if (navKeys.has(e.key)) e.preventDefault(); };
+        el.addEventListener('keydown', onKey);
+        _map.set(el, { onKey });
+    }
+
+    function detach(el) {
+        if (!el) return;
+        const h = _map.get(el);
+        if (!h) return;
+        el.removeEventListener('keydown', h.onKey);
         _map.delete(el);
     }
 

@@ -1,24 +1,15 @@
+/* Positioning is provided by the DrylPopover wrapper; this is just the surface. */
 .time-panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: var(--z-drawer);
     display: flex;
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-3);
-    min-width: 180px;
     background: var(--bg-2);
     backdrop-filter: blur(var(--glass-blur)) saturate(140%);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
     border: 1px solid var(--line-strong);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-md);
-    animation: menu-in var(--dur-med) var(--ease-spring);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .time-panel { animation: none; }
 }
 
 .time-columns {

@@ -1,0 +1,4 @@
+.field-required {
+    margin-left: 2px;
+    color: var(--accent-a);
+}

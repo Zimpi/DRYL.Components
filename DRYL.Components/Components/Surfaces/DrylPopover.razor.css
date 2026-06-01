@@ -1,0 +1,65 @@
+.popover-anchor {
+    position: relative;
+    display: inline-block;
+}
+
+.popover-anchor--block {
+    display: block;
+    width: 100%;
+}
+
+.popover-trigger {
+    display: inline-flex;
+}
+
+.popover-anchor--block .popover-trigger {
+    display: flex;
+    width: 100%;
+}
+
+.popover-panel {
+    position: absolute;
+    z-index: var(--z-drawer);
+}
+
+/* Default surface (opt out with Surface="false").
+   Dropdowns float over page content, so the fill is opaque (--bg-2),
+   matching the library's existing menu / select / date panels.
+   The base min-width lives here so content-sized panels (Surface=false)
+   can hug their own content instead of being padded out. */
+.popover-panel--surface {
+    min-width: 180px;
+    background: var(--bg-2);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--sp-2);
+}
+
+/* Match the trigger width (dropdowns / selects) */
+.popover-panel--match {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Placement */
+.popover-panel--bottom-start { top: calc(100% + var(--sp-1)); left: 0; }
+.popover-panel--bottom-end   { top: calc(100% + var(--sp-1)); right: 0; }
+.popover-panel--top-start    { bottom: calc(100% + var(--sp-1)); left: 0; }
+.popover-panel--top-end      { bottom: calc(100% + var(--sp-1)); right: 0; }
+
+/* Entrance */
+.popover-panel {
+    animation: popover-in var(--dur-fast) var(--ease-out);
+}
+
+@keyframes popover-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .popover-panel { animation: none; }
+}

@@ -1,0 +1,114 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTimelineItem — a single event inside a DrylTimeline.
+
+    Renders a marker on the rail plus a title / timestamp / body.
+    Variant tints the marker; the shared Ai state wraps the marker
+    in the gradient aura (e.g. a tool call in flight).
+    ───────────────────────────────────────────────────────── *@
+
+<div class="timeline-item" role="listitem" @attributes="AdditionalAttributes">
+    <div class="timeline-gutter">
+        <div class="@MarkerCssClass">
+            @if (Ai != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (Ai == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="_genTick"></div>
+                }
+            }
+            @if (!string.IsNullOrEmpty(Icon))
+            {
+                <DrylIcon Name="@Icon" Size="13" />
+            }
+            else
+            {
+                <span class="timeline-dot"></span>
+            }
+        </div>
+        <div class="timeline-line"></div>
+    </div>
+
+    <div class="timeline-body">
+        @if (!string.IsNullOrEmpty(Title) || !string.IsNullOrEmpty(Timestamp))
+        {
+            <div class="timeline-head">
+                @if (!string.IsNullOrEmpty(Title))
+                {
+                    <span class="timeline-title">@Title</span>
+                }
+                @if (!string.IsNullOrEmpty(Timestamp))
+                {
+                    <span class="timeline-time">@Timestamp</span>
+                }
+            </div>
+        }
+        @if (ChildContent is not null)
+        {
+            <div class="timeline-content">@ChildContent</div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>Title line for the event.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Optional pre-formatted timestamp.</summary>
+    [Parameter] public string? Timestamp { get; set; }
+
+    /// <summary>Optional marker icon. When omitted, a dot is shown.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Marker colour treatment.</summary>
+    [Parameter] public TimelineVariant Variant { get; set; } = TimelineVariant.Default;
+
+    /// <summary>Body content for the event.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>AI ambient state — wraps the marker in the gradient aura.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    private string MarkerCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "timeline-marker" };
+            parts.Add(Variant switch
+            {
+                TimelineVariant.Accent  => "timeline-marker--accent",
+                TimelineVariant.Success => "timeline-marker--success",
+                TimelineVariant.Warning => "timeline-marker--warning",
+                TimelineVariant.Danger  => "timeline-marker--danger",
+                _ => "timeline-marker--default"
+            });
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+}

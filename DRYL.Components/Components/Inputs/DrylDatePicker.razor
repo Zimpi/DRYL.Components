@@ -1,6 +1,5 @@
 @namespace DRYL.Components
 @inherits InputBase<DateOnly?>
-@implements IAsyncDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
@@ -33,47 +32,53 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
-        <div class="@WrapperCssClass">
-            @if (Ai != AiState.None)
-            {
-                <div class="ai-aura-ring"></div>
-                <div class="ai-aura-glow"></div>
-                @if (Ai == AiState.Generated)
+    <DrylPopover @ref="_popover"
+                 @bind-Open="_isOpen"
+                 Block="true"
+                 TriggerTogglesOpen="false"
+                 Surface="false"
+                 CloseOnEscape="false"
+                 OnClose="HandleClosed">
+        <TriggerContent>
+            <div class="@WrapperCssClass">
+                @if (Ai != AiState.None)
                 {
-                    <div class="ai-aura-wash" @key="_genTick"></div>
+                    <div class="ai-aura-ring"></div>
+                    <div class="ai-aura-glow"></div>
+                    @if (Ai == AiState.Generated)
+                    {
+                        <div class="ai-aura-wash" @key="_genTick"></div>
+                    }
                 }
-            }
 
-            <input id="@_id"
-                   type="text"
-                   class="@InputCssClass"
-                   value="@DisplayValue"
-                   readonly
-                   @onfocus="Open"
-                   @onclick="Open"
-                   placeholder="@(Range ? "Select range…" : "dd.MM.yyyy")"
-                   disabled="@Disabled"
-                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                   aria-invalid="@(HasValidationError ? "true" : null)"
-                   aria-describedby="@(ShowHelper ? _helperId : null)"
-                   aria-haspopup="dialog"
-                   aria-expanded="@(_isOpen ? "true" : "false")" />
+                <input id="@_id"
+                       type="text"
+                       class="@InputCssClass"
+                       value="@DisplayValue"
+                       readonly
+                       @onfocus="Open"
+                       @onclick="Open"
+                       placeholder="@(Range ? "Select range…" : "dd.MM.yyyy")"
+                       disabled="@Disabled"
+                       aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                       aria-invalid="@(HasValidationError ? "true" : null)"
+                       aria-describedby="@(ShowHelper ? _helperId : null)"
+                       aria-haspopup="dialog"
+                       aria-expanded="@(_isOpen ? "true" : "false")" />
 
-            <DrylIcon Name="Calendar" Size="16" Class="input-icon input-icon-trailing" />
+                <DrylIcon Name="Calendar" Size="16" Class="input-icon input-icon-trailing" />
+            </div>
+        </TriggerContent>
+        <PanelContent>
+            <div class="date-panel"
+                 role="dialog"
+                 aria-label="@($"Pick a date — {_viewMonth.ToString("MMMM yyyy")}")"
+                 tabindex="-1"
+                 @onkeydown="HandleCalendarKeyDown"
+                 @onkeydown:preventDefault="@_preventKeyDefault">
 
-            @if (_isOpen)
-            {
-                <div class="date-panel"
-                     role="dialog"
-                     aria-label="@($"Pick a date — {_viewMonth.ToString("MMMM yyyy")}")"
-                     tabindex="-1"
-                     @ref="_calendarPanel"
-                     @onkeydown="HandleCalendarKeyDown"
-                     @onkeydown:preventDefault="@_preventKeyDefault">
-
-                    @* ── Month navigation header ── *@
-                    <div class="date-header">
+                @* ── Month navigation header ── *@
+                <div class="date-header">
                         <button type="button" class="btn btn-ghost btn-icon btn-sm date-nav-btn"
                                 @onclick="PrevMonth" aria-label="Previous month">
                             <DrylIcon Name="ChevronLeft" Size="14" />
@@ -129,24 +134,23 @@
                         }
                     </div>
 
-                    @* Range mode hint *@
-                    @if (Range)
-                    {
-                        <div class="date-range-hint">
-                            @if (_selectingEnd)
-                            {
-                                <span>Select end date</span>
-                            }
-                            else
-                            {
-                                <span>Select start date</span>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    </div>
+                @* Range mode hint *@
+                @if (Range)
+                {
+                    <div class="date-range-hint">
+                        @if (_selectingEnd)
+                        {
+                            <span>Select end date</span>
+                        }
+                        else
+                        {
+                            <span>Select start date</span>
+                        }
+                    </div>
+                }
+            </div>
+        </PanelContent>
+    </DrylPopover>
 
     @if (HasValidationError)
     {
@@ -206,15 +210,12 @@
     private bool _isOpen;
     private bool _selectingEnd;
     private bool _preventKeyDefault;
-    private bool _jsReady;
     private bool _shouldFocusCalendar;
 
     private DateOnly _viewMonth = DateOnly.FromDateTime(DateTime.Today);
     private DateOnly _focusedDay = DateOnly.FromDateTime(DateTime.Today);
 
-    private ElementReference _anchor;
-    private ElementReference _calendarPanel;
-    private DotNetObjectReference<DrylDatePicker>? _dotnetRef;
+    private DrylPopover? _popover;
 
     private AiState _prevAi = AiState.None;
     private int _genTick;
@@ -243,17 +244,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            _jsReady = true;
-            _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
-        }
-
-        if (_shouldFocusCalendar)
+        if (_shouldFocusCalendar && _isOpen && _popover is not null)
         {
             _shouldFocusCalendar = false;
-            await JS.InvokeVoidAsync("dryl.datepicker.focusDay", _calendarPanel, _focusedDay.DayNumber);
+            await JS.InvokeVoidAsync("dryl.datepicker.focusDay", _popover.PanelElement, _focusedDay.DayNumber);
         }
     }
 
@@ -268,14 +262,8 @@
         _shouldFocusCalendar = true;
     }
 
-    /// <summary>Called by JS click-outside listener.</summary>
-    [JSInvokable]
-    public void Close()
-    {
-        _isOpen = false;
-        _selectingEnd = false;
-        StateHasChanged();
-    }
+    /// <summary>Called by DrylPopover when it closes (click-outside). Resets range-selection state.</summary>
+    private void HandleClosed() => _selectingEnd = false;
 
     private async Task SelectDay(DateOnly day)
     {
@@ -528,12 +516,5 @@
         result = null;
         validationErrorMessage = "Invalid date. Expected format: dd.MM.yyyy";
         return false;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
-        _dotnetRef?.Dispose();
     }
 }

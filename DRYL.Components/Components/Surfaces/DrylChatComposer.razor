@@ -1,0 +1,144 @@
+@namespace DRYL.Components
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylChatComposer — message input for a DrylChat footer.
+
+    Enter sends, Shift+Enter inserts a newline; the textarea grows
+    with its content. Both behaviours are handled by the
+    dryl.chat.attachComposer JS helper.
+
+    Usage:
+      <DrylChatComposer @bind-Value="_draft"
+                        Placeholder="Ask DRYL AI…"
+                        OnSend="HandleSend" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@WrapperCssClass">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    <textarea @ref="_ref"
+              class="chat-composer-input"
+              rows="1"
+              value="@Value"
+              @oninput="OnInput"
+              placeholder="@Placeholder"
+              disabled="@Disabled"
+              aria-label="@AriaLabel"></textarea>
+
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                LeadingIcon="ArrowUp"
+                AriaLabel="Send message"
+                Disabled="@SendDisabled"
+                OnClick="SendClick" />
+</div>
+
+@code {
+    /// <summary>Current draft text. Supports two-way binding.</summary>
+    [Parameter] public string? Value { get; set; }
+
+    /// <summary>Fires when the draft text changes.</summary>
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>Fires when the user sends a message (Enter or the send button).</summary>
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+
+    /// <summary>Placeholder text shown when empty.</summary>
+    [Parameter] public string? Placeholder { get; set; } = "Type a message…";
+
+    /// <summary>When true, the composer is disabled.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label for the input.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Message";
+
+    /// <summary>AI ambient state — wraps the composer in the gradient ring.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    private ElementReference _ref;
+    private DotNetObjectReference<DrylChatComposer>? _dotnetRef;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+    private bool _attached;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.chat.attachComposer", _ref, _dotnetRef);
+            _attached = true;
+        }
+    }
+
+    private bool SendDisabled => Disabled || string.IsNullOrWhiteSpace(Value);
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString();
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    /// <summary>Invoked from JS when the user presses Enter without Shift.</summary>
+    [JSInvokable]
+    public Task SubmitFromJs() => Send();
+
+    private Task SendClick(MouseEventArgs _) => Send();
+
+    private async Task Send()
+    {
+        if (SendDisabled) return;
+        var text = Value!;
+        Value = string.Empty;
+        await ValueChanged.InvokeAsync(string.Empty);
+        await OnSend.InvokeAsync(text);
+        try { await JS.InvokeVoidAsync("dryl.chat.resize", _ref); }
+        catch (JSDisconnectedException) { /* circuit closing — ignore */ }
+    }
+
+    private string WrapperCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "chat-composer" };
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_attached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.chat.detachComposer", _ref); }
+            catch (JSDisconnectedException) { /* circuit closing — ignore */ }
+            catch (JSException) { /* element already gone — ignore */ }
+            catch (InvalidOperationException) { /* statically rendered — ignore */ }
+        }
+        _dotnetRef?.Dispose();
+    }
+}

@@ -1,0 +1,41 @@
+@page "/description-list"
+
+<PageTitle>DRYL — Description List</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Data</span>
+        <h2>DrylDescriptionList</h2>
+        <p class="lead">
+            Semantic key/value detail view — the read-only counterpart to a form.
+            Stacked or inline, in one or more columns.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Inline, two columns</h3>
+        <div class="glass-card p-default">
+            <DrylDescriptionList Layout="DescriptionLayout.Inline" Columns="2">
+                <DrylDescriptionItem Term="Service" Icon="Bolt">auth-gateway</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Status" Icon="Activity">Online</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Region">eu-central-1</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Version">v2.4.1</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Owner" Icon="User">Platform Team</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Uptime">99.98%</DrylDescriptionItem>
+            </DrylDescriptionList>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Stacked, single column</h3>
+        <div class="glass-card p-default" style="max-width: 360px;">
+            <DrylDescriptionList Layout="DescriptionLayout.Stacked">
+                <DrylDescriptionItem Term="Full name">Ada Lovelace</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Email">ada@example.com</DrylDescriptionItem>
+                <DrylDescriptionItem Term="Role">Administrator</DrylDescriptionItem>
+            </DrylDescriptionList>
+        </div>
+    </section>
+
+</div>

@@ -1,0 +1,109 @@
+@namespace DRYL.Components
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylChat — conversation surface.
+
+    A glass panel with a scrollable message log and an optional
+    pinned footer for the composer. The Ai parameter wraps the whole
+    panel in the shared AI aura vocabulary; individual messages carry
+    their own Ai state.
+
+    Usage:
+      <DrylChat Ai="@_state" Height="520px">
+          @foreach (var m in _messages)
+          {
+              <DrylMessage Role="@m.Role" Author="@m.Author" Ai="@m.Ai">
+                  @m.Text
+              </DrylMessage>
+          }
+          <Footer>
+              <DrylChatComposer @bind-Value="_draft" OnSend="Send" />
+          </Footer>
+      </DrylChat>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" style="--chat-height: @Height" @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    <div class="chat-scroll" @ref="_scrollRef" role="log" aria-live="polite" aria-label="@AriaLabel">
+        @ChildContent
+    </div>
+
+    @if (Footer is not null)
+    {
+        <div class="chat-footer">
+            @Footer
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The message log content (typically DrylMessage elements).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pinned footer content, typically a DrylChatComposer.</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    /// <summary>CSS height of the chat panel. Default 480px.</summary>
+    [Parameter] public string Height { get; set; } = "480px";
+
+    /// <summary>When true, the log scrolls to the newest message after each render.</summary>
+    [Parameter] public bool AutoScroll { get; set; } = true;
+
+    /// <summary>Accessible label for the message log.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Conversation";
+
+    /// <summary>AI ambient state applied to the whole panel.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private ElementReference _scrollRef;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (AutoScroll)
+        {
+            try { await JS.InvokeVoidAsync("dryl.chat.scrollToEnd", _scrollRef); }
+            catch (JSDisconnectedException) { /* circuit closing — ignore */ }
+        }
+    }
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "chat" };
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+}

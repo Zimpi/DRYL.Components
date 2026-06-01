@@ -1,0 +1,46 @@
+@page "/empty-state"
+
+<PageTitle>DRYL — Empty State</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Feedback</span>
+        <h2>DrylEmptyState</h2>
+        <p class="lead">
+            Centred placeholder for "no data" situations — empty tables, search
+            results, chat panels or dashboards. Icon, title, description and an
+            optional call-to-action slot.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Default</h3>
+        <div class="glass-card p-default">
+            <DrylEmptyState Icon="Search" Title="No results found"
+                            Description="We couldn't find anything matching your search. Try a different term or clear the filters.">
+                <ActionContent>
+                    <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="X">Clear filters</DrylButton>
+                    <DrylButton Variant="DrylButton.ButtonVariant.Primary" LeadingIcon="Plus">New item</DrylButton>
+                </ActionContent>
+            </DrylEmptyState>
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Small (in-panel)</h3>
+        <div class="glass-card p-tight" style="max-width: 320px;">
+            <DrylEmptyState Size="EmptyStateSize.Small" Icon="Bell"
+                            Title="You're all caught up"
+                            Description="No new notifications." />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Minimal</h3>
+        <div class="glass-card p-default">
+            <DrylEmptyState Title="Nothing here yet" />
+        </div>
+    </section>
+
+</div>

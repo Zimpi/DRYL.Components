@@ -1,7 +1,7 @@
 @namespace DRYL.Components
 @typeparam TItem where TItem : class
 @inherits InputBase<TItem?>
-@implements IAsyncDisposable
+@implements IDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
@@ -44,100 +44,105 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
-        <div class="@WrapperCssClass">
-            @if (Ai != AiState.None)
-            {
-                <div class="ai-aura-ring"></div>
-                <div class="ai-aura-glow"></div>
-                @if (Ai == AiState.Generated)
+    <DrylPopover @ref="_popover"
+                 @bind-Open="_isOpen"
+                 Block="true"
+                 MatchTriggerWidth="true"
+                 TriggerTogglesOpen="false"
+                 Surface="false"
+                 CloseOnEscape="false"
+                 OnClose="HandleClosed">
+        <TriggerContent>
+            <div class="@WrapperCssClass">
+                @if (Ai != AiState.None)
                 {
-                    <div class="ai-aura-wash" @key="_genTick"></div>
+                    <div class="ai-aura-ring"></div>
+                    <div class="ai-aura-glow"></div>
+                    @if (Ai == AiState.Generated)
+                    {
+                        <div class="ai-aura-wash" @key="_genTick"></div>
+                    }
                 }
-            }
 
-            <DrylIcon Name="Search" Size="16" Class="input-icon input-icon-leading" />
+                <DrylIcon Name="Search" Size="16" Class="input-icon input-icon-leading" />
 
-            <input id="@_id"
-                   type="text"
-                   class="@InputCssClass"
-                   value="@_inputText"
-                   placeholder="@Placeholder"
-                   disabled="@Disabled"
-                   autocomplete="off"
-                   autocorrect="off"
-                   spellcheck="false"
-                   role="combobox"
-                   aria-autocomplete="list"
-                   aria-expanded="@(_isOpen ? "true" : "false")"
-                   aria-controls="@_listboxId"
-                   aria-activedescendant="@ActiveDescendant"
-                   aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                   aria-invalid="@(HasValidationError ? "true" : null)"
-                   aria-describedby="@(ShowHelper ? _helperId : null)"
-                   @oninput="HandleInput"
-                   @onkeydown="HandleKeyDown"
-                   @onfocus="HandleFocus"
-                   @attributes="AdditionalAttributes" />
+                <input id="@_id"
+                       type="text"
+                       class="@InputCssClass"
+                       value="@_inputText"
+                       placeholder="@Placeholder"
+                       disabled="@Disabled"
+                       autocomplete="off"
+                       autocorrect="off"
+                       spellcheck="false"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-expanded="@(_isOpen ? "true" : "false")"
+                       aria-controls="@_listboxId"
+                       aria-activedescendant="@ActiveDescendant"
+                       aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                       aria-invalid="@(HasValidationError ? "true" : null)"
+                       aria-describedby="@(ShowHelper ? _helperId : null)"
+                       @oninput="HandleInput"
+                       @onkeydown="HandleKeyDown"
+                       @onfocus="HandleFocus"
+                       @attributes="AdditionalAttributes" />
 
-            @if (_isLoading)
-            {
-                <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" Class="input-icon input-icon-trailing" />
-            }
+                @if (_isLoading)
+                {
+                    <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" Class="input-icon input-icon-trailing" />
+                }
+            </div>
+        </TriggerContent>
+        <PanelContent>
+            <div id="@_listboxId"
+                 role="listbox"
+                 class="autocomplete-panel"
+                 aria-label="@(string.IsNullOrEmpty(Label) ? "Suggestions" : $"{Label} suggestions")">
 
-            @* ── Listbox dropdown ── *@
-            @if (_isOpen)
-            {
-                <div id="@_listboxId"
-                     role="listbox"
-                     class="autocomplete-panel"
-                     @ref="_listbox"
-                     aria-label="@(string.IsNullOrEmpty(Label) ? "Suggestions" : $"{Label} suggestions")">
-
-                    @if (_isLoading && !_filteredItems.Any())
+                @if (_isLoading && !_filteredItems.Any())
+                {
+                    <div class="autocomplete-loading" aria-live="polite">
+                        Searching…
+                    </div>
+                }
+                else if (!_filteredItems.Any())
+                {
+                    <div class="autocomplete-empty" aria-live="polite">
+                        No results
+                    </div>
+                }
+                else
+                {
+                    var items = _filteredItems.ToList();
+                    for (int i = 0; i < items.Count; i++)
                     {
-                        <div class="autocomplete-loading" aria-live="polite">
-                            Searching…
+                        var item = items[i];
+                        var idx = i;
+                        var isHighlighted = idx == _highlightedIndex;
+                        var isSelected = ReferenceEquals(item, CurrentValue);
+
+                        <div id="@($"opt-{_id}-{idx}")"
+                             role="option"
+                             class="@OptionCss(idx, isSelected)"
+                             aria-selected="@(isSelected ? "true" : "false")"
+                             @onclick="() => SelectItem(item)"
+                             @onmouseenter="() => _highlightedIndex = idx"
+                             @key="idx">
+                            @if (ItemTemplate != null)
+                            {
+                                @ItemTemplate(item)
+                            }
+                            else
+                            {
+                                @GetDisplayText(item)
+                            }
                         </div>
                     }
-                    else if (!_filteredItems.Any())
-                    {
-                        <div class="autocomplete-empty" aria-live="polite">
-                            No results
-                        </div>
-                    }
-                    else
-                    {
-                        var items = _filteredItems.ToList();
-                        for (int i = 0; i < items.Count; i++)
-                        {
-                            var item = items[i];
-                            var idx = i;
-                            var isHighlighted = idx == _highlightedIndex;
-                            var isSelected = ReferenceEquals(item, CurrentValue);
-
-                            <div id="@($"opt-{_id}-{idx}")"
-                                 role="option"
-                                 class="@OptionCss(idx, isSelected)"
-                                 aria-selected="@(isSelected ? "true" : "false")"
-                                 @onclick="() => SelectItem(item)"
-                                 @onmouseenter="() => _highlightedIndex = idx"
-                                 @key="idx">
-                                @if (ItemTemplate != null)
-                                {
-                                    @ItemTemplate(item)
-                                }
-                                else
-                                {
-                                    @GetDisplayText(item)
-                                }
-                            </div>
-                        }
-                    }
-                </div>
-            }
-        </div>
-    </div>
+                }
+            </div>
+        </PanelContent>
+    </DrylPopover>
 
     @if (HasValidationError)
     {
@@ -201,11 +206,8 @@
     private int _highlightedIndex = -1;
     private bool _isLoading;
     private CancellationTokenSource? _searchCts;
-    private bool _jsReady;
 
-    private ElementReference _anchor;
-    private ElementReference _listbox;
-    private DotNetObjectReference<DrylAutocomplete<TItem>>? _dotnetRef;
+    private DrylPopover? _popover;
 
     private TItem? _prevValue;
     private AiState _prevAi = AiState.None;
@@ -231,16 +233,6 @@
         {
             _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
             _prevValue = CurrentValue;
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _jsReady = true;
-            _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
         }
     }
 
@@ -342,14 +334,12 @@
                     break;
                 }
                 _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
-                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView",
-                    _listbox, _highlightedIndex);
+                await ScrollHighlightedIntoView();
                 break;
 
             case "ArrowUp":
                 _highlightedIndex = Math.Max(_highlightedIndex - 1, 0);
-                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView",
-                    _listbox, _highlightedIndex);
+                await ScrollHighlightedIntoView();
                 break;
 
             case "Enter":
@@ -370,14 +360,14 @@
         }
     }
 
-    /// <summary>Called by JS click-outside listener.</summary>
-    [JSInvokable]
-    public void Close()
-    {
-        _isOpen = false;
-        // Revert input text to the last selected value's display
+    /// <summary>Called by DrylPopover when it closes (click-outside). Reverts the input text.</summary>
+    private void HandleClosed() =>
         _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
-        StateHasChanged();
+
+    private async Task ScrollHighlightedIntoView()
+    {
+        if (_popover is not null)
+            await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _popover.PanelElement, _highlightedIndex);
     }
 
     private string GetDisplayText(TItem item) =>
@@ -438,12 +428,9 @@
         return true;
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         _searchCts?.Cancel();
         _searchCts?.Dispose();
-        if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
-        _dotnetRef?.Dispose();
     }
 }

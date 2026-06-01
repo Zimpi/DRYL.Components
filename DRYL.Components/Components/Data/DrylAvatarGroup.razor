@@ -1,0 +1,85 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAvatarGroup — overlapping stack of avatars.
+
+    Cascades its Size to every child DrylAvatar (uniform sizing) and,
+    when Max is set and exceeded, collapses the overflow behind a
+    "+N" counter tile.
+
+    Usage:
+      <DrylAvatarGroup Max="3" Size="AvatarSize.Small">
+          <DrylAvatar Name="Ada Lovelace" />
+          <DrylAvatar Name="Alan Turing" />
+          <DrylAvatar Name="Grace Hopper" />
+          <DrylAvatar Name="Edsger Dijkstra" />
+          <DrylAvatar Name="Donald Knuth" />
+      </DrylAvatarGroup>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@GroupCssClass" @attributes="AdditionalAttributes">
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+    @if (OverflowCount > 0)
+    {
+        <span class="@CounterCssClass"
+              role="img"
+              aria-label="@($"{OverflowCount} more")">+@OverflowCount</span>
+    }
+</div>
+
+@code {
+    /// <summary>Uniform size applied to every avatar in the group.</summary>
+    [Parameter] public AvatarSize Size { get; set; } = AvatarSize.Medium;
+
+    /// <summary>Maximum number of avatars to show before collapsing the rest into a "+N" tile.</summary>
+    [Parameter] public int? Max { get; set; }
+
+    /// <summary>The avatars in the group.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the group container.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly List<DrylAvatar> _avatars = new();
+
+    internal void Register(DrylAvatar avatar)
+    {
+        if (_avatars.Contains(avatar)) return;
+        _avatars.Add(avatar);
+        StateHasChanged();
+    }
+
+    internal void Unregister(DrylAvatar avatar)
+    {
+        if (_avatars.Remove(avatar)) StateHasChanged();
+    }
+
+    /// <summary>True when the avatar sits beyond the <see cref="Max"/> cut-off.</summary>
+    internal bool IsHidden(DrylAvatar avatar) =>
+        Max is { } max && _avatars.Count > max && _avatars.IndexOf(avatar) >= max;
+
+    private int OverflowCount =>
+        Max is { } max && _avatars.Count > max ? _avatars.Count - max : 0;
+
+    private string GroupCssClass =>
+        Size switch
+        {
+            AvatarSize.Small => "avatar-group avatar-group--sm",
+            AvatarSize.Large => "avatar-group avatar-group--lg",
+            _ => "avatar-group"
+        };
+
+    private string CounterCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "avatar", "avatar--counter" };
+            if (Size == AvatarSize.Small) parts.Add("avatar--sm");
+            else if (Size == AvatarSize.Large) parts.Add("avatar--lg");
+            return string.Join(' ', parts);
+        }
+    }
+}

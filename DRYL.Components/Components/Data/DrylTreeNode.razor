@@ -1,0 +1,186 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTreeNode — a node inside a DrylTreeView (or another node).
+
+    Holds its own expand/collapse state; nesting more DrylTreeNode
+    elements as ChildContent turns it into a parent with a chevron.
+    ───────────────────────────────────────────────────────── *@
+
+<li role="treeitem"
+    aria-expanded="@(IsParent ? (IsExpanded ? "true" : "false") : null)"
+    aria-selected="@(Selected ? "true" : "false")"
+    aria-disabled="@(Disabled ? "true" : null)">
+
+    <div class="@RowCssClass"
+         style="--tree-depth: @Depth"
+         tabindex="@(Tree!.IsFocusTarget(this) ? "0" : "-1")"
+         @ref="_row"
+         @onclick="OnRowClick"
+         @onkeydown="OnKeyDown">
+
+        @if (IsParent)
+        {
+            <span class="tree-toggle @(IsExpanded ? "is-open" : null)"
+                  @onclick="ToggleExpand" @onclick:stopPropagation="true" aria-hidden="true">
+                <DrylIcon Name="ChevronRight" Size="14" />
+            </span>
+        }
+        else
+        {
+            <span class="tree-toggle-spacer" aria-hidden="true"></span>
+        }
+
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <span class="tree-icon"><DrylIcon Name="@Icon" Size="14" /></span>
+        }
+
+        <span class="tree-label">@Text</span>
+    </div>
+
+    @if (ChildContent is not null)
+    {
+        <ul class="tree-group" role="group" hidden="@(!IsExpanded)">
+            <CascadingValue Value="this" IsFixed="true">
+                @ChildContent
+            </CascadingValue>
+        </ul>
+    }
+</li>
+
+@code {
+    [CascadingParameter] private DrylTreeView? Tree { get; set; }
+    [CascadingParameter] private DrylTreeNode? Parent { get; set; }
+
+    /// <summary>Node label.</summary>
+    [Parameter] public string? Text { get; set; }
+
+    /// <summary>Optional leading icon name.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Value used for selection / two-way binding on the tree.</summary>
+    [Parameter] public object? Value { get; set; }
+
+    /// <summary>Whether the node is expanded. Supports two-way binding.</summary>
+    [Parameter] public bool Expanded { get; set; }
+
+    /// <summary>Fires when the expanded state changes.</summary>
+    [Parameter] public EventCallback<bool> ExpandedChanged { get; set; }
+
+    /// <summary>When true, the node cannot be selected or focused via click.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Child nodes.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private ElementReference _row;
+    private bool _expanded;
+    private bool _expandedParam;
+
+    internal DrylTreeNode? ParentNode => Parent;
+    internal bool IsExpanded => _expanded;
+
+    protected override void OnInitialized()
+    {
+        if (Tree is null)
+            throw new InvalidOperationException("DrylTreeNode must be placed inside a DrylTreeView.");
+        _expanded = Expanded;
+        _expandedParam = Expanded;
+        Tree.Register(this);
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Only adopt the Expanded parameter when the consumer actually changes it.
+        // A bare parent re-render re-supplies the same literal value, which must NOT
+        // clobber a user toggle held in _expanded. _expandedParam tracks the last
+        // value we received as a parameter (toggles never touch it).
+        if (Expanded != _expandedParam)
+        {
+            _expandedParam = Expanded;
+            _expanded = Expanded;
+        }
+    }
+
+    private bool IsParent => Tree!.HasChildren(this);
+    private bool Selected => Tree!.IsSelected(this);
+
+    private int Depth
+    {
+        get
+        {
+            var d = 0;
+            var p = Parent;
+            while (p is not null) { d++; p = p.Parent; }
+            return d;
+        }
+    }
+
+    private string RowCssClass => Selected ? "tree-row is-selected" : "tree-row";
+
+    internal ValueTask FocusRowAsync() => _row.FocusAsync();
+
+    /// <summary>Re-render this node — called by the view when selection or focus moves.</summary>
+    internal void Refresh() => StateHasChanged();
+
+    private async Task OnRowClick()
+    {
+        if (Disabled) return;
+        await Tree!.SelectAsync(this);
+    }
+
+    private async Task ToggleExpand() => await SetExpanded(!_expanded);
+
+    private async Task SetExpanded(bool value)
+    {
+        // Update internal state only — never _expandedParam — so a follow-up parent
+        // re-render (via NotifyChanged) does not revert the toggle in OnParametersSet.
+        _expanded = value;
+        if (ExpandedChanged.HasDelegate) await ExpandedChanged.InvokeAsync(value);
+        Tree!.NotifyChanged();
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                await Tree!.MoveFocusAsync(this, DrylTreeView.Move.Next);
+                break;
+            case "ArrowUp":
+                await Tree!.MoveFocusAsync(this, DrylTreeView.Move.Prev);
+                break;
+            case "Home":
+                await Tree!.MoveFocusAsync(this, DrylTreeView.Move.First);
+                break;
+            case "End":
+                await Tree!.MoveFocusAsync(this, DrylTreeView.Move.Last);
+                break;
+            case "ArrowRight":
+                if (IsParent)
+                {
+                    if (!_expanded) await SetExpanded(true);
+                    else
+                    {
+                        var first = Tree!.ChildrenOf(this).FirstOrDefault();
+                        if (first is not null) await Tree.FocusNodeAsync(first);
+                    }
+                }
+                break;
+            case "ArrowLeft":
+                if (IsParent && _expanded) await SetExpanded(false);
+                else if (Parent is not null) await Tree!.FocusNodeAsync(Parent);
+                break;
+            case "Enter":
+            case " ":
+            case "Spacebar":
+                if (!Disabled) await Tree!.SelectAsync(this);
+                break;
+        }
+    }
+
+    public void Dispose() => Tree?.Unregister(this);
+}

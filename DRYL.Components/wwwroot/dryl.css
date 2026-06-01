@@ -283,14 +283,52 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  transition: transform var(--dur-fast) var(--ease-out),
+  transition: transform var(--dur-med) var(--ease-spring),
               background var(--dur-med) var(--ease-out),
               border-color var(--dur-med) var(--ease-out),
               box-shadow var(--dur-med) var(--ease-out),
               color var(--dur-med) var(--ease-out);
   isolation: isolate;
 }
-.btn:active { transform: translateY(1px) scale(0.99); }
+/* Press: drop + shrink, then spring back on release (transform easing above). */
+.btn:not(:disabled):active { transform: translateY(0) scale(0.96); }
+
+/* Glass sheen — a soft reflection sweeps across the surface on hover. Clipped by
+   border-radius (no overflow:hidden, so the AI-aura ring is untouched). Not on the
+   chromeless Ghost variant, and never while disabled. */
+.btn:not(.btn-ghost)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 62%
+  );
+  background-size: 250% 100%;
+  background-position: 150% 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.btn:not(.btn-ghost):not(:disabled):hover::after {
+  opacity: 1;
+  background-position: -50% 0;
+  transition: background-position var(--dur-slow) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+}
+
+/* Icons spring on hover: trailing slides forward (forward affordance), leading pops,
+   icon-only scales. Marker classes come from DrylButton's leading/trailing slots. */
+.btn .btn-ico-lead,
+.btn .btn-ico-trail { transition: transform var(--dur-med) var(--ease-spring); }
+.btn:not(:disabled):hover .btn-ico-trail { transform: translateX(3px); }
+.btn:not(:disabled):hover .btn-ico-lead  { transform: translateX(-1px) scale(1.06); }
+.btn-icon:not(:disabled):hover .btn-ico-lead,
+.btn-icon:not(:disabled):hover .btn-ico-trail { transform: scale(1.12); }
 
 .btn-primary {
   background: var(--accent-grad);
@@ -481,6 +519,11 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 @media (prefers-reduced-motion: reduce) {
   .btn.ai-aura::before { animation: none; opacity: 0.6; }
+  .btn:not(.btn-ghost)::after { display: none; }
+  .btn .btn-ico-lead,
+  .btn .btn-ico-trail { transition: none; }
+  .btn:hover .btn-ico-lead,
+  .btn:hover .btn-ico-trail { transform: none; }
 }
 
 .input-wrapper .input-icon {
@@ -1961,7 +2004,59 @@ td.tbl-col-actions {
   color: white;
   flex: 0 0 28px;
   box-shadow: 0 0 0 2px var(--bg-0), 0 0 12px rgba(124,92,255,0.4);
+  overflow: hidden;
+  user-select: none;
 }
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Sizes (base .avatar is Medium / 28px) */
+.avatar--sm { width: 24px; height: 24px; flex-basis: 24px; font-size: 10px; }
+.avatar--lg { width: 40px; height: 40px; flex-basis: 40px; font-size: 15px; }
+/* Square variant */
+.avatar--square { border-radius: var(--r-sm); }
+/* Counter ("+N") tile in a group */
+.avatar--counter {
+  background: var(--glass-3);
+  color: var(--fg-muted);
+  box-shadow: 0 0 0 2px var(--bg-0);
+}
+
+/* Wrapper that hosts the presence dot */
+.avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.avatar-status {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-0);
+}
+.avatar-wrap--sm .avatar-status { width: 7px; height: 7px; }
+.avatar-wrap--lg .avatar-status { width: 12px; height: 12px; }
+.avatar-status--online  { background: var(--success); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(52,211,153,0.6); }
+.avatar-status--busy    { background: var(--danger);  box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(248,113,113,0.6); }
+.avatar-status--away    { background: var(--warning); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(251,191,36,0.55); }
+.avatar-status--offline { background: var(--fg-faint); }
+
+/* Stacked group */
+.avatar-group {
+  display: inline-flex;
+  align-items: center;
+}
+.avatar-group > * + * {
+  margin-left: -8px;
+}
+.avatar-group--sm > * + * { margin-left: -6px; }
+.avatar-group--lg > * + * { margin-left: -12px; }
 
 /* ============== TOASTS (DrylToast + DrylToastProvider) ============== */
 
@@ -2348,6 +2443,51 @@ td.tbl-col-actions {
   border-radius: var(--r-pill);
   box-shadow: 0 0 12px rgba(124,92,255,0.5);
   transition: width 600ms var(--ease-out);
+}
+
+/* DrylProgress — wrapper, label row, sizes, variants, indeterminate */
+.progress-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.progress-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.progress-pct {
+  font-family: var(--font-mono);
+  color: var(--fg);
+}
+/* Aura host sits outside the track so the ring is not clipped by overflow:hidden */
+.progress-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: var(--r-pill);
+}
+.progress--sm { height: 4px; }
+.progress--lg { height: 10px; }
+
+.progress-bar--success { background: var(--success); box-shadow: 0 0 12px rgba(52,211,153,0.5); }
+.progress-bar--warning { background: var(--warning); box-shadow: 0 0 12px rgba(251,191,36,0.5); }
+.progress-bar--danger  { background: var(--danger);  box-shadow: 0 0 12px rgba(248,113,113,0.5); }
+
+.progress--indeterminate .progress-bar {
+  width: 40%;
+  transition: none;
+  animation: progress-indeterminate 1.4s var(--ease-in-out) infinite;
+}
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress--indeterminate .progress-bar { animation: none; width: 100%; }
 }
 
 /* ============== TABS (DrylTabs / DrylTab) ============== */

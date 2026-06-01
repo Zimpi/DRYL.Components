@@ -1,0 +1,72 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylValidationSummary — glass-styled summary of all validation
+    errors in the enclosing EditForm. Place it near the top of a form.
+
+    Usage:
+      <EditForm Model="@_model" OnValidSubmit="Save">
+          <DataAnnotationsValidator />
+          <DrylValidationSummary />
+          ...
+      </EditForm>
+    ───────────────────────────────────────────────────────── *@
+
+@if (_messages.Count > 0)
+{
+    <div class="validation-summary" role="alert" @attributes="AdditionalAttributes">
+        <span class="validation-summary-icon"><DrylIcon Name="Alert" Size="16" /></span>
+        <div class="validation-summary-body">
+            @if (!string.IsNullOrEmpty(Title))
+            {
+                <div class="validation-summary-title">@Title</div>
+            }
+            <ul class="validation-summary-list">
+                @foreach (var message in _messages)
+                {
+                    <li>@message</li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private EditContext? EditContext { get; set; }
+
+    /// <summary>Optional heading shown above the message list.</summary>
+    [Parameter] public string? Title { get; set; } = "Please fix the following:";
+
+    /// <summary>Pass-through HTML attributes on the summary element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private List<string> _messages = new();
+    private EditContext? _subscribed;
+
+    protected override void OnParametersSet()
+    {
+        if (EditContext != _subscribed)
+        {
+            if (_subscribed is not null) _subscribed.OnValidationStateChanged -= OnValidationStateChanged;
+            _subscribed = EditContext;
+            if (_subscribed is not null) _subscribed.OnValidationStateChanged += OnValidationStateChanged;
+            Refresh();
+        }
+    }
+
+    private void OnValidationStateChanged(object? sender, ValidationStateChangedEventArgs e)
+    {
+        Refresh();
+        StateHasChanged();
+    }
+
+    private void Refresh() =>
+        _messages = EditContext?.GetValidationMessages().Distinct().ToList() ?? new();
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnValidationStateChanged -= OnValidationStateChanged;
+    }
+}

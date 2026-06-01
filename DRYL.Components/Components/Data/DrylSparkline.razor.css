@@ -1,0 +1,23 @@
+.spark {
+    display: block;
+    overflow: visible;
+}
+
+.spark-line {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.spark-area {
+    stroke: none;
+    opacity: 0.18;
+}
+
+.spark-dot {
+    fill: var(--accent-b);
+}
+
+.spark-stop-a { stop-color: var(--accent-a); }
+.spark-stop-b { stop-color: var(--accent-b); }

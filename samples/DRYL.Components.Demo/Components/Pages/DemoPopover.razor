@@ -1,0 +1,81 @@
+@page "/popover"
+
+<PageTitle>DRYL — Popover</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Surfaces</span>
+        <h2>DrylPopover</h2>
+        <p class="lead">
+            Anchored floating-panel primitive. Owns open/close, positioning and
+            click-outside / Escape dismissal — you supply the trigger and the panel.
+            It's the shared foundation for the library's dropdowns and is usable
+            directly for filter panels, info pop-ups and more.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Basic</h3>
+        <DrylPopover @bind-Open="_open1">
+            <TriggerContent>
+                <DrylButton TrailingIcon="ChevronDown">Open popover</DrylButton>
+            </TriggerContent>
+            <PanelContent>
+                <div class="col" style="gap: var(--sp-2); min-width: 220px;">
+                    <strong style="font-size: 13px;">Quick actions</strong>
+                    <p style="font-size: 13px; color: var(--fg-muted); margin: 0;">
+                        Click outside or press Escape to dismiss.
+                    </p>
+                    <DrylButton Size="DrylButton.ButtonSize.Small"
+                                Variant="DrylButton.ButtonVariant.Secondary"
+                                @onclick="() => _open1 = false">Got it</DrylButton>
+                </div>
+            </PanelContent>
+        </DrylPopover>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Placements</h3>
+        <div class="row" style="gap: var(--sp-4); flex-wrap: wrap;">
+            @foreach (var p in Enum.GetValues<PopoverPlacement>())
+            {
+                <DrylPopover Placement="p">
+                    <TriggerContent>
+                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                    Size="DrylButton.ButtonSize.Small">@p.ToString()</DrylButton>
+                    </TriggerContent>
+                    <PanelContent>
+                        <div style="font-size: 13px; color: var(--fg-muted); min-width: 160px;">
+                            Panel @p.ToString()
+                        </div>
+                    </PanelContent>
+                </DrylPopover>
+            }
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3); max-width: 360px;">
+        <h3>Match trigger width</h3>
+        <DrylPopover @bind-Open="_open2" Block="true" MatchTriggerWidth="true">
+            <TriggerContent>
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                            TrailingIcon="ChevronDown"
+                            style="width: 100%; justify-content: space-between;">
+                    Full-width trigger
+                </DrylButton>
+            </TriggerContent>
+            <PanelContent>
+                <div class="col" style="gap: var(--sp-1);">
+                    <span style="font-size: 13px; color: var(--fg-muted);">The panel matches the trigger width.</span>
+                </div>
+            </PanelContent>
+        </DrylPopover>
+    </section>
+
+</div>
+
+@code {
+    private bool _open1;
+    private bool _open2;
+}

@@ -1,0 +1,69 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylEmptyState — placeholder for "no data" situations.
+
+    A centred, muted block with an optional icon, title, description
+    and call-to-action slot. Drop it into empty tables, search results,
+    chat panels or dashboards.
+
+    Usage:
+      <DrylEmptyState Icon="Inbox" Title="No results"
+                      Description="Try adjusting your filters.">
+          <ActionContent>
+              <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                          LeadingIcon="Plus">New item</DrylButton>
+          </ActionContent>
+      </DrylEmptyState>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrEmpty(Icon))
+    {
+        <div class="empty-icon"><DrylIcon Name="@Icon" Size="@IconSize" /></div>
+    }
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="empty-title">@Title</div>
+    }
+    @if (!string.IsNullOrEmpty(Description) || ChildContent is not null)
+    {
+        <div class="empty-description">
+            @Description
+            @ChildContent
+        </div>
+    }
+    @if (ActionContent is not null)
+    {
+        <div class="empty-actions">@ActionContent</div>
+    }
+</div>
+
+@code {
+    /// <summary>Optional icon name shown above the title.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Headline text.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Supporting description text.</summary>
+    [Parameter] public string? Description { get; set; }
+
+    /// <summary>Optional richer description content (rendered after <see cref="Description"/>).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Call-to-action slot (typically buttons).</summary>
+    [Parameter] public RenderFragment? ActionContent { get; set; }
+
+    /// <summary>Overall size of the empty state.</summary>
+    [Parameter] public EmptyStateSize Size { get; set; } = EmptyStateSize.Medium;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private int IconSize => Size == EmptyStateSize.Small ? 24 : 32;
+
+    private string RootCssClass =>
+        Size == EmptyStateSize.Small ? "empty-state empty-state--sm" : "empty-state";
+}

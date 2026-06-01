@@ -1,0 +1,180 @@
+@namespace DRYL.Components
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylPopover — anchored floating panel primitive.
+
+    Owns open/close, positioning and click-outside / Escape dismissal;
+    the consumer supplies the trigger and the panel body. It is the
+    shared foundation for the library's dropdowns, but is also usable
+    directly for filter popovers, info panels, etc.
+
+    Usage:
+      <DrylPopover @bind-Open="_open" Placement="PopoverPlacement.BottomStart">
+          <TriggerContent>
+              <DrylButton TrailingIcon="ChevronDown">Filter</DrylButton>
+          </TriggerContent>
+          <PanelContent>
+              <div class="col" style="gap: var(--sp-2);">…</div>
+          </PanelContent>
+      </DrylPopover>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@AnchorCssClass" @ref="_anchor" @attributes="AdditionalAttributes">
+    <div class="popover-trigger" @onclick="OnTriggerClick">
+        @TriggerContent
+    </div>
+
+    @if (Open)
+    {
+        <div class="@PanelCssClass"
+             @ref="_panel"
+             role="@PanelRole"
+             aria-label="@PanelAriaLabel"
+             tabindex="-1"
+             @onkeydown="OnPanelKeyDown">
+            @PanelContent
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Whether the panel is open. Supports two-way binding.</summary>
+    [Parameter] public bool Open { get; set; }
+
+    /// <summary>Fires when the open state changes.</summary>
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>The clickable trigger.</summary>
+    [Parameter] public RenderFragment? TriggerContent { get; set; }
+
+    /// <summary>The floating panel body.</summary>
+    [Parameter] public RenderFragment? PanelContent { get; set; }
+
+    /// <summary>Where the panel opens relative to the trigger.</summary>
+    [Parameter] public PopoverPlacement Placement { get; set; } = PopoverPlacement.BottomStart;
+
+    /// <summary>If true, the panel matches the trigger's width (dropdowns / selects).</summary>
+    [Parameter] public bool MatchTriggerWidth { get; set; }
+
+    /// <summary>If true, the anchor stretches to its container's full width.</summary>
+    [Parameter] public bool Block { get; set; }
+
+    /// <summary>When true, clicking the trigger toggles the panel. Set false when the consumer
+    /// drives the open state itself (e.g. inputs with their own keyboard/click logic).</summary>
+    [Parameter] public bool TriggerTogglesOpen { get; set; } = true;
+
+    /// <summary>Close the panel when the user clicks outside it. Default true.</summary>
+    [Parameter] public bool CloseOnClickOutside { get; set; } = true;
+
+    /// <summary>Close the panel when Escape is pressed inside it. Default true.</summary>
+    [Parameter] public bool CloseOnEscape { get; set; } = true;
+
+    /// <summary>Whether the panel paints the default glass surface. Set false to supply your own.</summary>
+    [Parameter] public bool Surface { get; set; } = true;
+
+    /// <summary>ARIA role for the panel (e.g. "menu", "listbox", "dialog").</summary>
+    [Parameter] public string? PanelRole { get; set; }
+
+    /// <summary>ARIA label for the panel.</summary>
+    [Parameter] public string? PanelAriaLabel { get; set; }
+
+    /// <summary>Raised for every keydown on the panel — lets a consumer add its own keyboard navigation.</summary>
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+
+    /// <summary>Fires after the panel opens.</summary>
+    [Parameter] public EventCallback OnOpen { get; set; }
+
+    /// <summary>Fires after the panel closes.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the anchor element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private ElementReference _anchor;
+    private ElementReference _panel;
+    private DotNetObjectReference<DrylPopover>? _dotnetRef;
+    private bool _attached;
+
+    /// <summary>The panel element — exposed so consumers can drive panel-scoped JS (focus, scroll).</summary>
+    public ElementReference PanelElement => _panel;
+
+    /// <summary>The anchor element.</summary>
+    public ElementReference AnchorElement => _anchor;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotnetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
+            _attached = true;
+        }
+    }
+
+    private async Task OnTriggerClick()
+    {
+        if (!TriggerTogglesOpen) return;
+        await SetOpenAsync(!Open);
+    }
+
+    /// <summary>Programmatically open or close the popover.</summary>
+    public async Task SetOpenAsync(bool open)
+    {
+        if (Open == open) return;
+        Open = open;
+        await OpenChanged.InvokeAsync(open);
+        if (open) await OnOpen.InvokeAsync();
+        else await OnClose.InvokeAsync();
+    }
+
+    /// <summary>Invoked from JS (dryl.menu.attach) when the user clicks outside.</summary>
+    [JSInvokable]
+    public async Task Close()
+    {
+        if (!CloseOnClickOutside || !Open) return;
+        await SetOpenAsync(false);
+        StateHasChanged();
+    }
+
+    private async Task OnPanelKeyDown(KeyboardEventArgs e)
+    {
+        if (OnKeyDown.HasDelegate) await OnKeyDown.InvokeAsync(e);
+        if (CloseOnEscape && e.Key == "Escape")
+            await SetOpenAsync(false);
+    }
+
+    private string AnchorCssClass => Block ? "popover-anchor popover-anchor--block" : "popover-anchor";
+
+    private string PanelCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "popover-panel" };
+            if (Surface) parts.Add("popover-panel--surface");
+            if (MatchTriggerWidth) parts.Add("popover-panel--match");
+            parts.Add(Placement switch
+            {
+                PopoverPlacement.BottomEnd => "popover-panel--bottom-end",
+                PopoverPlacement.TopStart  => "popover-panel--top-start",
+                PopoverPlacement.TopEnd    => "popover-panel--top-end",
+                _                          => "popover-panel--bottom-start"
+            });
+            return string.Join(' ', parts);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_attached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.menu.detach", _anchor); }
+            catch (JSDisconnectedException) { /* circuit closing */ }
+            catch (JSException) { /* element gone */ }
+            catch (InvalidOperationException) { /* statically rendered */ }
+        }
+        _dotnetRef?.Dispose();
+    }
+}

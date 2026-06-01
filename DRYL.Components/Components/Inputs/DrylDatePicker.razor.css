@@ -1,10 +1,7 @@
 /* ── Calendar panel ─────────────────────────────────────── */
 
+/* Positioning is provided by the DrylPopover wrapper; this is just the surface. */
 .date-panel {
-    position: absolute;
-    top: calc(100% + var(--sp-1));
-    left: 0;
-    z-index: var(--z-drawer);
     min-width: 280px;
     background: var(--bg-2);
     backdrop-filter: blur(var(--glass-blur)) saturate(140%);
@@ -14,7 +11,6 @@
     box-shadow: var(--shadow-lg);
     padding: var(--sp-3);
     outline: none;
-    animation: menu-in var(--dur-med) var(--ease-out) both;
 }
 
 /* ── Month navigation header ────────────────────────────── */

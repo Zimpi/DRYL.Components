@@ -1,0 +1,72 @@
+@page "/progress"
+
+<PageTitle>DRYL — Progress</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Feedback</span>
+        <h2>DrylProgress</h2>
+        <p class="lead">
+            Linear progress bar. Determinate by default; set
+            <code>Indeterminate</code> for an animated sweep. Variants tint the
+            fill, and the shared <code>Ai</code> state wraps the bar in the gradient
+            aura for model-driven progress.
+        </p>
+    </div>
+
+    @* ── Basics ───────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-4);">
+        <h3>Determinate</h3>
+        <DrylProgress Value="@_value" ShowLabel="true" LabelText="Uploading" />
+        <div class="row" style="gap: var(--sp-2);">
+            <DrylButton Size="DrylButton.ButtonSize.Small" Variant="DrylButton.ButtonVariant.Secondary"
+                        @onclick="() => _value = Math.Max(0, _value - 10)">−10</DrylButton>
+            <DrylButton Size="DrylButton.ButtonSize.Small" Variant="DrylButton.ButtonVariant.Secondary"
+                        @onclick="() => _value = Math.Min(100, _value + 10)">+10</DrylButton>
+        </div>
+    </section>
+
+    @* ── Variants ─────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-4);">
+        <h3>Variants</h3>
+        <DrylProgress Value="72" Variant="ProgressVariant.Accent" ShowLabel="true" LabelText="Accent" />
+        <DrylProgress Value="100" Variant="ProgressVariant.Success" ShowLabel="true" LabelText="Success" />
+        <DrylProgress Value="84" Variant="ProgressVariant.Warning" ShowLabel="true" LabelText="Warning" />
+        <DrylProgress Value="38" Variant="ProgressVariant.Danger" ShowLabel="true" LabelText="Danger" />
+    </section>
+
+    @* ── Sizes ────────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-4);">
+        <h3>Sizes</h3>
+        <DrylProgress Value="60" Size="ProgressSize.Small" />
+        <DrylProgress Value="60" Size="ProgressSize.Medium" />
+        <DrylProgress Value="60" Size="ProgressSize.Large" />
+    </section>
+
+    @* ── Indeterminate ────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-4);">
+        <h3>Indeterminate</h3>
+        <DrylProgress Indeterminate="true" LabelText="Working…" />
+    </section>
+
+    @* ── AI mode ──────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-4);">
+        <h3>AI mode</h3>
+        <p>The bar adopts the shared AI aura; the pulse speed follows the state.</p>
+        <DrylProgress Value="@_value" ShowLabel="true" LabelText="Generating" Ai="@_ai" />
+        <div class="row" style="gap: var(--sp-2); flex-wrap: wrap;">
+            @foreach (var s in Enum.GetValues<AiState>())
+            {
+                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                            @onclick="() => _ai = s">@s.ToString()</DrylButton>
+            }
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private double _value = 40;
+    private AiState _ai = AiState.Streaming;
+}

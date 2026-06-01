@@ -1,0 +1,35 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTimeline — vertical sequence of events.
+
+    A container that draws the connecting rail; each DrylTimelineItem
+    renders its own marker and body. Ideal for activity feeds, audit
+    logs and AI agent step traces (give a step Ai="AiState.Thinking").
+
+    Usage:
+      <DrylTimeline>
+          <DrylTimelineItem Title="Request received" Timestamp="09:24" Icon="Check"
+                            Variant="TimelineVariant.Success" />
+          <DrylTimelineItem Title="Calling tool" Icon="Bolt" Ai="AiState.Thinking">
+              Looking up the order history…
+          </DrylTimelineItem>
+          <DrylTimelineItem Title="Response ready" Timestamp="09:25" />
+      </DrylTimeline>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="timeline" role="list" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>The timeline items.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Accessible label for the timeline.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Timeline";
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

@@ -1,0 +1,82 @@
+@page "/avatar"
+
+<PageTitle>DRYL — Avatar</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Data</span>
+        <h2>DrylAvatar</h2>
+        <p class="lead">
+            User / entity representation. Resolves an image, then initials derived
+            from <code>Name</code>, then an icon, then a generic user glyph. Pair it
+            with <code>DrylAvatarGroup</code> to stack collaborators with a
+            <code>+N</code> overflow tile.
+        </p>
+    </div>
+
+    @* ── Basics ───────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Faces</h3>
+        <div class="row" style="gap: var(--sp-4); align-items: center;">
+            <DrylAvatar Name="Ada Lovelace" />
+            <DrylAvatar Initials="DK" />
+            <DrylAvatar Icon="Sparkle" />
+            <DrylAvatar />
+            <DrylAvatar Src="https://i.pravatar.cc/80?img=12" Alt="Sample user" />
+        </div>
+    </section>
+
+    @* ── Sizes ────────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Sizes</h3>
+        <div class="row" style="gap: var(--sp-4); align-items: center;">
+            <DrylAvatar Name="Small" Size="AvatarSize.Small" />
+            <DrylAvatar Name="Medium" Size="AvatarSize.Medium" />
+            <DrylAvatar Name="Large" Size="AvatarSize.Large" />
+        </div>
+    </section>
+
+    @* ── Shape ────────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Shape</h3>
+        <div class="row" style="gap: var(--sp-4); align-items: center;">
+            <DrylAvatar Name="Grace Hopper" Shape="AvatarShape.Circle" />
+            <DrylAvatar Name="Grace Hopper" Shape="AvatarShape.Square" />
+            <DrylAvatar Icon="Bolt" Shape="AvatarShape.Square" Size="AvatarSize.Large" />
+        </div>
+    </section>
+
+    @* ── Status ───────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Presence</h3>
+        <div class="row" style="gap: var(--sp-4); align-items: center;">
+            <DrylAvatar Name="On" Status="AvatarStatus.Online" />
+            <DrylAvatar Name="Bs" Status="AvatarStatus.Busy" />
+            <DrylAvatar Name="Aw" Status="AvatarStatus.Away" />
+            <DrylAvatar Name="Of" Status="AvatarStatus.Offline" />
+            <DrylAvatar Name="Lg" Status="AvatarStatus.Online" Size="AvatarSize.Large" />
+        </div>
+    </section>
+
+    @* ── Group ────────────────────────────────────────────── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Group with overflow</h3>
+        <div class="col" style="gap: var(--sp-4);">
+            <DrylAvatarGroup Max="3">
+                <DrylAvatar Name="Ada Lovelace" />
+                <DrylAvatar Name="Alan Turing" />
+                <DrylAvatar Name="Grace Hopper" />
+                <DrylAvatar Name="Edsger Dijkstra" />
+                <DrylAvatar Name="Donald Knuth" />
+            </DrylAvatarGroup>
+
+            <DrylAvatarGroup Size="AvatarSize.Large">
+                <DrylAvatar Name="Ada Lovelace" Status="AvatarStatus.Online" />
+                <DrylAvatar Name="Alan Turing" />
+                <DrylAvatar Icon="Sparkle" />
+            </DrylAvatarGroup>
+        </div>
+    </section>
+
+</div>

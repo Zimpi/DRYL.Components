@@ -1,10 +1,13 @@
 @namespace DRYL.Components
 @inherits InputBase<string>
-@implements IAsyncDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
     DrylSelect — single-select dropdown bound to EditForm.
+
+    Built on the shared DrylPopover primitive (anchor, positioning and
+    click-outside dismissal); DrylSelect keeps the combobox role,
+    option list and keyboard navigation.
 
     Usage:
       <DrylSelect @bind-Value="model.Environment" Label="Environment"
@@ -29,74 +32,78 @@
         <label class="field-label" for="@_id">@Label</label>
     }
 
-    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
-        <div class="@WrapperCssClass">
-            @if (Ai != AiState.None)
-            {
-                <div class="ai-aura-ring"></div>
-                <div class="ai-aura-glow"></div>
-                @if (Ai == AiState.Generated)
+    <DrylPopover @ref="_popover"
+                 @bind-Open="_isOpen"
+                 Block="true"
+                 MatchTriggerWidth="true"
+                 TriggerTogglesOpen="false"
+                 Surface="false"
+                 CloseOnEscape="false">
+        <TriggerContent>
+            <div class="@WrapperCssClass">
+                @if (Ai != AiState.None)
                 {
-                    <div class="ai-aura-wash" @key="_genTick"></div>
+                    <div class="ai-aura-ring"></div>
+                    <div class="ai-aura-glow"></div>
+                    @if (Ai == AiState.Generated)
+                    {
+                        <div class="ai-aura-wash" @key="_genTick"></div>
+                    }
                 }
-            }
 
-            @* Trigger — styled div so keyboard events don't double-fire via button activation *@
-            <div id="@_id"
-                 class="@TriggerCssClass"
-                 tabindex="@(Disabled ? -1 : 0)"
-                 role="combobox"
-                 aria-haspopup="listbox"
-                 aria-expanded="@(_isOpen ? "true" : "false")"
-                 aria-controls="@_listboxId"
-                 aria-activedescendant="@ActiveDescendant"
-                 aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                 aria-invalid="@(HasValidationError ? "true" : null)"
-                 aria-describedby="@(ShowHelper ? _helperId : null)"
-                 @onclick="Toggle"
-                 @onkeydown="HandleKeyDown"
-                 @attributes="AdditionalAttributes">
-                <span class="@(HasSelection ? null : "select-placeholder")">@DisplayLabel</span>
-            </div>
-
-            @* Listbox panel *@
-            @if (_isOpen)
-            {
-                <div id="@_listboxId"
-                     role="listbox"
-                     class="select-panel"
-                     @ref="_panel"
-                     aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
-
-                    @if (_items.Count == 0)
-                    {
-                        <div class="select-empty">No options</div>
-                    }
-                    else
-                    {
-                        for (int i = 0; i < _items.Count; i++)
-                        {
-                            var item  = _items[i];
-                            var idx   = i;
-                            var isHl  = idx == _highlightedIndex;
-                            var isSel = item.Value == CurrentValueAsString;
-
-                            <div id="@($"sopt-{_id}-{idx}")"
-                                 role="option"
-                                 class="@OptionCss(isHl, isSel)"
-                                 aria-selected="@(isSel ? "true" : "false")"
-                                 @onclick="() => SelectItem(item)"
-                                 @onmouseenter="() => _highlightedIndex = idx"
-                                 @onmousedown:preventDefault
-                                 @key="idx">
-                                @item.Label
-                            </div>
-                        }
-                    }
+                @* Trigger — styled div so keyboard events don't double-fire via button activation *@
+                <div id="@_id"
+                     class="@TriggerCssClass"
+                     tabindex="@(Disabled ? -1 : 0)"
+                     role="combobox"
+                     aria-haspopup="listbox"
+                     aria-expanded="@(_isOpen ? "true" : "false")"
+                     aria-controls="@_listboxId"
+                     aria-activedescendant="@ActiveDescendant"
+                     aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                     aria-invalid="@(HasValidationError ? "true" : null)"
+                     aria-describedby="@(ShowHelper ? _helperId : null)"
+                     @onclick="Toggle"
+                     @onkeydown="HandleKeyDown"
+                     @attributes="AdditionalAttributes">
+                    <span class="@(HasSelection ? null : "select-placeholder")">@DisplayLabel</span>
                 </div>
-            }
-        </div>
-    </div>
+            </div>
+        </TriggerContent>
+        <PanelContent>
+            <div id="@_listboxId"
+                 role="listbox"
+                 class="select-panel"
+                 aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
+
+                @if (_items.Count == 0)
+                {
+                    <div class="select-empty">No options</div>
+                }
+                else
+                {
+                    for (int i = 0; i < _items.Count; i++)
+                    {
+                        var item  = _items[i];
+                        var idx   = i;
+                        var isHl  = idx == _highlightedIndex;
+                        var isSel = item.Value == CurrentValueAsString;
+
+                        <div id="@($"sopt-{_id}-{idx}")"
+                             role="option"
+                             class="@OptionCss(isHl, isSel)"
+                             aria-selected="@(isSel ? "true" : "false")"
+                             @onclick="() => SelectItem(item)"
+                             @onmouseenter="() => _highlightedIndex = idx"
+                             @onmousedown:preventDefault
+                             @key="idx">
+                            @item.Label
+                        </div>
+                    }
+                }
+            </div>
+        </PanelContent>
+    </DrylPopover>
 
     @if (HasValidationError)
     {
@@ -135,18 +142,15 @@
     /// <summary>The selectable options.</summary>
     [Parameter] public IEnumerable<SelectItem>? Items { get; set; }
 
-    private readonly string _id       = $"dryl-sel-{Guid.NewGuid():N}";
+    private readonly string _id        = $"dryl-sel-{Guid.NewGuid():N}";
     private readonly string _listboxId = $"dryl-sel-lb-{Guid.NewGuid():N}";
     private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
 
     private List<SelectItem> _items = [];
     private bool _isOpen;
     private int _highlightedIndex = -1;
-    private bool _jsReady;
 
-    private ElementReference _anchor;
-    private ElementReference _panel;
-    private DotNetObjectReference<DrylSelect>? _dotnetRef;
+    private DrylPopover? _popover;
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
@@ -164,16 +168,6 @@
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
         _items = Items?.ToList() ?? [];
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _jsReady = true;
-            _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
-        }
     }
 
     private void Toggle()
@@ -206,14 +200,14 @@
                     break;
                 }
                 _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
-                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
+                await ScrollHighlightedIntoView();
                 break;
 
             case "ArrowUp":
                 if (_isOpen && _highlightedIndex > 0)
                 {
                     _highlightedIndex--;
-                    await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
+                    await ScrollHighlightedIntoView();
                 }
                 break;
 
@@ -241,12 +235,10 @@
         }
     }
 
-    /// <summary>Called by the JS click-outside listener.</summary>
-    [JSInvokable]
-    public void Close()
+    private async Task ScrollHighlightedIntoView()
     {
-        _isOpen = false;
-        StateHasChanged();
+        if (_popover is not null)
+            await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _popover.PanelElement, _highlightedIndex);
     }
 
     private bool HasSelection => !string.IsNullOrEmpty(CurrentValueAsString);
@@ -311,12 +303,5 @@
         result = value ?? string.Empty;
         validationErrorMessage = string.Empty;
         return true;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
-        _dotnetRef?.Dispose();
     }
 }

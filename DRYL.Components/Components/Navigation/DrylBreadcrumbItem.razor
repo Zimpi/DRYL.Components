@@ -1,0 +1,43 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylBreadcrumbItem — single crumb inside a DrylBreadcrumbs.
+
+    Renders no DOM of its own — the parent DrylBreadcrumbs draws the
+    list, links and separators. Set Href to make the crumb a link;
+    omit it (or rely on it being the last crumb) for the current page.
+
+      <DrylBreadcrumbs>
+          <DrylBreadcrumbItem Href="/" Icon="Home">Home</DrylBreadcrumbItem>
+          <DrylBreadcrumbItem Href="/projects">Projects</DrylBreadcrumbItem>
+          <DrylBreadcrumbItem>Apollo</DrylBreadcrumbItem>
+      </DrylBreadcrumbs>
+    ───────────────────────────────────────────────────────── *@
+
+@code {
+    [CascadingParameter] private DrylBreadcrumbs? Parent { get; set; }
+
+    /// <summary>Navigation target. When omitted, the crumb is plain text.</summary>
+    [Parameter] public string? Href { get; set; }
+
+    /// <summary>Optional icon name shown before the label.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Crumb label.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    internal string? ItemHref => Href;
+    internal string? ItemIcon => Icon;
+    internal RenderFragment? Content => ChildContent;
+
+    protected override void OnInitialized()
+    {
+        if (Parent is null)
+            throw new InvalidOperationException(
+                "DrylBreadcrumbItem must be placed inside a DrylBreadcrumbs.");
+        Parent.Register(this);
+    }
+
+    public void Dispose() => Parent?.Unregister(this);
+}

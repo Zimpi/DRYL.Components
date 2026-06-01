@@ -1,11 +1,8 @@
 /* ── Dropdown panel ─────────────────────────────────────── */
 
+/* Positioning is provided by the DrylPopover wrapper; this is just the surface. */
 .autocomplete-panel {
-    position: absolute;
-    top: calc(100% + var(--sp-1));
-    left: 0;
     width: 100%;
-    z-index: var(--z-drawer);
     background: var(--bg-2);
     backdrop-filter: blur(var(--glass-blur)) saturate(140%);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
@@ -16,7 +13,6 @@
     max-height: 240px;
     overflow-y: auto;
     outline: none;
-    animation: menu-in var(--dur-med) var(--ease-out) both;
 
     /* Thin accent scrollbar */
     scrollbar-width: thin;
