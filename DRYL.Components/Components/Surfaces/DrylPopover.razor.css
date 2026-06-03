@@ -17,9 +17,23 @@
     width: 100%;
 }
 
+/* The panel wrapper is always rendered (so Blazor never removes the node and
+   JS can safely portal it to <body>), and positioned with position:fixed by
+   dryl.popover (JS) so it escapes any ancestor overflow / backdrop-filter
+   containing block such as a glass card.
+
+   Visibility is a two-key gate: the panel only shows once Blazor has opened it
+   (.is-open) AND JS has placed it in the viewport (.is-positioned). On open
+   this hides the one-frame mis-position flash (interop is a network roundtrip
+   on Blazor Server); on close, dropping .is-open hides it atomically with the
+   content removal, so no empty surface box ever flashes. */
 .popover-panel {
-    position: absolute;
-    z-index: var(--z-drawer);
+    position: fixed;
+    z-index: var(--z-popover);
+    visibility: hidden;
+}
+.popover-panel.is-open.is-positioned {
+    visibility: visible;
 }
 
 /* Default surface (opt out with Surface="false").
@@ -38,20 +52,20 @@
     padding: var(--sp-2);
 }
 
-/* Match the trigger width (dropdowns / selects) */
+/* Match the trigger width (dropdowns / selects). The explicit width is set
+   by JS from the anchor's measured width; here we only drop the surface
+   min-width so the panel can shrink to a narrow trigger. */
 .popover-panel--match {
-    width: 100%;
     min-width: 0;
 }
 
-/* Placement */
-.popover-panel--bottom-start { top: calc(100% + var(--sp-1)); left: 0; }
-.popover-panel--bottom-end   { top: calc(100% + var(--sp-1)); right: 0; }
-.popover-panel--top-start    { bottom: calc(100% + var(--sp-1)); left: 0; }
-.popover-panel--top-end      { bottom: calc(100% + var(--sp-1)); right: 0; }
+/* Placement is computed in JS (dryl.popover) against the viewport — the
+   placement modifier classes are kept as styling hooks only. */
 
-/* Entrance */
-.popover-panel {
+/* Entrance — the panel node is reused across opens, so the animation is bound
+   to the reveal state (.is-positioned is (re)added by JS on each open) rather
+   than to the node mounting, otherwise it would only ever play once. */
+.popover-panel.is-open.is-positioned {
     animation: popover-in var(--dur-fast) var(--ease-out);
 }
 
@@ -61,5 +75,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .popover-panel { animation: none; }
+    .popover-panel.is-open.is-positioned { animation: none; }
 }

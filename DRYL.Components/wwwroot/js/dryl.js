@@ -256,6 +256,117 @@ window.dryl.menu = (() => {
 })();
 
 /* --------------------------------------------------------------
+ * Popover — portals an anchored panel to <body> and positions it
+ * with position:fixed, so it escapes any ancestor that would clip
+ * or re-anchor it: an overflow:hidden card, or the containing block
+ * created by a backdrop-filter / transform on a glass surface.
+ *
+ *   open(anchor, panel, dotnetRef, opts)  — portal, position, listen
+ *   close(anchor)                         — restore the panel, clean up
+ *
+ * Blazor still owns the panel node. open() drops a comment
+ * placeholder at the panel's original slot and close() moves the
+ * node back before Blazor removes it — so Blazor's diff never finds
+ * the node missing from under its recorded parent.
+ *
+ * opts: { placement, matchWidth, closeOnOutside }
+ *   placement — 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end'
+ * -------------------------------------------------------------- */
+window.dryl.popover = (() => {
+    const GAP  = 4;   // matches --sp-1: gap between trigger and panel
+    const EDGE = 4;   // min viewport inset when clamping
+    const state = new WeakMap(); // anchor -> { panel, onScroll, onResize, onDocClick }
+
+    function place(anchor, panel, placement, matchWidth) {
+        const a = anchor.getBoundingClientRect();
+        if (matchWidth) panel.style.width = a.width + 'px';
+
+        // Measure in the final (body) context, after any width is applied.
+        const ph = panel.offsetHeight;
+        const pw = panel.offsetWidth;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const onTop = placement.startsWith('top');
+
+        let top  = onTop ? (a.top - ph - GAP) : (a.bottom + GAP);
+        let left = placement.endsWith('end') ? (a.right - pw) : a.left;
+
+        // Flip to the opposite side only if the preferred side overflows
+        // the viewport and the opposite side has room.
+        if (onTop && top < EDGE && (a.bottom + GAP + ph) <= vh) {
+            top = a.bottom + GAP;
+        } else if (!onTop && (top + ph) > (vh - EDGE) && (a.top - GAP - ph) >= EDGE) {
+            top = a.top - ph - GAP;
+        }
+
+        // Keep the panel inside the viewport horizontally.
+        left = Math.max(EDGE, Math.min(left, vw - pw - EDGE));
+
+        panel.style.top  = top + 'px';
+        panel.style.left = left + 'px';
+    }
+
+    function open(anchor, panel, dotnetRef, opts) {
+        if (!anchor || !panel || state.has(anchor)) return;
+        opts = opts || {};
+        const placement      = opts.placement || 'bottom-start';
+        const matchWidth     = !!opts.matchWidth;
+        const closeOnOutside = opts.closeOnOutside !== false;
+
+        // Portal to <body> so the panel escapes any ancestor overflow or
+        // backdrop-filter/transform containing block (e.g. a glass card).
+        // Blazor still owns this node — it lives in the always-rendered panel
+        // wrapper and is never structurally removed, so moving it is safe.
+        document.body.appendChild(panel);
+
+        const reposition = () => place(anchor, panel, placement, matchWidth);
+        reposition();
+        // Reveal only now that it is correctly placed (see the two-key
+        // .is-open.is-positioned gate in DrylPopover.razor.css).
+        panel.classList.add('is-positioned');
+
+        // Capture-phase scroll catches scrolling in any ancestor container.
+        const onScroll = () => reposition();
+        const onResize = () => reposition();
+        window.addEventListener('scroll', onScroll, true);
+        window.addEventListener('resize', onResize);
+
+        let onDocClick = null;
+        if (closeOnOutside) {
+            // Outside = neither the trigger anchor nor the portaled panel.
+            onDocClick = (e) => {
+                if (!anchor.contains(e.target) && !panel.contains(e.target)) {
+                    dotnetRef.invokeMethodAsync('Close');
+                }
+            };
+            document.addEventListener('pointerdown', onDocClick, true);
+        }
+
+        state.set(anchor, { panel, onScroll, onResize, onDocClick });
+    }
+
+    function close(anchor) {
+        const s = state.get(anchor);
+        if (!s) return;
+        window.removeEventListener('scroll', s.onScroll, true);
+        window.removeEventListener('resize', s.onResize);
+        if (s.onDocClick) document.removeEventListener('pointerdown', s.onDocClick, true);
+
+        // Return the panel to its original slot (it is the anchor's last child)
+        // and clear the styles/marker applied while portaled.
+        s.panel.classList.remove('is-positioned');
+        s.panel.style.top = '';
+        s.panel.style.left = '';
+        s.panel.style.width = '';
+        anchor.appendChild(s.panel);
+
+        state.delete(anchor);
+    }
+
+    return { open, close };
+})();
+
+/* --------------------------------------------------------------
  * Toast — auto-dismiss timer and exit animation lifecycle.
  *
  * Timer: setTimeout statt CSS-animationend, damit Blazor-Re-Renders

@@ -26,17 +26,21 @@
         @TriggerContent
     </div>
 
-    @if (Open)
-    {
-        <div class="@PanelCssClass"
-             @ref="_panel"
-             role="@PanelRole"
-             aria-label="@PanelAriaLabel"
-             tabindex="-1"
-             @onkeydown="OnPanelKeyDown">
+    @*  The panel wrapper is ALWAYS rendered so Blazor never structurally
+        removes the node — JS (dryl.popover) portals it to <body> while open
+        and returns it here on close. The body content stays gated by Open, so
+        it only renders while the popover is shown. *@
+    <div class="@PanelCssClass"
+         @ref="_panel"
+         role="@PanelRole"
+         aria-label="@PanelAriaLabel"
+         tabindex="-1"
+         @onkeydown="OnPanelKeyDown">
+        @if (Open)
+        {
             @PanelContent
-        </div>
-    }
+        }
+    </div>
 </div>
 
 @code {
@@ -96,7 +100,7 @@
     private ElementReference _anchor;
     private ElementReference _panel;
     private DotNetObjectReference<DrylPopover>? _dotnetRef;
-    private bool _attached;
+    private bool _portaled;
 
     /// <summary>The panel element — exposed so consumers can drive panel-scoped JS (focus, scroll).</summary>
     public ElementReference PanelElement => _panel;
@@ -109,8 +113,25 @@
         if (firstRender)
         {
             _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
-            _attached = true;
+        }
+
+        // Drive the portal off the rendered Open state. This covers every close
+        // path uniformly — trigger toggle, Escape, click-outside, and a consumer
+        // flipping the bound Open parameter — without needing to intercept the
+        // parameter set (which can't await on Blazor Server before the render).
+        if (Open && !_portaled)
+        {
+            _portaled = true;
+            await JS.InvokeVoidAsync("dryl.popover.open", _anchor, _panel, _dotnetRef, new
+            {
+                placement = PlacementToken,
+                matchWidth = MatchTriggerWidth,
+                closeOnOutside = CloseOnClickOutside
+            });
+        }
+        else if (!Open && _portaled)
+        {
+            await ReleaseAsync();
         }
     }
 
@@ -128,9 +149,24 @@
         await OpenChanged.InvokeAsync(open);
         if (open) await OnOpen.InvokeAsync();
         else await OnClose.InvokeAsync();
+        // The portal is opened / torn down in OnAfterRenderAsync once the new
+        // Open state has rendered (panel content present / removed).
     }
 
-    /// <summary>Invoked from JS (dryl.menu.attach) when the user clicks outside.</summary>
+    /// <summary>Tears down the portal: removes JS listeners and returns the
+    /// panel node to its anchor. Safe to call when not portaled.</summary>
+    private async Task ReleaseAsync()
+    {
+        if (!_portaled) return;
+        _portaled = false;
+        try { await JS.InvokeVoidAsync("dryl.popover.close", _anchor); }
+        catch (JSDisconnectedException) { /* circuit closing */ }
+        catch (JSException) { /* element gone */ }
+        catch (InvalidOperationException) { /* statically rendered */ }
+    }
+
+    /// <summary>Invoked from JS (dryl.popover) when the user clicks outside
+    /// the trigger and the portaled panel.</summary>
     [JSInvokable]
     public async Task Close()
     {
@@ -148,11 +184,21 @@
 
     private string AnchorCssClass => Block ? "popover-anchor popover-anchor--block" : "popover-anchor";
 
+    private string PlacementToken => Placement switch
+    {
+        PopoverPlacement.BottomEnd => "bottom-end",
+        PopoverPlacement.TopStart  => "top-start",
+        PopoverPlacement.TopEnd    => "top-end",
+        _                          => "bottom-start"
+    };
+
     private string PanelCssClass
     {
         get
         {
             var parts = new List<string> { "popover-panel" };
+            // .is-open is one half of the visibility gate (JS adds .is-positioned).
+            if (Open) parts.Add("is-open");
             if (Surface) parts.Add("popover-panel--surface");
             if (MatchTriggerWidth) parts.Add("popover-panel--match");
             parts.Add(Placement switch
@@ -168,13 +214,9 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_attached)
-        {
-            try { await JS.InvokeVoidAsync("dryl.menu.detach", _anchor); }
-            catch (JSDisconnectedException) { /* circuit closing */ }
-            catch (JSException) { /* element gone */ }
-            catch (InvalidOperationException) { /* statically rendered */ }
-        }
+        // If we are disposed while open, the panel lives under <body>; tear the
+        // portal down so its node and listeners don't leak past this component.
+        await ReleaseAsync();
         _dotnetRef?.Dispose();
     }
 }
