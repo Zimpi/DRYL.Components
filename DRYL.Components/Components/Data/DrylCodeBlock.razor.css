@@ -1,0 +1,73 @@
+/* DrylCodeBlock — glass code surface with language label + copy. */
+
+.code-block {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--glass-1);
+    overflow: hidden;
+}
+
+.code-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3);
+    border-bottom: 1px solid var(--line);
+    background: var(--glass-2);
+}
+
+.code-block-lang {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+}
+
+.code-block-body {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+}
+
+.code-block-gutter {
+    margin: 0;
+    padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-3);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    text-align: right;
+    color: var(--fg-faint);
+    user-select: none;
+    border-right: 1px solid var(--line);
+    white-space: pre;
+}
+
+.code-block-pre {
+    margin: 0;
+    padding: var(--sp-3) var(--sp-4);
+    flex: 1 1 auto;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--fg);
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.code-block-pre code {
+    font-family: inherit;
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+/* Syntax tokens — mapped onto the existing DRYL palette, no invented colors. */
+.code-block-pre ::deep .tok-keyword { color: var(--accent-a); }
+.code-block-pre ::deep .tok-type    { color: var(--accent-b); }
+.code-block-pre ::deep .tok-string  { color: var(--success); }
+.code-block-pre ::deep .tok-number  { color: var(--warning); }
+.code-block-pre ::deep .tok-comment { color: var(--fg-faint); font-style: italic; }
+.code-block-pre ::deep .tok-punct   { color: var(--fg-muted); }

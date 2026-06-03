@@ -1,0 +1,158 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylErrorBoundary — glass error-fallback surface around Blazor's
+    built-in <ErrorBoundary>. When the protected content throws during
+    render or a lifecycle method, the default white/unstyled Blazor markup
+    is replaced with a token-driven danger DrylAlert: a title, an optional
+    description, an optional collapsible exception detail (dev only) and a
+    retry button that recovers the boundary.
+
+    It is AI-aware: pass Ai so a failed AI block shows the error surface with
+    the shared aura instead of the Generated wash — the model failed, and the
+    UI says so in the same visual language used while it was working.
+
+    Usage:
+      <DrylErrorBoundary>
+          <MyAiPanel />
+      </DrylErrorBoundary>
+
+      <DrylErrorBoundary Title="The report couldn't be generated"
+                         Description="The model timed out. Try again in a moment."
+                         Ai="AiState.Generated"
+                         ShowDetails="@Env.IsDevelopment()"
+                         OnRetry="ReloadReport">
+          <ReportView />
+      </DrylErrorBoundary>
+
+    • ShowDetails reveals the full exception via a toggle — only enable it in
+      Development; never leak a stack trace to end users in production.
+    • FallbackContent fully replaces the built-in surface when you need a
+      bespoke error view; it receives the caught Exception.
+    ───────────────────────────────────────────────────────── *@
+
+<ErrorBoundary @ref="_boundary" MaximumErrorCount="@MaximumErrorCount">
+    <ChildContent>
+        @ChildContent
+    </ChildContent>
+    <ErrorContent Context="exception">
+        @if (FallbackContent is not null)
+        {
+            @FallbackContent(exception)
+        }
+        else
+        {
+            <DrylAlert Kind="DrylAlert.AlertKind.Danger"
+                       Title="@Title"
+                       Ai="@Ai"
+                       @attributes="AdditionalAttributes">
+                <div class="errbnd-body">
+                    @if (!string.IsNullOrEmpty(Description))
+                    {
+                        <p class="errbnd-desc">@Description</p>
+                    }
+
+                    @if (ShowDetails)
+                    {
+                        <button type="button"
+                                class="errbnd-detail-toggle"
+                                @onclick="ToggleStack"
+                                aria-expanded="@(_showStack ? "true" : "false")">
+                            <span class="errbnd-detail-chevron @(_showStack ? "is-open" : null)">
+                                <DrylIcon Name="ChevronRight" Size="12" />
+                            </span>
+                            @(_showStack ? "Hide details" : "Show details")
+                        </button>
+                        @if (_showStack)
+                        {
+                            <pre class="errbnd-stack">@exception.ToString()</pre>
+                        }
+                    }
+
+                    @if (ShowRetry)
+                    {
+                        <div class="errbnd-actions">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                        Size="DrylButton.ButtonSize.Small"
+                                        LeadingIcon="Refresh"
+                                        OnClick="Retry">
+                                @RetryText
+                            </DrylButton>
+                        </div>
+                    }
+                </div>
+            </DrylAlert>
+        }
+    </ErrorContent>
+</ErrorBoundary>
+
+@code {
+    private ErrorBoundary? _boundary;
+    private bool _showStack;
+
+    /// <summary>The content protected by the boundary. Exceptions thrown while rendering it are caught.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Heading shown on the fallback surface. Default: "Something went wrong".</summary>
+    [Parameter] public string Title { get; set; } = "Something went wrong";
+
+    /// <summary>Optional explanatory line shown under the title. Default: a generic retry hint.</summary>
+    [Parameter] public string? Description { get; set; } = "An unexpected error occurred while rendering this section.";
+
+    /// <summary>Shows the retry button that recovers the boundary. Default <c>true</c>.</summary>
+    [Parameter] public bool ShowRetry { get; set; } = true;
+
+    /// <summary>Label for the retry button. Default: "Try again".</summary>
+    [Parameter] public string RetryText { get; set; } = "Try again";
+
+    /// <summary>
+    /// Raised when the user clicks retry, <em>before</em> the boundary recovers — clear the failing
+    /// condition (reset state, re-issue the request) here so the recovered render succeeds.
+    /// </summary>
+    [Parameter] public EventCallback OnRetry { get; set; }
+
+    /// <summary>
+    /// Reveals a collapsible panel with the full exception text. Enable this only in Development
+    /// (e.g. <c>ShowDetails="@Env.IsDevelopment()"</c>) — never expose a stack trace to end users.
+    /// </summary>
+    [Parameter] public bool ShowDetails { get; set; }
+
+    /// <summary>
+    /// Full override of the fallback surface. Receives the caught <see cref="Exception"/>. When set,
+    /// the built-in DrylAlert (title / description / details / retry) is not rendered.
+    /// </summary>
+    [Parameter] public RenderFragment<Exception>? FallbackContent { get; set; }
+
+    /// <summary>
+    /// AI ambient state passed through to the fallback surface so a failed AI block reads in the
+    /// shared aura vocabulary. Default <see cref="AiState.None"/>.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Maximum number of errors the underlying boundary tolerates before it stops recovering.
+    /// Mirrors <c>ErrorBoundary.MaximumErrorCount</c>. Default 100.
+    /// </summary>
+    [Parameter] public int MaximumErrorCount { get; set; } = 100;
+
+    /// <summary>Pass-through HTML attributes applied to the fallback surface.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Recovers the boundary so the protected content is re-rendered. Callable from consumer code.</summary>
+    public void Recover()
+    {
+        _showStack = false;
+        _boundary?.Recover();
+    }
+
+    private async Task Retry()
+    {
+        _showStack = false;
+        // Let the consumer clear the failing condition first, then re-render the child.
+        if (OnRetry.HasDelegate) await OnRetry.InvokeAsync();
+        _boundary?.Recover();
+    }
+
+    private void ToggleStack() => _showStack = !_showStack;
+}

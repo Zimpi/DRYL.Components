@@ -37,7 +37,7 @@
     @Columns
 </CascadingValue>
 
-<div class="@WrapperClass" @attributes="AdditionalAttributes">
+<div class="@WrapperClass" @ref="_rootEl" @attributes="AdditionalAttributes">
 
     @if (Ai != AiState.None && Bordered)
     {
@@ -114,9 +114,20 @@
             {
                 <div class="tbl-toolbar-extra">@ToolbarContent</div>
             }
+            @if (ShowExport)
+            {
+                <div class="tbl-toolbar-action @(ToolbarContent is null ? "tbl-toolbar-action--auto" : null)">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                LeadingIcon="Download"
+                                OnClick="ExportCsvAsync">
+                        Export
+                    </DrylButton>
+                </div>
+            }
             @if (AllowColumnVisibility)
             {
-                <div class="tbl-col-menu-wrap @(ToolbarContent is null ? "tbl-col-menu-wrap--auto" : null)">
+                <div class="tbl-col-menu-wrap @(ToolbarContent is null && !ShowExport ? "tbl-col-menu-wrap--auto" : null)">
                     <button type="button"
                             class="tbl-col-menu-trigger @(_colMenuOpen ? "is-active" : null)"
                             @onclick="ToggleColMenu"
@@ -158,6 +169,10 @@
         <table class="tbl" aria-label="@AriaLabel" role="grid">
             <thead>
                 <tr>
+                    @if (ReorderColumnVisible)
+                    {
+                        <th class="tbl-col-grip" scope="col" aria-label="Reorder"></th>
+                    }
                     @if (Selectable)
                     {
                         <th class="tbl-col-check" scope="col">
@@ -384,10 +399,33 @@
 @code {
     private RenderFragment<TItem> RowFragment => item =>
     @<text>
-        <tr class="@RowCssClass(_selected.Contains(item), ShowAiEnter(item))"
+        @{ var rowIndex = ReorderColumnVisible ? _view.IndexOf(item) : -1; }
+        <tr class="@RowCssClass(item, rowIndex)"
             @onclick="() => HandleRowClick(item)"
             @key="item"
+            @ondragenter="() => OnDragEnter(rowIndex)"
+            @ondragover:preventDefault="ReorderColumnVisible"
+            @ondrop="() => OnDrop(rowIndex)"
             aria-selected="@(Selectable ? _selected.Contains(item).ToString().ToLower() : null)">
+
+            @if (ReorderColumnVisible)
+            {
+                var canDrag = CanReorderNow;
+                <td class="tbl-col-grip" @onclick:stopPropagation>
+                    <button type="button"
+                            class="tbl-grip"
+                            data-grip-index="@rowIndex"
+                            draggable="@(canDrag ? "true" : "false")"
+                            disabled="@(!canDrag)"
+                            @ondragstart="() => OnDragStart(rowIndex)"
+                            @ondragend="OnDragEnd"
+                            @onkeydown="@((KeyboardEventArgs e) => OnGripKeyDown(e, rowIndex))"
+                            aria-label="@GripAriaLabel(rowIndex)"
+                            title="@(canDrag ? "Drag, or press Alt+Arrow Up/Down to reorder" : "Clear sorting to reorder rows")">
+                        <DrylIcon Name="GripVertical" Size="14" />
+                    </button>
+                </td>
+            }
 
             @if (Selectable)
             {
@@ -561,6 +599,20 @@
     [Parameter] public bool AllowColumnVisibility { get; set; }
 
     /// <summary>
+    /// Shows a CSV export button in the toolbar. Requires <see cref="ShowToolbar"/>.
+    /// The export honours the active search, filters and sort, includes only the
+    /// currently visible columns, and covers the full filtered result set across
+    /// all pages — not just the current page. In server mode (<see cref="DataProvider"/>)
+    /// this issues a dedicated request with the current search/sort/filters but
+    /// <c>Skip=0</c> / <c>Take=int.MaxValue</c>; backends that cannot serve an
+    /// unbounded page should cap the take on their side.
+    /// </summary>
+    [Parameter] public bool ShowExport { get; set; }
+
+    /// <summary>File name used for the CSV export download. Default: <c>"export.csv"</c>.</summary>
+    [Parameter] public string ExportFileName { get; set; } = "export.csv";
+
+    /// <summary>
     /// Persists sort, filters, page, page-size and column-visibility state under this key
     /// in <c>localStorage</c>. State is restored on first render.
     /// </summary>
@@ -577,6 +629,24 @@
 
     /// <summary>Raised when a data row is clicked.</summary>
     [Parameter] public EventCallback<TItem> OnRowClick { get; set; }
+
+    /// <summary>
+    /// Enables manual row reordering via a leading grip-handle column. Users drag the handle
+    /// to move a row, or focus it and press <c>Alt</c>+<c>Arrow Up</c>/<c>Arrow Down</c> for a
+    /// keyboard-accessible move. Reordering requires a plain client-side list — it is ignored
+    /// (with a console warning) when <see cref="Virtualize"/>, <see cref="GroupBy"/> or
+    /// <see cref="DataProvider"/> is set, and the handle is temporarily disabled while a sort
+    /// is active (clear the sort to reorder again). Pair with <see cref="OnRowReordered"/> to
+    /// persist the new order in your backing collection.
+    /// </summary>
+    [Parameter] public bool Reorderable { get; set; }
+
+    /// <summary>
+    /// Raised after the user moves a row via <see cref="Reorderable"/>. The table updates its own
+    /// displayed order immediately; handle this callback to apply the same move to your backing
+    /// collection. See <see cref="RowReorderEventArgs"/> for the index semantics.
+    /// </summary>
+    [Parameter] public EventCallback<RowReorderEventArgs> OnRowReordered { get; set; }
 
     /// <summary>If true, renders a loading spinner in place of rows.</summary>
     [Parameter] public bool Loading { get; set; }
@@ -627,8 +697,13 @@
     private string? _openFilterColumn;
     private bool _colMenuOpen;
     private bool _virtualizeWarned;
+    private bool _reorderWarned;
     private bool _stateRestored;
     private bool _persistDirty;
+    private int? _dragIndex;
+    private int? _dragOverIndex;
+    private int? _pendingFocusGrip;
+    private ElementReference _rootEl;
 
     private bool AllSelected =>
         _view.Count > 0 && _view.All(i => _selected.Contains(i));
@@ -637,6 +712,15 @@
         _columns.Where(c => !_hiddenColumns.Contains(c.Key));
 
     private bool UseGrouping => GroupBy is not null;
+
+    // Reorder is only meaningful on a plain client-side list: virtualization, grouping and
+    // server-side data all break the 1:1 mapping between a displayed row and a stable position.
+    private bool ReorderColumnVisible =>
+        Reorderable && !Virtualize && GroupBy is null && DataProvider is null;
+
+    // The handle is live only when no sort is applied — reordering a sorted view is meaningless,
+    // so the grip is shown but disabled until the user clears the sort.
+    private bool CanReorderNow => ReorderColumnVisible && _sort.Count == 0;
 
     private string WrapperClass
     {
@@ -708,6 +792,13 @@
                 "DrylTable: Virtualize and GroupBy are mutually exclusive — grouping is ignored when Virtualize is enabled.");
         }
 
+        if (Reorderable && (Virtualize || GroupBy is not null || DataProvider is not null) && !_reorderWarned)
+        {
+            _reorderWarned = true;
+            Console.WriteLine(
+                "DrylTable: Reorderable is ignored when Virtualize, GroupBy or DataProvider is set — row reordering requires a plain client-side list.");
+        }
+
         var itemsChanged = !ReferenceEquals(_lastItemsRef, Items);
         _lastItemsRef = Items;
 
@@ -736,6 +827,13 @@
         {
             _persistDirty = false;
             await PersistStateAsync(PersistStateKey);
+        }
+
+        if (_pendingFocusGrip is int gripIndex)
+        {
+            _pendingFocusGrip = null;
+            try { await JS.InvokeVoidAsync("dryl.table.focusGrip", _rootEl, gripIndex); }
+            catch (Microsoft.JSInterop.JSException) { /* element gone — best effort */ }
         }
 
         _seenItems.Clear();
@@ -1155,12 +1253,17 @@
     private bool ShowAiEnter(TItem item) =>
         (Ai == AiState.Streaming || Ai == AiState.Generated) && !_seenItems.Contains(item);
 
-    private static string RowCssClass(bool selected, bool aiNew)
+    private string RowCssClass(TItem item, int rowIndex)
     {
-        if (selected && aiNew) return "tbl-row--selected tbl-row--ai-enter";
-        if (selected) return "tbl-row--selected";
-        if (aiNew)    return "tbl-row--ai-enter";
-        return string.Empty;
+        var classes = new List<string>();
+        if (_selected.Contains(item)) classes.Add("tbl-row--selected");
+        if (ShowAiEnter(item)) classes.Add("tbl-row--ai-enter");
+        if (ReorderColumnVisible && rowIndex >= 0)
+        {
+            if (_dragIndex == rowIndex) classes.Add("tbl-row--dragging");
+            else if (_dragOverIndex == rowIndex) classes.Add("tbl-row--drop-target");
+        }
+        return classes.Count == 0 ? string.Empty : string.Join(' ', classes);
     }
 
     private async Task ToggleRow(TItem item)
@@ -1182,6 +1285,72 @@
 
     private Task HandleRowClick(TItem item) =>
         OnRowClick.InvokeAsync(item);
+
+    // ───── Row reorder ─────
+
+    private string GripAriaLabel(int index)
+    {
+        var position = index + 1;
+        return _view.Count > 0
+            ? $"Reorder row {position} of {_view.Count}. Press Alt plus Arrow Up or Arrow Down to move."
+            : "Reorder row.";
+    }
+
+    private void OnDragStart(int index)
+    {
+        if (!CanReorderNow) return;
+        _dragIndex = index;
+        _dragOverIndex = index;
+    }
+
+    private void OnDragEnter(int index)
+    {
+        if (_dragIndex is null || !CanReorderNow) return;
+        _dragOverIndex = index;
+    }
+
+    private async Task OnDrop(int index)
+    {
+        if (_dragIndex is int from)
+            await MoveRow(from, index);
+        _dragIndex = null;
+        _dragOverIndex = null;
+    }
+
+    private void OnDragEnd()
+    {
+        _dragIndex = null;
+        _dragOverIndex = null;
+    }
+
+    private async Task OnGripKeyDown(KeyboardEventArgs e, int index)
+    {
+        if (!CanReorderNow || !e.AltKey) return;
+        var target = e.Key switch
+        {
+            "ArrowUp" => index - 1,
+            "ArrowDown" => index + 1,
+            _ => index
+        };
+        if (target == index || target < 0 || target >= _view.Count) return;
+        await MoveRow(index, target);
+        _pendingFocusGrip = target;
+    }
+
+    // Optimistically reorders the displayed view so the move is reflected immediately, then
+    // raises OnRowReordered so the consumer can apply the same move to its backing collection.
+    private async Task MoveRow(int from, int to)
+    {
+        if (!CanReorderNow) return;
+        if (from < 0 || from >= _view.Count) return;
+        to = Math.Clamp(to, 0, _view.Count - 1);
+        if (from == to) return;
+
+        var item = _view[from];
+        _view.RemoveAt(from);
+        _view.Insert(to, item);
+        await OnRowReordered.InvokeAsync(new RowReorderEventArgs(from, to));
+    }
 
     // ───── State persistence ─────
 
@@ -1269,6 +1438,72 @@
         {
             // Persistence is best-effort.
         }
+    }
+
+    // ───── CSV export ─────
+
+    private const string Utf8Bom = "﻿";
+
+    private async Task ExportCsvAsync()
+    {
+        var columns = VisibleColumns.ToList();
+        var rows = await BuildExportRowsAsync(CancellationToken.None);
+        var csv = BuildCsv(columns, rows);
+        // Prepend a UTF-8 BOM so Excel opens the file with the correct encoding.
+        await JS.InvokeVoidAsync("dryl.download.csv", ExportFileName, Utf8Bom + csv);
+    }
+
+    // The rows to export: search + filters + sort applied, across ALL pages.
+    // In client mode this is computed in-memory. In server (DataProvider) mode we
+    // issue a dedicated request with the current search/sort/filters but Skip=0 /
+    // Take=int.MaxValue so the export covers the full filtered set, not just the
+    // page currently in view. Backends that cannot serve an unbounded Take should
+    // cap it on their side.
+    private async Task<List<TItem>> BuildExportRowsAsync(CancellationToken ct)
+    {
+        if (DataProvider is not null)
+        {
+            var request = new DataRequest(
+                Skip: 0,
+                Take: int.MaxValue,
+                SearchText: _appliedSearch,
+                Sort: _sort.ToArray(),
+                Filters: _filters.Values.ToArray());
+
+            var result = await DataProvider(request, ct);
+            return result.Items.ToList();
+        }
+
+        var items = Items ?? [];
+        var filtered = items.Where(MatchesSearch).Where(MatchesFilters);
+        var sorted = ApplySort(filtered, _columns, _sort);
+        return sorted.ToList();
+    }
+
+    private string BuildCsv(List<DrylColumn<TItem>> columns, List<TItem> rows)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(string.Join(',', columns.Select(c => CsvField(c.DisplayTitle))));
+        foreach (var item in rows)
+            sb.AppendLine(string.Join(',', columns.Select(c => CsvField(FormatExportValue(c.GetValue(item))))));
+        return sb.ToString();
+    }
+
+    // Numbers and dates are formatted with InvariantCulture so the CSV is stable
+    // regardless of the server's locale (e.g. German "0,5" → "0.5").
+    private static string FormatExportValue(object? value) => value switch
+    {
+        null => string.Empty,
+        System.IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? string.Empty
+    };
+
+    // RFC 4180: quote a field containing a comma, quote or line break; escape inner quotes.
+    private static string CsvField(string value)
+    {
+        if (value.IndexOfAny([',', '"', '\n', '\r']) >= 0)
+            return "\"" + value.Replace("\"", "\"\"") + "\"";
+        return value;
     }
 
     public async ValueTask DisposeAsync()

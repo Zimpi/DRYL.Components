@@ -1,0 +1,51 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylKbd — keyboard-shortcut display.
+
+    Renders semantic <kbd> elements with token-based styling for
+    shortcut hints (⌘K, Ctrl+S, …). Use it anywhere a shortcut is
+    surfaced — command palettes, menus, tooltips, shortcut bars.
+    Pure CSS — no JS.
+
+    Usage:
+      <DrylKbd>⌘K</DrylKbd>
+      <DrylKbd Keys="@(new[] { "Ctrl", "K" })" />
+      <DrylKbd Keys="@(new[] { "Ctrl", "Shift", "P" })" Separator="+" />
+    ───────────────────────────────────────────────────────── *@
+
+@if (Keys is { Length: > 0 })
+{
+    <span class="kbd-group" @attributes="AdditionalAttributes">
+        @for (var i = 0; i < Keys.Length; i++)
+        {
+            @if (i > 0)
+            {
+                <span class="kbd-sep" aria-hidden="true">@Separator</span>
+            }
+            <kbd class="kbd">@Keys[i]</kbd>
+        }
+    </span>
+}
+else
+{
+    <kbd class="kbd" @attributes="AdditionalAttributes">@ChildContent</kbd>
+}
+
+@code {
+    /// <summary>
+    /// The keys of a chord, each rendered in its own <c>&lt;kbd&gt;</c> and joined by
+    /// <see cref="Separator"/>. When set, <see cref="ChildContent"/> is ignored.
+    /// </summary>
+    [Parameter] public string[]? Keys { get; set; }
+
+    /// <summary>Separator shown between chord keys. Default <c>"+"</c>.</summary>
+    [Parameter] public string Separator { get; set; } = "+";
+
+    /// <summary>Single-key content, e.g. <c>⌘K</c>. Ignored when <see cref="Keys"/> is set.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

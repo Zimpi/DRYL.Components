@@ -61,7 +61,7 @@
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private ElementReference _el;
-    private IJSObjectReference? _handle;
+    private bool _tracking;
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
@@ -105,14 +105,19 @@
         if (firstRender && Spotlight)
         {
             await JS.InvokeVoidAsync("dryl.spotlight.track", _el);
+            _tracking = true;
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_handle is not null)
+        // Only call into JS if the spotlight listener was actually attached
+        // (i.e. we ran past first render in the browser). Guards against the
+        // static prerender pass where no JS runtime / DOM element exists.
+        if (_tracking)
         {
-            try { await _handle.DisposeAsync(); } catch { /* element gone */ }
+            try { await JS.InvokeVoidAsync("dryl.spotlight.untrack", _el); }
+            catch { /* circuit gone or element already removed */ }
         }
     }
 

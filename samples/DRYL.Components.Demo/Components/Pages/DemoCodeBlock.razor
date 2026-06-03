@@ -1,0 +1,124 @@
+@page "/code-block"
+
+<PageTitle>DRYL — Code Block</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Data</span>
+        <h2>DrylCodeBlock</h2>
+        <p class="lead">
+            A glass code surface with a language label and a copy-to-clipboard
+            button — the natural home for code emitted by a model. Code is
+            syntax-highlighted server-side by a dependency-free C# tokenizer
+            (no JS) and HTML-encoded, so it is safe against injection.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Basic</h3>
+        <DrylCodeBlock Language="csharp" Code="@_csharp" />
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>With line numbers</h3>
+        <DrylCodeBlock Language="json" Code="@_json" ShowLineNumbers />
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Languages</h3>
+        <div class="col" style="gap: var(--sp-4);">
+            <DrylCodeBlock Language="typescript" Code="@_ts" />
+            <DrylCodeBlock Language="python" Code="@_python" />
+            <DrylCodeBlock Language="sql" Code="@_sql" />
+            <DrylCodeBlock Language="html" Code="@_html" />
+            <DrylCodeBlock Language="css" Code="@_css" />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Highlighting off</h3>
+        <p class="lead">Set <code>Highlight="false"</code> to render verbatim plain text.</p>
+        <DrylCodeBlock Language="csharp" Code="@_csharp" Highlight="false" />
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>AI states</h3>
+        <div class="col" style="gap: var(--sp-4);">
+            <DrylCodeBlock Language="bash" Code="dotnet add package Markdig" Ai="AiState.Streaming" />
+            <DrylCodeBlock Language="bash" Code="dotnet add package Markdig" Ai="AiState.Generated" />
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private const string _csharp = """
+        public sealed record Person(string Name, int Age)
+        {
+            public bool IsAdult => Age >= 18;
+        }
+        """;
+
+    private const string _json = """
+        {
+          "tool": "get_weather",
+          "arguments": { "city": "Berlin", "unit": "celsius" }
+        }
+        """;
+
+    private const string _ts = """
+        // Stream a chat completion
+        async function* chat(prompt: string): AsyncGenerator<string> {
+            const res = await fetch("/api/chat", { method: "POST", body: prompt });
+            const reader = res.body!.getReader();
+            for (let n = 0; n < 100; n++) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                yield new TextDecoder().decode(value);
+            }
+        }
+        """;
+
+    private const string _python = """
+        # Filter adults from a list of people
+        from dataclasses import dataclass
+
+        @dataclass
+        class Person:
+            name: str
+            age: int
+
+        def adults(people: list[Person]) -> list[Person]:
+            return [p for p in people if p.age >= 18]
+        """;
+
+    private const string _sql = """
+        -- Top 5 customers by revenue
+        SELECT c.name, SUM(o.total) AS revenue
+        FROM customers c
+        JOIN orders o ON o.customer_id = c.id
+        WHERE o.created_at >= '2026-01-01'
+        GROUP BY c.name
+        ORDER BY revenue DESC
+        LIMIT 5;
+        """;
+
+    private const string _html = """
+        <!-- A glass card -->
+        <article class="glass-card" data-id="42">
+            <h2>Hello &amp; welcome</h2>
+            <a href="/docs">Read the docs</a>
+        </article>
+        """;
+
+    private const string _css = """
+        /* Accent button */
+        .btn-primary {
+            background: var(--accent-grad);
+            border-radius: var(--r-md);
+            padding: 8px 16px;
+            transition: box-shadow 240ms ease;
+        }
+        """;
+}

@@ -23,6 +23,15 @@
 /* ── Step header ─────────────────────────────────────────── */
 
 .step-header {
+    /* Reset native <button> chrome — DrylStepper draws its own surface. */
+    appearance: none;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    width: 100%;
+
     display: flex;
     align-items: center;
     gap: var(--sp-3);
@@ -34,14 +43,32 @@
     user-select: none;
 }
 
-.step-header:hover:not(.is-disabled) {
+.step-header:hover:not(:disabled) {
     background: var(--glass-1);
 }
 
-.step-header.is-disabled {
+.step-header:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-    pointer-events: none;
+}
+
+/* Keyboard focus ring — the accent ring from dryl.css, scoped to the header. */
+.step-header:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-a);
+}
+
+/* Visually-hidden live region: announces the active step to screen readers. */
+.stepper-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 /* Horizontal: each header takes equal space, centers content vertically */

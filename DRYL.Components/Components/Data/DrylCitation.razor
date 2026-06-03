@@ -1,0 +1,78 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCitation — an inline source-attribution marker for AI / RAG
+    answers. Renders a small "[n]" chip that reveals the source title,
+    URL and an optional snippet in a popover on click — so a generated
+    answer can stay verifiable without cluttering the prose.
+
+    Usage:
+      The capital is Berlin.<DrylCitation Index="1" Title="World Factbook"
+          Url="https://example.org/de" Snippet="Berlin is the capital…" />
+
+    Pairs with DrylCitationList for the full numbered source list.
+    ───────────────────────────────────────────────────────── *@
+
+<DrylPopover @bind-Open="_open" Placement="PopoverPlacement.TopStart"
+             PanelRole="dialog"
+             PanelAriaLabel="@($"Source {Index}{(string.IsNullOrEmpty(Title) ? "" : $": {Title}")}")">
+    <TriggerContent>
+        <button type="button"
+                class="citation-chip @(_open ? "citation-chip--open" : null)"
+                aria-label="@($"Source {Index}{(string.IsNullOrEmpty(Title) ? "" : $": {Title}")}")"
+                @attributes="AdditionalAttributes">
+            @Index
+        </button>
+    </TriggerContent>
+    <PanelContent>
+        <div class="citation-pop">
+            @if (!string.IsNullOrEmpty(Title))
+            {
+                <div class="citation-pop-title">
+                    <DrylIcon Name="Quote" Size="13" />
+                    <span>@Title</span>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(Snippet))
+            {
+                <p class="citation-pop-snippet">@Snippet</p>
+            }
+            @if (!string.IsNullOrEmpty(Url))
+            {
+                <a class="citation-pop-link" href="@Url" target="_blank" rel="noopener noreferrer">
+                    <DrylIcon Name="Link" Size="13" />
+                    <span>@DisplayUrl</span>
+                </a>
+            }
+        </div>
+    </PanelContent>
+</DrylPopover>
+
+@code {
+    /// <summary>1-based reference number shown in the chip and the popover label.</summary>
+    [Parameter] public int Index { get; set; } = 1;
+
+    /// <summary>Source title shown at the top of the popover.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Source URL. Rendered as an external link in the popover.</summary>
+    [Parameter] public string? Url { get; set; }
+
+    /// <summary>Optional excerpt that grounds the cited claim.</summary>
+    [Parameter] public string? Snippet { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the chip.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _open;
+
+    private string DisplayUrl
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Url)) return string.Empty;
+            return Uri.TryCreate(Url, UriKind.Absolute, out var uri) ? uri.Host : Url;
+        }
+    }
+}

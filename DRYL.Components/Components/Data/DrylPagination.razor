@@ -75,7 +75,8 @@
                 <DrylButton Variant="@(isCurrent ? DrylButton.ButtonVariant.Secondary : DrylButton.ButtonVariant.Ghost)"
                             Size="DrylButton.ButtonSize.Small"
                             OnClick="@(() => Go(pageZeroIdx))"
-                            AriaLabel="@($"Page {pageZeroIdx + 1}")">
+                            AriaLabel="@($"Page {pageZeroIdx + 1}")"
+                            aria-current="@(isCurrent ? "page" : null)">
                     @(pageZeroIdx + 1)
                 </DrylButton>
             }

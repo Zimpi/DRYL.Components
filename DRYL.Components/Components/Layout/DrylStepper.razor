@@ -33,7 +33,10 @@
             var isActive = step.InternalId == _activeStepId;
             var isLast = i == _steps.Count - 1;
 
-            <div class="@StepHeaderCss(step, isActive)"
+            <button type="button"
+                 class="@StepHeaderCss(step, isActive)"
+                 disabled="@step.Disabled"
+                 aria-current="@(isActive ? "step" : null)"
                  @onclick="() => ActivateStep(step)"
                  @key="step.InternalId">
 
@@ -85,7 +88,19 @@
                 {
                     <div class="step-connector"></div>
                 }
-            </div>
+            </button>
+        }
+    </div>
+
+    @* Announce the active step to assistive tech without a visible label. *@
+    <div class="stepper-live" role="status" aria-live="polite">
+        @{
+            var liveStep = _steps.FirstOrDefault(s => s.InternalId == _activeStepId);
+            var liveIndex = liveStep is null ? -1 : _steps.IndexOf(liveStep);
+        }
+        @if (liveStep is not null)
+        {
+            <text>Step @(liveIndex + 1) of @_steps.Count@(string.IsNullOrEmpty(liveStep.Label) ? "" : $": {liveStep.Label}")</text>
         }
     </div>
 

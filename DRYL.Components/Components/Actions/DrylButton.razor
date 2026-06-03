@@ -25,6 +25,7 @@
         type="@(IsSubmit ? "submit" : "button")"
         disabled="@(Disabled || Loading)"
         aria-label="@AriaLabel"
+        aria-pressed="@AriaPressed"
         @onclick="HandleClick"
         @attributes="AdditionalAttributes">
 
@@ -70,6 +71,13 @@
     /// <summary>Accessible label — required for icon-only buttons.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
+    /// <summary>
+    /// Toggle state for a toggle button (mute, bold, filter on/off, …). When set,
+    /// emits <c>aria-pressed</c> and highlights the button while pressed. Leave
+    /// <c>null</c> (default) for a regular, non-toggle button.
+    /// </summary>
+    [Parameter] public bool? Pressed { get; set; }
+
     /// <summary>Click event handler.</summary>
     [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
 
@@ -102,6 +110,7 @@
                 _ => string.Empty
             };
             var iconOnly = ChildContent is null ? "btn-icon" : string.Empty;
+            var pressed = Pressed == true ? "btn--active" : string.Empty;
             var aiAura = Ai != AiState.None ? "ai-aura" : string.Empty;
             var aiMod = Ai switch
             {
@@ -110,10 +119,13 @@
                 AiState.Generated => "ai-generated",
                 _ => string.Empty
             };
-            return string.Join(' ', new[] { "btn", variant, size, iconOnly, aiAura, aiMod }
+            return string.Join(' ', new[] { "btn", variant, size, iconOnly, pressed, aiAura, aiMod }
                                  .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }
+
+    /// <summary>aria-pressed value: "true"/"false" for toggle buttons, null otherwise (attribute omitted).</summary>
+    private string? AriaPressed => Pressed is null ? null : (Pressed.Value ? "true" : "false");
 
     private Task HandleClick(MouseEventArgs e) =>
         Disabled || Loading ? Task.CompletedTask : OnClick.InvokeAsync(e);

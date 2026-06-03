@@ -55,3 +55,6 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Playwright MCP — disposable browser artifacts (screenshots, console logs, snapshots)
+.playwright-mcp/

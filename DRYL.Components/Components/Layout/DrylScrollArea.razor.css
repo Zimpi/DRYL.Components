@@ -1,0 +1,38 @@
+/* Container-scoped scroll region with a thin DRYL accent scrollbar. */
+
+.scroll-area {
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+}
+
+.scroll-area--horizontal {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* WebKit / Chromium */
+.scroll-area::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.scroll-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scroll-area::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: var(--r-pill);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background var(--dur-fast) var(--ease-out);
+}
+
+.scroll-area::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-line);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+}

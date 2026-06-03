@@ -1,0 +1,153 @@
+@namespace DRYL.Components
+@using DRYL.Components.Internal
+@inject IJSRuntime JS
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCodeBlock — a glass code surface with a language label and
+    a copy-to-clipboard button. The natural home for code emitted
+    by an LLM; consumed by DrylMarkdown for fenced code blocks.
+
+    Usage:
+      <DrylCodeBlock Language="csharp" Code="@_snippet" ShowLineNumbers />
+
+      <DrylCodeBlock Language="json" Code="@_toolArgs" Ai="AiState.Streaming" />
+
+    Syntax highlighting is performed server-side by a tiny dependency-free
+    C# tokenizer (no JS highlighter — DRYL ships zero JS frameworks). It
+    emits <span class="tok-…"> fragments that map only onto existing DRYL
+    color tokens. Every token's text is HTML-encoded before it is wrapped,
+    so model-authored code stays safe against injection. Set Highlight="false"
+    to render verbatim plain text instead.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    <div class="code-block-head">
+        <span class="code-block-lang">@(string.IsNullOrWhiteSpace(Language) ? "text" : Language)</span>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                    Size="DrylButton.ButtonSize.Small"
+                    LeadingIcon="@(_copied ? "Check" : "Copy")"
+                    AriaLabel="Copy code"
+                    OnClick="CopyAsync">
+            @(_copied ? "Copied" : "Copy")
+        </DrylButton>
+    </div>
+
+    <div class="code-block-body">
+        @if (ShowLineNumbers)
+        {
+            <pre class="code-block-gutter" aria-hidden="true">@LineNumbers</pre>
+        }
+        <pre class="code-block-pre"><code>@HighlightedCode</code></pre>
+    </div>
+</div>
+
+@code {
+    /// <summary>The source code to display. Rendered verbatim (HTML-encoded).</summary>
+    [Parameter] public string Code { get; set; } = "";
+
+    /// <summary>Optional language label shown in the header (e.g. <c>csharp</c>, <c>json</c>).</summary>
+    [Parameter] public string? Language { get; set; }
+
+    /// <summary>When true, renders a left gutter with 1-based line numbers.</summary>
+    [Parameter] public bool ShowLineNumbers { get; set; }
+
+    /// <summary>
+    /// When true (default), the code is syntax-highlighted server-side based on
+    /// <see cref="Language"/>. Set to <c>false</c> to render verbatim plain text.
+    /// </summary>
+    [Parameter] public bool Highlight { get; set; } = true;
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _copied;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+    private CancellationTokenSource? _copyResetCts;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
+    private async Task CopyAsync()
+    {
+        bool ok;
+        try { ok = await JS.InvokeAsync<bool>("dryl.clipboard.copy", Code ?? string.Empty); }
+        catch (JSDisconnectedException) { return; }
+
+        if (!ok) return;
+
+        _copied = true;
+        StateHasChanged();
+
+        // Reset the "Copied" label after a moment; cancellable so a disposed
+        // component (or a rapid second copy) never calls StateHasChanged late.
+        _copyResetCts?.Cancel();
+        _copyResetCts?.Dispose();
+        _copyResetCts = new CancellationTokenSource();
+        var token = _copyResetCts.Token;
+        try
+        {
+            await Task.Delay(1600, token);
+            _copied = false;
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { /* superseded or disposed */ }
+    }
+
+    private MarkupString HighlightedCode =>
+        Highlight
+            ? (MarkupString)SyntaxHighlighter.Highlight(Code, Language)
+            : (MarkupString)System.Text.Encodings.Web.HtmlEncoder.Default.Encode(Code ?? string.Empty);
+
+    private string LineNumbers
+    {
+        get
+        {
+            var count = string.IsNullOrEmpty(Code) ? 1 : Code.Replace("\r\n", "\n").Split('\n').Length;
+            return string.Join('\n', Enumerable.Range(1, count));
+        }
+    }
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "code-block" };
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+
+    public void Dispose()
+    {
+        _copyResetCts?.Cancel();
+        _copyResetCts?.Dispose();
+    }
+}

@@ -17,7 +17,19 @@
       </DrylEmptyState>
     ───────────────────────────────────────────────────────── *@
 
-<div class="@RootCssClass" @attributes="AdditionalAttributes">
+<div class="@RootCssClass"
+     role="region"
+     aria-label="@(string.IsNullOrEmpty(Title) ? "Empty" : Title)"
+     @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
     @if (!string.IsNullOrEmpty(Icon))
     {
         <div class="empty-icon"><DrylIcon Name="@Icon" Size="@IconSize" /></div>
@@ -58,12 +70,45 @@
     /// <summary>Overall size of the empty state.</summary>
     [Parameter] public EmptyStateSize Size { get; set; } = EmptyStateSize.Medium;
 
+    /// <summary>
+    /// AI ambient state — controls the gradient border, glow, and reveal animation.
+    /// Use <see cref="AiState.Thinking"/> while a model populates the area
+    /// (e.g. "AI is analysing your data…").
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+    }
+
     private int IconSize => Size == EmptyStateSize.Small ? 24 : 32;
 
-    private string RootCssClass =>
-        Size == EmptyStateSize.Small ? "empty-state empty-state--sm" : "empty-state";
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "empty-state" };
+            if (Size == EmptyStateSize.Small) parts.Add("empty-state--sm");
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
 }

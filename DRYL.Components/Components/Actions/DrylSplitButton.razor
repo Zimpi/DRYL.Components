@@ -1,0 +1,93 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSplitButton — a primary action joined to a caret that opens a
+    DrylMenu of secondary variants. The canonical "Save ▾ (Save & new /
+    Save & close)" enterprise pattern, composed from the existing
+    DrylButton + DrylMenu primitives.
+
+    Usage:
+      <DrylSplitButton OnClick="Save">
+          Save
+          <MenuItems>
+              <DrylMenuItem Icon="Copy" OnClick="SaveAndNew">Save &amp; new</DrylMenuItem>
+              <DrylMenuItem Icon="X"    OnClick="SaveAndClose">Save &amp; close</DrylMenuItem>
+          </MenuItems>
+      </DrylSplitButton>
+
+    • The main button and caret share Variant / Size and read as one control.
+    • Secondary (default) and Ghost segment most cleanly; Danger works too.
+    • The caret is a labelled icon button (a11y) that opens the DrylMenu.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass" @attributes="AdditionalAttributes">
+    <DrylButton Variant="Variant"
+                Size="Size"
+                Disabled="Disabled"
+                Loading="Loading"
+                LeadingIcon="@LeadingIcon"
+                OnClick="OnClick"
+                Ai="Ai">
+        @ChildContent
+    </DrylButton>
+
+    <DrylMenu Placement="MenuPlacement" Label="@MenuLabel">
+        <Trigger>
+            <DrylButton Variant="Variant"
+                        Size="Size"
+                        Disabled="Disabled"
+                        AriaLabel="@MenuAriaLabel"
+                        LeadingIcon="ChevronDown" />
+        </Trigger>
+        <Items>
+            @MenuItems
+        </Items>
+    </DrylMenu>
+</div>
+
+@code {
+    /// <summary>The main button's label content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The dropdown's secondary actions — place <see cref="DrylMenuItem"/> components here.</summary>
+    [Parameter] public RenderFragment? MenuItems { get; set; }
+
+    /// <summary>Shared visual style of both segments. Default <see cref="DrylButton.ButtonVariant.Secondary"/>.</summary>
+    [Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Secondary;
+
+    /// <summary>Shared size of both segments. Default <see cref="DrylButton.ButtonSize.Medium"/>.</summary>
+    [Parameter] public DrylButton.ButtonSize Size { get; set; } = DrylButton.ButtonSize.Medium;
+
+    /// <summary>Disables both segments.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Shows a spinner on the main button and makes it non-clickable.</summary>
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>Optional icon shown before the main button's label.</summary>
+    [Parameter] public string? LeadingIcon { get; set; }
+
+    /// <summary>Primary action — raised when the main button is clicked.</summary>
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    /// <summary>Where the caret menu opens relative to the caret. Default <see cref="DrylMenu.MenuPlacement.BottomEnd"/>.</summary>
+    [Parameter] public DrylMenu.MenuPlacement MenuPlacement { get; set; } = DrylMenu.MenuPlacement.BottomEnd;
+
+    /// <summary>Accessible label for the dropdown menu panel.</summary>
+    [Parameter] public string? MenuLabel { get; set; }
+
+    /// <summary>Accessible label for the caret button (icon-only). Default "More actions".</summary>
+    [Parameter] public string MenuAriaLabel { get; set; } = "More actions";
+
+    /// <summary>AI ambient state applied to the main button (rotating gradient ring).</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>If true, the control stretches to its container's full width.</summary>
+    [Parameter] public bool Block { get; set; }
+
+    /// <summary>Pass-through HTML attributes applied to the split-button wrapper.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => Block ? "split-btn split-btn--block" : "split-btn";
+}

@@ -1,0 +1,73 @@
+/* DrylErrorBoundary — fallback body layout inside the danger DrylAlert.
+   Tokens only; the glass surface, accent and aura come from DrylAlert. */
+
+.errbnd-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+}
+
+.errbnd-desc {
+    margin: 0;
+    color: var(--fg-muted);
+}
+
+/* Collapsible "Show details" toggle — mono, dim, accent on hover/focus. */
+.errbnd-detail-toggle {
+    appearance: none;
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: 2px 0;
+    background: transparent;
+    border: none;
+    color: var(--fg-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+.errbnd-detail-toggle:hover { color: var(--fg-muted); }
+
+.errbnd-detail-toggle:focus-visible {
+    outline: 1px solid var(--accent-line);
+    outline-offset: 2px;
+    border-radius: var(--r-xs);
+    color: var(--fg);
+}
+
+.errbnd-detail-chevron {
+    display: inline-flex;
+    transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.errbnd-detail-chevron.is-open { transform: rotate(90deg); }
+
+/* Exception text — scrollable mono code surface on a deeper glass layer. */
+.errbnd-stack {
+    margin: 0;
+    max-height: 220px;
+    overflow: auto;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--glass-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.errbnd-actions {
+    display: flex;
+    gap: var(--sp-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .errbnd-detail-toggle,
+    .errbnd-detail-chevron { transition: none; }
+}

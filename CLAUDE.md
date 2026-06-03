@@ -68,6 +68,8 @@ Use `enum` for variants, never `string`. Provide sensible defaults.
 ### 2.8 No external runtime dependencies
 DRYL has zero npm packages, zero JS frameworks layered on top. If a component needs JS interop, put the script in `wwwroot/js/dryl.js` and inject `IJSRuntime`.
 
+**Documented exception:** `Markdig` (BSD-2-Clause) is the **one** approved external runtime dependency — used by `DrylMarkdown` to parse Markdown server-side (raw HTML disabled for XSS safety). It was added with maintainer sign-off. This is the bar for any future dependency: a .NET NuGet only, never npm/JS, and only after the maintainer approves it here. Do not add others without the same approval.
+
 ### 2.9 Accessibility is not optional
 - Every interactive element is keyboard-reachable.
 - Every icon-only button gets `aria-label` and a `DrylTooltip`.

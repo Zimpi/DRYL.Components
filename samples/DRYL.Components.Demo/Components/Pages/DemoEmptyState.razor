@@ -43,4 +43,31 @@
         </div>
     </section>
 
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>AI mode</h3>
+        <p class="lead">
+            The empty state is often exactly the moment the AI is at work —
+            generating, analysing or streaming content into a blank area. Pass
+            the shared <code>Ai</code> parameter so the placeholder carries the
+            same aura vocabulary as the rest of the library.
+        </p>
+        <div class="row" style="gap: var(--sp-4); flex-wrap: wrap;">
+            <div class="glass-card p-default" style="flex: 1; min-width: 280px;">
+                <DrylEmptyState Ai="AiState.Thinking" Icon="Sparkle"
+                                Title="Analysing your data…"
+                                Description="The assistant is reviewing your dataset to surface insights." />
+            </div>
+            <div class="glass-card p-default" style="flex: 1; min-width: 280px;">
+                <DrylEmptyState Ai="AiState.Streaming" Icon="Sparkle"
+                                Title="Drafting a summary…"
+                                Description="Generating an overview from the documents you uploaded." />
+            </div>
+            <div class="glass-card p-default" style="flex: 1; min-width: 280px;">
+                <DrylEmptyState Ai="AiState.Generated" Icon="Check"
+                                Title="Ready"
+                                Description="The AI finished — your results will appear here." />
+            </div>
+        </div>
+    </section>
+
 </div>

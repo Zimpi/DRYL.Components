@@ -1,0 +1,132 @@
+@namespace DRYL.Components
+@using Markdig
+@using Markdig.Syntax
+@using System.Text
+
+@*  ─────────────────────────────────────────────────────────
+    DrylMarkdown — renders Markdown (CommonMark + GFM) into DRYL's
+    glass aesthetic. The natural sink for LLM output: bind it to a
+    streaming completion and it re-renders as tokens arrive.
+
+    Fenced code blocks are delegated to DrylCodeBlock (language label
+    + copy button). All other Markdown is rendered to HTML by Markdig
+    with raw HTML disabled, so model-authored "<script>…" is escaped
+    rather than executed.
+
+    Usage:
+      <DrylMarkdown Content="@_answer" Ai="@_state" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" @attributes="AdditionalAttributes">
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai == AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genTick"></div>
+        }
+    }
+
+    <div class="md-content">
+        @foreach (var seg in _segments)
+        {
+            if (seg.IsCode)
+            {
+                <DrylCodeBlock Code="@seg.Text" Language="@seg.Language" />
+            }
+            else
+            {
+                @((MarkupString)seg.Text)
+            }
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The Markdown source to render.</summary>
+    [Parameter] public string? Content { get; set; }
+
+    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // Raw HTML is disabled so untrusted (model-authored) Markdown cannot inject
+    // active markup; advanced extensions add GFM tables, autolinks, etc.
+    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
+        .UseAdvancedExtensions()
+        .DisableHtml()
+        .Build();
+
+    private readonly List<Segment> _segments = new();
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    private readonly record struct Segment(bool IsCode, string Text, string? Language);
+
+    protected override void OnParametersSet()
+    {
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Ai;
+        BuildSegments();
+    }
+
+    private void BuildSegments()
+    {
+        _segments.Clear();
+        if (string.IsNullOrEmpty(Content)) return;
+
+        var document = Markdown.Parse(Content, _pipeline);
+
+        var sb = new StringBuilder();
+        using var writer = new StringWriter(sb);
+        var renderer = new Markdig.Renderers.HtmlRenderer(writer);
+        _pipeline.Setup(renderer);
+
+        void FlushHtml()
+        {
+            if (sb.Length == 0) return;
+            _segments.Add(new Segment(false, sb.ToString(), null));
+            sb.Clear();
+        }
+
+        foreach (var block in document)
+        {
+            if (block is CodeBlock codeBlock)
+            {
+                FlushHtml();
+                var language = (codeBlock as FencedCodeBlock)?.Info;
+                _segments.Add(new Segment(true, codeBlock.Lines.ToString(), language));
+            }
+            else
+            {
+                renderer.Render(block);
+                writer.Flush();
+            }
+        }
+
+        FlushHtml();
+    }
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "md" };
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                switch (Ai)
+                {
+                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
+                    case AiState.Streaming: parts.Add("ai-streaming"); break;
+                    case AiState.Generated: parts.Add("ai-generated"); break;
+                }
+            }
+            return string.Join(' ', parts);
+        }
+    }
+}

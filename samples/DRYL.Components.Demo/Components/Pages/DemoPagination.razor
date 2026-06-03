@@ -1,0 +1,90 @@
+@page "/pagination"
+
+<PageTitle>DRYL — Pagination</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Data</span>
+        <h2>DrylPagination</h2>
+        <p class="lead">
+            Page navigation with an optional rows-per-page selector. Used inside
+            <code>DrylTable</code>, but standalone too — image galleries, search
+            results, any paged list. Pages are zero-indexed on the wire; the UI
+            shows 1-based labels. The active page carries <code>aria-current="page"</code>.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Full — with page-size selector</h3>
+        <p>The default: first / previous / numbered pages / next / last, plus a rows selector.</p>
+        <div class="glass-card p-default">
+            <DrylPagination CurrentPage="@_page1"
+                            PageSize="@_size1"
+                            TotalCount="247"
+                            OnPageChanged="@(p => _page1 = p)"
+                            OnPageSizeChanged="@(s => { _size1 = s; _page1 = 0; })" />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Minimal — buttons only</h3>
+        <p>Set <code>ShowPageSize="false"</code> to hide the rows selector.</p>
+        <div class="glass-card p-default">
+            <DrylPagination CurrentPage="@_page2"
+                            PageSize="10"
+                            TotalCount="84"
+                            ShowPageSize="false"
+                            OnPageChanged="@(p => _page2 = p)" />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Many pages — ellipsis logic</h3>
+        <p>
+            With more than seven pages, the middle collapses into an ellipsis that
+            follows the current page. Navigate around to see it adapt.
+        </p>
+        <div class="glass-card p-default">
+            <DrylPagination CurrentPage="@_page3"
+                            PageSize="10"
+                            TotalCount="1000"
+                            ShowPageSize="false"
+                            OnPageChanged="@(p => _page3 = p)" />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Custom page sizes</h3>
+        <p>Provide your own <code>PageSizeOptions</code>.</p>
+        <div class="glass-card p-default">
+            <DrylPagination CurrentPage="@_page4"
+                            PageSize="@_size4"
+                            TotalCount="320"
+                            PageSizeOptions="@(new[] { 12, 24, 48 })"
+                            OnPageChanged="@(p => _page4 = p)"
+                            OnPageSizeChanged="@(s => { _size4 = s; _page4 = 0; })" />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Empty — no items</h3>
+        <p>With <code>TotalCount="0"</code> the info area shows "No items" and the controls clamp to a single page.</p>
+        <div class="glass-card p-default">
+            <DrylPagination CurrentPage="0"
+                            PageSize="10"
+                            TotalCount="0"
+                            ShowPageSize="false" />
+        </div>
+    </section>
+
+</div>
+
+@code {
+    private int _page1;
+    private int _size1 = 20;
+    private int _page2;
+    private int _page3 = 12;
+    private int _page4;
+    private int _size4 = 24;
+}

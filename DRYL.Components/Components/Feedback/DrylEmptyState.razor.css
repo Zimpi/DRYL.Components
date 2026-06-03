@@ -14,6 +14,14 @@
     gap: var(--sp-2);
 }
 
+/* AI mode: frame the placeholder as a glass surface so the rotating
+   gradient ring (.ai-aura-ring inherits border-radius) has a host to wrap. */
+.empty-state.ai-aura {
+    border-radius: var(--r-lg);
+    background: var(--glass-1);
+    border: 1px solid var(--line);
+}
+
 .empty-icon {
     display: inline-grid;
     place-content: center;

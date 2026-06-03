@@ -1,6 +1,7 @@
 @namespace DRYL.Components
 @inherits InputBase<string>
 @inject IJSRuntime JS
+@implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylSelect — single-select dropdown bound to EditForm.
@@ -53,6 +54,7 @@
 
                 @* Trigger — styled div so keyboard events don't double-fire via button activation *@
                 <div id="@_id"
+                     @ref="_trigger"
                      class="@TriggerCssClass"
                      tabindex="@(Disabled ? -1 : 0)"
                      role="combobox"
@@ -151,6 +153,8 @@
     private int _highlightedIndex = -1;
 
     private DrylPopover? _popover;
+    private ElementReference _trigger;
+    private bool _attached;
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
@@ -168,6 +172,19 @@
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
         _items = Items?.ToList() ?? [];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _attached) return;
+        // Suppress the browser's default page-scroll for the navigation keys so
+        // HandleKeyDown can move the option highlight. Tab/Enter/Escape stay live.
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.keynav.attach", _trigger);
+            _attached = true;
+        }
+        catch (JSDisconnectedException) { /* circuit closing during prerender — ignore */ }
     }
 
     private void Toggle()
@@ -204,7 +221,16 @@
                 break;
 
             case "ArrowUp":
-                if (_isOpen && _highlightedIndex > 0)
+                if (!_isOpen)
+                {
+                    // ARIA combobox: ArrowUp on a closed select opens it and
+                    // highlights the selected option (or the last one if none).
+                    _isOpen = true;
+                    _highlightedIndex = _items.FindIndex(i => i.Value == CurrentValueAsString);
+                    if (_highlightedIndex < 0) _highlightedIndex = count - 1;
+                    break;
+                }
+                if (_highlightedIndex > 0)
                 {
                     _highlightedIndex--;
                     await ScrollHighlightedIntoView();
@@ -303,5 +329,13 @@
         result = value ?? string.Empty;
         validationErrorMessage = string.Empty;
         return true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_attached) return;
+        try { await JS.InvokeVoidAsync("dryl.keynav.detach", _trigger); }
+        catch (JSDisconnectedException) { /* circuit already gone — ignore */ }
+        catch (JSException) { /* element/listener already gone — ignore */ }
     }
 }

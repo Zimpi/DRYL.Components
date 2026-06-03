@@ -384,9 +384,61 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding: 0;
 }
 
+/* Pressed / toggled state — driven by DrylButton's Pressed parameter
+   (aria-pressed="true"). Accent border + glow, like a secondary on. */
+.btn--active {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 1px var(--accent-line), 0 0 20px rgba(124, 92, 255, 0.18);
+  color: var(--fg);
+}
+
 .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: var(--r-sm); }
 .btn-sm.btn-icon { width: 30px; padding: 0; }
 .btn-lg { height: 46px; padding: 0 22px; font-size: 14px; }
+
+/* ============== BUTTON GROUP ============== */
+/* Joins adjacent DrylButtons into a segmented control: inner corners are
+   flattened and borders overlap by 1px so the cluster reads as one outline.
+   Outer corners keep each button's own radius (so --sm / --lg are honoured). */
+.btn-group { display: inline-flex; align-items: stretch; }
+.btn-group--block { display: flex; width: 100%; }
+.btn-group--block > .btn { flex: 1 1 0; }
+
+.btn-group > .btn:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+}
+.btn-group > .btn:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* Raise the interacted segment so its border / glow isn't clipped by the
+   neighbour overlapping it. */
+.btn-group > .btn:hover,
+.btn-group > .btn:focus-visible,
+.btn-group > .btn.btn--active { z-index: 1; }
+
+/* ============== SPLIT BUTTON ============== */
+/* A main action joined to a caret (the caret lives inside a DrylMenu's
+   popover-anchor, hence the descendant selectors for the second segment). */
+.split-btn { display: inline-flex; align-items: stretch; }
+.split-btn--block { display: flex; width: 100%; }
+.split-btn--block > .btn { flex: 1 1 auto; }
+
+.split-btn > .btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.split-btn > .popover-anchor { margin-left: -1px; }
+.split-btn > .popover-anchor .btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.split-btn > .btn:hover,
+.split-btn > .btn:focus-visible,
+.split-btn > .popover-anchor .btn:hover,
+.split-btn > .popover-anchor .btn:focus-visible { z-index: 1; }
 
 /* ============== INPUTS ============== */
 .input,
@@ -1778,6 +1830,56 @@ code, .code-inline {
   transform: rotate(90deg);
 }
 
+/* Reorder grip column — leading drag handle when Reorderable is set. */
+.tbl-col-grip {
+  width: 32px;
+  padding-left: var(--sp-3);
+  padding-right: 0;
+}
+
+.tbl-grip {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  color: var(--fg-dim);
+  cursor: grab;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-grip:hover { color: var(--fg); background: var(--glass-2); }
+.tbl-grip:active { cursor: grabbing; }
+.tbl-grip:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 1px;
+  color: var(--fg);
+}
+.tbl-grip:disabled {
+  cursor: default;
+  opacity: 0.4;
+  background: transparent;
+  color: var(--fg-dim);
+}
+
+/* Row being dragged — dims so the drop target reads clearly. */
+.tbl-root .tbl tbody tr.tbl-row--dragging td {
+  opacity: 0.45;
+}
+
+/* Drop target — an accent line traces the row the drag is hovering over. */
+.tbl-root .tbl tbody tr.tbl-row--drop-target td {
+  box-shadow: inset 0 2px 0 0 var(--accent-a);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tbl-grip { transition: none; }
+}
+
 /* Detail row — full-width panel that slides open under the expanded row. */
 .tbl-root .tbl tbody tr.tbl-row-detail td {
   background: var(--bg-2);
@@ -1906,6 +2008,14 @@ td.tbl-col-actions {
   align-items: center;
 }
 .tbl-col-menu-wrap--auto { margin-left: auto; }
+
+/* Toolbar action cluster (e.g. CSV export). When it is the first right-aligned
+   element (no custom ToolbarContent), it anchors the right group. */
+.tbl-toolbar-action {
+  display: inline-flex;
+  align-items: center;
+}
+.tbl-toolbar-action--auto { margin-left: auto; }
 
 .tbl-col-menu-trigger {
   appearance: none;
@@ -3678,3 +3788,213 @@ input[type=number] { -moz-appearance: textfield; }
 @media (prefers-reduced-motion: reduce) {
   .radio-control, .radio-control::after { transition: none; }
 }
+
+/* ─────────────────────────────────────────────────────────
+   DrylMarkdown — rendered Markdown content. These rules are global
+   (not component-scoped) because the HTML is injected via MarkupString
+   and therefore carries no CSS-isolation attribute.
+   ───────────────────────────────────────────────────────── */
+.md { position: relative; }
+
+/* In AI mode the rotating ring uses border-radius:inherit and the glow draws a
+   1px outline — with a bare .md (no radius, no surface) that resolves to a sharp
+   rectangle hugging the text. Give the host a glass surface + rounded corners so
+   the ring frames a proper panel, mirroring DrylRating / DrylEmptyState. */
+.md.ai-aura {
+  background: var(--glass-1);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+}
+
+.md-content {
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.md-content > * { margin: 0; }
+
+.md-content h1,
+.md-content h2,
+.md-content h3,
+.md-content h4 {
+  color: var(--fg);
+  line-height: 1.3;
+  font-weight: 600;
+}
+.md-content h1 { font-size: 22px; }
+.md-content h2 { font-size: 18px; }
+.md-content h3 { font-size: 15px; }
+.md-content h4 { font-size: 14px; }
+
+.md-content p { color: var(--fg-muted); }
+
+.md-content a {
+  color: var(--accent-b);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-line);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.md-content a:hover { color: var(--fg); }
+
+.md-content strong { color: var(--fg); font-weight: 600; }
+
+.md-content ul,
+.md-content ol {
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.md-content li { color: var(--fg-muted); }
+
+.md-content blockquote {
+  padding: var(--sp-1) var(--sp-3);
+  border-left: 2px solid var(--accent-line);
+  color: var(--fg-dim);
+  background: var(--glass-1);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+/* Inline code (fenced blocks are delegated to DrylCodeBlock). */
+.md-content :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 0.1em 0.4em;
+  color: var(--fg);
+  background: var(--glass-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+}
+
+.md-content hr { border: none; border-top: 1px solid var(--line); }
+
+.md-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.md-content th,
+.md-content td {
+  text-align: left;
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+.md-content th { color: var(--fg); font-weight: 600; }
+.md-content td { color: var(--fg-muted); }
+
+/* ─────────────────────────────────────────────────────────
+   DrylCitation / DrylCitationList — source attribution for AI answers.
+   ───────────────────────────────────────────────────────── */
+.citation-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin: 0 1px;
+  vertical-align: super;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--accent-b);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.citation-chip:hover,
+.citation-chip--open {
+  color: var(--fg);
+  background: var(--accent-grad);
+}
+
+.citation-pop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 280px;
+  padding: var(--sp-1);
+}
+.citation-pop-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+.citation-pop-title svg { color: var(--accent-b); flex: none; }
+.citation-pop-snippet {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.citation-pop-link,
+.citation-item-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--accent-b);
+  font-size: 12px;
+  text-decoration: none;
+  word-break: break-all;
+}
+.citation-pop-link:hover,
+.citation-item-link:hover { color: var(--fg); }
+
+.citation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.citation-list-title {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.citation-list-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  counter-reset: none;
+}
+.citation-item {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--glass-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.citation-item-index {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-b);
+  background: var(--accent-soft);
+  border-radius: var(--r-xs);
+}
+.citation-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.citation-item-title { color: var(--fg); font-size: 13px; font-weight: 600; }
+.citation-item-snippet { margin: 0; color: var(--fg-muted); font-size: 12.5px; line-height: 1.5; }

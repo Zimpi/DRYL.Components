@@ -1,0 +1,52 @@
+@page "/tool-call"
+
+<PageTitle>DRYL — Tool Call</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <span class="eyebrow">Intelligence</span>
+        <h2>DrylToolCall</h2>
+        <p class="lead">
+            Visualises a single agent tool / function call — name, a live status pill
+            and a collapsible body with the arguments and result as JSON. Status maps
+            to the shared <code>AiState</code> vocabulary; stack several in a
+            <code>DrylTimeline</code> for a full agent trace.
+        </p>
+    </div>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>States</h3>
+        <div class="col" style="gap: var(--sp-3);">
+            <DrylToolCall ToolName="get_weather" State="AiState.Thinking"
+                          Arguments="@_args" />
+            <DrylToolCall ToolName="get_weather" State="AiState.Generated"
+                          Arguments="@_args" Result="@_result" DefaultExpanded="true" />
+            <DrylToolCall ToolName="charge_card" State="AiState.None"
+                          Arguments="@_chargeArgs" Error="Insufficient funds (402)." />
+        </div>
+    </section>
+
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Agent trace (in a timeline)</h3>
+        <DrylTimeline>
+            <DrylTimelineItem Title="Plan" Timestamp="0.0s">
+                <DrylToolCall ToolName="search_docs" State="AiState.Generated"
+                              Arguments="@_searchArgs" Result="@_searchResult" />
+            </DrylTimelineItem>
+            <DrylTimelineItem Title="Act" Timestamp="1.2s" Variant="TimelineVariant.Accent">
+                <DrylToolCall ToolName="get_weather" State="AiState.Thinking"
+                              Arguments="@_args" />
+            </DrylTimelineItem>
+        </DrylTimeline>
+    </section>
+
+</div>
+
+@code {
+    private const string _args = """{ "city": "Berlin", "unit": "celsius" }""";
+    private const string _result = """{ "tempC": 19, "condition": "Partly cloudy" }""";
+    private const string _chargeArgs = """{ "amount": 4200, "currency": "EUR" }""";
+    private const string _searchArgs = """{ "query": "refund policy" }""";
+    private const string _searchResult = """{ "hits": 3, "top": "policy/refunds.md" }""";
+}

@@ -1,0 +1,55 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCitationListItem — a single numbered source inside a
+    DrylCitationList. Shows the title, an optional snippet and an
+    external link to the source.
+    ───────────────────────────────────────────────────────── *@
+
+<li class="citation-item" value="@Index" @attributes="AdditionalAttributes">
+    <span class="citation-item-index">@Index</span>
+    <div class="citation-item-body">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <div class="citation-item-title">@Title</div>
+        }
+        @if (!string.IsNullOrEmpty(Snippet))
+        {
+            <p class="citation-item-snippet">@Snippet</p>
+        }
+        @if (!string.IsNullOrEmpty(Url))
+        {
+            <a class="citation-item-link" href="@Url" target="_blank" rel="noopener noreferrer">
+                <DrylIcon Name="Link" Size="12" />
+                <span>@DisplayUrl</span>
+            </a>
+        }
+    </div>
+</li>
+
+@code {
+    /// <summary>1-based reference number; matches the inline <c>DrylCitation</c>.</summary>
+    [Parameter] public int Index { get; set; } = 1;
+
+    /// <summary>Source title.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>Source URL, rendered as an external link.</summary>
+    [Parameter] public string? Url { get; set; }
+
+    /// <summary>Optional grounding excerpt.</summary>
+    [Parameter] public string? Snippet { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the list item.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string DisplayUrl
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Url)) return string.Empty;
+            return Uri.TryCreate(Url, UriKind.Absolute, out var uri) ? uri.Host : Url;
+        }
+    }
+}

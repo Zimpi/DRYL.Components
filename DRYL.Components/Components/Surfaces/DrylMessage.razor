@@ -73,6 +73,14 @@ else
                         <span></span><span></span><span></span>
                     </span>
                 }
+                else if (Markdown && Text is not null)
+                {
+                    <DrylMarkdown Content="@Text" Ai="@Ai" />
+                }
+                else if (Text is not null)
+                {
+                    @Text
+                }
                 else
                 {
                     @ChildContent
@@ -107,7 +115,21 @@ else
     /// <summary>When true, shows animated typing dots instead of the content.</summary>
     [Parameter] public bool Typing { get; set; }
 
-    /// <summary>Bubble content.</summary>
+    /// <summary>
+    /// Optional text content. When set it takes precedence over <see cref="ChildContent"/>.
+    /// Combine with <see cref="Markdown"/> to render it as formatted Markdown — ideal for
+    /// streaming LLM output. Leave null to use <see cref="ChildContent"/> as before.
+    /// </summary>
+    [Parameter] public string? Text { get; set; }
+
+    /// <summary>
+    /// When true and <see cref="Text"/> is set, the text is rendered through
+    /// <c>DrylMarkdown</c> (CommonMark + GFM, code blocks, raw HTML disabled).
+    /// Default <c>false</c> so existing usages are unchanged.
+    /// </summary>
+    [Parameter] public bool Markdown { get; set; }
+
+    /// <summary>Bubble content. Used when <see cref="Text"/> is null.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     /// <summary>AI ambient state for this message (typically on Assistant bubbles).</summary>

@@ -9,23 +9,27 @@
 </div>
 
 <div class="nav-scroll">
-    <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+    <DrylNavGroup Title="General" Collapsible DefaultExpanded="true">
+        <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+    </DrylNavGroup>
 
-    <DrylNavGroup Title="Actions">
+    <DrylNavGroup Title="Actions" Collapsible DefaultExpanded="true">
         <DrylNavLink Href="buttons" Icon="Bolt">Button</DrylNavLink>
+        <DrylNavLink Href="button-group" Icon="Blocks">Button Group</DrylNavLink>
         <DrylNavLink Href="menu" Icon="Menu">Menu</DrylNavLink>
         <DrylNavLink Href="command-palette" Icon="Command">Command Palette</DrylNavLink>
     </DrylNavGroup>
 
-    <DrylNavGroup Title="Surfaces">
+    <DrylNavGroup Title="Surfaces" Collapsible DefaultExpanded="true">
         <DrylNavLink Href="cards" Icon="Layers">Card</DrylNavLink>
         <DrylNavLink Href="dialog" Icon="Box">Dialog</DrylNavLink>
         <DrylNavLink Href="toasts" Icon="Bell">Toast</DrylNavLink>
         <DrylNavLink Href="chat" Icon="Sparkle">Chat</DrylNavLink>
         <DrylNavLink Href="popover" Icon="Layers">Popover</DrylNavLink>
+        <DrylNavLink Href="markdown" Icon="Type">Markdown</DrylNavLink>
     </DrylNavGroup>
 
-    <DrylNavGroup Title="Navigation">
+    <DrylNavGroup Title="Navigation" Collapsible DefaultExpanded="true">
         <DrylNavLink Href="breadcrumbs" Icon="ChevronRight">Breadcrumbs</DrylNavLink>
     </DrylNavGroup>
 
@@ -33,11 +37,15 @@
         <DrylNavLink Href="badges" Icon="Star" Sub>Badge</DrylNavLink>
         <DrylNavLink Href="avatar" Icon="User" Sub>Avatar</DrylNavLink>
         <DrylNavLink Href="tables" Icon="Grid" Sub>Table</DrylNavLink>
+        <DrylNavLink Href="pagination" Icon="ChevronRight" Sub>Pagination</DrylNavLink>
         <DrylNavLink Href="tree" Icon="Folder" Sub>Tree View</DrylNavLink>
         <DrylNavLink Href="timeline" Icon="List" Sub>Timeline</DrylNavLink>
         <DrylNavLink Href="stat" Icon="Hash" Sub>Stat</DrylNavLink>
         <DrylNavLink Href="sparkline" Icon="Activity" Sub>Sparkline</DrylNavLink>
         <DrylNavLink Href="description-list" Icon="List" Sub>Description List</DrylNavLink>
+        <DrylNavLink Href="kbd" Icon="Command" Sub>Keyboard Key</DrylNavLink>
+        <DrylNavLink Href="code-block" Icon="Code" Sub>Code Block</DrylNavLink>
+        <DrylNavLink Href="citation" Icon="Quote" Sub>Citation</DrylNavLink>
         <DrylNavLink Href="icons" Icon="Palette" Sub>Icons</DrylNavLink>
     </DrylNavGroup>
 
@@ -64,6 +72,7 @@
         <DrylNavLink Href="expansion" Icon="ChevronDown" Sub>Expansion</DrylNavLink>
         <DrylNavLink Href="tabs" Icon="Folder" Sub>Tabs</DrylNavLink>
         <DrylNavLink Href="stepper" Icon="ArrowRight" Sub>Stepper</DrylNavLink>
+        <DrylNavLink Href="scroll-area" Icon="Layers" Sub>Scroll Area</DrylNavLink>
     </DrylNavGroup>
 
     <DrylNavGroup Title="Feedback" Collapsible DefaultExpanded="true">
@@ -73,10 +82,12 @@
         <DrylNavLink Href="skeleton" Icon="Blocks" Sub>Skeleton</DrylNavLink>
         <DrylNavLink Href="progress" Icon="Activity" Sub>Progress</DrylNavLink>
         <DrylNavLink Href="empty-state" Icon="Search" Sub>Empty State</DrylNavLink>
+        <DrylNavLink Href="error-boundary" Icon="Alert" Sub>Error Boundary</DrylNavLink>
     </DrylNavGroup>
 
-    <DrylNavGroup Title="Intelligence">
+    <DrylNavGroup Title="Intelligence" Collapsible DefaultExpanded="true">
         <DrylNavLink Href="ai" Icon="Sparkle">AI Mode</DrylNavLink>
+        <DrylNavLink Href="tool-call" Icon="Wrench">Tool Call</DrylNavLink>
     </DrylNavGroup>
 </div>
 

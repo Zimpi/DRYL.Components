@@ -12,7 +12,25 @@
       "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" add README.md DRYL.Components/Components/Data/DrylColumn.cs DRYL.Components/Components/Data/DrylPagination.razor DRYL.Components/Components/Data/DrylTable.razor DRYL.Components/Components/Data/DrylIcon.razor DRYL.Components/Components/Data/Models/ DRYL.Components/wwwroot/dryl.css samples/DRYL.Components.Demo/Components/Pages/DemoTable.razor samples/DRYL.Components.Demo/Components/Pages/DemoAi.razor)",
       "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" log --oneline -5)",
       "Bash(git -C c:/Users/janzi/Desktop/DRYL/DRYL.Components commit -m ' *)",
-      "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" log --oneline -3)"
+      "Bash(git -C \"c:/Users/janzi/Desktop/DRYL/DRYL.Components\" log --oneline -3)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "PowerShell(npm view mcp-server-trello version 2>&1)",
+      "mcp__trello__list_workspaces",
+      "mcp__trello__list_boards",
+      "mcp__trello__get_active_board_info",
+      "mcp__trello__add_list_to_board",
+      "mcp__trello__create_label",
+      "Bash(mkdir -p \"C:/Users/janzi/.claude/skills/dryl-trello-backlog\")",
+      "mcp__trello__add_card_to_list",
+      "Bash(Find . -type f -name \"*.razor\")",
+      "Bash(Find . -type f -name \"*.md\")",
+      "Bash(Find ./DRYL.Components/Components -type f -name \"*.razor\")",
+      "Bash(Find ./DRYL.Components/Components -type f -name \"*.razor.css\")",
+      "Bash(Find ./DRYL.Samples/Pages -type f -name \"*.razor\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\janzi\\.claude\\skills"
     ]
   }
 }

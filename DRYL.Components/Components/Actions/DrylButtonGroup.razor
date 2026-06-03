@@ -1,0 +1,46 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylButtonGroup — visually joins related DrylButtons into one
+    segmented control: shared borders, flattened inner corners and a
+    single rounded outline. Use it for clustered toolbar actions or, with
+    each button's Pressed parameter, an exclusive toggle group (List / Grid,
+    Day / Week / Month).
+
+    Usage — toolbar cluster:
+      <DrylButtonGroup AriaLabel="Text format">
+          <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="Bold"    AriaLabel="Bold" />
+          <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="Italic"  AriaLabel="Italic" />
+          <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="Underline" AriaLabel="Underline" />
+      </DrylButtonGroup>
+
+    Usage — toggle group:
+      <DrylButtonGroup AriaLabel="View">
+          <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Pressed="_view == View.List" OnClick="@(() => _view = View.List)">List</DrylButton>
+          <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Pressed="_view == View.Grid" OnClick="@(() => _view = View.Grid)">Grid</DrylButton>
+      </DrylButtonGroup>
+
+    • Buttons connect best with a consistent Variant (Secondary / Ghost) and Size.
+    • Pressed → btn--active highlights the selected segment (reused, not reinvented).
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass" role="group" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>The grouped buttons — place <see cref="DrylButton"/> components here.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Accessible label describing the group's purpose (e.g. "Text format", "View").</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>If true, the group stretches to its container's full width and segments share the space equally.</summary>
+    [Parameter] public bool Block { get; set; }
+
+    /// <summary>Pass-through HTML attributes applied to the group element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass => Block ? "btn-group btn-group--block" : "btn-group";
+}

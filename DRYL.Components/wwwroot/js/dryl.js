@@ -47,6 +47,64 @@ window.dryl.spotlight = {
 };
 
 /* --------------------------------------------------------------
+ * Download — client-side file download via a Blob URL. Used by
+ * DrylTable's CSV export. No npm: builds a Blob, clicks a transient
+ * <a download>, then revokes the URL. The C# caller is responsible for
+ * any BOM (DrylTable prepends a UTF-8 BOM so Excel reads it correctly).
+ * -------------------------------------------------------------- */
+window.dryl.download = {
+    text(filename, content, mime) {
+        const blob = new Blob([content], {
+            type: (mime || 'text/plain') + ';charset=utf-8;'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || 'download.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },
+    csv(filename, content) {
+        this.text(filename || 'export.csv', content, 'text/csv');
+    }
+};
+
+/* --------------------------------------------------------------
+ * dryl.clipboard — copy text to the system clipboard.
+ *   Prefers the async Clipboard API; falls back to a hidden
+ *   <textarea> + execCommand for non-secure contexts. Returns a
+ *   boolean so the caller can show copied/failed feedback.
+ * -------------------------------------------------------------- */
+window.dryl.clipboard = {
+    async copy(text) {
+        text = text ?? '';
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch { /* fall through to legacy path */ }
+
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '-9999px';
+            ta.setAttribute('readonly', '');
+            document.body.appendChild(ta);
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch {
+            return false;
+        }
+    }
+};
+
+/* --------------------------------------------------------------
  * Modal — body scroll lock, focus trap and ESC handling for
  * DrylDialog / DrylDialogProvider.
  * -------------------------------------------------------------- */
@@ -651,12 +709,14 @@ window.dryl.chat = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────
- * dryl.tree — DrylTreeView keyboard helper.
- *   Prevents the default page-scroll for the navigation keys so the
- *   Blazor @onkeydown handler can move roving focus. Tab is left
- *   untouched so focus can still leave the tree.
+ * dryl.keynav — shared navigation-key helper.
+ *   Prevents the default page-scroll for the navigation keys so a
+ *   Blazor @onkeydown handler can move roving focus / a highlight.
+ *   Tab, Enter and Escape are left untouched so focus can still
+ *   leave the widget and activation/dismissal work normally.
+ *   Used by DrylTreeView (alias dryl.tree) and DrylSelect.
  * ────────────────────────────────────────────────────────── */
-window.dryl.tree = (() => {
+window.dryl.keynav = (() => {
     const _map = new WeakMap();
     const navKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
@@ -678,4 +738,24 @@ window.dryl.tree = (() => {
 
     return { attach, detach };
 })();
+
+/* dryl.tree — backwards-compatible alias of dryl.keynav (DrylTreeView). */
+window.dryl.tree = window.dryl.keynav;
+
+/* ──────────────────────────────────────────────────────────
+ * dryl.table — small helpers for DrylTable.
+ *   focusGrip(root, index): after a keyboard row-move, restore focus to the
+ *   reorder grip handle now sitting at the row's new position so repeated
+ *   Alt+Arrow presses keep working. Deferred to the next frame so the moved
+ *   DOM node exists before we focus it.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.table = {
+    focusGrip(root, index) {
+        if (!root) return;
+        requestAnimationFrame(() => {
+            const btn = root.querySelector('.tbl-grip[data-grip-index="' + index + '"]');
+            if (btn) { try { btn.focus(); } catch (_) { /* element gone */ } }
+        });
+    }
+};
 

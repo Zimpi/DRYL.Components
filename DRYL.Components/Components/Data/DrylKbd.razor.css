@@ -1,0 +1,30 @@
+/* Keyboard-shortcut chips. */
+
+.kbd-group {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 var(--sp-1);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1;
+    color: var(--fg-muted);
+    background: var(--glass-2);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-xs);
+    box-shadow: 0 1px 0 var(--line-strong);
+}
+
+.kbd-sep {
+    color: var(--fg-dim);
+    font-size: 11px;
+    line-height: 1;
+}

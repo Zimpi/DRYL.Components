@@ -1,0 +1,35 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCitationList — the numbered source list that complements the
+    inline DrylCitation chips. Drop it under an AI answer to list the
+    grounding sources in order.
+
+    Usage:
+      <DrylCitationList>
+          <DrylCitationListItem Index="1" Title="World Factbook"
+              Url="https://example.org/de" Snippet="Berlin is the capital…" />
+      </DrylCitationList>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="citation-list" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="citation-list-title">@Title</div>
+    }
+    <ol class="citation-list-items">
+        @ChildContent
+    </ol>
+</div>
+
+@code {
+    /// <summary>Optional heading shown above the list (e.g. "Sources").</summary>
+    [Parameter] public string? Title { get; set; }
+
+    /// <summary>The <see cref="DrylCitationListItem"/> entries.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

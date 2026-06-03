@@ -325,6 +325,37 @@
         </DrylTable>
     </section>
 
+    @* ─── Row reorder ─── *@
+    <section class="col" style="gap: var(--sp-3);">
+        <h3>Row reorder — drag &amp; keyboard</h3>
+        <p>
+            Set <code>Reorderable</code> to add a leading grip handle. Drag a row to a new
+            position, or focus the handle and press <kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd>
+            for a keyboard-accessible move. Handle <code>OnRowReordered</code> to persist the
+            new order — here it renumbers the priority column. Reordering needs a plain client
+            list: it is ignored under <code>Virtualize</code>, <code>GroupBy</code> or
+            <code>DataProvider</code>, and the handle is disabled while a column sort is active.
+        </p>
+
+        <DrylTable TItem="TaskRow"
+                   Items="@_reorderTasks"
+                   AriaLabel="Tasks — reorderable"
+                   Reorderable
+                   OnRowReordered="OnTaskReordered">
+            <Columns>
+                <DrylColumn TItem="TaskRow" Field="@(t => t.Priority)" Title="#"
+                            Width="56px" Align="ColumnAlign.End" Primary />
+                <DrylColumn TItem="TaskRow" Field="@(t => t.Title)" Title="Task" Primary />
+                <DrylColumn TItem="TaskRow" Field="@(t => t.Owner)" Title="Owner" />
+            </Columns>
+        </DrylTable>
+
+        @if (!string.IsNullOrEmpty(_lastReorder))
+        {
+            <p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">@_lastReorder</p>
+        }
+    </section>
+
     @* ─── Virtualization ─── *@
     <section class="col" style="gap: var(--sp-3);">
         <h3>Virtualization — 10 000 rows</h3>
@@ -360,12 +391,15 @@
 
     @* ─── Column visibility + state persistence ─── *@
     <section class="col" style="gap: var(--sp-3);">
-        <h3>Column visibility &amp; state persistence</h3>
+        <h3>Column visibility, CSV export &amp; state persistence</h3>
         <p>
             Set <code>AllowColumnVisibility</code> to expose a Settings-icon menu that
-            toggles columns on and off. Set <code>PersistStateKey</code> to remember
-            sort, filters, page, page-size and hidden columns in <code>localStorage</code>
-            across reloads. Mark a column <code>Hidden</code> to start it collapsed.
+            toggles columns on and off. Set <code>ShowExport</code> to add a CSV export
+            button — the download honours the active search, filters and sort, includes
+            only the visible columns, and covers the full filtered set across all pages.
+            Set <code>PersistStateKey</code> to remember sort, filters, page, page-size and
+            hidden columns in <code>localStorage</code> across reloads. Mark a column
+            <code>Hidden</code> to start it collapsed.
         </p>
 
         <DrylTable TItem="ServiceRow"
@@ -373,6 +407,8 @@
                    AriaLabel="Services — persisted"
                    ShowToolbar Searchable
                    AllowColumnVisibility
+                   ShowExport
+                   ExportFileName="services.csv"
                    PersistStateKey="dryl-demo-services"
                    PageSize="10">
             <Columns>
@@ -564,4 +600,33 @@
     }
 
     private record ServiceRow(string Name, string Environment, string Status, int? LatencyMs, string LastSeen);
+
+    // ───── Row reorder demo state ─────
+    private string? _lastReorder;
+
+    private readonly List<TaskRow> _reorderTasks =
+    [
+        new() { Priority = 1, Title = "Triage incoming alerts",      Owner = "On-call" },
+        new() { Priority = 2, Title = "Review billing reconciliation", Owner = "Finance" },
+        new() { Priority = 3, Title = "Ship search relevance patch",  Owner = "Search" },
+        new() { Priority = 4, Title = "Rotate signing keys",          Owner = "Platform" },
+        new() { Priority = 5, Title = "Draft incident retrospective", Owner = "SRE" },
+    ];
+
+    private void OnTaskReordered(RowReorderEventArgs e)
+    {
+        var item = _reorderTasks[e.OldIndex];
+        _reorderTasks.RemoveAt(e.OldIndex);
+        _reorderTasks.Insert(e.NewIndex, item);
+        for (var i = 0; i < _reorderTasks.Count; i++)
+            _reorderTasks[i].Priority = i + 1;
+        _lastReorder = $"Moved \"{item.Title}\" from #{e.OldIndex + 1} to #{e.NewIndex + 1}";
+    }
+
+    private sealed class TaskRow
+    {
+        public int Priority { get; set; }
+        public string Title { get; set; } = "";
+        public string Owner { get; set; } = "";
+    }
 }

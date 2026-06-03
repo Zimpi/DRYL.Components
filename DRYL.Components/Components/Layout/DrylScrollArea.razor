@@ -1,0 +1,55 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylScrollArea — scrollable region with DRYL-styled scrollbars.
+
+    A container-scoped scroll wrapper so panels (sidebars, code blocks,
+    log viewers, long lists) get a consistent thin accent scrollbar
+    without relying on the global browser-scrollbar override. Pure CSS —
+    no JS interop.
+
+    Usage:
+      <DrylScrollArea MaxHeight="400px">
+          ... long content ...
+      </DrylScrollArea>
+
+      <DrylScrollArea Horizontal MaxWidth="100%">
+          ... wide content ...
+      </DrylScrollArea>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass" style="@Style" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>Maximum height (any CSS length, e.g. <c>"400px"</c>). Above it, the area scrolls vertically.</summary>
+    [Parameter] public string? MaxHeight { get; set; }
+
+    /// <summary>Maximum width (any CSS length). Above it, a <see cref="Horizontal"/> area scrolls horizontally.</summary>
+    [Parameter] public string? MaxWidth { get; set; }
+
+    /// <summary>When true, the area scrolls horizontally instead of vertically.</summary>
+    [Parameter] public bool Horizontal { get; set; }
+
+    /// <summary>Scrollable content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the scroll container.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass =>
+        Horizontal ? "scroll-area scroll-area--horizontal" : "scroll-area";
+
+    private string? Style
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrEmpty(MaxHeight)) parts.Add($"max-height: {MaxHeight}");
+            if (!string.IsNullOrEmpty(MaxWidth)) parts.Add($"max-width: {MaxWidth}");
+            return parts.Count == 0 ? null : string.Join("; ", parts);
+        }
+    }
+}

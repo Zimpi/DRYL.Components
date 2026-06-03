@@ -341,6 +341,8 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | Component         | Category     | AI mode | Status     | Notes                                                              |
 | ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
 | `DrylButton`      | Actions      | ✅      | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots, sheen + spring hover |
+| `DrylButtonGroup` | Actions      | —       | ✅ Done    | Segments related buttons into one outline; clustered actions or `Pressed` toggle group |
+| `DrylSplitButton` | Actions      | ✅      | ✅ Done    | Primary action + caret `DrylMenu` of variants ("Save ▾"); shared variant/size, AI-aware |
 | `DrylMenu`        | Actions      | —       | ✅ Done    | Dropdown menu; 4 placements, icons, shortcuts, Danger items, separators |
 | `DrylMenuItem`    | Actions      | —       | ✅ Done    | Menu item used inside `DrylMenu`; Default / Danger variant, separator, header |
 | `DrylCommandPalette` | Actions   | ✅      | ✅ Done    | Command launcher overlay; Ctrl+K; static + async search; Navigate / Action / AiIntent items; category grouping; AI result panel |
@@ -358,6 +360,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylTreeNode`    | Data         | —       | ✅ Done    | Tree node; `Text` / `Icon` / `Value` / `@bind-Expanded`; chevron, nesting |
 | `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
 | `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
+| `DrylToolCall`    | Intelligence | ✅      | ✅ Done    | Agent tool/function call: name, live status pill, collapsible JSON args/result; `Error` alert; stack in `DrylTimeline` |
 | `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
 | `DrylInputPassword` | Inputs     | ✅      | ✅ Done    | Password input with show/hide eye toggle; inherits `InputBase<string>` |
 | `DrylInputNumber<TValue>` | Inputs | ✅   | ✅ Done    | Generic numeric input; optional ± stepper; int / long / decimal / double / float |
@@ -377,7 +380,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylInputOtp`    | Inputs       | ✅      | ✅ Done    | Fixed-box OTP entry; auto-advance; paste-to-fill; configurable Digits |
 | `DrylInputMask`   | Inputs       | ✅      | ✅ Done    | Masked input; Phone/IBAN/PostalCode/CreditCard/Custom patterns    |
 | `DrylRating`      | Inputs       | ✅      | ✅ Done    | Star rating; hover preview; AllowClear; ReadOnly; keyboard nav    |
-| `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, search, multi-sort, filters, pagination, grouping, row detail, row + bulk actions, virtualization, column visibility, `PersistStateKey`, optional `DataProvider` |
+| `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, search, multi-sort, filters, pagination, grouping, row detail, row reorder (drag + keyboard), row + bulk actions, virtualization, column visibility, CSV export, `PersistStateKey`, optional `DataProvider` |
 | `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, `Hidden`, custom `CellTemplate` / `HeaderTemplate`, alignment |
 | `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |
 | `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
@@ -389,15 +392,21 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row; `Sub` renders indented child item inside a collapsible group; supports external links |
 | `DrylStepper`     | Layout       | —       | ✅ Done    | Multi-step wizard container; Horizontal / Vertical orientation, `@bind-ActiveStep` |
 | `DrylStep`        | Layout       | ✅      | ✅ Done    | Single step inside `DrylStepper`; Pending / Active / Completed / Error states, AI ring |
+| `DrylScrollArea`  | Layout       | —       | ✅ Done    | Scrollable region with thin DRYL scrollbar; `MaxHeight` / `MaxWidth` / `Horizontal`; pure CSS |
 | `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
 | `DrylToast`       | Surfaces     | ✅      | ✅ Done    | Service-driven toast stack; auto-dismiss, progress bar, hover-pause, 6 positions |
 | `DrylChat`        | Surfaces     | ✅      | ✅ Done    | Conversation surface; scrollable log + pinned composer slot; auto-scroll; `role="log"` aria-live |
-| `DrylMessage`     | Surfaces     | ✅      | ✅ Done    | Chat bubble; User / Assistant / System roles; author, timestamp, avatar, typing dots |
+| `DrylMessage`     | Surfaces     | ✅      | ✅ Done    | Chat bubble; User / Assistant / System roles; author, timestamp, avatar, typing dots; optional `Markdown`/`Text` for rich LLM output |
 | `DrylChatComposer`| Surfaces     | ✅      | ✅ Done    | Chat input; Enter sends, Shift+Enter newline, auto-grow textarea; `OnSend` callback |
 | `DrylPopover`     | Surfaces     | —       | ✅ Done    | Anchored floating-panel primitive; placement, click-outside / Escape, match-width |
-| `DrylEmptyState`  | Feedback     | —       | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes |
+| `DrylEmptyState`  | Feedback     | ✅      | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes; AI-aware |
 | `DrylDescriptionList` | Data     | —       | ✅ Done    | Semantic `<dl>` key/value view; Stacked / Inline; columns |
 | `DrylDescriptionItem` | Data     | —       | ✅ Done    | Term/value pair inside `DrylDescriptionList` |
+| `DrylKbd`         | Data         | —       | ✅ Done    | Keyboard-shortcut `<kbd>` chips; single key or `Keys` chord with `Separator`; pure CSS |
+| `DrylCodeBlock`   | Data         | ✅      | ✅ Done    | Glass code surface; server-side syntax highlighting (8 langs, zero-JS); copy button; line numbers; HTML-encoded; AI-aware |
+| `DrylMarkdown`    | Surfaces     | ✅      | ✅ Done    | Renders Markdown (CommonMark + GFM via Markdig); fenced code → `DrylCodeBlock`; raw HTML disabled (XSS-safe); streaming |
+| `DrylCitation`    | Data         | —       | ✅ Done    | Inline `[n]` source-attribution chip; popover with title / URL / snippet for RAG answers |
+| `DrylCitationList`| Data         | —       | ✅ Done    | Numbered source list (`<ol>`) for `DrylCitationListItem`s; complements inline chips |
 | `DrylFormField`   | Inputs       | —       | ✅ Done    | Generic label + required + hint + inline validation wrapper (`For` expression) |
 | `DrylValidationSummary` | Inputs | —       | ✅ Done    | Glass summary of all EditForm validation errors |
 | `DrylTooltip`     | Feedback     | —       | ✅ Done    | CSS-only hover tooltip; 4 placements (Top / Bottom / Left / Right), wraps any trigger |
@@ -405,6 +414,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylSpinner`     | Feedback     | ✅      | ✅ Done    | Ring / Dots / Pulse variants; Small / Medium / Large; animation rate adapts to AI state |
 | `DrylProgress`    | Feedback     | ✅      | ✅ Done    | Linear bar; determinate / indeterminate; Accent / Success / Warning / Danger; sizes; percentage label |
 | `DrylSkeleton`    | Feedback     | ✅      | ✅ Done    | Line / Text / Avatar / Card / Image / Custom; Streaming shifts shimmer to violet-cyan gradient |
+| `DrylErrorBoundary` | Feedback   | ✅      | ✅ Done    | Glass fallback around Blazor `ErrorBoundary`; retry / recover, dev-only detail toggle, custom fallback, AI-aware |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 
@@ -416,7 +426,7 @@ For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`C
 DRYL.Components/             The library (Razor Class Library, .NET 10)
   AiState.cs                 The AI state enum — shared across all AI-aware components
   Components/
-    Actions/                 DrylButton
+    Actions/                 DrylButton, DrylButtonGroup, DrylSplitButton
     AI/                      DrylAiIndicator (AI-specific components live here)
     Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi, DrylColumn, DrylPagination
       Models/                SortDescriptor, FilterDescriptor, DataRequest, DataResult, ColumnAlign, ColumnFilterType
