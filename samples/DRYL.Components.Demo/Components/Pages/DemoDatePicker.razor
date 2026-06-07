@@ -1,128 +1,37 @@
 @page "/datepicker"
-@using System.ComponentModel.DataAnnotations
 
 <PageTitle>DRYL — Date Picker</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylDatePicker</h2>
-        <p class="lead">
-            A keyboard-navigable calendar panel bound to <code>DateOnly?</code>.
-            Supports a date range mode, Min/Max constraints, and AI ambient state
-            for when a model pre-fills or computes the date.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="datepicker">
+        A keyboard-navigable calendar panel bound to <code>DateOnly?</code>.
+        Supports a date range mode, Min/Max constraints, and AI ambient state
+        for when a model pre-fills or computes the date.
+    </ComponentDocHeader>
 
-    @* ── Single date ──────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Single date</h3>
-        <div style="max-width: 260px;">
-            <DrylDatePicker @bind-Value="_date" Label="Select date" />
-        </div>
-        @if (_date.HasValue)
-        {
-            <p>Selected: <strong>@_date.Value.ToString("d MMMM yyyy")</strong></p>
-        }
-    </section>
+    <DemoExample Title="Single date" Source="DatePicker/SingleDate">
+        <DRYL.Components.Demo.Components.Examples.DatePicker.SingleDate />
+    </DemoExample>
 
-    @* ── Min / Max constraints ────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Min / Max</h3>
-        <div style="max-width: 260px;">
-            <DrylDatePicker @bind-Value="_constrained"
-                            Label="Future date only"
-                            HelperText="Today + 30 days max"
-                            Min="@DateOnly.FromDateTime(DateTime.Today)"
-                            Max="@DateOnly.FromDateTime(DateTime.Today.AddDays(30))" />
-        </div>
-        @if (_constrained.HasValue)
-        {
-            <p>Selected: <strong>@_constrained.Value.ToString("d MMMM yyyy")</strong></p>
-        }
-    </section>
+    <DemoExample Title="Min / Max" Source="DatePicker/MinMax">
+        <DRYL.Components.Demo.Components.Examples.DatePicker.MinMax />
+    </DemoExample>
 
-    @* ── Date range ───────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Date range</h3>
-        <div style="max-width: 320px;">
-            <DrylDatePicker Range
-                            @bind-RangeStart="_rangeStart"
-                            @bind-RangeEnd="_rangeEnd"
-                            Label="Campaign period" />
-        </div>
-        @if (_rangeStart.HasValue || _rangeEnd.HasValue)
-        {
-            <p>
-                From <strong>@(_rangeStart?.ToString("d MMM yyyy") ?? "–")</strong>
-                to <strong>@(_rangeEnd?.ToString("d MMM yyyy") ?? "–")</strong>
-            </p>
-        }
-    </section>
+    <DemoExample Title="Date range" Source="DatePicker/Range">
+        <DRYL.Components.Demo.Components.Examples.DatePicker.Range />
+    </DemoExample>
 
-    @* ── EditForm validation ──────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>EditForm validation</h3>
-        <EditForm Model="_form" OnValidSubmit="HandleValidSubmit" style="max-width: 320px;">
-            <DataAnnotationsValidator />
-            <div class="col" style="gap: var(--sp-4);">
-                <DrylDatePicker @bind-Value="_form.DeadlineDate" Label="Deadline" />
-                <DrylButton type="submit">Submit</DrylButton>
-                @if (_submitted)
-                {
-                    <DrylAlert Variant="AlertVariant.Success">Submitted successfully!</DrylAlert>
-                }
-            </div>
-        </EditForm>
-    </section>
+    <DemoExample Title="EditForm validation" Source="DatePicker/Validation">
+        <DRYL.Components.Demo.Components.Examples.DatePicker.Validation />
+    </DemoExample>
 
-    @* ── AI mode ──────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI mode</h3>
-        <div style="max-width: 260px;">
-            <DrylDatePicker @bind-Value="_aiDate" Label="AI-suggested date" Ai="@_aiState" />
-        </div>
-        <div style="display:flex; gap: var(--sp-2); flex-wrap: wrap;">
-            @foreach (var s in Enum.GetValues<AiState>())
-            {
-                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
-                            @onclick="() => _aiState = s">
-                    @s.ToString()
-                </DrylButton>
-            }
-        </div>
-    </section>
+    <DemoExample Title="AI mode" Source="DatePicker/AiMode">
+        <DRYL.Components.Demo.Components.Examples.DatePicker.AiMode />
+    </DemoExample>
 
-    @* ── Disabled ─────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Disabled</h3>
-        <div style="max-width: 260px;">
-            <DrylDatePicker @bind-Value="_disabledDate"
-                            Label="Fixed date"
-                            Disabled />
-        </div>
-    </section>
+    <DemoExample Title="Disabled" Source="DatePicker/Disabled">
+        <DRYL.Components.Demo.Components.Examples.DatePicker.Disabled />
+    </DemoExample>
 
 </div>
-
-@code {
-    private DateOnly? _date;
-    private DateOnly? _constrained;
-    private DateOnly? _disabledDate = DateOnly.FromDateTime(DateTime.Today);
-    private DateOnly? _rangeStart;
-    private DateOnly? _rangeEnd;
-    private DateOnly? _aiDate;
-    private AiState _aiState = AiState.Active;
-    private bool _submitted;
-
-    private readonly DeadlineModel _form = new();
-
-    private void HandleValidSubmit() => _submitted = true;
-
-    private class DeadlineModel
-    {
-        [Required(ErrorMessage = "Please select a deadline.")]
-        public DateOnly? DeadlineDate { get; set; }
-    }
-}

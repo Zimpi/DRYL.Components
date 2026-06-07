@@ -1,0 +1,33 @@
+<div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: flex-start;">
+
+    <div class="col" style="gap: var(--sp-2); align-items: flex-start;">
+        <p style="font-size: 12px; color: var(--fg-dim);">BottomStart (default)</p>
+        <DrylMenu Placement="DrylMenu.MenuPlacement.BottomStart">
+            <Trigger>
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Open</DrylButton>
+            </Trigger>
+            <Items>
+                <DrylMenuItem Icon="Star" OnClick="@(() => Log("Star"))">Star</DrylMenuItem>
+                <DrylMenuItem Icon="Bell" OnClick="@(() => Log("Subscribe"))">Subscribe</DrylMenuItem>
+            </Items>
+        </DrylMenu>
+    </div>
+
+    <div class="col" style="gap: var(--sp-2); align-items: flex-end;">
+        <p style="font-size: 12px; color: var(--fg-dim);">BottomEnd</p>
+        <DrylMenu Placement="DrylMenu.MenuPlacement.BottomEnd">
+            <Trigger>
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Open</DrylButton>
+            </Trigger>
+            <Items>
+                <DrylMenuItem Icon="Star" OnClick="@(() => Log("Star"))">Star</DrylMenuItem>
+                <DrylMenuItem Icon="Bell" OnClick="@(() => Log("Subscribe"))">Subscribe</DrylMenuItem>
+            </Items>
+        </DrylMenu>
+    </div>
+
+</div>
+
+@code {
+    private void Log(string action) { }
+}

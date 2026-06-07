@@ -1,0 +1,28 @@
+<div class="row">
+    <DrylMenu Label="Actions">
+        <Trigger>
+            <DrylButton TrailingIcon="ChevronDown">Actions</DrylButton>
+        </Trigger>
+        <Items>
+            <DrylMenuItem Icon="Edit" OnClick="@(() => Log("Edit"))">Edit</DrylMenuItem>
+            <DrylMenuItem Icon="Copy" OnClick="@(() => Log("Duplicate"))">Duplicate</DrylMenuItem>
+            <DrylMenuItem Icon="Download" OnClick="@(() => Log("Export"))">Export</DrylMenuItem>
+        </Items>
+    </DrylMenu>
+</div>
+@if (_log.Any())
+{
+    <p style="font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim);">
+        Last: @_log.Last()
+    </p>
+}
+
+@code {
+    private readonly List<string> _log = [];
+
+    private void Log(string action)
+    {
+        _log.Add(action);
+        if (_log.Count > 5) _log.RemoveAt(0);
+    }
+}

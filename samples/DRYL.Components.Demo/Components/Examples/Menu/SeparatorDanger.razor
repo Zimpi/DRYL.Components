@@ -1,0 +1,25 @@
+<div class="row">
+    <DrylMenu Label="Row actions">
+        <Trigger>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                        TrailingIcon="ChevronDown">
+                More
+            </DrylButton>
+        </Trigger>
+        <Items>
+            <DrylMenuItem Icon="Edit" OnClick="@(() => Log("Edit"))">Edit</DrylMenuItem>
+            <DrylMenuItem Icon="Copy" OnClick="@(() => Log("Clone"))">Clone</DrylMenuItem>
+            <DrylMenuItem Icon="Archive" OnClick="@(() => Log("Archive"))">Archive</DrylMenuItem>
+            <DrylMenuItem Separator />
+            <DrylMenuItem Icon="Trash"
+                          Variant="DrylMenuItem.MenuItemVariant.Danger"
+                          OnClick="@(() => Log("Delete"))">
+                Delete
+            </DrylMenuItem>
+        </Items>
+    </DrylMenu>
+</div>
+
+@code {
+    private void Log(string action) { }
+}

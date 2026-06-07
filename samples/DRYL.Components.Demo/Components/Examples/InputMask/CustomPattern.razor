@@ -1,0 +1,17 @@
+<div class="col" style="gap: var(--sp-4); max-width: 480px;">
+    <DrylInputMask @bind-Value="_custom"
+                   Mask="MaskType.Custom"
+                   CustomPattern="##/##/####"
+                   Label="Date (DD/MM/YYYY)"
+                   HelperText="Uses pattern: ##/##/####" />
+    <DrylInputMask @bind-Value="_plate"
+                   Mask="MaskType.Custom"
+                   CustomPattern="AAA-####"
+                   Label="License plate"
+                   HelperText="Uses pattern: AAA-####" />
+</div>
+
+@code {
+    private string _custom = "";
+    private string _plate  = "";
+}

@@ -1,0 +1,38 @@
+@using System.ComponentModel.DataAnnotations
+
+<EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <div class="col" style="gap: var(--sp-4); max-width: 480px;">
+        <DrylInputMask @bind-Value="_model.Phone"
+                       Mask="MaskType.Phone"
+                       Label="Phone (required)"
+                       LeadingIcon="Phone" />
+        <DrylInputMask @bind-Value="_model.PostalCode"
+                       Mask="MaskType.PostalCode"
+                       Label="Postal code (required)" />
+        <button type="submit" class="btn btn-primary" style="align-self: flex-start;">Continue</button>
+        @if (_submitted)
+        {
+            <p style="color: var(--success); font-size: 13px;">
+                Saved: @_model.Phone / @_model.PostalCode
+            </p>
+        }
+    </div>
+</EditForm>
+
+@code {
+    private bool _submitted;
+    private MaskModel _model = new();
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private class MaskModel
+    {
+        [Required(ErrorMessage = "Phone is required.")]
+        public string Phone { get; set; } = "";
+
+        [Required(ErrorMessage = "Postal code is required.")]
+        [StringLength(5, MinimumLength = 5, ErrorMessage = "Enter all 5 digits.")]
+        public string PostalCode { get; set; } = "";
+    }
+}

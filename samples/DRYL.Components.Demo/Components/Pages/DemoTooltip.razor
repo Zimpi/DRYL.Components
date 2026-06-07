@@ -4,77 +4,23 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Feedback</span>
-        <h2>DrylTooltip</h2>
-        <p class="lead">
-            CSS-only Hover-Tooltip. Umschließt beliebige Trigger-Elemente.
-            Vier Platzierungen: <code>Top</code> (Standard), <code>Bottom</code>,
-            <code>Left</code>, <code>Right</code>.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="tooltip">
+        CSS-only Hover-Tooltip. Umschließt beliebige Trigger-Elemente.
+        Vier Platzierungen: <code>Top</code> (Standard), <code>Bottom</code>,
+        <code>Left</code>, <code>Right</code>.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Platzierungen</h3>
-        <div class="row" style="flex-wrap: wrap; gap: var(--sp-5); padding: var(--sp-6) 0;">
+    <DemoExample Title="Platzierungen" Source="Tooltip/Placements">
+        <DRYL.Components.Demo.Components.Examples.Tooltip.Placements />
+    </DemoExample>
 
-            <DrylTooltip Text="Oben (Standard)" Placement="DrylTooltip.TooltipPlacement.Top">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Top</DrylButton>
-            </DrylTooltip>
+    <DemoExample Title="Icon-only Buttons (Regel 2.9)" Source="Tooltip/IconOnly"
+                 Description="Laut DRYL-Konvention müssen alle Icon-only Buttons ein AriaLabel und einen DrylTooltip erhalten.">
+        <DRYL.Components.Demo.Components.Examples.Tooltip.IconOnly />
+    </DemoExample>
 
-            <DrylTooltip Text="Unten erscheint der Tooltip" Placement="DrylTooltip.TooltipPlacement.Bottom">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Bottom</DrylButton>
-            </DrylTooltip>
-
-            <DrylTooltip Text="Links neben dem Trigger" Placement="DrylTooltip.TooltipPlacement.Left">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Left</DrylButton>
-            </DrylTooltip>
-
-            <DrylTooltip Text="Rechts neben dem Trigger" Placement="DrylTooltip.TooltipPlacement.Right">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Right</DrylButton>
-            </DrylTooltip>
-
-        </div>
-    </section>
-
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Icon-only Buttons (Regel 2.9)</h3>
-        <p class="body-sm" style="color: var(--fg-muted);">
-            Laut DRYL-Konvention müssen alle Icon-only Buttons ein <code>AriaLabel</code>
-            und einen <code>DrylTooltip</code> erhalten.
-        </p>
-        <div class="row" style="flex-wrap: wrap;">
-
-            <DrylTooltip Text="Einstellungen">
-                <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                            LeadingIcon="Settings"
-                            AriaLabel="Einstellungen" />
-            </DrylTooltip>
-
-            <DrylTooltip Text="Herunterladen">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                            LeadingIcon="Download"
-                            AriaLabel="Herunterladen" />
-            </DrylTooltip>
-
-            <DrylTooltip Text="Eintrag löschen" Placement="DrylTooltip.TooltipPlacement.Bottom">
-                <DrylButton Variant="DrylButton.ButtonVariant.Danger"
-                            LeadingIcon="X"
-                            AriaLabel="Löschen" />
-            </DrylTooltip>
-
-        </div>
-    </section>
-
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Langer Text</h3>
-        <div class="row">
-            <DrylTooltip Text="Dieses Token steuert den Blur-Radius aller Glass-Surfaces">
-                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" LeadingIcon="Info" AriaLabel="Info">
-                    Hover me
-                </DrylButton>
-            </DrylTooltip>
-        </div>
-    </section>
+    <DemoExample Title="Langer Text" Source="Tooltip/LongText">
+        <DRYL.Components.Demo.Components.Examples.Tooltip.LongText />
+    </DemoExample>
 
 </div>

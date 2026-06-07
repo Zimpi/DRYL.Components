@@ -1,0 +1,75 @@
+<div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+    <DrylButton OnClick="StartSimulation"
+                Variant="DrylButton.ButtonVariant.Primary"
+                LeadingIcon="Sparkle"
+                Loading="@(_simState != AiState.None)">
+        Simulate AI response
+    </DrylButton>
+
+    @if (_simState != AiState.None)
+    {
+        <span class="badge badge-accent">@_simState</span>
+    }
+</div>
+
+<div style="position: relative; min-height: 180px; margin-top: var(--sp-4);">
+
+    @if (!_showContent)
+    {
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
+                      Lines="3"
+                      Ai="@_simState" />
+    }
+    else
+    {
+        <DrylCard class="fade-in">
+            <div class="row" style="gap: var(--sp-3); margin-bottom: var(--sp-3);">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent-grad); display: grid; place-content: center; flex-shrink: 0;">
+                    <DrylIcon Name="Sparkle" Size="16" />
+                </div>
+                <div>
+                    <div style="font-weight: 500; color: var(--fg);">AI Response</div>
+                    <div style="font-size: 12px; color: var(--fg-dim);">Generated just now</div>
+                </div>
+            </div>
+            <p style="color: var(--fg-muted); line-height: 1.6;">
+                The skeleton blocks above have been replaced with actual content. In a real
+                app, this is where the model's output — a summary, a code block, a form
+                pre-filled with extracted data — would appear. The transition from
+                <code>Generated</code> to visible content happens naturally: the skeleton
+                fades out while the card rises in.
+            </p>
+        </DrylCard>
+    }
+
+</div>
+
+@code {
+    private AiState _simState = AiState.None;
+    private bool _showContent;
+    private bool _simRunning;
+
+    private async Task StartSimulation()
+    {
+        if (_simRunning) return;
+        _simRunning = true;
+        _showContent = false;
+
+        _simState = AiState.Thinking;
+        StateHasChanged();
+        await Task.Delay(1400);
+
+        _simState = AiState.Streaming;
+        StateHasChanged();
+        await Task.Delay(2200);
+
+        _simState = AiState.Generated;
+        StateHasChanged();
+        await Task.Delay(900);
+
+        _showContent = true;
+        _simState = AiState.None;
+        _simRunning = false;
+        StateHasChanged();
+    }
+}

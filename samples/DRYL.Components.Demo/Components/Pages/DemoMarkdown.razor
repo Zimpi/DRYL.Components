@@ -4,109 +4,24 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Surfaces</span>
-        <h2>DrylMarkdown</h2>
-        <p class="lead">
-            Renders Markdown (CommonMark + GFM) into the DRYL aesthetic. Fenced code
-            blocks become <code>DrylCodeBlock</code>s; raw HTML is disabled so
-            model-authored markup is escaped, not executed. Bind it to a streaming
-            completion and it re-renders as tokens arrive.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="markdown">
+        Renders Markdown (CommonMark + GFM) into the DRYL aesthetic. Fenced code
+        blocks become <code>DrylCodeBlock</code>s; raw HTML is disabled so
+        model-authored markup is escaped, not executed. Bind it to a streaming
+        completion and it re-renders as tokens arrive.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Rich content</h3>
-        <DrylCard>
-            <DrylMarkdown Content="@_sample" />
-        </DrylCard>
-    </section>
+    <DemoExample Title="Rich content" Source="Markdown/RichContent">
+        <DRYL.Components.Demo.Components.Examples.Markdown.RichContent />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI streaming &amp; reveal</h3>
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" OnClick="Simulate">Simulate stream</DrylButton>
-            <DrylAiIndicator State="@_state" />
-        </div>
-        <DrylMarkdown Content="@_streamed" Ai="@_state" />
-    </section>
+    <DemoExample Title="AI streaming &amp; reveal" Source="Markdown/AiStreaming">
+        <DRYL.Components.Demo.Components.Examples.Markdown.AiStreaming />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>XSS is neutralised</h3>
-        <p class="lead">Raw HTML in the source is escaped rather than rendered.</p>
-        <DrylCard>
-            <DrylMarkdown Content="@_xss" />
-        </DrylCard>
-    </section>
+    <DemoExample Title="XSS is neutralised" Source="Markdown/Xss"
+                 Description="Raw HTML in the source is escaped rather than rendered.">
+        <DRYL.Components.Demo.Components.Examples.Markdown.Xss />
+    </DemoExample>
 
 </div>
-
-@code {
-    private const string _sample = """
-        # DRYL Markdown
-
-        DRYL is **dark, glassy, alive — and AI-native**. Some highlights:
-
-        - Token-driven styling
-        - `AiState` woven through every surface
-        - Zero npm dependencies
-
-        > The model proposes, the user reviews, the user approves.
-
-        | Component | AI mode |
-        | --------- | ------- |
-        | DrylCard  | yes     |
-        | DrylBadge | no      |
-
-        ```csharp
-        var pipeline = new MarkdownPipelineBuilder()
-            .UseAdvancedExtensions()
-            .DisableHtml()
-            .Build();
-        ```
-
-        See the [docs](https://github.com/Zimpi/DRYL.Components) for more.
-        """;
-
-    private const string _xss = """
-        Here is some **safe** text, but the following is escaped:
-
-        <script>alert('xss')</script>
-
-        <img src=x onerror="alert(1)">
-        """;
-
-    private string _streamed = "";
-    private AiState _state = AiState.None;
-
-    private const string _target = """
-        ## Summary
-
-        The deployment **succeeded** in 42s across 3 regions. No regressions detected.
-
-        - Latency p95: `118 ms`
-        - Error rate: `0.01%`
-        """;
-
-    private async Task Simulate()
-    {
-        _state = AiState.Thinking;
-        _streamed = "";
-        StateHasChanged();
-        await Task.Delay(500);
-
-        _state = AiState.Streaming;
-        foreach (var word in _target.Split(' '))
-        {
-            _streamed += word + " ";
-            StateHasChanged();
-            await Task.Delay(40);
-        }
-
-        _state = AiState.Generated;
-        StateHasChanged();
-        await Task.Delay(900);
-        _state = AiState.Active;
-        StateHasChanged();
-    }
-}

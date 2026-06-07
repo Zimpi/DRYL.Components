@@ -1,0 +1,82 @@
+@implements IDisposable
+
+<div class="col" style="gap: var(--sp-3);">
+    <div class="row">
+        <DrylButton OnClick="RunLifecycle" Loading="_running">
+            @if (_running) { <text>Generating…</text> } else { <text>Generate</text> }
+        </DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" OnClick="Reset" Disabled="_running">Reset</DrylButton>
+    </div>
+
+    <DrylCard Ai="_demoState" Spotlight="false">
+        <div class="between">
+            <span class="eyebrow">Sales summary · DACH</span>
+            @if (_demoState != AiState.None)
+            {
+                <DrylAiIndicator State="_demoState" />
+            }
+        </div>
+        <h3 style="margin-top: var(--sp-3);">@_demoTitle</h3>
+        <p style="margin-top: var(--sp-2);">@_demoBody</p>
+    </DrylCard>
+</div>
+
+@code {
+    private AiState _demoState = AiState.None;
+    private string _demoTitle = "Ready when you are.";
+    private string _demoBody = "Press Generate to see the card move through every AI state.";
+    private bool _running;
+    private CancellationTokenSource? _cts;
+
+    private async Task RunLifecycle()
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        try
+        {
+            _running = true;
+
+            _demoState = AiState.Thinking;
+            _demoTitle = "Thinking…";
+            _demoBody = "Resolving tools and planning the response.";
+            StateHasChanged();
+            await Task.Delay(1400, ct);
+
+            _demoState = AiState.Streaming;
+            _demoTitle = "Streaming response";
+            _demoBody = "Tokens arriving from the model — the UI breathes in sync with the tool call.";
+            StateHasChanged();
+            await Task.Delay(1600, ct);
+
+            _demoState = AiState.Generated;
+            _demoTitle = "Q3 sales up 14.2%";
+            _demoBody = "Top region: DACH. Best week: 2026-W18. 1,284 net-new accounts. Forecast looks healthy heading into Q4.";
+            StateHasChanged();
+            await Task.Delay(900, ct);
+
+            _demoState = AiState.Active;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _running = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Reset()
+    {
+        _cts?.Cancel();
+        _demoState = AiState.None;
+        _demoTitle = "Ready when you are.";
+        _demoBody = "Press Generate to see the card move through every AI state.";
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

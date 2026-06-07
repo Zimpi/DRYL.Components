@@ -1,0 +1,52 @@
+@using System.ComponentModel.DataAnnotations
+
+<div class="glass-card p-default" style="max-width: 460px;">
+    <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <div class="col" style="gap: var(--sp-4);">
+            <DrylValidationSummary Title="Füll das richtig aus!" />
+
+            <DrylFormField Label="Full name" Required For="() => _model.Name"
+                           Hint="As it appears on your account">
+                <DrylInputText @bind-Value="_model.Name" Placeholder="Ada Lovelace" />
+            </DrylFormField>
+
+            <DrylFormField Label="Email" Required For="() => _model.Email">
+                <DrylInputText @bind-Value="_model.Email" Placeholder="ada@example.com" />
+            </DrylFormField>
+
+            <DrylFormField Label="Age" For="() => _model.Age"
+                           Hint="Must be 18 or older">
+                <DrylInputNumber @bind-Value="_model.Age" TValue="int" />
+            </DrylFormField>
+
+            <div class="row" style="gap: var(--sp-2);">
+                <DrylButton IsSubmit="true" Variant="DrylButton.ButtonVariant.Primary">Save</DrylButton>
+                @if (_saved)
+                {
+                    <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>Saved</DrylBadge>
+                }
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private sealed class ProfileModel
+    {
+        [Required(ErrorMessage = "Name is required.")]
+        public string? Name { get; set; }
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        public string? Email { get; set; }
+
+        [Range(18, 120, ErrorMessage = "You must be at least 18.")]
+        public int Age { get; set; } = 18;
+    }
+
+    private readonly ProfileModel _model = new();
+    private bool _saved;
+
+    private void HandleSubmit() => _saved = true;
+}

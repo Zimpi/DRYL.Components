@@ -1,0 +1,39 @@
+<div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: center;">
+    <DrylSplitButton OnClick="@(() => _last = "Save")" MenuLabel="Save options">
+        <ChildContent>Save</ChildContent>
+        <MenuItems>
+            <DrylMenuItem Icon="Copy" OnClick="@(() => _last = "Save & new")">Save &amp; new</DrylMenuItem>
+            <DrylMenuItem Icon="X" OnClick="@(() => _last = "Save & close")">Save &amp; close</DrylMenuItem>
+            <DrylMenuItem Separator />
+            <DrylMenuItem Icon="Download" OnClick="@(() => _last = "Save as draft")">Save as draft</DrylMenuItem>
+        </MenuItems>
+    </DrylSplitButton>
+
+    <DrylSplitButton Variant="DrylButton.ButtonVariant.Ghost"
+                     LeadingIcon="Download"
+                     OnClick="@(() => _last = "Export CSV")"
+                     MenuLabel="Export formats">
+        <ChildContent>Export</ChildContent>
+        <MenuItems>
+            <DrylMenuItem OnClick="@(() => _last = "Export CSV")">Export as CSV</DrylMenuItem>
+            <DrylMenuItem OnClick="@(() => _last = "Export JSON")">Export as JSON</DrylMenuItem>
+        </MenuItems>
+    </DrylSplitButton>
+
+    <DrylSplitButton Variant="DrylButton.ButtonVariant.Danger"
+                     Size="DrylButton.ButtonSize.Small"
+                     OnClick="@(() => _last = "Delete")"
+                     MenuLabel="Delete options">
+        <ChildContent>Delete</ChildContent>
+        <MenuItems>
+            <DrylMenuItem Variant="DrylMenuItem.MenuItemVariant.Danger" Icon="Trash" OnClick="@(() => _last = "Delete permanently")">Delete permanently</DrylMenuItem>
+        </MenuItems>
+    </DrylSplitButton>
+</div>
+<p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">
+    Last action: @(_last ?? "—")
+</p>
+
+@code {
+    private string? _last;
+}

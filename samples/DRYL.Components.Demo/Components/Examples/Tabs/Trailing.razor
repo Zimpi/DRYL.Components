@@ -1,0 +1,26 @@
+<DrylTabs AriaLabel="Inbox">
+    <DrylTab Id="all" Label="All">
+        <TrailingContent>
+            <DrylBadge>248</DrylBadge>
+        </TrailingContent>
+        <ChildContent>
+            <p>Showing every message in this workspace.</p>
+        </ChildContent>
+    </DrylTab>
+    <DrylTab Id="mentions" Label="Mentions">
+        <TrailingContent>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Accent">12</DrylBadge>
+        </TrailingContent>
+        <ChildContent>
+            <p>Messages that mention you directly.</p>
+        </ChildContent>
+    </DrylTab>
+    <DrylTab Id="failed" Label="Failed">
+        <TrailingContent>
+            <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot="true">3</DrylBadge>
+        </TrailingContent>
+        <ChildContent>
+            <p>Delivery failures that need a retry.</p>
+        </ChildContent>
+    </DrylTab>
+</DrylTabs>

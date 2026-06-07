@@ -1,0 +1,16 @@
+<DrylTimeline>
+    <DrylTimelineItem Title="Plan" Timestamp="0.0s">
+        <DrylToolCall ToolName="search_docs" State="AiState.Generated"
+                      Arguments="@_searchArgs" Result="@_searchResult" />
+    </DrylTimelineItem>
+    <DrylTimelineItem Title="Act" Timestamp="1.2s" Variant="TimelineVariant.Accent">
+        <DrylToolCall ToolName="get_weather" State="AiState.Thinking"
+                      Arguments="@_args" />
+    </DrylTimelineItem>
+</DrylTimeline>
+
+@code {
+    private const string _args = """{ "city": "Berlin", "unit": "celsius" }""";
+    private const string _searchArgs = """{ "query": "refund policy" }""";
+    private const string _searchResult = """{ "hits": 3, "top": "policy/refunds.md" }""";
+}

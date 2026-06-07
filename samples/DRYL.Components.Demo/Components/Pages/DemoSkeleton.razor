@@ -1,296 +1,41 @@
 @page "/skeleton"
-@using System.Timers
 
 <PageTitle>DRYL — Skeleton</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Feedback</span>
-        <h2>DrylSkeleton</h2>
-        <p class="lead">
-            AI-native content placeholder. While data loads, skeleton blocks communicate
-            <em>what shape the content will take</em>. In AI workflows,
-            <code>AiState.Streaming</code> shifts the shimmer to a violet-cyan gradient —
-            a visual signal that the model is actively writing into these placeholder blocks.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="skeleton">
+        AI-native content placeholder. While data loads, skeleton blocks communicate
+        <em>what shape the content will take</em>. In AI workflows,
+        <code>AiState.Streaming</code> shifts the shimmer to a violet-cyan gradient —
+        a visual signal that the model is actively writing into these placeholder blocks.
+    </ComponentDocHeader>
 
-    <!-- ── Variants ──────────────────────────────────────────────── -->
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Variants</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4);">
+    <DemoExample Title="Variants" Source="Skeleton/Variants">
+        <DRYL.Components.Demo.Components.Examples.Skeleton.Variants />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Line</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Line" />
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Line" Width="70%" />
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Line" Width="45%" />
-            </div>
+    <DemoExample Title="Sizes" Source="Skeleton/Sizes">
+        <DRYL.Components.Demo.Components.Examples.Skeleton.Sizes />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Text (4 lines)</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="4" />
-            </div>
+    <DemoExample Title="AI Mode" Source="Skeleton/AiMode"
+                 Description="Skeleton blocks respond to the same AiState lifecycle. Streaming shifts the shimmer to a violet-cyan gradient.">
+        <DRYL.Components.Demo.Components.Examples.Skeleton.AiMode />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Avatar</p>
-                <div class="row">
-                    <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar" Size="DrylSkeleton.SkeletonSize.Small" />
-                    <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar" />
-                    <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar" Size="DrylSkeleton.SkeletonSize.Large" />
-                </div>
-            </div>
+    <DemoExample Title="AI lifecycle — live simulation" Source="Skeleton/Lifecycle"
+                 Description="None → Thinking → Streaming → Generated → None. The skeleton fades out on Generated, then real content rises into place.">
+        <DRYL.Components.Demo.Components.Examples.Skeleton.Lifecycle />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Image</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Image" />
-            </div>
+    <DemoExample Title="Card and Avatar with AI mode" Source="Skeleton/CardAvatar">
+        <DRYL.Components.Demo.Components.Examples.Skeleton.CardAvatar />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-3); grid-column: span 2;">
-                <p style="font-size: 12px; color: var(--fg-dim);">Card</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" />
-            </div>
-
-        </div>
-    </section>
-
-    <!-- ── Sizes ─────────────────────────────────────────────────── -->
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Sizes</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-4);">
-
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Small</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3"
-                              Size="DrylSkeleton.SkeletonSize.Small" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Medium (default)</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-3);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Large</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3"
-                              Size="DrylSkeleton.SkeletonSize.Large" />
-            </div>
-
-        </div>
-    </section>
-
-    <!-- ── AI mode ───────────────────────────────────────────────── -->
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>AI Mode</h3>
-        <p style="color: var(--fg-muted);">
-            Skeleton blocks respond to the same <code>AiState</code> lifecycle used across
-            every DRYL surface. The <strong>Streaming</strong> state is the key differentiator:
-            the shimmer shifts to a violet-cyan gradient, signalling that the model is actively
-            writing content into these placeholder slots.
-        </p>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-4);">
-
-            <div class="col" style="gap: var(--sp-2);">
-                <div style="display: flex; align-items: center; gap: var(--sp-2);">
-                    <span class="badge">None</span>
-                    <span style="font-size: 12px; color: var(--fg-dim);">Default neutral shimmer</span>
-                </div>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.None" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <div style="display: flex; align-items: center; gap: var(--sp-2);">
-                    <span class="badge badge-accent">Active</span>
-                    <span style="font-size: 12px; color: var(--fg-dim);">Persistent AI surface</span>
-                </div>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.Active" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <div style="display: flex; align-items: center; gap: var(--sp-2);">
-                    <span class="badge badge-accent">Thinking</span>
-                    <span style="font-size: 12px; color: var(--fg-dim);">Faster shimmer</span>
-                </div>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.Thinking" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <div style="display: flex; align-items: center; gap: var(--sp-2);">
-                    <span class="badge badge-accent">Streaming</span>
-                    <span style="font-size: 12px; color: var(--fg-dim);">Violet-cyan gradient</span>
-                </div>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.Streaming" />
-            </div>
-
-        </div>
-    </section>
-
-    <!-- ── AI lifecycle simulation ───────────────────────────────── -->
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>AI lifecycle — live simulation</h3>
-        <p style="color: var(--fg-muted);">
-            Simulates the canonical flow: <code>None → Thinking → Streaming → Generated → None</code>.
-            The skeleton fades out on <strong>Generated</strong>, then real content rises into place.
-        </p>
-
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
-            <DrylButton OnClick="StartSimulation"
-                        Variant="DrylButton.ButtonVariant.Primary"
-                        LeadingIcon="Sparkle"
-                        Loading="@(_simState != AiState.None)">
-                Simulate AI response
-            </DrylButton>
-
-            @if (_simState != AiState.None)
-            {
-                <span class="badge badge-accent">@_simState</span>
-            }
-        </div>
-
-        <div style="position: relative; min-height: 180px;">
-
-            @if (!_showContent)
-            {
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
-                              Lines="3"
-                              Ai="@_simState" />
-            }
-            else
-            {
-                <DrylCard class="fade-in">
-                    <div class="row" style="gap: var(--sp-3); margin-bottom: var(--sp-3);">
-                        <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent-grad); display: grid; place-content: center; flex-shrink: 0;">
-                            <DrylIcon Name="Sparkle" Size="16" />
-                        </div>
-                        <div>
-                            <div style="font-weight: 500; color: var(--fg);">AI Response</div>
-                            <div style="font-size: 12px; color: var(--fg-dim);">Generated just now</div>
-                        </div>
-                    </div>
-                    <p style="color: var(--fg-muted); line-height: 1.6;">
-                        The skeleton blocks above have been replaced with actual content. In a real
-                        app, this is where the model's output — a summary, a code block, a form
-                        pre-filled with extracted data — would appear. The transition from
-                        <code>Generated</code> to visible content happens naturally: the skeleton
-                        fades out while the card rises in.
-                    </p>
-                </DrylCard>
-            }
-
-        </div>
-    </section>
-
-    <!-- ── Card + Avatar AI ──────────────────────────────────────── -->
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Card and Avatar with AI mode</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
-
-            <div class="col" style="gap: var(--sp-2);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Card — Streaming</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
-                              Ai="AiState.Streaming" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Card — Thinking</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
-                              Ai="AiState.Thinking" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Image — Streaming</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Image"
-                              Ai="AiState.Streaming" />
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Avatar — Thinking</p>
-                <div class="row" style="gap: var(--sp-3);">
-                    <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar"
-                                  Size="DrylSkeleton.SkeletonSize.Small"
-                                  Ai="AiState.Thinking" />
-                    <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar"
-                                  Ai="AiState.Streaming" />
-                    <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar"
-                                  Size="DrylSkeleton.SkeletonSize.Large"
-                                  Ai="AiState.Active" />
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- ── Custom variant ────────────────────────────────────────── -->
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Custom layout</h3>
-        <p style="color: var(--fg-muted);">
-            Use <code>Variant="Custom"</code> with <code>ChildContent</code> to compose
-            skeleton layouts that match any design. The AI ring traces the wrapper bounds.
-        </p>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
-
-            <div class="col" style="gap: var(--sp-2);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Dashboard row — Streaming</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Custom"
-                              Ai="AiState.Streaming">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-3);">
-                        <span class="skel skel-rect" style="height: 64px; border-radius: var(--r-lg);"></span>
-                        <span class="skel skel-rect" style="height: 64px; border-radius: var(--r-lg);"></span>
-                        <span class="skel skel-rect" style="height: 64px; border-radius: var(--r-lg);"></span>
-                    </div>
-                    <span class="skel" style="width: 60%"></span>
-                </DrylSkeleton>
-            </div>
-
-            <div class="col" style="gap: var(--sp-2);">
-                <p style="font-size: 12px; color: var(--fg-dim);">Profile row — Active</p>
-                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Custom"
-                              Ai="AiState.Active">
-                    <div style="display: flex; align-items: center; gap: var(--sp-3);">
-                        <span class="skel skel-circle" style="width: 56px; height: 56px; flex-shrink: 0;"></span>
-                        <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
-                            <span class="skel" style="width: 55%"></span>
-                            <span class="skel" style="width: 75%"></span>
-                            <span class="skel" style="width: 40%"></span>
-                        </div>
-                    </div>
-                </DrylSkeleton>
-            </div>
-
-        </div>
-    </section>
+    <DemoExample Title="Custom layout" Source="Skeleton/Custom"
+                 Description="Use Variant=&quot;Custom&quot; with ChildContent to compose skeleton layouts that match any design.">
+        <DRYL.Components.Demo.Components.Examples.Skeleton.Custom />
+    </DemoExample>
 
 </div>
-
-@code {
-    private AiState _simState = AiState.None;
-    private bool _showContent;
-    private bool _simRunning;
-
-    private async Task StartSimulation()
-    {
-        if (_simRunning) return;
-        _simRunning = true;
-        _showContent = false;
-
-        _simState = AiState.Thinking;
-        StateHasChanged();
-        await Task.Delay(1400);
-
-        _simState = AiState.Streaming;
-        StateHasChanged();
-        await Task.Delay(2200);
-
-        _simState = AiState.Generated;
-        StateHasChanged();
-        await Task.Delay(900);
-
-        _showContent = true;
-        _simState = AiState.None;
-        _simRunning = false;
-        StateHasChanged();
-    }
-}

@@ -4,168 +4,35 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Layout</span>
-        <h2>DrylTabs</h2>
-        <p class="lead">
-            Classic horizontal tabs with a gliding gradient underline. The active
-            tab's underline scales in on selection; the panel below fades in.
-            Every tab can opt into AI mode individually to signal "something is
-            happening here" — same vocabulary as the rest of the library.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="tabs">
+        Classic horizontal tabs with a gliding gradient underline. The active
+        tab's underline scales in on selection; the panel below fades in.
+        Every tab can opt into AI mode individually to signal "something is
+        happening here" — same vocabulary as the rest of the library.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Default</h3>
-        <DrylTabs AriaLabel="Project sections">
-            <DrylTab Id="overview" Label="Overview">
-                <p>The overview panel. Switch between tabs to see the underline glide
-                   into place and the body fade in.</p>
-            </DrylTab>
-            <DrylTab Id="activity" Label="Activity">
-                <p>Activity panel content. Each panel is mounted only when active.</p>
-            </DrylTab>
-            <DrylTab Id="settings" Label="Settings">
-                <p>Settings panel content.</p>
-            </DrylTab>
-            <DrylTab Id="logs" Label="Logs">
-                <p>Logs panel content.</p>
-            </DrylTab>
-        </DrylTabs>
-    </section>
+    <DemoExample Title="Default" Source="Tabs/Default">
+        <DRYL.Components.Demo.Components.Examples.Tabs.Default />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>With icons</h3>
-        <DrylTabs AriaLabel="Service dashboard">
-            <DrylTab Id="home" Label="Home" Icon="Home">
-                <p>Service health summary. Everything green.</p>
-            </DrylTab>
-            <DrylTab Id="deploys" Label="Deploys" Icon="Rocket">
-                <p>14 successful, 0 failed in the last 24 hours.</p>
-            </DrylTab>
-            <DrylTab Id="alerts" Label="Alerts" Icon="Alert">
-                <p>No active alerts. Last incident resolved 3 days ago.</p>
-            </DrylTab>
-            <DrylTab Id="code" Label="Code" Icon="Code">
-                <p>Code panel content.</p>
-            </DrylTab>
-        </DrylTabs>
-    </section>
+    <DemoExample Title="With icons" Source="Tabs/Icons">
+        <DRYL.Components.Demo.Components.Examples.Tabs.Icons />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>With trailing slot</h3>
-        <DrylTabs AriaLabel="Inbox">
-            <DrylTab Id="all" Label="All">
-                <TrailingContent>
-                    <DrylBadge>248</DrylBadge>
-                </TrailingContent>
-                <ChildContent>
-                    <p>Showing every message in this workspace.</p>
-                </ChildContent>
-            </DrylTab>
-            <DrylTab Id="mentions" Label="Mentions">
-                <TrailingContent>
-                    <DrylBadge Kind="DrylBadge.BadgeKind.Accent">12</DrylBadge>
-                </TrailingContent>
-                <ChildContent>
-                    <p>Messages that mention you directly.</p>
-                </ChildContent>
-            </DrylTab>
-            <DrylTab Id="failed" Label="Failed">
-                <TrailingContent>
-                    <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot="true">3</DrylBadge>
-                </TrailingContent>
-                <ChildContent>
-                    <p>Delivery failures that need a retry.</p>
-                </ChildContent>
-            </DrylTab>
-        </DrylTabs>
-    </section>
+    <DemoExample Title="With trailing slot" Source="Tabs/Trailing">
+        <DRYL.Components.Demo.Components.Examples.Tabs.Trailing />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Disabled tab</h3>
-        <DrylTabs AriaLabel="Account">
-            <DrylTab Id="profile" Label="Profile" Icon="User">
-                <p>Profile content. The locked tab below is skipped by keyboard navigation too.</p>
-            </DrylTab>
-            <DrylTab Id="billing" Label="Billing" Icon="Mail">
-                <p>Billing content.</p>
-            </DrylTab>
-            <DrylTab Id="api" Label="API Keys" Icon="Lock" Disabled="true">
-                <p>You won't see this — this tab is disabled.</p>
-            </DrylTab>
-            <DrylTab Id="danger" Label="Danger Zone" Icon="Alert">
-                <p>Destructive actions live here.</p>
-            </DrylTab>
-        </DrylTabs>
-    </section>
+    <DemoExample Title="Disabled tab" Source="Tabs/Disabled">
+        <DRYL.Components.Demo.Components.Examples.Tabs.Disabled />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Two-way binding</h3>
-        <p style="margin-bottom: var(--sp-2);">
-            Active: <code>@_active</code>
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                        Size="DrylButton.ButtonSize.Small"
-                        @onclick="ToggleAC">
-                Jump to @(_active == "a" ? "C" : "A")
-            </DrylButton>
-        </p>
-        <DrylTabs AriaLabel="Bound demo" @bind-Active="_active">
-            <DrylTab Id="a" Label="Tab A">
-                <p>Content A.</p>
-            </DrylTab>
-            <DrylTab Id="b" Label="Tab B">
-                <p>Content B.</p>
-            </DrylTab>
-            <DrylTab Id="c" Label="Tab C">
-                <p>Content C.</p>
-            </DrylTab>
-        </DrylTabs>
-    </section>
+    <DemoExample Title="Two-way binding" Source="Tabs/TwoWayBinding">
+        <DRYL.Components.Demo.Components.Examples.Tabs.TwoWayBinding />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI on a single tab</h3>
-        <p style="margin-bottom: var(--sp-2);">
-            Each tab takes the standard <code>Ai</code> parameter so you can mark
-            exactly the tab where AI is at work — the rotating gradient ring traces
-            just that single tab.
-        </p>
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3);">
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                        Size="DrylButton.ButtonSize.Small"
-                        @onclick="() => _aiDemo = AiState.None">None</DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                        Size="DrylButton.ButtonSize.Small"
-                        @onclick="() => _aiDemo = AiState.Active">Active</DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                        Size="DrylButton.ButtonSize.Small"
-                        @onclick="() => _aiDemo = AiState.Thinking">Thinking</DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                        Size="DrylButton.ButtonSize.Small"
-                        @onclick="() => _aiDemo = AiState.Streaming">Streaming</DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                        Size="DrylButton.ButtonSize.Small"
-                        @onclick="() => _aiDemo = AiState.Generated">Generated</DrylButton>
-        </div>
-        <DrylTabs AriaLabel="AI demo">
-            <DrylTab Id="docs" Label="Docs" Icon="Folder">
-                <p>Regular tab.</p>
-            </DrylTab>
-            <DrylTab Id="copilot" Label="Copilot" Icon="Sparkle" Ai="_aiDemo">
-                <p>This tab is marked as AI-driven (state: <code>@_aiDemo</code>).
-                   Try the buttons above to switch through the five AI states.</p>
-            </DrylTab>
-            <DrylTab Id="history" Label="History" Icon="Code">
-                <p>Regular tab again.</p>
-            </DrylTab>
-        </DrylTabs>
-    </section>
+    <DemoExample Title="AI on a single tab" Source="Tabs/AiSingle">
+        <DRYL.Components.Demo.Components.Examples.Tabs.AiSingle />
+    </DemoExample>
 
 </div>
-
-@code {
-    private string? _active = "b";
-    private AiState _aiDemo = AiState.Thinking;
-
-    private void ToggleAC() => _active = _active == "a" ? "c" : "a";
-}

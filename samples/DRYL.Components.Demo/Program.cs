@@ -1,4 +1,5 @@
 using DRYL.Components;
+using DRYL.Components.Demo;
 using DRYL.Components.Demo.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddDrylComponents();
+
+// Serves the embedded source text of example components to DemoExample.
+builder.Services.AddSingleton<ExampleSourceProvider>();
 
 var app = builder.Build();
 

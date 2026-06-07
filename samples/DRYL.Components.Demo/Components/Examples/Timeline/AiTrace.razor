@@ -1,0 +1,23 @@
+<div class="col" style="gap: var(--sp-3); max-width: 560px;">
+    <DrylTimeline AriaLabel="Agent trace">
+        <DrylTimelineItem Title="Prompt received" Icon="Check" Variant="TimelineVariant.Success" />
+        <DrylTimelineItem Title="Retrieving context" Icon="Search" Variant="TimelineVariant.Accent">
+            Searching the knowledge base…
+        </DrylTimelineItem>
+        <DrylTimelineItem Title="Calling tool: get_orders" Icon="Bolt" Ai="@_ai">
+            The agent is executing a tool call.
+        </DrylTimelineItem>
+        <DrylTimelineItem Title="Compose answer" Variant="TimelineVariant.Default" />
+    </DrylTimeline>
+    <div class="row" style="gap: var(--sp-2); flex-wrap: wrap;">
+        @foreach (var s in Enum.GetValues<AiState>())
+        {
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                        @onclick="() => _ai = s">@s.ToString()</DrylButton>
+        }
+    </div>
+</div>
+
+@code {
+    private AiState _ai = AiState.Thinking;
+}

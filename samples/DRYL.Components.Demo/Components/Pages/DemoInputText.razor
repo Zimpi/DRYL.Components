@@ -1,122 +1,29 @@
 @page "/inputs"
-@using System.ComponentModel.DataAnnotations
 
 <PageTitle>DRYL — Inputs</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylInputText</h2>
-        <p class="lead">
-            Single-line text input. Inherits <code>InputBase&lt;string&gt;</code> — drop it into any
-            <code>EditForm</code> and it picks up DataAnnotations validation automatically.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="inputs">
+        Single-line text input. Inherits <code>InputBase&lt;string&gt;</code> — drop it into any
+        <code>EditForm</code> and it picks up DataAnnotations validation automatically.
+    </ComponentDocHeader>
 
-    <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
-        <DataAnnotationsValidator />
+    <DemoExample Title="Basics" Source="InputText/Basics">
+        <DRYL.Components.Demo.Components.Examples.InputText.Basics />
+    </DemoExample>
 
-        <div class="col" style="gap: var(--sp-6);">
+    <DemoExample Title="With icons" Source="InputText/Icons">
+        <DRYL.Components.Demo.Components.Examples.InputText.Icons />
+    </DemoExample>
 
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>Basics</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
-                    <DrylInputText @bind-Value="_model.Plain"
-                                   Label="Plain"
-                                   Placeholder="Type something" />
-                    <DrylInputText @bind-Value="_model.WithHelper"
-                                   Label="With helper"
-                                   Placeholder="janedoe"
-                                   HelperText="Lowercase letters and digits only." />
-                </div>
-            </section>
+    <DemoExample Title="States" Source="InputText/States">
+        <DRYL.Components.Demo.Components.Examples.InputText.States />
+    </DemoExample>
 
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>With icons</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
-                    <DrylInputText @bind-Value="_model.Search"
-                                   Label="Search"
-                                   Placeholder="Search components..."
-                                   LeadingIcon="Search" />
-                    <DrylInputText @bind-Value="_model.Url"
-                                   Label="URL"
-                                   Type="url"
-                                   Placeholder="https://"
-                                   TrailingIcon="ArrowRight" />
-                </div>
-            </section>
-
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>States</h3>
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); max-width: 1080px;">
-                    <DrylInputText @bind-Value="_model.SuccessValue"
-                                   Label="Success"
-                                   State="InputState.Success"
-                                   HelperText="Looks good." />
-                    <DrylInputText @bind-Value="_model.ErrorValue"
-                                   Label="Error (manual)"
-                                   State="InputState.Error"
-                                   HelperText="Something is wrong." />
-                    <DrylInputText @bind-Value="_model.DisabledValue"
-                                   Label="Disabled"
-                                   Disabled="true"
-                                   Placeholder="Can't touch this" />
-                </div>
-            </section>
-
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>Live validation</h3>
-                <p>Submit the form — DrylInputText picks up the DataAnnotations errors and colors itself.</p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
-                    <DrylInputText @bind-Value="_model.Name"
-                                   Label="Name"
-                                   Placeholder="Jane Doe"
-                                   LeadingIcon="User" />
-                    <DrylInputText @bind-Value="_model.Email"
-                                   Label="Email"
-                                   Type="email"
-                                   Placeholder="@EmailPlaceholder"
-                                   LeadingIcon="Mail" />
-                </div>
-                <div class="row" style="align-items: center;">
-                    <DrylButton IsSubmit="true" LeadingIcon="Check">Submit</DrylButton>
-                    @if (_submitted)
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Submitted!</DrylBadge>
-                    }
-                </div>
-            </section>
-
-        </div>
-    </EditForm>
+    <DemoExample Title="Live validation" Source="InputText/Validation"
+                 Description="Submit the form — DrylInputText picks up the DataAnnotations errors and colors itself.">
+        <DRYL.Components.Demo.Components.Examples.InputText.Validation />
+    </DemoExample>
 
 </div>
-
-@code {
-    private const string EmailPlaceholder = "jane.doe@example.com";
-
-    private readonly DemoModel _model = new();
-    private bool _submitted;
-
-    private void HandleValidSubmit() => _submitted = true;
-
-    private class DemoModel
-    {
-        public string? Plain { get; set; }
-        public string? WithHelper { get; set; }
-        public string? Search { get; set; }
-        public string? Url { get; set; }
-        public string? SuccessValue { get; set; } = "All good";
-        public string? ErrorValue { get; set; } = "Not so good";
-        public string? DisabledValue { get; set; }
-
-        [Required(ErrorMessage = "Name is required.")]
-        [MinLength(2, ErrorMessage = "Name must be at least 2 characters.")]
-        public string? Name { get; set; }
-
-        [Required(ErrorMessage = "Email is required.")]
-        [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
-        public string? Email { get; set; }
-    }
-}

@@ -1,0 +1,15 @@
+<div style="max-width: 260px;">
+    <DrylDatePicker @bind-Value="_constrained"
+                    Label="Future date only"
+                    HelperText="Today + 30 days max"
+                    Min="@DateOnly.FromDateTime(DateTime.Today)"
+                    Max="@DateOnly.FromDateTime(DateTime.Today.AddDays(30))" />
+</div>
+@if (_constrained.HasValue)
+{
+    <p>Selected: <strong>@_constrained.Value.ToString("d MMMM yyyy")</strong></p>
+}
+
+@code {
+    private DateOnly? _constrained;
+}

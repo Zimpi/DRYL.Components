@@ -1,0 +1,37 @@
+<DrylTable TItem="ServiceRow" Items="@_services" AriaLabel="Services"
+           ShowToolbar Searchable
+           Selectable
+           SelectedItems="@_selected"
+           SelectedItemsChanged="@(s => _selected = s)">
+    <Columns>
+        <DrylColumn TItem="ServiceRow" Field="@(s => s.Name)" Title="Service" Sortable Searchable Primary />
+        <DrylColumn TItem="ServiceRow" Field="@(s => s.Environment)" Title="Environment" Sortable Searchable />
+        <DrylColumn TItem="ServiceRow" Field="@(s => s.LatencyMs)" Title="Latency"
+                    Sortable Align="ColumnAlign.End" Width="120px">
+            <CellTemplate Context="svc">@(svc.LatencyMs.HasValue ? $"{svc.LatencyMs} ms" : "—")</CellTemplate>
+        </DrylColumn>
+    </Columns>
+</DrylTable>
+
+@if (_selected.Count > 0)
+{
+    <p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">
+        @_selected.Count row(s) selected
+    </p>
+}
+
+@code {
+    private IReadOnlySet<ServiceRow> _selected = new HashSet<ServiceRow>();
+
+    private readonly List<ServiceRow> _services =
+    [
+        new("auth-service",   "prod",    "healthy",   24,  "12s ago"),
+        new("billing-worker", "prod",    "throttled", 142, "1m ago"),
+        new("search-index",   "staging", "healthy",   38,  "3m ago"),
+        new("notify-dispatcher", "prod", "healthy",   18,  "14s ago"),
+        new("token-rotator",  "prod",    "throttled", 210, "2m ago"),
+        new("cdn-purge",      "staging", "healthy",   44,  "6m ago"),
+    ];
+
+    private record ServiceRow(string Name, string Environment, string Status, int? LatencyMs, string LastSeen);
+}

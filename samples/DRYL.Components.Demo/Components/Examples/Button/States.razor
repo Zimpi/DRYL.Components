@@ -1,0 +1,17 @@
+<div class="row" style="flex-wrap: wrap;">
+    <DrylButton Loading="@_loading" OnClick="ToggleLoading">
+        @(_loading ? "Loading…" : "Click to load")
+    </DrylButton>
+    <DrylButton Disabled="true">Disabled</DrylButton>
+</div>
+
+@code {
+    private bool _loading;
+
+    private async Task ToggleLoading()
+    {
+        _loading = true;
+        await Task.Delay(1500);
+        _loading = false;
+    }
+}

@@ -4,146 +4,34 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Layout</span>
-        <h2>DrylStepper</h2>
-        <p class="lead">
-            Multi-step wizard container. Steps register themselves via a cascading
-            parent reference — the same pattern as DrylTabs. Each step can carry
-            its own <code>StepState</code> (Pending / Active / Completed / Error)
-            and optionally an AI ambient ring via the shared <code>Ai</code> parameter.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="stepper">
+        Multi-step wizard container. Steps register themselves via a cascading
+        parent reference — the same pattern as DrylTabs. Each step can carry
+        its own <code>StepState</code> (Pending / Active / Completed / Error)
+        and optionally an AI ambient ring via the shared <code>Ai</code> parameter.
+    </ComponentDocHeader>
 
-    @* ── Horizontal (default) ─────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Horizontal</h3>
-        <DrylStepper @bind-ActiveStep="_hStep" AriaLabel="Setup wizard">
-            <DrylStep Id="account" Label="Account" Description="Basic details">
-                <div class="col" style="gap: var(--sp-3);">
-                    <p>Enter your account information here. This is the first step.</p>
-                    <div style="display:flex; gap: var(--sp-2);">
-                        <DrylButton @onclick='() => _hStep = "profile"'>Next</DrylButton>
-                    </div>
-                </div>
-            </DrylStep>
-            <DrylStep Id="profile" Label="Profile" Description="Preferences">
-                <div class="col" style="gap: var(--sp-3);">
-                    <p>Customise your profile settings.</p>
-                    <div style="display:flex; gap: var(--sp-2);">
-                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary" @onclick='() => _hStep = "account"'>Back</DrylButton>
-                        <DrylButton @onclick='() => _hStep = "review"'>Next</DrylButton>
-                    </div>
-                </div>
-            </DrylStep>
-            <DrylStep Id="review" Label="Review">
-                <div class="col" style="gap: var(--sp-3);">
-                    <p>Review your details before confirming.</p>
-                    <div style="display:flex; gap: var(--sp-2);">
-                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary" @onclick='() => _hStep = "profile"'>Back</DrylButton>
-                        <DrylButton @onclick='() => _hStep = "done"'>Confirm</DrylButton>
-                    </div>
-                </div>
-            </DrylStep>
-            <DrylStep Id="done" Label="Done">
-                <p>All set! Your account has been created.</p>
-            </DrylStep>
-        </DrylStepper>
-    </section>
+    <DemoExample Title="Horizontal" Source="Stepper/Horizontal">
+        <DRYL.Components.Demo.Components.Examples.Stepper.Horizontal />
+    </DemoExample>
 
-    @* ── Vertical ─────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Vertical</h3>
-        <DrylStepper @bind-ActiveStep="_vStep"
-                     Orientation="StepperOrientation.Vertical"
-                     AriaLabel="Form wizard"
-                     style="max-width: 480px;">
-            <DrylStep Id="v1" Label="Personal info" Description="Name and contact">
-                <p>Personal information form goes here.</p>
-                <DrylButton Size="DrylButton.ButtonSize.Small" @onclick='() => _vStep = "v2"'>Continue</DrylButton>
-            </DrylStep>
-            <DrylStep Id="v2" Label="Address" Description="Billing address">
-                <p>Address fields go here.</p>
-                <div style="display:flex; gap: var(--sp-2);">
-                    <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Size="DrylButton.ButtonSize.Small" @onclick='() => _vStep = "v1"'>Back</DrylButton>
-                    <DrylButton Size="DrylButton.ButtonSize.Small" @onclick='() => _vStep = "v3"'>Continue</DrylButton>
-                </div>
-            </DrylStep>
-            <DrylStep Id="v3" Label="Payment">
-                <p>Payment form goes here.</p>
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Size="DrylButton.ButtonSize.Small" @onclick='() => _vStep = "v2"'>Back</DrylButton>
-            </DrylStep>
-        </DrylStepper>
-    </section>
+    <DemoExample Title="Vertical" Source="Stepper/Vertical">
+        <DRYL.Components.Demo.Components.Examples.Stepper.Vertical />
+    </DemoExample>
 
-    @* ── Step states ──────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Step states</h3>
-        <p>Completed shows a check mark, Error shows an X. Click any step to activate it.</p>
-        <DrylStepper AriaLabel="State examples">
-            <DrylStep Id="s1" Label="Completed" StepState="StepState.Completed">
-                <p>This step is marked as completed.</p>
-            </DrylStep>
-            <DrylStep Id="s2" Label="Active" StepState="StepState.Active">
-                <p>This is the active step.</p>
-            </DrylStep>
-            <DrylStep Id="s3" Label="Error" StepState="StepState.Error">
-                <p>This step encountered an error.</p>
-            </DrylStep>
-            <DrylStep Id="s4" Label="Pending">
-                <p>This step is pending.</p>
-            </DrylStep>
-        </DrylStepper>
-    </section>
+    <DemoExample Title="Step states" Source="Stepper/States"
+                 Description="Completed shows a check mark, Error shows an X. Click any step to activate it.">
+        <DRYL.Components.Demo.Components.Examples.Stepper.States />
+    </DemoExample>
 
-    @* ── AI mode ──────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI mode</h3>
-        <p>A step with <code>Ai="AiState.Thinking"</code> shows the rotating gradient ring around its header.</p>
-        <DrylStepper AriaLabel="AI stepper demo">
-            <DrylStep Id="a1" Label="Data loaded" StepState="StepState.Completed">
-                <p>Input data has been validated and loaded.</p>
-            </DrylStep>
-            <DrylStep Id="a2" Label="AI analysis" Description="Model is running"
-                      Ai="@_stepAi">
-                <p>The model is currently analysing the data.</p>
-                <div style="display:flex; gap: var(--sp-2); flex-wrap:wrap; margin-top: var(--sp-2);">
-                    @foreach (var s in Enum.GetValues<AiState>())
-                    {
-                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
-                                    @onclick="() => _stepAi = s">
-                            @s.ToString()
-                        </DrylButton>
-                    }
-                </div>
-            </DrylStep>
-            <DrylStep Id="a3" Label="Review results">
-                <p>Results will appear here.</p>
-            </DrylStep>
-        </DrylStepper>
-    </section>
+    <DemoExample Title="AI mode" Source="Stepper/AiMode"
+                 Description="A step with Ai=&quot;AiState.Thinking&quot; shows the rotating gradient ring around its header.">
+        <DRYL.Components.Demo.Components.Examples.Stepper.AiMode />
+    </DemoExample>
 
-    @* ── Disabled step ────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Disabled step</h3>
-        <p>A disabled step cannot be activated by clicking.</p>
-        <DrylStepper AriaLabel="Disabled demo">
-            <DrylStep Id="d1" Label="First step">
-                <p>Click the second step — it is disabled and cannot be reached.</p>
-            </DrylStep>
-            <DrylStep Id="d2" Label="Locked" Description="Not available" Disabled>
-                <p>This content is unreachable.</p>
-            </DrylStep>
-            <DrylStep Id="d3" Label="Third step">
-                <p>This step is enabled.</p>
-            </DrylStep>
-        </DrylStepper>
-    </section>
+    <DemoExample Title="Disabled step" Source="Stepper/Disabled"
+                 Description="A disabled step cannot be activated by clicking.">
+        <DRYL.Components.Demo.Components.Examples.Stepper.Disabled />
+    </DemoExample>
 
 </div>
-
-@code {
-    private string? _hStep;
-    private string? _vStep;
-    private AiState _stepAi = AiState.Thinking;
-}

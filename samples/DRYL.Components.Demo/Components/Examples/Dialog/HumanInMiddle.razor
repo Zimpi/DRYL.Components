@@ -1,0 +1,43 @@
+@inject IDrylDialogService Dialogs
+
+<div class="col" style="gap: var(--sp-3);">
+    <div class="row" style="gap: var(--sp-3);">
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                    LeadingIcon="Sparkle"
+                    Ai="AiState.Active"
+                    @onclick="OpenAiDialog">
+            Generate summary…
+        </DrylButton>
+    </div>
+    @if (!string.IsNullOrEmpty(_approvedText))
+    {
+        <DrylCard Spotlight="false" Padding="DrylCard.CardPadding.Tight" Ai="AiState.Generated">
+            <div class="col" style="gap: var(--sp-2);">
+                <span class="eyebrow">Approved by user</span>
+                <p style="margin: 0; color: var(--fg);">@_approvedText</p>
+            </div>
+        </DrylCard>
+    }
+</div>
+
+@code {
+    private string _approvedText = "";
+
+    private async Task OpenAiDialog()
+    {
+        var p = new DialogParameters
+        {
+            ["Prompt"] = "Summarize what DRYL is in two sentences."
+        };
+        var reference = await Dialogs.ShowAsync<AiGenerationDialog>(
+            "AI summary",
+            p,
+            new DialogOptions { Size = DialogSize.Medium, Ai = AiState.Thinking });
+
+        var result = await reference.Result;
+        if (!result.Canceled)
+        {
+            _approvedText = result.DataAs<string>() ?? "";
+        }
+    }
+}

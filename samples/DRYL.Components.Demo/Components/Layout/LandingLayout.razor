@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+@*  Marketing shell for the landing page — top bar + full-width content,
+    no drawer / no on-page TOC. The aurora background lives globally in App.razor. *@
+
+<div class="landing-shell">
+    <TopBar OnSearch="OpenPalette" />
+    <main class="landing-main">
+        @Body
+    </main>
+</div>
+
+<DrylCommandPalette @bind-Open="_cmdOpen"
+                    Items="@ComponentCatalog.ToCommandItems()"
+                    Placeholder="Search components…" />
+
+<DrylToastProvider Position="ToastPosition.BottomRight" />
+
+@code {
+    private bool _cmdOpen;
+
+    private void OpenPalette() => _cmdOpen = true;
+}

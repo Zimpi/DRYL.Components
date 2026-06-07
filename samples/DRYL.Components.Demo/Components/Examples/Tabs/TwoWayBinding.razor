@@ -1,0 +1,25 @@
+<p style="margin-bottom: var(--sp-2);">
+    Active: <code>@_active</code>
+    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                Size="DrylButton.ButtonSize.Small"
+                @onclick="ToggleAC">
+        Jump to @(_active == "a" ? "C" : "A")
+    </DrylButton>
+</p>
+<DrylTabs AriaLabel="Bound demo" @bind-Active="_active">
+    <DrylTab Id="a" Label="Tab A">
+        <p>Content A.</p>
+    </DrylTab>
+    <DrylTab Id="b" Label="Tab B">
+        <p>Content B.</p>
+    </DrylTab>
+    <DrylTab Id="c" Label="Tab C">
+        <p>Content C.</p>
+    </DrylTab>
+</DrylTabs>
+
+@code {
+    private string? _active = "b";
+
+    private void ToggleAC() => _active = _active == "a" ? "c" : "a";
+}

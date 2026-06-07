@@ -1,0 +1,14 @@
+<div class="col" style="gap: var(--sp-4); max-width: 560px;">
+    <DrylSlider @bind-Value="_volume"
+                Label="Volume"
+                Min="0" Max="100" Step="1" />
+    <DrylSlider @bind-Value="_balance"
+                Label="Pan"
+                Min="-1" Max="1" Step="0.01"
+                HelperText="−1 = left, +1 = right" />
+</div>
+
+@code {
+    private double _volume = 72;
+    private double _balance = 0;
+}

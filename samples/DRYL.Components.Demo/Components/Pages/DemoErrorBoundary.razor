@@ -4,124 +4,27 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Feedback</span>
-        <h2>DrylErrorBoundary</h2>
-        <p class="lead">
-            A glass error-fallback surface around Blazor's built-in
-            <code>ErrorBoundary</code>. When the protected content throws, the unstyled
-            default markup is replaced with a token-driven danger alert — title, optional
-            description, dev-only detail toggle and a retry button. AI-aware, so a failed
-            AI block reads in the same aura vocabulary used while it was working.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="error-boundary">
+        A glass error-fallback surface around Blazor's built-in
+        <code>ErrorBoundary</code>. When the protected content throws, the unstyled
+        default markup is replaced with a token-driven danger alert — title, optional
+        description, dev-only detail toggle and a retry button. AI-aware, so a failed
+        AI block reads in the same aura vocabulary used while it was working.
+    </ComponentDocHeader>
 
-    @* ─── Basic ─── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Basic — catch &amp; retry</h3>
-        <p>
-            Wrap any fragment in <code>DrylErrorBoundary</code>. Handle <code>OnRetry</code>
-            to clear the failing condition before the boundary re-renders the child.
-        </p>
+    <DemoExample Title="Basic — catch &amp; retry" Source="ErrorBoundary/Basic"
+                 Description="Wrap any fragment in DrylErrorBoundary. Handle OnRetry to clear the failing condition before the boundary re-renders the child.">
+        <DRYL.Components.Demo.Components.Examples.ErrorBoundary.Basic />
+    </DemoExample>
 
-        <div class="row" style="gap: var(--sp-2); margin-bottom: var(--sp-2);">
-            <DrylButton Variant="DrylButton.ButtonVariant.Danger"
-                        Size="DrylButton.ButtonSize.Small"
-                        LeadingIcon="Alert"
-                        OnClick="@(() => _boomBasic = true)">
-                Trigger failure
-            </DrylButton>
-        </div>
+    <DemoExample Title="AI-aware fallback with dev details" Source="ErrorBoundary/AiDetails"
+                 Description="Pass Ai so a failed AI surface shows the shared aura, and ShowDetails (Development only) to expose a collapsible stack trace.">
+        <DRYL.Components.Demo.Components.Examples.ErrorBoundary.AiDetails />
+    </DemoExample>
 
-        <div style="max-width: 640px;">
-            <DrylErrorBoundary OnRetry="@(() => _boomBasic = false)">
-                @if (_boomBasic) { throw new InvalidOperationException("Simulated render failure."); }
-                <DrylAlert Kind="DrylAlert.AlertKind.Success" Title="Healthy">
-                    The protected content rendered without errors.
-                </DrylAlert>
-            </DrylErrorBoundary>
-        </div>
-    </section>
-
-    @* ─── AI-aware + details ─── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI-aware fallback with dev details</h3>
-        <p>
-            Pass <code>Ai</code> so a failed AI surface shows the shared aura, and
-            <code>ShowDetails</code> (Development only) to expose a collapsible stack trace.
-            Override <code>Title</code> / <code>Description</code> for a domain message.
-        </p>
-
-        <div class="row" style="gap: var(--sp-2); margin-bottom: var(--sp-2);">
-            <DrylButton Variant="DrylButton.ButtonVariant.Danger"
-                        Size="DrylButton.ButtonSize.Small"
-                        LeadingIcon="Alert"
-                        OnClick="@(() => _boomAi = true)">
-                Fail AI request
-            </DrylButton>
-        </div>
-
-        <div style="max-width: 640px;">
-            <DrylErrorBoundary Title="The report couldn't be generated"
-                               Description="The model timed out before finishing. Try again in a moment."
-                               Ai="AiState.Generated"
-                               ShowDetails="true"
-                               OnRetry="@(() => _boomAi = false)">
-                @if (_boomAi) { throw new TimeoutException("Upstream model request exceeded 30s deadline."); }
-                <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="Report ready" Ai="AiState.Generated">
-                    The generated report rendered successfully.
-                </DrylAlert>
-            </DrylErrorBoundary>
-        </div>
-    </section>
-
-    @* ─── Custom fallback ─── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Custom fallback</h3>
-        <p>
-            Supply <code>FallbackContent</code> to fully replace the built-in surface. It
-            receives the caught <code>Exception</code>.
-        </p>
-
-        <div class="row" style="gap: var(--sp-2); margin-bottom: var(--sp-2);">
-            <DrylButton Variant="DrylButton.ButtonVariant.Danger"
-                        Size="DrylButton.ButtonSize.Small"
-                        LeadingIcon="Alert"
-                        OnClick="@(() => _boomCustom = true)">
-                Trigger failure
-            </DrylButton>
-        </div>
-
-        <div style="max-width: 640px;">
-            <DrylErrorBoundary>
-                <ChildContent>
-                    @if (_boomCustom) { throw new InvalidOperationException("Custom fallback demo failure."); }
-                    <DrylAlert Kind="DrylAlert.AlertKind.Info" Title="Operational">
-                        Everything is fine here.
-                    </DrylAlert>
-                </ChildContent>
-                <FallbackContent Context="ex">
-                    <DrylEmptyState Icon="Alert"
-                                    Title="This panel crashed"
-                                    Description="@ex.Message">
-                        <ActionContent>
-                            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                                        Size="DrylButton.ButtonSize.Small"
-                                        LeadingIcon="Refresh"
-                                        OnClick="@(() => _boomCustom = false)">
-                                Reset
-                            </DrylButton>
-                        </ActionContent>
-                    </DrylEmptyState>
-                </FallbackContent>
-            </DrylErrorBoundary>
-        </div>
-    </section>
+    <DemoExample Title="Custom fallback" Source="ErrorBoundary/Custom"
+                 Description="Supply FallbackContent to fully replace the built-in surface. It receives the caught Exception.">
+        <DRYL.Components.Demo.Components.Examples.ErrorBoundary.Custom />
+    </DemoExample>
 
 </div>
-
-@code {
-    private bool _boomBasic;
-    private bool _boomAi;
-    private bool _boomCustom;
-}

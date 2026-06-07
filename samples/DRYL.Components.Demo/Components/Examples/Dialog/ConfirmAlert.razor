@@ -1,0 +1,52 @@
+@inject IDrylDialogService Dialogs
+
+<div class="col" style="gap: var(--sp-3);">
+    <div class="row" style="gap: var(--sp-3);">
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary" @onclick="OpenConfirm">
+            Show confirm
+        </DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="OpenAlert">
+            Show alert
+        </DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Danger"
+                    LeadingIcon="X" @onclick="OpenDestructive">
+            Delete project…
+        </DrylButton>
+    </div>
+    @if (!string.IsNullOrEmpty(_lastResult))
+    {
+        <p style="margin: 0; color: var(--fg-muted); font-family: var(--font-mono); font-size: 12px;">
+            Last result: <span style="color: var(--fg);">@_lastResult</span>
+        </p>
+    }
+</div>
+
+@code {
+    private string _lastResult = "";
+
+    private async Task OpenConfirm()
+    {
+        var result = await Dialogs.ShowConfirmAsync(
+            "Discard changes?",
+            "Your unsaved edits will be lost. This cannot be undone.");
+        _lastResult = result.Canceled ? "Canceled" : "Confirmed";
+    }
+
+    private async Task OpenAlert()
+    {
+        await Dialogs.ShowAlertAsync(
+            "Deployment failed",
+            "Check the logs for stack trace details.");
+        _lastResult = "Alert dismissed";
+    }
+
+    private async Task OpenDestructive()
+    {
+        var result = await Dialogs.ShowConfirmAsync(
+            "Delete project?",
+            "All resources will be permanently removed.",
+            confirmLabel: "Delete",
+            cancelLabel: "Keep");
+        _lastResult = result.Canceled ? "Kept" : "Deleted";
+    }
+}

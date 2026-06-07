@@ -1,0 +1,20 @@
+<div style="max-width: 360px;">
+    <DrylPopover @bind-Open="_open2" Block="true" MatchTriggerWidth="true">
+        <TriggerContent>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                        TrailingIcon="ChevronDown"
+                        style="width: 100%; justify-content: space-between;">
+                Full-width trigger
+            </DrylButton>
+        </TriggerContent>
+        <PanelContent>
+            <div class="col" style="gap: var(--sp-1);">
+                <span style="font-size: 13px; color: var(--fg-muted);">The panel matches the trigger width.</span>
+            </div>
+        </PanelContent>
+    </DrylPopover>
+</div>
+
+@code {
+    private bool _open2;
+}

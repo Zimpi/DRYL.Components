@@ -1,0 +1,14 @@
+<div class="col" style="gap: var(--sp-4); max-width: 560px;">
+    <DrylChipInput @bind-Tags="_labels"
+                   Label="Labels"
+                   Placeholder="Add a label…" />
+    <DrylChipInput @bind-Tags="_emails"
+                   Label="Recipients"
+                   Placeholder="name@example.com"
+                   HelperText="Press Enter or comma to add an address." />
+</div>
+
+@code {
+    private IReadOnlyList<string> _labels = ["blazor", "ui"];
+    private IReadOnlyList<string> _emails = [];
+}

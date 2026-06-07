@@ -1,0 +1,13 @@
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+    <DrylInputPassword @bind-Value="_password"
+                       Label="Password"
+                       Placeholder="••••••••" />
+    <DrylInputPassword @bind-Value="_withHelper"
+                       Label="API key"
+                       HelperText="Stored encrypted — shown once." />
+</div>
+
+@code {
+    private string? _password;
+    private string? _withHelper;
+}

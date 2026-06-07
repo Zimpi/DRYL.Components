@@ -1,0 +1,14 @@
+<DrylRadioGroup @bind-Value="_size"
+                Label="T-shirt size"
+                Orientation="RadioGroupOrientation.Horizontal">
+    <DrylRadio Value="@("xs")"  Label="XS" />
+    <DrylRadio Value="@("s")"   Label="S" />
+    <DrylRadio Value="@("m")"   Label="M" />
+    <DrylRadio Value="@("l")"   Label="L" />
+    <DrylRadio Value="@("xl")"  Label="XL" />
+    <DrylRadio Value="@("xxl")" Label="2XL" />
+</DrylRadioGroup>
+
+@code {
+    private string? _size = "m";
+}

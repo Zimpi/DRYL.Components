@@ -1,0 +1,9 @@
+<div class="row" style="gap: var(--sp-6); align-items: center;">
+    <DrylSparkline Data="@_series" Kind="SparklineKind.Area" Width="64" Height="24" />
+    <DrylSparkline Data="@_series" Kind="SparklineKind.Area" Width="160" Height="48" />
+    <DrylSparkline Data="@_series" Kind="SparklineKind.Area" Width="280" Height="64" />
+</div>
+
+@code {
+    private readonly double[] _series = { 3, 5, 4, 8, 6, 9, 7, 12, 10, 14 };
+}

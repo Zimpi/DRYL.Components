@@ -1,0 +1,11 @@
+<div class="col" style="gap: var(--sp-4); max-width: 320px;">
+    <DrylTimePicker @bind-Value="_time" Label="Meeting time" />
+    <DrylTimePicker @bind-Value="_stepped" Label="15-min intervals" MinuteStep="15" />
+    <DrylTimePicker @bind-Value="_time30" Label="30-min intervals" MinuteStep="30" />
+</div>
+
+@code {
+    private TimeOnly? _time;
+    private TimeOnly? _stepped;
+    private TimeOnly? _time30;
+}

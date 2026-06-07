@@ -4,41 +4,22 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Data</span>
-        <h2>DrylKbd</h2>
-        <p class="lead">
-            Semantic <code>&lt;kbd&gt;</code> chips for keyboard shortcuts — command
-            palettes, menus, tooltips and shortcut bars. Pass a single key as content
-            or a chord via <code>Keys</code>.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="kbd">
+        Semantic <code>&lt;kbd&gt;</code> chips for keyboard shortcuts — command
+        palettes, menus, tooltips and shortcut bars. Pass a single key as content
+        or a chord via <code>Keys</code>.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Single key</h3>
-        <div class="row" style="gap: var(--sp-3); align-items: center; flex-wrap: wrap;">
-            <DrylKbd>⌘K</DrylKbd>
-            <DrylKbd>Esc</DrylKbd>
-            <DrylKbd>Enter</DrylKbd>
-            <DrylKbd>/</DrylKbd>
-        </div>
-    </section>
+    <DemoExample Title="Single key" Source="Kbd/SingleKey">
+        <DRYL.Components.Demo.Components.Examples.Kbd.SingleKey />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Chords</h3>
-        <div class="row" style="gap: var(--sp-3); align-items: center; flex-wrap: wrap;">
-            <DrylKbd Keys="@(new[] { "Ctrl", "K" })" />
-            <DrylKbd Keys="@(new[] { "Ctrl", "Shift", "P" })" />
-            <DrylKbd Keys="@(new[] { "⌘", "S" })" />
-        </div>
-    </section>
+    <DemoExample Title="Chords" Source="Kbd/Chords">
+        <DRYL.Components.Demo.Components.Examples.Kbd.Chords />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Inline in text</h3>
-        <p>
-            Press <DrylKbd Keys="@(new[] { "Ctrl", "K" })" /> to open the command
-            palette, or <DrylKbd>Esc</DrylKbd> to dismiss it.
-        </p>
-    </section>
+    <DemoExample Title="Inline in text" Source="Kbd/Inline">
+        <DRYL.Components.Demo.Components.Examples.Kbd.Inline />
+    </DemoExample>
 
 </div>

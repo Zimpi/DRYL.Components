@@ -1,0 +1,32 @@
+<div style="max-width: 320px;">
+    <DrylAutocomplete TItem="string"
+                      @bind-Value="_aiCountry"
+                      Items="@_countries"
+                      Label="AI-suggested country"
+                      Ai="@_aiState" />
+</div>
+<div style="display:flex; gap: var(--sp-2); flex-wrap: wrap;">
+    @foreach (var s in Enum.GetValues<AiState>())
+    {
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                    @onclick="() => _aiState = s">
+            @s.ToString()
+        </DrylButton>
+    }
+</div>
+
+@code {
+    private string? _aiCountry;
+    private AiState _aiState = AiState.Active;
+
+    private static readonly string[] _countries =
+    [
+        "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia",
+        "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
+        "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg",
+        "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia",
+        "Slovenia", "Spain", "Sweden", "Switzerland", "United Kingdom",
+        "United States", "Canada", "Australia", "Japan", "South Korea",
+        "Brazil", "Mexico", "Argentina", "India", "China", "Singapore"
+    ];
+}

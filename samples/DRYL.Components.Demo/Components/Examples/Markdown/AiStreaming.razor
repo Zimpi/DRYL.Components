@@ -1,0 +1,43 @@
+<div class="col" style="gap: var(--sp-3);">
+    <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary" OnClick="Simulate">Simulate stream</DrylButton>
+        <DrylAiIndicator State="@_state" />
+    </div>
+    <DrylMarkdown Content="@_streamed" Ai="@_state" />
+</div>
+
+@code {
+    private string _streamed = "";
+    private AiState _state = AiState.None;
+
+    private const string _target = """
+        ## Summary
+
+        The deployment **succeeded** in 42s across 3 regions. No regressions detected.
+
+        - Latency p95: `118 ms`
+        - Error rate: `0.01%`
+        """;
+
+    private async Task Simulate()
+    {
+        _state = AiState.Thinking;
+        _streamed = "";
+        StateHasChanged();
+        await Task.Delay(500);
+
+        _state = AiState.Streaming;
+        foreach (var word in _target.Split(' '))
+        {
+            _streamed += word + " ";
+            StateHasChanged();
+            await Task.Delay(40);
+        }
+
+        _state = AiState.Generated;
+        StateHasChanged();
+        await Task.Delay(900);
+        _state = AiState.Active;
+        StateHasChanged();
+    }
+}

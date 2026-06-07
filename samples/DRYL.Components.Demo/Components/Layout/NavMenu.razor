@@ -1,3 +1,8 @@
+@using Microsoft.AspNetCore.Components.Routing
+
+@*  Sidebar navigation — generated entirely from ComponentCatalog so it can
+    never drift from the command palette or the /components overview. *@
+
 <div class="brand">
     <div class="brand-mark">
         <img src="favicon.png" alt="" class="brand-mark-logo" />
@@ -10,87 +15,21 @@
 
 <div class="nav-scroll">
     <DrylNavGroup Title="General" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+        <DrylNavLink Href="components" Icon="Grid">All components</DrylNavLink>
+        <DrylNavLink Href="getting-started" Icon="Rocket">Get Started</DrylNavLink>
     </DrylNavGroup>
 
-    <DrylNavGroup Title="Actions" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="buttons" Icon="Bolt">Button</DrylNavLink>
-        <DrylNavLink Href="button-group" Icon="Blocks">Button Group</DrylNavLink>
-        <DrylNavLink Href="menu" Icon="Menu">Menu</DrylNavLink>
-        <DrylNavLink Href="command-palette" Icon="Command">Command Palette</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Surfaces" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="cards" Icon="Layers">Card</DrylNavLink>
-        <DrylNavLink Href="dialog" Icon="Box">Dialog</DrylNavLink>
-        <DrylNavLink Href="toasts" Icon="Bell">Toast</DrylNavLink>
-        <DrylNavLink Href="chat" Icon="Sparkle">Chat</DrylNavLink>
-        <DrylNavLink Href="popover" Icon="Layers">Popover</DrylNavLink>
-        <DrylNavLink Href="markdown" Icon="Type">Markdown</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Navigation" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="breadcrumbs" Icon="ChevronRight">Breadcrumbs</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Data" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="badges" Icon="Star" Sub>Badge</DrylNavLink>
-        <DrylNavLink Href="avatar" Icon="User" Sub>Avatar</DrylNavLink>
-        <DrylNavLink Href="tables" Icon="Grid" Sub>Table</DrylNavLink>
-        <DrylNavLink Href="pagination" Icon="ChevronRight" Sub>Pagination</DrylNavLink>
-        <DrylNavLink Href="tree" Icon="Folder" Sub>Tree View</DrylNavLink>
-        <DrylNavLink Href="timeline" Icon="List" Sub>Timeline</DrylNavLink>
-        <DrylNavLink Href="stat" Icon="Hash" Sub>Stat</DrylNavLink>
-        <DrylNavLink Href="sparkline" Icon="Activity" Sub>Sparkline</DrylNavLink>
-        <DrylNavLink Href="description-list" Icon="List" Sub>Description List</DrylNavLink>
-        <DrylNavLink Href="kbd" Icon="Command" Sub>Keyboard Key</DrylNavLink>
-        <DrylNavLink Href="code-block" Icon="Code" Sub>Code Block</DrylNavLink>
-        <DrylNavLink Href="citation" Icon="Quote" Sub>Citation</DrylNavLink>
-        <DrylNavLink Href="icons" Icon="Palette" Sub>Icons</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Inputs" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="inputs" Icon="Type" Sub>Input Text</DrylNavLink>
-        <DrylNavLink Href="input-password" Icon="Lock" Sub>Password</DrylNavLink>
-        <DrylNavLink Href="input-number" Icon="Hash" Sub>Number</DrylNavLink>
-        <DrylNavLink Href="forms" Icon="Check" Sub>Form Controls</DrylNavLink>
-        <DrylNavLink Href="radio" Icon="Circle" Sub>Radio Group</DrylNavLink>
-        <DrylNavLink Href="multiselect" Icon="List" Sub>Multi Select</DrylNavLink>
-        <DrylNavLink Href="slider" Icon="Sliders" Sub>Slider</DrylNavLink>
-        <DrylNavLink Href="file-upload" Icon="Upload" Sub>File Upload</DrylNavLink>
-        <DrylNavLink Href="autocomplete" Icon="Search" Sub>Autocomplete</DrylNavLink>
-        <DrylNavLink Href="datepicker"  Icon="Calendar"    Sub>Date Picker</DrylNavLink>
-        <DrylNavLink Href="timepicker"  Icon="Clock"       Sub>Time Picker</DrylNavLink>
-        <DrylNavLink Href="chip-input"  Icon="Tag"         Sub>Chip Input</DrylNavLink>
-        <DrylNavLink Href="otp"         Icon="Key"         Sub>OTP Input</DrylNavLink>
-        <DrylNavLink Href="input-mask"  Icon="Fingerprint" Sub>Input Mask</DrylNavLink>
-        <DrylNavLink Href="rating"      Icon="Star"        Sub>Rating</DrylNavLink>
-        <DrylNavLink Href="form-field"  Icon="Check"       Sub>Form Field</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Layout" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="expansion" Icon="ChevronDown" Sub>Expansion</DrylNavLink>
-        <DrylNavLink Href="tabs" Icon="Folder" Sub>Tabs</DrylNavLink>
-        <DrylNavLink Href="stepper" Icon="ArrowRight" Sub>Stepper</DrylNavLink>
-        <DrylNavLink Href="scroll-area" Icon="Layers" Sub>Scroll Area</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Feedback" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="alerts" Icon="Alert" Sub>Alert</DrylNavLink>
-        <DrylNavLink Href="tooltip" Icon="Info" Sub>Tooltip</DrylNavLink>
-        <DrylNavLink Href="spinners" Icon="Activity" Sub>Spinner</DrylNavLink>
-        <DrylNavLink Href="skeleton" Icon="Blocks" Sub>Skeleton</DrylNavLink>
-        <DrylNavLink Href="progress" Icon="Activity" Sub>Progress</DrylNavLink>
-        <DrylNavLink Href="empty-state" Icon="Search" Sub>Empty State</DrylNavLink>
-        <DrylNavLink Href="error-boundary" Icon="Alert" Sub>Error Boundary</DrylNavLink>
-    </DrylNavGroup>
-
-    <DrylNavGroup Title="Intelligence" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="ai" Icon="Sparkle">AI Mode</DrylNavLink>
-        <DrylNavLink Href="tool-call" Icon="Wrench">Tool Call</DrylNavLink>
-    </DrylNavGroup>
+    @foreach (var group in ComponentCatalog.ByCategory())
+    {
+        <DrylNavGroup Title="@group.Key" Collapsible DefaultExpanded="true">
+            @foreach (var entry in group)
+            {
+                <DrylNavLink Href="@entry.Slug" Icon="@entry.Icon">@entry.Title</DrylNavLink>
+            }
+        </DrylNavGroup>
+    }
 </div>
 
 <DrylNavGroup Title="Project">
-    <DrylNavLink Href="https://github.com/Zimpi/DRYL.Components" Icon="Code" External>GitHub</DrylNavLink>
+    <DrylNavLink Href="@ComponentCatalog.RepoUrl" Icon="Code" External>GitHub</DrylNavLink>
 </DrylNavGroup>

@@ -1,0 +1,31 @@
+<div class="col" style="gap: var(--sp-3); max-width: 640px;">
+    @if (_showDismissInfo)
+    {
+        <DrylAlert Kind="DrylAlert.AlertKind.Info" Title="Neue Features verfügbar"
+                   Dismissible OnDismiss="() => _showDismissInfo = false">
+            Version 0.2 bringt Expansion Panels, Toast-Benachrichtigungen und ein verbessertes Grid.
+        </DrylAlert>
+    }
+    @if (_showDismissWarning)
+    {
+        <DrylAlert Kind="DrylAlert.AlertKind.Warning" Title="Nicht gespeicherte Änderungen"
+                   Dismissible OnDismiss="() => _showDismissWarning = false">
+            Beim Verlassen der Seite gehen alle Änderungen verloren.
+        </DrylAlert>
+    }
+    @if (!_showDismissInfo && !_showDismissWarning)
+    {
+        <p style="color: var(--fg-dim); font-size: 13px;">Alle Alerts geschlossen.</p>
+    }
+    <div class="row">
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                    OnClick="() => { _showDismissInfo = true; _showDismissWarning = true; }">
+            Alerts zurücksetzen
+        </DrylButton>
+    </div>
+</div>
+
+@code {
+    private bool _showDismissInfo    = true;
+    private bool _showDismissWarning = true;
+}

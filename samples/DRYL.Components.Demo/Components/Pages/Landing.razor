@@ -1,0 +1,122 @@
+@page "/"
+@layout LandingLayout
+@inject NavigationManager Nav
+
+<PageTitle>DRYL — Dark, glassy, AI-native Blazor components</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-8);">
+
+    @* ── Hero ─────────────────────────────────────────────── *@
+    <header class="hero">
+        <div class="row" style="flex-wrap: wrap;">
+            <DrylBadge Kind="DrylBadge.BadgeKind.Accent">v0.1.0</DrylBadge>
+            <DrylBadge>Blazor Server + WASM</DrylBadge>
+            <DrylBadge>.NET 10</DrylBadge>
+        </div>
+        <h1>The base layer for <span class="gradient-text">everything you build.</span></h1>
+        <p class="lead">
+            DRYL is a dark, glassy, AI-native Blazor component library. Translucent surfaces
+            stacked on pure black, accents that glow instead of shout, and AI treated as a
+            first-class state of the UI — felt across the whole library without reading a label.
+        </p>
+        <div class="hero-cta">
+            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                        Size="DrylButton.ButtonSize.Large"
+                        TrailingIcon="ArrowRight"
+                        OnClick="@(() => Nav.NavigateTo("getting-started"))">
+                Get Started
+            </DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                        Size="DrylButton.ButtonSize.Large"
+                        OnClick="@(() => Nav.NavigateTo("components"))">
+                Browse Components
+            </DrylButton>
+        </div>
+    </header>
+
+    @* ── Feature highlights ───────────────────────────────── *@
+    <section>
+        <div class="stagger"
+             style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-4);">
+            <DrylStat Label="Components"      Value="@_total"   Icon="Grid" />
+            <DrylStat Label="AI-aware"        Value="@_aiCount" Icon="Sparkle" />
+            <DrylStat Label="JS dependencies" Value="0"         Icon="Code" />
+            <DrylStat Label="Target"          Value=".NET 10"   Icon="Rocket" />
+        </div>
+    </section>
+
+    @* ── Vision / principles ──────────────────────────────── *@
+    <section>
+        <div class="section-head">
+            <span class="eyebrow">Vision</span>
+            <h2>Four principles</h2>
+        </div>
+        <div class="stagger"
+             style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4);">
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Layers" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h4 style="margin: 0;">Glass, not plastic</h4>
+                        <p style="margin: 0; color: var(--fg-muted);">Translucent layers with backdrop-blur on pure black — never a solid fill.</p>
+                    </div>
+                </div>
+            </DrylCard>
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Sparkle" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h4 style="margin: 0;">Indirect light</h4>
+                        <p style="margin: 0; color: var(--fg-muted);">Accents glow as gradients, 1px borders and rings — never a loud background.</p>
+                    </div>
+                </div>
+            </DrylCard>
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Activity" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h4 style="margin: 0;">Motion with meaning</h4>
+                        <p style="margin: 0; color: var(--fg-muted);">Three durations, three easings. Nothing glitchy, nothing broken.</p>
+                    </div>
+                </div>
+            </DrylCard>
+            <DrylCard>
+                <div class="col" style="gap: var(--sp-3);">
+                    <DrylIcon Name="Bolt" Size="22" />
+                    <div class="col" style="gap: var(--sp-1);">
+                        <h4 style="margin: 0;">AI-native</h4>
+                        <p style="margin: 0; color: var(--fg-muted);">One shared <code>AiState</code> vocabulary lights up every AI-aware surface.</p>
+                    </div>
+                </div>
+            </DrylCard>
+        </div>
+    </section>
+
+    @* ── Showcase ─────────────────────────────────────────── *@
+    <section>
+        <div class="section-head">
+            <span class="eyebrow">Showcase</span>
+            <h2>A few pieces, live</h2>
+        </div>
+        <DrylCard>
+            <div class="col" style="gap: var(--sp-6);">
+                <div class="row" style="flex-wrap: wrap; gap: var(--sp-3);">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Primary">Primary</DrylButton>
+                    <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Secondary</DrylButton>
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost">Ghost</DrylButton>
+                    <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Online</DrylBadge>
+                    <DrylBadge Kind="DrylBadge.BadgeKind.Accent">Accent</DrylBadge>
+                </div>
+                <DrylAlert Kind="DrylAlert.AlertKind.Ai" Title="AI is a first-class state">
+                    Drive any AI-aware component with the shared <code>Ai</code> parameter to show where the model is at work.
+                </DrylAlert>
+            </div>
+        </DrylCard>
+    </section>
+
+</div>
+
+@code {
+    private static readonly string _total   = ComponentCatalog.Entries.Count.ToString();
+    private static readonly string _aiCount = ComponentCatalog.Entries.Count(e => e.Ai).ToString();
+}

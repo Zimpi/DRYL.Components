@@ -1,94 +1,33 @@
 @page "/rating"
-@using System.ComponentModel.DataAnnotations
 
 <PageTitle>DRYL — Rating</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylRating</h2>
-        <p class="lead">
-            Star-based rating component bound via <code>InputBase&lt;int?&gt;</code>.
-            Hover to preview, click to confirm. Keyboard: arrow keys, <code>Home</code>,
-            and <code>End</code> to navigate; click the active star to clear.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="rating">
+        Star-based rating component bound via <code>InputBase&lt;int?&gt;</code>.
+        Hover to preview, click to confirm. Keyboard: arrow keys, <code>Home</code>,
+        and <code>End</code> to navigate; click the active star to clear.
+    </ComponentDocHeader>
 
-    <div class="col" style="gap: var(--sp-6);">
+    <DemoExample Title="Basics" Source="Rating/Basics">
+        <DRYL.Components.Demo.Components.Examples.Rating.Basics />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Basics</h3>
-            <div class="col" style="gap: var(--sp-4);">
-                <DrylRating @bind-Value="_stars" Label="Product rating" />
-                <DrylRating @bind-Value="_stars" Label="10-star scale" MaxStars="10" />
-            </div>
-        </section>
+    <DemoExample Title="States" Source="Rating/States">
+        <DRYL.Components.Demo.Components.Examples.Rating.States />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>States</h3>
-            <div style="display: grid; grid-template-columns: repeat(3, auto); justify-content: start; align-items: start; gap: var(--sp-5);">
-                <DrylRating Value="4" Label="Read-only" ReadOnly="true" />
-                <DrylRating Value="3" Label="Disabled" Disabled="true" />
-                <DrylRating @bind-Value="_stars" Label="No clear" AllowClear="false" />
-            </div>
-        </section>
+    <DemoExample Title="AI mode" Source="Rating/AiMode">
+        <DRYL.Components.Demo.Components.Examples.Rating.AiMode />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>AI mode</h3>
-            <div class="col" style="gap: var(--sp-4);">
-                <DrylRating Value="3" Label="Thinking" Ai="AiState.Thinking" ReadOnly="true" />
-                <DrylRating Value="4" Label="Generated" Ai="AiState.Generated" ReadOnly="true" />
-            </div>
-        </section>
+    <DemoExample Title="Form validation" Source="Rating/Validation">
+        <DRYL.Components.Demo.Components.Examples.Rating.Validation />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Form validation</h3>
-            <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
-                <DataAnnotationsValidator />
-                <div class="col" style="gap: var(--sp-4); max-width: 400px;">
-                    <DrylRating @bind-Value="_model.Stars"
-                                Label="Your rating (required)"
-                                HelperText="Please select at least 1 star." />
-                    <button type="submit" class="btn btn-primary" style="align-self: flex-start;">Submit</button>
-                    @if (_submitted)
-                    {
-                        <p style="color: var(--success); font-size: 13px;">
-                            Submitted: @_model.Stars star@(_model.Stars != 1 ? "s" : "")
-                        </p>
-                    }
-                </div>
-            </EditForm>
-        </section>
+    <DemoExample Title="Live preview" Source="Rating/LivePreview">
+        <DRYL.Components.Demo.Components.Examples.Rating.LivePreview />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Live preview</h3>
-            <div class="col" style="gap: var(--sp-3);">
-                <DrylRating @bind-Value="_stars" Label="Rating" />
-                <p style="color: var(--fg-muted); font-size: 13px;">
-                    Bound value: <code>@(_stars?.ToString() ?? "null")</code>
-                </p>
-            </div>
-        </section>
-
-    </div>
 </div>
-
-@code {
-    private int? _stars = 3;
-    private bool _submitted;
-
-    private RatingModel _model = new();
-
-    private void HandleValidSubmit()
-    {
-        _submitted = true;
-    }
-
-    private class RatingModel
-    {
-        [Required(ErrorMessage = "Please select a rating.")]
-        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
-        public int? Stars { get; set; }
-    }
-}

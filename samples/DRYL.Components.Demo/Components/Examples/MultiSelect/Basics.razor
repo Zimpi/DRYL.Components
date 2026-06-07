@@ -1,0 +1,36 @@
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+    <DrylMultiSelect @bind-SelectedValues="_tags"
+                     Label="Tags"
+                     Items="@_tagItems"
+                     Placeholder="Select tags…" />
+    <DrylMultiSelect @bind-SelectedValues="_features"
+                     Label="Features"
+                     Items="@_featureItems"
+                     Placeholder="Select features…"
+                     HelperText="Choose all that apply." />
+</div>
+<p class="input-helper">Selected tags: <strong>@string.Join(", ", _tags.Select(v => _tagItems.FirstOrDefault(i => i.Value == v)?.Label ?? v))</strong></p>
+
+@code {
+    private IReadOnlyList<string> _tags     = ["blazor", "dotnet"];
+    private IReadOnlyList<string> _features = [];
+
+    private static readonly SelectItem[] _tagItems =
+    [
+        new("blazor",  "Blazor"),
+        new("dotnet",  ".NET"),
+        new("css",     "CSS"),
+        new("wasm",    "WebAssembly"),
+        new("ai",      "AI"),
+        new("oss",     "Open Source"),
+    ];
+
+    private static readonly SelectItem[] _featureItems =
+    [
+        new("dark-mode",    "Dark mode"),
+        new("ai-mode",      "AI mode"),
+        new("animations",   "Animations"),
+        new("a11y",         "Accessibility"),
+        new("typescript",   "TypeScript"),
+    ];
+}

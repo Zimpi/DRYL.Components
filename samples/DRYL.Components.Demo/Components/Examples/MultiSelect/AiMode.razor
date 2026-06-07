@@ -1,0 +1,34 @@
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
+    <DrylMultiSelect @bind-SelectedValues="_tags"
+                     Label="Thinking"
+                     Items="@_tagItems"
+                     Ai="AiState.Thinking" />
+    <DrylMultiSelect @bind-SelectedValues="_features"
+                     Label="Generated"
+                     Items="@_featureItems"
+                     Ai="AiState.Generated" />
+</div>
+
+@code {
+    private IReadOnlyList<string> _tags     = ["blazor", "dotnet"];
+    private IReadOnlyList<string> _features = [];
+
+    private static readonly SelectItem[] _tagItems =
+    [
+        new("blazor",  "Blazor"),
+        new("dotnet",  ".NET"),
+        new("css",     "CSS"),
+        new("wasm",    "WebAssembly"),
+        new("ai",      "AI"),
+        new("oss",     "Open Source"),
+    ];
+
+    private static readonly SelectItem[] _featureItems =
+    [
+        new("dark-mode",    "Dark mode"),
+        new("ai-mode",      "AI mode"),
+        new("animations",   "Animations"),
+        new("a11y",         "Accessibility"),
+        new("typescript",   "TypeScript"),
+    ];
+}

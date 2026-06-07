@@ -1,0 +1,37 @@
+<div class="row">
+    <DrylButton LeadingIcon="Command" OnClick="@(() => _open = true)">
+        Open command palette
+    </DrylButton>
+</div>
+
+@if (_lastAction is not null)
+{
+    <p style="font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim);">
+        Last action: @_lastAction
+    </p>
+}
+
+<DrylCommandPalette @bind-Open="_open"
+                    Items="@_items"
+                    Placeholder="Search commands…" />
+
+@code {
+    private bool _open;
+    private string? _lastAction;
+
+    private CommandItem[] _items =>
+    [
+        new() { Label = "Go to Dashboard",     Icon = "Home",   Type = CommandItemType.Navigate, Href = "/",        Description = "Overview page" },
+        new() { Label = "Go to Buttons",       Icon = "Bolt",   Type = CommandItemType.Navigate, Href = "/buttons" },
+        new() { Label = "Go to Dialog",        Icon = "Box",    Type = CommandItemType.Navigate, Href = "/dialog" },
+        new() { Label = "Copy page URL",       Icon = "Copy",   Type = CommandItemType.Action,   Action = EventCallback.Factory.Create(this, () => Log("Copied URL")) },
+        new() { Label = "Reload page",         Icon = "Refresh",Type = CommandItemType.Action,   Action = EventCallback.Factory.Create(this, () => Log("Page reloaded")) },
+        new() { Label = "Summarise this page", Icon = "Sparkle",Type = CommandItemType.AiIntent, AiAction = EventCallback.Factory.Create(this, () => Log("AI: summarise")) },
+    ];
+
+    private void Log(string action)
+    {
+        _lastAction = action;
+        StateHasChanged();
+    }
+}

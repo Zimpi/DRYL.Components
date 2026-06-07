@@ -1,0 +1,12 @@
+<div class="glass-card p-default">
+    <DrylPagination CurrentPage="@_page"
+                    PageSize="@_size"
+                    TotalCount="247"
+                    OnPageChanged="@(p => _page = p)"
+                    OnPageSizeChanged="@(s => { _size = s; _page = 0; })" />
+</div>
+
+@code {
+    private int _page;
+    private int _size = 20;
+}

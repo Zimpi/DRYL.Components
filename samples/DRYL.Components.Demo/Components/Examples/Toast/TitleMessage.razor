@@ -1,0 +1,25 @@
+@inject IDrylToastService Toasts
+
+<div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                LeadingIcon="Check" OnClick="ShowSuccessTitled">
+        Success with title
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Danger"
+                LeadingIcon="Alert" OnClick="ShowErrorTitled">
+        Error with title
+    </DrylButton>
+</div>
+
+@code {
+    private void ShowSuccessTitled() =>
+        Toasts.ShowSuccess(
+            "Your changes are live across all three production regions.",
+            title: "Profile updated");
+
+    private void ShowErrorTitled() =>
+        Toasts.ShowError(
+            "Check your connection — the request didn't reach the API.",
+            title: "Failed to save",
+            options: new ToastOptions { Duration = 8000 });
+}

@@ -1,0 +1,23 @@
+<div class="row">
+    <DrylMenu Label="Edit menu">
+        <Trigger>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                        LeadingIcon="Settings">
+                Options
+            </DrylButton>
+        </Trigger>
+        <Items>
+            <DrylMenuItem Header="Clipboard" />
+            <DrylMenuItem Icon="Copy" Shortcut="⌘C" OnClick="@(() => Log("Copy"))">Copy</DrylMenuItem>
+            <DrylMenuItem Icon="Clipboard" Shortcut="⌘V" OnClick="@(() => Log("Paste"))">Paste</DrylMenuItem>
+            <DrylMenuItem Separator />
+            <DrylMenuItem Header="Selection" />
+            <DrylMenuItem Icon="Check" Shortcut="⌘A" OnClick="@(() => Log("Select all"))">Select all</DrylMenuItem>
+            <DrylMenuItem Icon="X" Shortcut="Esc" OnClick="@(() => Log("Deselect"))">Deselect</DrylMenuItem>
+        </Items>
+    </DrylMenu>
+</div>
+
+@code {
+    private void Log(string action) { }
+}

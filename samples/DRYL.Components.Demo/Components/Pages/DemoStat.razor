@@ -4,62 +4,19 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Data</span>
-        <h2>DrylStat</h2>
-        <p class="lead">
-            KPI card on a glass surface: label, headline value, a coloured delta
-            chip and an optional sparkline. AI-aware — a model-generated value can
-            reveal with the shared Generated wash.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="stat">
+        KPI card on a glass surface: label, headline value, a coloured delta
+        chip and an optional sparkline. AI-aware — a model-generated value can
+        reveal with the shared Generated wash.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Dashboard grid</h3>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-4);">
-            <DrylStat Label="Active users" Value="12,480" Icon="User"
-                      Delta="+12.4%" Direction="DeltaDirection.Up">
-                <Sparkline><DrylSparkline Data="@_up" Kind="SparklineKind.Area" /></Sparkline>
-            </DrylStat>
+    <DemoExample Title="Dashboard grid" Source="Stat/DashboardGrid">
+        <DRYL.Components.Demo.Components.Examples.Stat.DashboardGrid />
+    </DemoExample>
 
-            <DrylStat Label="Error rate" Value="0.42%" Icon="Activity"
-                      Delta="-3.1%" Direction="DeltaDirection.Down">
-                <Sparkline><DrylSparkline Data="@_down" Kind="SparklineKind.Line" ShowLastDot="true" /></Sparkline>
-            </DrylStat>
-
-            <DrylStat Label="Requests / min" Value="8.2k" Icon="Bolt"
-                      Delta="0.0%" Direction="DeltaDirection.Neutral">
-                <Sparkline><DrylSparkline Data="@_flat" Kind="SparklineKind.Bar" /></Sparkline>
-            </DrylStat>
-
-            <DrylStat Label="Revenue" Value="$48,210" Icon="Star"
-                      Delta="+8.7%" Direction="DeltaDirection.Up" />
-        </div>
-    </section>
-
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI mode</h3>
-        <p>The value below is "generated" by the model — switch states to see the aura.</p>
-        <div style="max-width: 280px;">
-            <DrylStat Label="Forecast (next 7d)" Value="14,900" Icon="Sparkle"
-                      Delta="+19.5%" Direction="DeltaDirection.Up" Ai="@_ai">
-                <Sparkline><DrylSparkline Data="@_up" Kind="SparklineKind.Area" /></Sparkline>
-            </DrylStat>
-        </div>
-        <div class="row" style="gap: var(--sp-2); flex-wrap: wrap;">
-            @foreach (var s in Enum.GetValues<AiState>())
-            {
-                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
-                            @onclick="() => _ai = s">@s.ToString()</DrylButton>
-            }
-        </div>
-    </section>
+    <DemoExample Title="AI mode" Source="Stat/AiMode"
+                 Description="The value below is &quot;generated&quot; by the model — switch states to see the aura.">
+        <DRYL.Components.Demo.Components.Examples.Stat.AiMode />
+    </DemoExample>
 
 </div>
-
-@code {
-    private readonly double[] _up   = { 3, 4, 4, 6, 5, 8, 7, 10, 12 };
-    private readonly double[] _down = { 12, 10, 11, 8, 9, 6, 5, 4, 3 };
-    private readonly double[] _flat = { 6, 7, 6, 8, 7, 6, 7, 8, 7 };
-    private AiState _ai = AiState.Generated;
-}

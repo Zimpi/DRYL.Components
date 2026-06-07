@@ -1,83 +1,28 @@
 @page "/file-upload"
-@using Microsoft.AspNetCore.Components.Forms
 
 <PageTitle>DRYL — File Upload</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylFileUpload</h2>
-        <p class="lead">
-            Drag-and-drop / click-to-browse file picker. Supports single and multiple file selection.
-            Fires <code>FilesChanged</code> on every selection change (add or remove).
-        </p>
-    </div>
+    <ComponentDocHeader Slug="file-upload">
+        Drag-and-drop / click-to-browse file picker. Supports single and multiple file selection.
+        Fires <code>FilesChanged</code> on every selection change (add or remove).
+    </ComponentDocHeader>
 
-    <div class="col" style="gap: var(--sp-6);">
+    <DemoExample Title="Single file" Source="FileUpload/Single">
+        <DRYL.Components.Demo.Components.Examples.FileUpload.Single />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Single file</h3>
-            <div style="max-width: 480px;">
-                <DrylFileUpload FilesChanged="HandleFiles"
-                                Label="Profile picture"
-                                Accept="image/*"
-                                MaxFileSizeBytes="@(5L * 1024 * 1024)"
-                                HelperText="Drag a photo here or click to browse." />
-            </div>
-        </section>
+    <DemoExample Title="Multiple files" Source="FileUpload/Multiple">
+        <DRYL.Components.Demo.Components.Examples.FileUpload.Multiple />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Multiple files</h3>
-            <div style="max-width: 480px;">
-                <DrylFileUpload FilesChanged="HandleFiles"
-                                Multiple="true"
-                                Label="Attachments"
-                                Accept=".pdf,.docx,.xlsx,.png,.jpg"
-                                MaxFileSizeBytes="@(10L * 1024 * 1024)" />
-            </div>
-            @if (_files.Count > 0)
-            {
-                <p class="input-helper">@_files.Count file(s) selected — total @FormatBytes(_files.Sum(f => f.Size))</p>
-            }
-        </section>
+    <DemoExample Title="Disabled" Source="FileUpload/Disabled">
+        <DRYL.Components.Demo.Components.Examples.FileUpload.Disabled />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Disabled</h3>
-            <div style="max-width: 480px;">
-                <DrylFileUpload FilesChanged="HandleFiles"
-                                Label="Attachments (locked)"
-                                Disabled="true" />
-            </div>
-        </section>
-
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>AI mode</h3>
-            <div style="max-width: 480px;">
-                <DrylFileUpload FilesChanged="HandleFiles"
-                                Label="Upload for analysis"
-                                Ai="AiState.Thinking"
-                                HelperText="AI will process the files after upload." />
-            </div>
-        </section>
-
-    </div>
+    <DemoExample Title="AI mode" Source="FileUpload/AiMode">
+        <DRYL.Components.Demo.Components.Examples.FileUpload.AiMode />
+    </DemoExample>
 
 </div>
-
-@code {
-    private List<IBrowserFile> _files = [];
-
-    private void HandleFiles(IReadOnlyList<IBrowserFile> files)
-    {
-        _files = files.ToList();
-    }
-
-    private static string FormatBytes(long bytes) => bytes switch
-    {
-        >= 1_073_741_824 => FormattableString.Invariant($"{bytes / 1_073_741_824.0:F1} GB"),
-        >= 1_048_576     => FormattableString.Invariant($"{bytes / 1_048_576.0:F1} MB"),
-        >= 1_024         => FormattableString.Invariant($"{bytes / 1_024.0:F0} KB"),
-        _                => $"{bytes} B"
-    };
-}

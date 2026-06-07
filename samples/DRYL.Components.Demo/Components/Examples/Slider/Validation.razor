@@ -1,0 +1,34 @@
+@using System.ComponentModel.DataAnnotations
+
+<EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <div class="col" style="gap: var(--sp-3);">
+        <div style="max-width: 560px;">
+            <DrylSlider @bind-Value="_model.Budget"
+                        Label="Budget (USD)"
+                        Min="0" Max="10000" Step="100"
+                        HelperText="Minimum $500." />
+        </div>
+        <div class="row" style="align-items: center;">
+            <DrylButton IsSubmit="true" LeadingIcon="Check">Confirm</DrylButton>
+            @if (_submitted)
+            {
+                <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Budget set to $@_model.Budget:N0</DrylBadge>
+            }
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    private readonly DemoModel _model = new();
+    private bool _submitted;
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private class DemoModel
+    {
+        [Range(500, 10000, ErrorMessage = "Budget must be at least $500.")]
+        public double Budget { get; set; } = 0;
+    }
+}

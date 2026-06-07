@@ -4,60 +4,20 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Data</span>
-        <h2>DrylTimeline</h2>
-        <p class="lead">
-            Vertical sequence of events. Each <code>DrylTimelineItem</code> carries
-            a variant-tinted marker and optional body — perfect for activity feeds,
-            audit logs and <strong>AI agent step traces</strong>, where a step in
-            flight pulses its marker via the shared <code>Ai</code> state.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="timeline">
+        Vertical sequence of events. Each <code>DrylTimelineItem</code> carries
+        a variant-tinted marker and optional body — perfect for activity feeds,
+        audit logs and <strong>AI agent step traces</strong>, where a step in
+        flight pulses its marker via the shared <code>Ai</code> state.
+    </ComponentDocHeader>
 
-    @* ── Variants ─────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3); max-width: 560px;">
-        <h3>Event feed</h3>
-        <DrylTimeline AriaLabel="Deployment feed">
-            <DrylTimelineItem Title="Build queued" Timestamp="09:21" Icon="Bolt" />
-            <DrylTimelineItem Title="Tests passed" Timestamp="09:23" Icon="Check"
-                              Variant="TimelineVariant.Success">
-                312 unit tests, 0 failures.
-            </DrylTimelineItem>
-            <DrylTimelineItem Title="Canary degraded" Timestamp="09:25" Icon="Alert"
-                              Variant="TimelineVariant.Warning">
-                Latency p95 rose to 480ms on the EU region.
-            </DrylTimelineItem>
-            <DrylTimelineItem Title="Rolled back" Timestamp="09:27" Icon="X"
-                              Variant="TimelineVariant.Danger" />
-        </DrylTimeline>
-    </section>
+    <DemoExample Title="Event feed" Source="Timeline/EventFeed">
+        <DRYL.Components.Demo.Components.Examples.Timeline.EventFeed />
+    </DemoExample>
 
-    @* ── AI agent trace ───────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3); max-width: 560px;">
-        <h3>AI agent trace</h3>
-        <p>Drive the live step through the AI lifecycle:</p>
-        <DrylTimeline AriaLabel="Agent trace">
-            <DrylTimelineItem Title="Prompt received" Icon="Check" Variant="TimelineVariant.Success" />
-            <DrylTimelineItem Title="Retrieving context" Icon="Search" Variant="TimelineVariant.Accent">
-                Searching the knowledge base…
-            </DrylTimelineItem>
-            <DrylTimelineItem Title="Calling tool: get_orders" Icon="Bolt" Ai="@_ai">
-                The agent is executing a tool call.
-            </DrylTimelineItem>
-            <DrylTimelineItem Title="Compose answer" Variant="TimelineVariant.Default" />
-        </DrylTimeline>
-        <div class="row" style="gap: var(--sp-2); flex-wrap: wrap;">
-            @foreach (var s in Enum.GetValues<AiState>())
-            {
-                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
-                            @onclick="() => _ai = s">@s.ToString()</DrylButton>
-            }
-        </div>
-    </section>
+    <DemoExample Title="AI agent trace" Source="Timeline/AiTrace"
+                 Description="Drive the live step through the AI lifecycle.">
+        <DRYL.Components.Demo.Components.Examples.Timeline.AiTrace />
+    </DemoExample>
 
 </div>
-
-@code {
-    private AiState _ai = AiState.Thinking;
-}

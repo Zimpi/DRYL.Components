@@ -1,0 +1,25 @@
+<DrylStepper AriaLabel="AI stepper demo">
+    <DrylStep Id="a1" Label="Data loaded" StepState="StepState.Completed">
+        <p>Input data has been validated and loaded.</p>
+    </DrylStep>
+    <DrylStep Id="a2" Label="AI analysis" Description="Model is running"
+              Ai="@_stepAi">
+        <p>The model is currently analysing the data.</p>
+        <div style="display:flex; gap: var(--sp-2); flex-wrap:wrap; margin-top: var(--sp-2);">
+            @foreach (var s in Enum.GetValues<AiState>())
+            {
+                <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                            @onclick="() => _stepAi = s">
+                    @s.ToString()
+                </DrylButton>
+            }
+        </div>
+    </DrylStep>
+    <DrylStep Id="a3" Label="Review results">
+        <p>Results will appear here.</p>
+    </DrylStep>
+</DrylStepper>
+
+@code {
+    private AiState _stepAi = AiState.Thinking;
+}

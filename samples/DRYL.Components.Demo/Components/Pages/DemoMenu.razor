@@ -4,170 +4,34 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Navigation</span>
-        <h2>DrylMenu</h2>
-        <p class="lead">
-            Dropdown action menu anchored to any trigger. Supports icons, keyboard
-            shortcuts, danger variants, section separators and headers. Closes on
-            item click, ESC, or click outside — keyboard-navigable with Arrow keys.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="menu">
+        Dropdown action menu anchored to any trigger. Supports icons, keyboard
+        shortcuts, danger variants, section separators and headers. Closes on
+        item click, ESC, or click outside — keyboard-navigable with Arrow keys.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Basic actions</h3>
-        <div class="row">
-            <DrylMenu Label="Actions">
-                <Trigger>
-                    <DrylButton TrailingIcon="ChevronDown">Actions</DrylButton>
-                </Trigger>
-                <Items>
-                    <DrylMenuItem Icon="Edit" OnClick="@(() => Log("Edit"))">Edit</DrylMenuItem>
-                    <DrylMenuItem Icon="Copy" OnClick="@(() => Log("Duplicate"))">Duplicate</DrylMenuItem>
-                    <DrylMenuItem Icon="Download" OnClick="@(() => Log("Export"))">Export</DrylMenuItem>
-                </Items>
-            </DrylMenu>
-        </div>
-        @if (_log.Any())
-        {
-            <p style="font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim);">
-                Last: @_log.Last()
-            </p>
-        }
-    </section>
+    <DemoExample Title="Basic actions" Source="Menu/Basic">
+        <DRYL.Components.Demo.Components.Examples.Menu.Basic />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>With separator and danger item</h3>
-        <div class="row">
-            <DrylMenu Label="Row actions">
-                <Trigger>
-                    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                                TrailingIcon="ChevronDown">
-                        More
-                    </DrylButton>
-                </Trigger>
-                <Items>
-                    <DrylMenuItem Icon="Edit" OnClick="@(() => Log("Edit"))">Edit</DrylMenuItem>
-                    <DrylMenuItem Icon="Copy" OnClick="@(() => Log("Clone"))">Clone</DrylMenuItem>
-                    <DrylMenuItem Icon="Archive" OnClick="@(() => Log("Archive"))">Archive</DrylMenuItem>
-                    <DrylMenuItem Separator />
-                    <DrylMenuItem Icon="Trash"
-                                  Variant="DrylMenuItem.MenuItemVariant.Danger"
-                                  OnClick="@(() => Log("Delete"))">
-                        Delete
-                    </DrylMenuItem>
-                </Items>
-            </DrylMenu>
-        </div>
-    </section>
+    <DemoExample Title="With separator and danger item" Source="Menu/SeparatorDanger">
+        <DRYL.Components.Demo.Components.Examples.Menu.SeparatorDanger />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>With section headers and keyboard shortcuts</h3>
-        <div class="row">
-            <DrylMenu Label="Edit menu">
-                <Trigger>
-                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                                LeadingIcon="Settings">
-                        Options
-                    </DrylButton>
-                </Trigger>
-                <Items>
-                    <DrylMenuItem Header="Clipboard" />
-                    <DrylMenuItem Icon="Copy" Shortcut="⌘C" OnClick="@(() => Log("Copy"))">Copy</DrylMenuItem>
-                    <DrylMenuItem Icon="Clipboard" Shortcut="⌘V" OnClick="@(() => Log("Paste"))">Paste</DrylMenuItem>
-                    <DrylMenuItem Separator />
-                    <DrylMenuItem Header="Selection" />
-                    <DrylMenuItem Icon="Check" Shortcut="⌘A" OnClick="@(() => Log("Select all"))">Select all</DrylMenuItem>
-                    <DrylMenuItem Icon="X" Shortcut="Esc" OnClick="@(() => Log("Deselect"))">Deselect</DrylMenuItem>
-                </Items>
-            </DrylMenu>
-        </div>
-    </section>
+    <DemoExample Title="With section headers and keyboard shortcuts" Source="Menu/Headers">
+        <DRYL.Components.Demo.Components.Examples.Menu.Headers />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Placement variants</h3>
-        <div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: flex-start;">
+    <DemoExample Title="Placement variants" Source="Menu/Placement">
+        <DRYL.Components.Demo.Components.Examples.Menu.Placement />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-2); align-items: flex-start;">
-                <p style="font-size: 12px; color: var(--fg-dim);">BottomStart (default)</p>
-                <DrylMenu Placement="DrylMenu.MenuPlacement.BottomStart">
-                    <Trigger>
-                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Open</DrylButton>
-                    </Trigger>
-                    <Items>
-                        <DrylMenuItem Icon="Star" OnClick="@(() => Log("Star"))">Star</DrylMenuItem>
-                        <DrylMenuItem Icon="Bell" OnClick="@(() => Log("Subscribe"))">Subscribe</DrylMenuItem>
-                    </Items>
-                </DrylMenu>
-            </div>
+    <DemoExample Title="Disabled items" Source="Menu/Disabled">
+        <DRYL.Components.Demo.Components.Examples.Menu.Disabled />
+    </DemoExample>
 
-            <div class="col" style="gap: var(--sp-2); align-items: flex-end;">
-                <p style="font-size: 12px; color: var(--fg-dim);">BottomEnd</p>
-                <DrylMenu Placement="DrylMenu.MenuPlacement.BottomEnd">
-                    <Trigger>
-                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary">Open</DrylButton>
-                    </Trigger>
-                    <Items>
-                        <DrylMenuItem Icon="Star" OnClick="@(() => Log("Star"))">Star</DrylMenuItem>
-                        <DrylMenuItem Icon="Bell" OnClick="@(() => Log("Subscribe"))">Subscribe</DrylMenuItem>
-                    </Items>
-                </DrylMenu>
-            </div>
-
-        </div>
-    </section>
-
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Disabled items</h3>
-        <div class="row">
-            <DrylMenu Label="File">
-                <Trigger>
-                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost" LeadingIcon="Folder">
-                        File
-                    </DrylButton>
-                </Trigger>
-                <Items>
-                    <DrylMenuItem Icon="File" OnClick="@(() => Log("New"))">New</DrylMenuItem>
-                    <DrylMenuItem Icon="FolderOpen" OnClick="@(() => Log("Open"))">Open</DrylMenuItem>
-                    <DrylMenuItem Icon="Save" Disabled="true">Save (no permission)</DrylMenuItem>
-                    <DrylMenuItem Separator />
-                    <DrylMenuItem Icon="LogOut" OnClick="@(() => Log("Close"))">Close</DrylMenuItem>
-                </Items>
-            </DrylMenu>
-        </div>
-    </section>
-
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Icon-only trigger</h3>
-        <div class="row">
-            <DrylMenu Label="Row options">
-                <Trigger>
-                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
-                                LeadingIcon="MoreHorizontal"
-                                AriaLabel="More options" />
-                </Trigger>
-                <Items>
-                    <DrylMenuItem Icon="Eye" OnClick="@(() => Log("View"))">View details</DrylMenuItem>
-                    <DrylMenuItem Icon="Edit" OnClick="@(() => Log("Edit"))">Edit</DrylMenuItem>
-                    <DrylMenuItem Separator />
-                    <DrylMenuItem Icon="Trash"
-                                  Variant="DrylMenuItem.MenuItemVariant.Danger"
-                                  OnClick="@(() => Log("Delete"))">
-                        Delete
-                    </DrylMenuItem>
-                </Items>
-            </DrylMenu>
-        </div>
-    </section>
+    <DemoExample Title="Icon-only trigger" Source="Menu/IconOnly">
+        <DRYL.Components.Demo.Components.Examples.Menu.IconOnly />
+    </DemoExample>
 
 </div>
-
-@code {
-    private readonly List<string> _log = [];
-
-    private void Log(string action)
-    {
-        _log.Add(action);
-        if (_log.Count > 5) _log.RemoveAt(0);
-    }
-}

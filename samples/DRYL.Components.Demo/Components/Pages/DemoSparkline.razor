@@ -4,54 +4,22 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Data</span>
-        <h2>DrylSparkline</h2>
-        <p class="lead">
-            Tiny inline-SVG trend chart with zero JavaScript. Line, area or bar,
-            tinted with the violet→cyan accent gradient. Coordinates are formatted
-            with <code>InvariantCulture</code> so the SVG parses under any locale.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="sparkline">
+        Tiny inline-SVG trend chart with zero JavaScript. Line, area or bar,
+        tinted with the violet→cyan accent gradient. Coordinates are formatted
+        with <code>InvariantCulture</code> so the SVG parses under any locale.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Kinds</h3>
-        <div class="row" style="gap: var(--sp-6); align-items: center;">
-            <div class="col" style="gap: var(--sp-1);">
-                <DrylSparkline Data="@_series" Kind="SparklineKind.Line" ShowLastDot="true" />
-                <span class="eyebrow">Line</span>
-            </div>
-            <div class="col" style="gap: var(--sp-1);">
-                <DrylSparkline Data="@_series" Kind="SparklineKind.Area" />
-                <span class="eyebrow">Area</span>
-            </div>
-            <div class="col" style="gap: var(--sp-1);">
-                <DrylSparkline Data="@_series" Kind="SparklineKind.Bar" />
-                <span class="eyebrow">Bar</span>
-            </div>
-        </div>
-    </section>
+    <DemoExample Title="Kinds" Source="Sparkline/Kinds">
+        <DRYL.Components.Demo.Components.Examples.Sparkline.Kinds />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Sizes</h3>
-        <div class="row" style="gap: var(--sp-6); align-items: center;">
-            <DrylSparkline Data="@_series" Kind="SparklineKind.Area" Width="64" Height="24" />
-            <DrylSparkline Data="@_series" Kind="SparklineKind.Area" Width="160" Height="48" />
-            <DrylSparkline Data="@_series" Kind="SparklineKind.Area" Width="280" Height="64" />
-        </div>
-    </section>
+    <DemoExample Title="Sizes" Source="Sparkline/Sizes">
+        <DRYL.Components.Demo.Components.Examples.Sparkline.Sizes />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-4);">
-        <h3>Edge cases</h3>
-        <div class="row" style="gap: var(--sp-6); align-items: center;">
-            <DrylSparkline Data="@(new double[]{5})" ShowLastDot="true" />
-            <DrylSparkline Data="@(new double[]{4,4,4,4})" />
-            <DrylSparkline Data="@(new double[]{0.25, 0.5, 0.75, 0.5, 1.0})" Kind="SparklineKind.Line" ShowLastDot="true" />
-        </div>
-    </section>
+    <DemoExample Title="Edge cases" Source="Sparkline/EdgeCases">
+        <DRYL.Components.Demo.Components.Examples.Sparkline.EdgeCases />
+    </DemoExample>
 
 </div>
-
-@code {
-    private readonly double[] _series = { 3, 5, 4, 8, 6, 9, 7, 12, 10, 14 };
-}

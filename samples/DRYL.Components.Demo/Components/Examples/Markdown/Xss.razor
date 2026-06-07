@@ -1,0 +1,13 @@
+<DrylCard>
+    <DrylMarkdown Content="@_xss" />
+</DrylCard>
+
+@code {
+    private const string _xss = """
+        Here is some **safe** text, but the following is escaped:
+
+        <script>alert('xss')</script>
+
+        <img src=x onerror="alert(1)">
+        """;
+}

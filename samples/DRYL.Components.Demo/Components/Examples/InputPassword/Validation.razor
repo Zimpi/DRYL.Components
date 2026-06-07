@@ -1,0 +1,34 @@
+@using System.ComponentModel.DataAnnotations
+
+<EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <div class="col" style="gap: var(--sp-3);">
+        <div style="max-width: 360px;">
+            <DrylInputPassword @bind-Value="_model.Confirmed"
+                               Label="New password"
+                               HelperText="Must be at least 8 characters." />
+        </div>
+        <div class="row" style="align-items: center;">
+            <DrylButton IsSubmit="true" LeadingIcon="Check">Save password</DrylButton>
+            @if (_submitted)
+            {
+                <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Saved!</DrylBadge>
+            }
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    private readonly DemoModel _model = new();
+    private bool _submitted;
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private class DemoModel
+    {
+        [Required(ErrorMessage = "Password is required.")]
+        [MinLength(8, ErrorMessage = "Must be at least 8 characters.")]
+        public string? Confirmed { get; set; }
+    }
+}

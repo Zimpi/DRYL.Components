@@ -1,0 +1,31 @@
+@inject IDrylDialogService Dialogs
+
+<div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                @onclick="@(() => OpenSized(DialogSize.Small))">
+        Small (420px)
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                @onclick="@(() => OpenSized(DialogSize.Medium))">
+        Medium (640px)
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                @onclick="@(() => OpenSized(DialogSize.Large))">
+        Large (960px)
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                @onclick="@(() => OpenSized(DialogSize.Fullscreen))">
+        Fullscreen
+    </DrylButton>
+</div>
+
+@code {
+    private async Task OpenSized(DialogSize size)
+    {
+        var reference = await Dialogs.ShowAsync<SampleDialog>(
+            $"Sized: {size}",
+            new DialogParameters { ["UserId"] = Guid.NewGuid() },
+            new DialogOptions { Size = size });
+        await reference.Result;
+    }
+}

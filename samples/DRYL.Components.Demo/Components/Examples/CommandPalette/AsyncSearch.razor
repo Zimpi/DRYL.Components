@@ -1,0 +1,37 @@
+<div class="row">
+    <DrylButton LeadingIcon="Search"
+                Variant="DrylButton.ButtonVariant.Secondary"
+                OnClick="@(() => _open = true)">
+        Open async palette
+    </DrylButton>
+</div>
+
+<DrylCommandPalette @bind-Open="_open"
+                    SearchProvider="@SimulateSearchAsync"
+                    Placeholder="Type to search (simulated async)…" />
+
+@code {
+    private bool _open;
+
+    private static readonly CommandItem[] _allItems =
+    [
+        new() { Label = "Buttons",     Icon = "Bolt",   Type = CommandItemType.Navigate, Href = "/buttons",  Category = "Components" },
+        new() { Label = "Cards",       Icon = "Layers", Type = CommandItemType.Navigate, Href = "/cards",    Category = "Components" },
+        new() { Label = "Dialog",      Icon = "Box",    Type = CommandItemType.Navigate, Href = "/dialog",   Category = "Components" },
+        new() { Label = "Table",       Icon = "Grid",   Type = CommandItemType.Navigate, Href = "/tables",   Category = "Components" },
+        new() { Label = "Spinner",     Icon = "Refresh",Type = CommandItemType.Navigate, Href = "/spinners", Category = "Components" },
+        new() { Label = "Skeleton",    Icon = "Blocks", Type = CommandItemType.Navigate, Href = "/skeleton", Category = "Components" },
+        new() { Label = "Alert",       Icon = "Alert",  Type = CommandItemType.Navigate, Href = "/alerts",   Category = "Components" },
+        new() { Label = "Tooltip",     Icon = "Info",   Type = CommandItemType.Navigate, Href = "/tooltip",  Category = "Components" },
+    ];
+
+    private async Task<CommandItem[]> SimulateSearchAsync(string query)
+    {
+        await Task.Delay(400);
+        if (string.IsNullOrWhiteSpace(query)) return _allItems;
+        return _allItems
+            .Where(i => i.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
+                     || (i.Category?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToArray();
+    }
+}

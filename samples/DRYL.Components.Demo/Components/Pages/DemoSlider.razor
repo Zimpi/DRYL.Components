@@ -1,109 +1,36 @@
 @page "/slider"
-@using System.ComponentModel.DataAnnotations
 
 <PageTitle>DRYL — Slider</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylSlider</h2>
-        <p class="lead">
-            Range slider bound to <code>double</code> via <code>InputBase&lt;double&gt;</code>.
-            The accent gradient fill tracks the thumb in pure CSS — no extra JS required.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="slider">
+        Range slider bound to <code>double</code> via <code>InputBase&lt;double&gt;</code>.
+        The accent gradient fill tracks the thumb in pure CSS — no extra JS required.
+    </ComponentDocHeader>
 
-    <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
-        <DataAnnotationsValidator />
+    <DemoExample Title="Basics" Source="Slider/Basics">
+        <DRYL.Components.Demo.Components.Examples.Slider.Basics />
+    </DemoExample>
 
-        <div class="col" style="gap: var(--sp-6);">
+    <DemoExample Title="Fine-grained control" Source="Slider/FineGrained">
+        <DRYL.Components.Demo.Components.Examples.Slider.FineGrained />
+    </DemoExample>
 
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>Basics</h3>
-                <div class="col" style="gap: var(--sp-4); max-width: 560px;">
-                    <DrylSlider @bind-Value="_model.Volume"
-                                Label="Volume"
-                                Min="0" Max="100" Step="1" />
-                    <DrylSlider @bind-Value="_model.Balance"
-                                Label="Pan"
-                                Min="-1" Max="1" Step="0.01"
-                                HelperText="−1 = left, +1 = right" />
-                </div>
-            </section>
+    <DemoExample Title="Without value label" Source="Slider/NoLabel">
+        <DRYL.Components.Demo.Components.Examples.Slider.NoLabel />
+    </DemoExample>
 
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>Fine-grained control</h3>
-                <div class="col" style="gap: var(--sp-4); max-width: 560px;">
-                    <DrylSlider @bind-Value="_model.Opacity"
-                                Label="Opacity"
-                                Min="0" Max="1" Step="0.01" />
-                    <DrylSlider @bind-Value="_model.Temperature"
-                                Label="Temperature (°C)"
-                                Min="-40" Max="60" Step="0.5" />
-                </div>
-            </section>
+    <DemoExample Title="States" Source="Slider/States">
+        <DRYL.Components.Demo.Components.Examples.Slider.States />
+    </DemoExample>
 
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>Without value label</h3>
-                <div style="max-width: 560px;">
-                    <DrylSlider @bind-Value="_model.Volume"
-                                Label="Volume (no readout)"
-                                ShowValue="false" />
-                </div>
-            </section>
+    <DemoExample Title="AI mode" Source="Slider/AiMode">
+        <DRYL.Components.Demo.Components.Examples.Slider.AiMode />
+    </DemoExample>
 
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>States</h3>
-                <div class="col" style="gap: var(--sp-4); max-width: 560px;">
-                    <DrylSlider @bind-Value="_model.Volume" Label="Disabled" Disabled="true" />
-                </div>
-            </section>
-
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>AI mode</h3>
-                <div class="col" style="gap: var(--sp-4); max-width: 560px;">
-                    <DrylSlider @bind-Value="_model.Volume" Label="Thinking" Ai="AiState.Thinking" />
-                    <DrylSlider @bind-Value="_model.Volume" Label="Generated" Ai="AiState.Generated" />
-                </div>
-            </section>
-
-            <section class="col" style="gap: var(--sp-3);">
-                <h3>Live validation</h3>
-                <div style="max-width: 560px;">
-                    <DrylSlider @bind-Value="_model.Budget"
-                                Label="Budget (USD)"
-                                Min="0" Max="10000" Step="100"
-                                HelperText="Minimum $500." />
-                </div>
-                <div class="row" style="align-items: center;">
-                    <DrylButton IsSubmit="true" LeadingIcon="Check">Confirm</DrylButton>
-                    @if (_submitted)
-                    {
-                        <DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot="true">Budget set to $@_model.Budget:N0</DrylBadge>
-                    }
-                </div>
-            </section>
-
-        </div>
-    </EditForm>
+    <DemoExample Title="Live validation" Source="Slider/Validation">
+        <DRYL.Components.Demo.Components.Examples.Slider.Validation />
+    </DemoExample>
 
 </div>
-
-@code {
-    private readonly DemoModel _model = new();
-    private bool _submitted;
-
-    private void HandleValidSubmit() => _submitted = true;
-
-    private class DemoModel
-    {
-        public double Volume      { get; set; } = 72;
-        public double Balance     { get; set; } = 0;
-        public double Opacity     { get; set; } = 1.0;
-        public double Temperature { get; set; } = 21.5;
-
-        [Range(500, 10000, ErrorMessage = "Budget must be at least $500.")]
-        public double Budget { get; set; } = 0;
-    }
-}

@@ -1,0 +1,35 @@
+<div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: center;">
+    <DrylButtonGroup AriaLabel="View mode">
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                    LeadingIcon="List"
+                    Pressed="_view == ViewMode.List"
+                    OnClick="@(() => _view = ViewMode.List)">List</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                    LeadingIcon="Blocks"
+                    Pressed="_view == ViewMode.Grid"
+                    OnClick="@(() => _view = ViewMode.Grid)">Grid</DrylButton>
+    </DrylButtonGroup>
+
+    <DrylButtonGroup AriaLabel="Date range">
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                    Pressed="_range == Range.Day"
+                    OnClick="@(() => _range = Range.Day)">Day</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                    Pressed="_range == Range.Week"
+                    OnClick="@(() => _range = Range.Week)">Week</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                    Pressed="_range == Range.Month"
+                    OnClick="@(() => _range = Range.Month)">Month</DrylButton>
+    </DrylButtonGroup>
+</div>
+<p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">
+    View: @_view · Range: @_range
+</p>
+
+@code {
+    private enum ViewMode { List, Grid }
+    private enum Range { Day, Week, Month }
+
+    private ViewMode _view = ViewMode.List;
+    private Range _range = Range.Week;
+}

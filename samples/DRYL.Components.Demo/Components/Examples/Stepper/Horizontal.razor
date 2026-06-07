@@ -1,0 +1,35 @@
+<DrylStepper @bind-ActiveStep="_hStep" AriaLabel="Setup wizard">
+    <DrylStep Id="account" Label="Account" Description="Basic details">
+        <div class="col" style="gap: var(--sp-3);">
+            <p>Enter your account information here. This is the first step.</p>
+            <div style="display:flex; gap: var(--sp-2);">
+                <DrylButton @onclick='() => _hStep = "profile"'>Next</DrylButton>
+            </div>
+        </div>
+    </DrylStep>
+    <DrylStep Id="profile" Label="Profile" Description="Preferences">
+        <div class="col" style="gap: var(--sp-3);">
+            <p>Customise your profile settings.</p>
+            <div style="display:flex; gap: var(--sp-2);">
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" @onclick='() => _hStep = "account"'>Back</DrylButton>
+                <DrylButton @onclick='() => _hStep = "review"'>Next</DrylButton>
+            </div>
+        </div>
+    </DrylStep>
+    <DrylStep Id="review" Label="Review">
+        <div class="col" style="gap: var(--sp-3);">
+            <p>Review your details before confirming.</p>
+            <div style="display:flex; gap: var(--sp-2);">
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" @onclick='() => _hStep = "profile"'>Back</DrylButton>
+                <DrylButton @onclick='() => _hStep = "done"'>Confirm</DrylButton>
+            </div>
+        </div>
+    </DrylStep>
+    <DrylStep Id="done" Label="Done">
+        <p>All set! Your account has been created.</p>
+    </DrylStep>
+</DrylStepper>
+
+@code {
+    private string? _hStep;
+}

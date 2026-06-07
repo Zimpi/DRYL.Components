@@ -1,0 +1,25 @@
+<p style="margin-bottom: var(--sp-3);">
+    <code>@@bind-IsOpen</code> lets you control state externally.
+    Panel two starts open: <strong>@(_panel2Open ? "open" : "closed")</strong>
+</p>
+<div>
+    <DrylExpansion Title="Panel One">
+        <p>Toggle me.</p>
+    </DrylExpansion>
+    <DrylExpansion Title="Panel Two (pre-opened)" @bind-IsOpen="_panel2Open">
+        <p>This panel starts open because <code>IsOpen</code> was initialised to <code>true</code>.</p>
+    </DrylExpansion>
+    <DrylExpansion Title="Panel Three">
+        <p>Toggle me too.</p>
+    </DrylExpansion>
+</div>
+<div class="row" style="margin-top: var(--sp-3);">
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                @onclick="() => _panel2Open = !_panel2Open">
+        Toggle Panel Two from outside
+    </DrylButton>
+</div>
+
+@code {
+    private bool _panel2Open = true;
+}

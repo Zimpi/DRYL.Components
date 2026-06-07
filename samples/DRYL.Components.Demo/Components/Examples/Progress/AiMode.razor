@@ -1,0 +1,15 @@
+<div class="col" style="gap: var(--sp-4);">
+    <DrylProgress Value="@_value" ShowLabel="true" LabelText="Generating" Ai="@_ai" />
+    <div class="row" style="gap: var(--sp-2); flex-wrap: wrap;">
+        @foreach (var s in Enum.GetValues<AiState>())
+        {
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                        @onclick="() => _ai = s">@s.ToString()</DrylButton>
+        }
+    </div>
+</div>
+
+@code {
+    private double _value = 40;
+    private AiState _ai = AiState.Streaming;
+}

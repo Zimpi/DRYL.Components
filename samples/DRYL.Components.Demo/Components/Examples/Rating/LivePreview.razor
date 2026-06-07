@@ -1,0 +1,10 @@
+<div class="col" style="gap: var(--sp-3);">
+    <DrylRating @bind-Value="_stars" Label="Rating" />
+    <p style="color: var(--fg-muted); font-size: 13px;">
+        Bound value: <code>@(_stars?.ToString() ?? "null")</code>
+    </p>
+</div>
+
+@code {
+    private int? _stars = 3;
+}

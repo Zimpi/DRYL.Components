@@ -4,128 +4,25 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Actions</span>
-        <h2>DrylButtonGroup &amp; DrylSplitButton</h2>
-        <p class="lead">
-            Cluster related actions into one segmented control, or pair a primary action
-            with a caret menu of secondary variants — both composed from the existing
-            <code>DrylButton</code> and <code>DrylMenu</code> primitives.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="button-group">
+        Cluster related actions into one segmented control, or pair a primary action
+        with a caret menu of secondary variants — both composed from the existing
+        <code>DrylButton</code> and <code>DrylMenu</code> primitives.
+    </ComponentDocHeader>
 
-    @* ─── Button group — toolbar cluster ─── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Button group — clustered actions</h3>
-        <p>
-            Wrap related <code>DrylButton</code>s in <code>DrylButtonGroup</code>. Inner
-            corners flatten and borders merge so the cluster reads as one outline.
-        </p>
+    <DemoExample Title="Button group — clustered actions" Source="ButtonGroup/Clustered"
+                 Description="Wrap related DrylButtons in DrylButtonGroup. Inner corners flatten and borders merge so the cluster reads as one outline.">
+        <DRYL.Components.Demo.Components.Examples.ButtonGroup.Clustered />
+    </DemoExample>
 
-        <div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: center;">
-            <DrylButtonGroup AriaLabel="Document actions">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="Save">Save</DrylButton>
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="Copy">Duplicate</DrylButton>
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="Download">Export</DrylButton>
-            </DrylButtonGroup>
+    <DemoExample Title="Toggle group — exclusive selection" Source="ButtonGroup/Toggle"
+                 Description="Bind each segment's Pressed to drive an exclusive choice — the selected segment lights up via the shared btn--active surface.">
+        <DRYL.Components.Demo.Components.Examples.ButtonGroup.Toggle />
+    </DemoExample>
 
-            <DrylButtonGroup AriaLabel="Pagination">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="ChevronLeft" AriaLabel="Previous" />
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary" LeadingIcon="ChevronRight" AriaLabel="Next" />
-            </DrylButtonGroup>
-        </div>
-    </section>
-
-    @* ─── Toggle group ─── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Toggle group — exclusive selection</h3>
-        <p>
-            Bind each segment's <code>Pressed</code> to drive an exclusive choice — the
-            selected segment lights up via the shared <code>btn--active</code> surface.
-        </p>
-
-        <div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: center;">
-            <DrylButtonGroup AriaLabel="View mode">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                            LeadingIcon="List"
-                            Pressed="_view == ViewMode.List"
-                            OnClick="@(() => _view = ViewMode.List)">List</DrylButton>
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                            LeadingIcon="Blocks"
-                            Pressed="_view == ViewMode.Grid"
-                            OnClick="@(() => _view = ViewMode.Grid)">Grid</DrylButton>
-            </DrylButtonGroup>
-
-            <DrylButtonGroup AriaLabel="Date range">
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                            Pressed="_range == Range.Day"
-                            OnClick="@(() => _range = Range.Day)">Day</DrylButton>
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                            Pressed="_range == Range.Week"
-                            OnClick="@(() => _range = Range.Week)">Week</DrylButton>
-                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                            Pressed="_range == Range.Month"
-                            OnClick="@(() => _range = Range.Month)">Month</DrylButton>
-            </DrylButtonGroup>
-        </div>
-        <p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">
-            View: @_view · Range: @_range
-        </p>
-    </section>
-
-    @* ─── Split button ─── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Split button — primary action + variants</h3>
-        <p>
-            <code>DrylSplitButton</code> joins a main action to a caret that opens a
-            <code>DrylMenu</code>. Place <code>DrylMenuItem</code>s in the
-            <code>MenuItems</code> slot.
-        </p>
-
-        <div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: center;">
-            <DrylSplitButton OnClick="@(() => _last = "Save")" MenuLabel="Save options">
-                <ChildContent>Save</ChildContent>
-                <MenuItems>
-                    <DrylMenuItem Icon="Copy" OnClick="@(() => _last = "Save & new")">Save &amp; new</DrylMenuItem>
-                    <DrylMenuItem Icon="X" OnClick="@(() => _last = "Save & close")">Save &amp; close</DrylMenuItem>
-                    <DrylMenuItem Separator />
-                    <DrylMenuItem Icon="Download" OnClick="@(() => _last = "Save as draft")">Save as draft</DrylMenuItem>
-                </MenuItems>
-            </DrylSplitButton>
-
-            <DrylSplitButton Variant="DrylButton.ButtonVariant.Ghost"
-                             LeadingIcon="Download"
-                             OnClick="@(() => _last = "Export CSV")"
-                             MenuLabel="Export formats">
-                <ChildContent>Export</ChildContent>
-                <MenuItems>
-                    <DrylMenuItem OnClick="@(() => _last = "Export CSV")">Export as CSV</DrylMenuItem>
-                    <DrylMenuItem OnClick="@(() => _last = "Export JSON")">Export as JSON</DrylMenuItem>
-                </MenuItems>
-            </DrylSplitButton>
-
-            <DrylSplitButton Variant="DrylButton.ButtonVariant.Danger"
-                             Size="DrylButton.ButtonSize.Small"
-                             OnClick="@(() => _last = "Delete")"
-                             MenuLabel="Delete options">
-                <ChildContent>Delete</ChildContent>
-                <MenuItems>
-                    <DrylMenuItem Variant="DrylMenuItem.MenuItemVariant.Danger" Icon="Trash" OnClick="@(() => _last = "Delete permanently")">Delete permanently</DrylMenuItem>
-                </MenuItems>
-            </DrylSplitButton>
-        </div>
-        <p style="color: var(--fg-muted); font-size: 12px; font-family: var(--font-mono);">
-            Last action: @(_last ?? "—")
-        </p>
-    </section>
+    <DemoExample Title="Split button — primary action + variants" Source="ButtonGroup/Split"
+                 Description="DrylSplitButton joins a main action to a caret that opens a DrylMenu. Place DrylMenuItems in the MenuItems slot.">
+        <DRYL.Components.Demo.Components.Examples.ButtonGroup.Split />
+    </DemoExample>
 
 </div>
-
-@code {
-    private enum ViewMode { List, Grid }
-    private enum Range { Day, Week, Month }
-
-    private ViewMode _view = ViewMode.List;
-    private Range _range = Range.Week;
-    private string? _last;
-}

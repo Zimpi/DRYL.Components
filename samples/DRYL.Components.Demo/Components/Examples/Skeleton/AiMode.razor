@@ -1,0 +1,35 @@
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-4);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <div style="display: flex; align-items: center; gap: var(--sp-2);">
+            <span class="badge">None</span>
+            <span style="font-size: 12px; color: var(--fg-dim);">Default neutral shimmer</span>
+        </div>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.None" />
+    </div>
+
+    <div class="col" style="gap: var(--sp-2);">
+        <div style="display: flex; align-items: center; gap: var(--sp-2);">
+            <span class="badge badge-accent">Active</span>
+            <span style="font-size: 12px; color: var(--fg-dim);">Persistent AI surface</span>
+        </div>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.Active" />
+    </div>
+
+    <div class="col" style="gap: var(--sp-2);">
+        <div style="display: flex; align-items: center; gap: var(--sp-2);">
+            <span class="badge badge-accent">Thinking</span>
+            <span style="font-size: 12px; color: var(--fg-dim);">Faster shimmer</span>
+        </div>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.Thinking" />
+    </div>
+
+    <div class="col" style="gap: var(--sp-2);">
+        <div style="display: flex; align-items: center; gap: var(--sp-2);">
+            <span class="badge badge-accent">Streaming</span>
+            <span style="font-size: 12px; color: var(--fg-dim);">Violet-cyan gradient</span>
+        </div>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Text" Lines="3" Ai="AiState.Streaming" />
+    </div>
+
+</div>

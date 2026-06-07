@@ -1,0 +1,11 @@
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--sp-3);">
+    @foreach (var name in DrylIcon.Icons.Keys)
+    {
+        <DrylCard Padding="DrylCard.CardPadding.Tight" Spotlight="false">
+            <div class="col" style="align-items: center; gap: var(--sp-2);">
+                <DrylIcon Name="@name" Size="22" />
+                <span class="mono" style="font-size: 11px; color: var(--fg-dim);">@name</span>
+            </div>
+        </DrylCard>
+    }
+</div>

@@ -11,4 +11,14 @@
     <ProjectReference Include="..\..\DRYL.Components\DRYL.Components.csproj" />
   </ItemGroup>
 
+  <!-- Embed the raw text of every example component so DemoExample can show its
+       source via DrylCodeBlock. The files are also compiled as normal Razor
+       components (live preview) — the two roles do not conflict. -->
+  <!-- Embed the raw text of every example component so DemoExample can show its
+       source via DrylCodeBlock. The files are also compiled as normal Razor
+       components (live preview) — the two roles do not conflict. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Components/Examples/**/*.razor" />
+  </ItemGroup>
+
 </Project>

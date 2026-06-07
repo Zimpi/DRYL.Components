@@ -1,278 +1,44 @@
 @page "/toasts"
-@inject IDrylToastService Toasts
 
 <PageTitle>DRYL — Toast</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Surfaces</span>
-        <h2>DrylToast</h2>
-        <p class="lead">
-            Service-driven glass notifications with a spring entrance, a one-shot
-            shine sweep and a hover-pausable progress bar. Variants stay glassy under
-            their semantic color, and AI mode dominates the visual when the toast is
-            communicating model activity in the background.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="toasts">
+        Service-driven glass notifications with a spring entrance, a one-shot
+        shine sweep and a hover-pausable progress bar. Variants stay glassy under
+        their semantic color, and AI mode dominates the visual when the toast is
+        communicating model activity in the background.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Variants</h3>
-        <p style="margin: 0; color: var(--fg-muted);">
-            Four semantic flavors plus a neutral default. Each keeps the dark glass surface
-            and adds a colored left rail, icon chip and soft glow.
-        </p>
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" OnClick="ShowDefault">
-                Default
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Check" OnClick="ShowSuccess">
-                Success
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Alert" OnClick="ShowWarning">
-                Warning
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Alert" OnClick="ShowError">
-                Error
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Info" OnClick="ShowInfo">
-                Info
-            </DrylButton>
-        </div>
-    </section>
+    <DemoExample Title="Variants" Source="Toast/Variants"
+                 Description="Four semantic flavors plus a neutral default — each keeps the dark glass surface with a colored left rail, icon chip and soft glow.">
+        <DRYL.Components.Demo.Components.Examples.Toast.Variants />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Title + message</h3>
-        <p style="margin: 0; color: var(--fg-muted);">
-            Pass a title for emphasis. The body sits below in a quieter weight — same glass,
-            two-tier hierarchy.
-        </p>
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
-            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
-                        LeadingIcon="Check" OnClick="ShowSuccessTitled">
-                Success with title
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Danger"
-                        LeadingIcon="Alert" OnClick="ShowErrorTitled">
-                Error with title
-            </DrylButton>
-        </div>
-    </section>
+    <DemoExample Title="Title + message" Source="Toast/TitleMessage"
+                 Description="Pass a title for emphasis; the body sits below in a quieter weight.">
+        <DRYL.Components.Demo.Components.Examples.Toast.TitleMessage />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Custom content — title + buttons inside the toast</h3>
-        <p style="margin: 0; color: var(--fg-muted);">
-            Use <code>Show&lt;TComponent&gt;</code> to drop any Blazor component into the body.
-            The component receives <code>IDrylToastInstance</code> as a cascading parameter so
-            it can close its own toast — perfect for an Undo affordance.
-        </p>
-        <div class="row" style="gap: var(--sp-3);">
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Folder" OnClick="ShowUndoToast">
-                Archive project…
-            </DrylButton>
-        </div>
-        @if (!string.IsNullOrEmpty(_archiveStatus))
-        {
-            <p style="margin: 0; color: var(--fg-muted); font-family: var(--font-mono); font-size: 12px;">
-                Last action: <span style="color: var(--fg);">@_archiveStatus</span>
-            </p>
-        }
-    </section>
+    <DemoExample Title="Custom content — buttons inside the toast" Source="Toast/CustomContent"
+                 Description="Use Show<TComponent> to drop any component into the body. It receives IDrylToastInstance to close its own toast — perfect for an Undo.">
+        <DRYL.Components.Demo.Components.Examples.Toast.CustomContent />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>AI-aware toasts</h3>
-        <p style="margin: 0; color: var(--fg-muted);">
-            Set <code>ToastOptions.Ai</code> and the AI aura takes over the visual.
-            The variant accent survives only on the icon chip so the toast still reads
-            as "AI delivered a success / warning / etc.". Hover to pause the timer.
-        </p>
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
-            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
-                        LeadingIcon="Sparkle"
-                        Ai="AiState.Thinking"
-                        OnClick="ShowAiThinking">
-                AI · Thinking
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
-                        LeadingIcon="Sparkle"
-                        Ai="AiState.Streaming"
-                        OnClick="ShowAiStreaming">
-                AI · Streaming
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
-                        LeadingIcon="Sparkle"
-                        Ai="AiState.Generated"
-                        OnClick="ShowAiGenerated">
-                AI · Generated
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Rocket"
-                        OnClick="ShowAiLifecycle">
-                Run a full AI lifecycle
-            </DrylButton>
-        </div>
-    </section>
+    <DemoExample Title="AI-aware toasts" Source="Toast/AiAware"
+                 Description="Set ToastOptions.Ai and the AI aura takes over the visual; the variant accent survives only on the icon chip.">
+        <DRYL.Components.Demo.Components.Examples.Toast.AiAware />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Duration &amp; persistence</h3>
-        <p style="margin: 0; color: var(--fg-muted);">
-            Default duration is 5 s. Set <code>Duration = 0</code> to keep the toast open until
-            the user dismisses it. Hovering pauses the timer and the progress bar simultaneously.
-        </p>
-        <div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" OnClick="ShowLongDuration">
-                12 second toast
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary" OnClick="ShowPersistent">
-                Persistent
-            </DrylButton>
-            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" OnClick="CloseAll">
-                Close all
-            </DrylButton>
-        </div>
-    </section>
+    <DemoExample Title="Duration &amp; persistence" Source="Toast/Duration"
+                 Description="Default duration is 5 s. Duration = 0 keeps the toast open until dismissed. Hovering pauses the timer.">
+        <DRYL.Components.Demo.Components.Examples.Toast.Duration />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Stack — fire a bunch at once</h3>
-        <p style="margin: 0; color: var(--fg-muted);">
-            Toasts stack vertically at the chosen anchor. New ones spring in from the
-            edge nearest the anchor.
-        </p>
-        <div class="row" style="gap: var(--sp-3);">
-            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                        LeadingIcon="Bolt" OnClick="ShowBurst">
-                Fire 5 toasts
-            </DrylButton>
-        </div>
-    </section>
+    <DemoExample Title="Stack — fire a bunch at once" Source="Toast/Stack"
+                 Description="Toasts stack vertically at the chosen anchor; new ones spring in from the nearest edge.">
+        <DRYL.Components.Demo.Components.Examples.Toast.Stack />
+    </DemoExample>
 
 </div>
-
-@code {
-    private string _archiveStatus = "";
-
-    private void ShowDefault() =>
-        Toasts.Show("Settings saved to your workspace.");
-
-    private void ShowSuccess() =>
-        Toasts.ShowSuccess("Deployment finished in 12.4 s.");
-
-    private void ShowWarning() =>
-        Toasts.ShowWarning("Cache miss rate is unusually high.");
-
-    private void ShowError() =>
-        Toasts.ShowError("Failed to reach the payments service.");
-
-    private void ShowInfo() =>
-        Toasts.ShowInfo("A new version of DRYL is available.");
-
-    private void ShowSuccessTitled() =>
-        Toasts.ShowSuccess(
-            "Your changes are live across all three production regions.",
-            title: "Profile updated");
-
-    private void ShowErrorTitled() =>
-        Toasts.ShowError(
-            "Check your connection — the request didn't reach the API.",
-            title: "Failed to save",
-            options: new ToastOptions { Duration = 8000 });
-
-    private void ShowUndoToast()
-    {
-        _archiveStatus = "archived (waiting for Undo)";
-
-        var p = new ToastParameters
-        {
-            ["ProjectName"] = "alpha-orion",
-            ["OnUndo"] = EventCallback.Factory.Create(this, () =>
-            {
-                _archiveStatus = "restored via Undo";
-                StateHasChanged();
-            })
-        };
-
-        Toasts.Show<UndoToastBody>(p, new ToastOptions
-        {
-            Title = "Project archived",
-            Variant = ToastVariant.Success,
-            Duration = 8000
-        });
-    }
-
-    private void ShowAiThinking() =>
-        Toasts.Show("Analyzing 12 K rows for anomalies…", new ToastOptions
-        {
-            Title = "Pulse model",
-            Ai = AiState.Thinking,
-            Duration = 6000
-        });
-
-    private void ShowAiStreaming() =>
-        Toasts.Show("Drafting executive summary…", new ToastOptions
-        {
-            Title = "Streaming",
-            Ai = AiState.Streaming,
-            Variant = ToastVariant.Info,
-            Duration = 6000
-        });
-
-    private void ShowAiGenerated() =>
-        Toasts.Show("Generated 3 candidate playlists from your listening history.",
-            new ToastOptions
-            {
-                Title = "Suggestions ready",
-                Ai = AiState.Generated,
-                Variant = ToastVariant.Success,
-                Duration = 7000
-            });
-
-    private async Task ShowAiLifecycle()
-    {
-        var toast = Toasts.Show("Reading transactions…", new ToastOptions
-        {
-            Title = "Reconciliation",
-            Ai = AiState.Thinking,
-            Duration = 0
-        });
-
-        await Task.Delay(1500);
-        toast.SetAi(AiState.Streaming);
-        await Task.Delay(2200);
-        toast.SetAi(AiState.Generated);
-        await Task.Delay(1800);
-        toast.Close();
-
-        Toasts.ShowSuccess(
-            "Reconciliation complete — 1 248 transactions matched, 0 unresolved.",
-            title: "Done",
-            options: new ToastOptions { Ai = AiState.Generated, Duration = 7000 });
-    }
-
-    private void ShowLongDuration() =>
-        Toasts.ShowInfo("This stays for 12 s — try hovering it.",
-            options: new ToastOptions { Duration = 12000 });
-
-    private void ShowPersistent() =>
-        Toasts.ShowWarning("This one stays until you close it.",
-            options: new ToastOptions { Duration = 0 });
-
-    private void CloseAll() => Toasts.CloseAll();
-
-    private async Task ShowBurst()
-    {
-        Toasts.ShowSuccess("Deployment 1/5 finished.");
-        await Task.Delay(180);
-        Toasts.ShowInfo("Deployment 2/5 finished.");
-        await Task.Delay(180);
-        Toasts.ShowWarning("Deployment 3/5 took longer than usual.");
-        await Task.Delay(180);
-        Toasts.ShowSuccess("Deployment 4/5 finished.");
-        await Task.Delay(180);
-        Toasts.ShowSuccess("Deployment 5/5 finished — all green.");
-    }
-}

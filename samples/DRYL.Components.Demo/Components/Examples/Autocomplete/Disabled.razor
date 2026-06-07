@@ -1,0 +1,16 @@
+<div style="max-width: 320px;">
+    <DrylAutocomplete TItem="string"
+                      @bind-Value="_disabledCountry"
+                      Items="@_countries"
+                      Label="Country"
+                      Disabled />
+</div>
+
+@code {
+    private string? _disabledCountry = "Germany";
+
+    private static readonly string[] _countries =
+    [
+        "Austria", "Belgium", "France", "Germany", "Italy", "Spain", "Sweden"
+    ];
+}

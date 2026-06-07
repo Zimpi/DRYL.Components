@@ -4,47 +4,19 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Layout</span>
-        <h2>DrylScrollArea</h2>
-        <p class="lead">
-            A scrollable region with a consistent, thin DRYL scrollbar — for
-            sidebars, log viewers, code blocks and long lists. Pure CSS, no JS.
-            Set <code>MaxHeight</code> for vertical scrolling or
-            <code>Horizontal</code> with <code>MaxWidth</code> for horizontal.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="scroll-area">
+        A scrollable region with a consistent, thin DRYL scrollbar — for
+        sidebars, log viewers, code blocks and long lists. Pure CSS, no JS.
+        Set <code>MaxHeight</code> for vertical scrolling or
+        <code>Horizontal</code> with <code>MaxWidth</code> for horizontal.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Vertical</h3>
-        <div class="glass-card p-default" style="max-width: 420px;">
-            <DrylScrollArea MaxHeight="220px">
-                <div class="col" style="gap: var(--sp-2);">
-                    @for (var i = 1; i <= 30; i++)
-                    {
-                        <div style="padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-md);">
-                            Log line @i — service responded in @(20 + i) ms
-                        </div>
-                    }
-                </div>
-            </DrylScrollArea>
-        </div>
-    </section>
+    <DemoExample Title="Vertical" Source="ScrollArea/Vertical">
+        <DRYL.Components.Demo.Components.Examples.ScrollArea.Vertical />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Horizontal</h3>
-        <div class="glass-card p-default">
-            <DrylScrollArea Horizontal MaxWidth="100%">
-                <div class="row" style="gap: var(--sp-3); padding-bottom: var(--sp-2);">
-                    @for (var i = 1; i <= 14; i++)
-                    {
-                        <div style="flex: 0 0 auto; width: 160px; padding: var(--sp-4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--glass-1);">
-                            Card @i
-                        </div>
-                    }
-                </div>
-            </DrylScrollArea>
-        </div>
-    </section>
+    <DemoExample Title="Horizontal" Source="ScrollArea/Horizontal">
+        <DRYL.Components.Demo.Components.Examples.ScrollArea.Horizontal />
+    </DemoExample>
 
 </div>

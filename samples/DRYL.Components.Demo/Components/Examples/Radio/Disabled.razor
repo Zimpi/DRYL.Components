@@ -1,0 +1,10 @@
+<div style="max-width: 360px;">
+    <DrylRadioGroup @bind-Value="_plan" Label="Plan (disabled)" Disabled="true">
+        <DrylRadio Value="@("free")"  Label="Free" />
+        <DrylRadio Value="@("pro")"   Label="Pro" />
+    </DrylRadioGroup>
+</div>
+
+@code {
+    private string? _plan = "pro";
+}

@@ -1,0 +1,31 @@
+@using System.ComponentModel.DataAnnotations
+
+<EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <div class="col" style="gap: var(--sp-4); max-width: 400px;">
+        <DrylRating @bind-Value="_model.Stars"
+                    Label="Your rating (required)"
+                    HelperText="Please select at least 1 star." />
+        <button type="submit" class="btn btn-primary" style="align-self: flex-start;">Submit</button>
+        @if (_submitted)
+        {
+            <p style="color: var(--success); font-size: 13px;">
+                Submitted: @_model.Stars star@(_model.Stars != 1 ? "s" : "")
+            </p>
+        }
+    </div>
+</EditForm>
+
+@code {
+    private bool _submitted;
+    private RatingModel _model = new();
+
+    private void HandleValidSubmit() => _submitted = true;
+
+    private class RatingModel
+    {
+        [Required(ErrorMessage = "Please select a rating.")]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5.")]
+        public int? Stars { get; set; }
+    }
+}

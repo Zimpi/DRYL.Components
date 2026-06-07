@@ -1,0 +1,40 @@
+@inject IDrylDialogService Dialogs
+
+<div class="col" style="gap: var(--sp-3);">
+    <div class="row" style="gap: var(--sp-3);">
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                    LeadingIcon="User" @onclick="OpenSample">
+            Open sample dialog
+        </DrylButton>
+    </div>
+    @if (_sampleResult is not null)
+    {
+        <DrylCard Spotlight="false" Padding="DrylCard.CardPadding.Tight">
+            <div class="col" style="gap: var(--sp-2);">
+                <span class="eyebrow">Returned payload</span>
+                <div><strong>Name:</strong> @_sampleResult.Name</div>
+                <div><strong>Bio:</strong> @_sampleResult.Bio</div>
+            </div>
+        </DrylCard>
+    }
+</div>
+
+@code {
+    private SampleDialog.SampleResult? _sampleResult;
+
+    private async Task OpenSample()
+    {
+        var p = new DialogParameters
+        {
+            ["UserId"] = Guid.NewGuid(),
+            ["InitialName"] = "Jane Doe"
+        };
+        var reference = await Dialogs.ShowAsync<SampleDialog>(
+            "Edit profile",
+            p,
+            new DialogOptions { Size = DialogSize.Medium });
+
+        var result = await reference.Result;
+        _sampleResult = result.DataAs<SampleDialog.SampleResult>();
+    }
+}

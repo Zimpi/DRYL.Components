@@ -1,0 +1,21 @@
+<div class="row" style="gap: var(--sp-2); margin-bottom: var(--sp-2);">
+    <DrylButton Variant="DrylButton.ButtonVariant.Danger"
+                Size="DrylButton.ButtonSize.Small"
+                LeadingIcon="Alert"
+                OnClick="@(() => _boom = true)">
+        Trigger failure
+    </DrylButton>
+</div>
+
+<div style="max-width: 640px;">
+    <DrylErrorBoundary OnRetry="@(() => _boom = false)">
+        @if (_boom) { throw new InvalidOperationException("Simulated render failure."); }
+        <DrylAlert Kind="DrylAlert.AlertKind.Success" Title="Healthy">
+            The protected content rendered without errors.
+        </DrylAlert>
+    </DrylErrorBoundary>
+</div>
+
+@code {
+    private bool _boom;
+}

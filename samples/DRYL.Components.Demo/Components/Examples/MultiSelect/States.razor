@@ -1,0 +1,28 @@
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); max-width: 1080px;">
+    <DrylMultiSelect @bind-SelectedValues="_tags"
+                     Label="Success"
+                     Items="@_tagItems"
+                     State="InputState.Success" />
+    <DrylMultiSelect @bind-SelectedValues="_tags"
+                     Label="Error"
+                     Items="@_tagItems"
+                     State="InputState.Error" />
+    <DrylMultiSelect @bind-SelectedValues="_tags"
+                     Label="Disabled"
+                     Items="@_tagItems"
+                     Disabled="true" />
+</div>
+
+@code {
+    private IReadOnlyList<string> _tags = ["blazor", "dotnet"];
+
+    private static readonly SelectItem[] _tagItems =
+    [
+        new("blazor",  "Blazor"),
+        new("dotnet",  ".NET"),
+        new("css",     "CSS"),
+        new("wasm",    "WebAssembly"),
+        new("ai",      "AI"),
+        new("oss",     "Open Source"),
+    ];
+}

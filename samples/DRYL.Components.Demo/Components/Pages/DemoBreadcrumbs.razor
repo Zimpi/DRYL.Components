@@ -4,61 +4,27 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Navigation</span>
-        <h2>DrylBreadcrumbs</h2>
-        <p class="lead">
-            Hierarchical navigation trail. Each <code>DrylBreadcrumbItem</code>
-            registers with the parent; the last crumb renders as the current page
-            (<code>aria-current="page"</code>). Set <code>MaxItems</code> to collapse
-            the middle of a deep trail into an ellipsis.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="breadcrumbs">
+        Hierarchical navigation trail. Each <code>DrylBreadcrumbItem</code>
+        registers with the parent; the last crumb renders as the current page
+        (<code>aria-current="page"</code>). Set <code>MaxItems</code> to collapse
+        the middle of a deep trail into an ellipsis.
+    </ComponentDocHeader>
 
-    @* ── Basics ───────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Basics</h3>
-        <DrylBreadcrumbs>
-            <DrylBreadcrumbItem Href="/" Icon="Home">Home</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Href="/avatar">Components</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem>Breadcrumbs</DrylBreadcrumbItem>
-        </DrylBreadcrumbs>
-    </section>
+    <DemoExample Title="Basics" Source="Breadcrumbs/Basics">
+        <DRYL.Components.Demo.Components.Examples.Breadcrumbs.Basics />
+    </DemoExample>
 
-    @* ── Icons ────────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>With icons</h3>
-        <DrylBreadcrumbs>
-            <DrylBreadcrumbItem Href="/" Icon="Home">Home</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Href="/avatar" Icon="Folder">Projects</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Href="/avatar" Icon="FolderOpen">Apollo</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Icon="File">spec.md</DrylBreadcrumbItem>
-        </DrylBreadcrumbs>
-    </section>
+    <DemoExample Title="With icons" Source="Breadcrumbs/Icons">
+        <DRYL.Components.Demo.Components.Examples.Breadcrumbs.Icons />
+    </DemoExample>
 
-    @* ── Collapsed ────────────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Collapsed (MaxItems = 3)</h3>
-        <DrylBreadcrumbs MaxItems="3">
-            <DrylBreadcrumbItem Href="/" Icon="Home">Home</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Href="/avatar">Workspace</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Href="/avatar">Team</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem Href="/avatar">Projects</DrylBreadcrumbItem>
-            <DrylBreadcrumbItem>Apollo</DrylBreadcrumbItem>
-        </DrylBreadcrumbs>
-    </section>
+    <DemoExample Title="Collapsed (MaxItems = 3)" Source="Breadcrumbs/Collapsed">
+        <DRYL.Components.Demo.Components.Examples.Breadcrumbs.Collapsed />
+    </DemoExample>
 
-    @* ── Custom separator ─────────────────────────────────── *@
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Custom separator</h3>
-        <DrylBreadcrumbs>
-            <Separator><span style="color: var(--fg-faint);">/</span></Separator>
-            <ChildContent>
-                <DrylBreadcrumbItem Href="/">Home</DrylBreadcrumbItem>
-                <DrylBreadcrumbItem Href="/avatar">Docs</DrylBreadcrumbItem>
-                <DrylBreadcrumbItem>Getting started</DrylBreadcrumbItem>
-            </ChildContent>
-        </DrylBreadcrumbs>
-    </section>
+    <DemoExample Title="Custom separator" Source="Breadcrumbs/CustomSeparator">
+        <DRYL.Components.Demo.Components.Examples.Breadcrumbs.CustomSeparator />
+    </DemoExample>
 
 </div>

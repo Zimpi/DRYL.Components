@@ -1,0 +1,9 @@
+<div style="display: grid; grid-template-columns: repeat(3, auto); justify-content: start; align-items: start; gap: var(--sp-5);">
+    <DrylRating Value="4" Label="Read-only" ReadOnly="true" />
+    <DrylRating Value="3" Label="Disabled" Disabled="true" />
+    <DrylRating @bind-Value="_stars" Label="No clear" AllowClear="false" />
+</div>
+
+@code {
+    private int? _stars = 3;
+}

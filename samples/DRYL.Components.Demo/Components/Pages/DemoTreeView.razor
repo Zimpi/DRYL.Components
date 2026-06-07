@@ -4,48 +4,15 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Data</span>
-        <h2>DrylTreeView</h2>
-        <p class="lead">
-            Hierarchical tree with full keyboard navigation (WAI-ARIA tree pattern):
-            arrows move and expand/collapse, Home/End jump, Enter/Space select.
-            Nodes own their expand state; the view owns selection via
-            <code>@@bind-SelectedValue</code>.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="tree">
+        Hierarchical tree with full keyboard navigation (WAI-ARIA tree pattern):
+        arrows move and expand/collapse, Home/End jump, Enter/Space select.
+        Nodes own their expand state; the view owns selection via
+        <code>@@bind-SelectedValue</code>.
+    </ComponentDocHeader>
 
-    <section class="row" style="gap: var(--sp-6); align-items: flex-start; flex-wrap: wrap;">
-        <div class="glass-card p-tight" style="min-width: 280px;">
-            <DrylTreeView @bind-SelectedValue="_selected" AriaLabel="Project files">
-                <DrylTreeNode Text="DRYL.Components" Icon="Folder" Value='@("root")' Expanded="true">
-                    <DrylTreeNode Text="Components" Icon="Folder" Value='@("components")' Expanded="true">
-                        <DrylTreeNode Text="Data" Icon="Folder" Value='@("data")'>
-                            <DrylTreeNode Text="DrylTreeView.razor" Icon="File" Value='@("treeview")' />
-                            <DrylTreeNode Text="DrylSparkline.razor" Icon="File" Value='@("sparkline")' />
-                        </DrylTreeNode>
-                        <DrylTreeNode Text="Surfaces" Icon="Folder" Value='@("surfaces")'>
-                            <DrylTreeNode Text="DrylChat.razor" Icon="File" Value='@("chat")' />
-                        </DrylTreeNode>
-                    </DrylTreeNode>
-                    <DrylTreeNode Text="wwwroot" Icon="Folder" Value='@("wwwroot")'>
-                        <DrylTreeNode Text="dryl.css" Icon="File" Value='@("css")' />
-                        <DrylTreeNode Text="dryl.js" Icon="File" Value='@("js")' />
-                    </DrylTreeNode>
-                    <DrylTreeNode Text="README.md" Icon="File" Value='@("readme")' />
-                    <DrylTreeNode Text="LICENSE (locked)" Icon="Lock" Value='@("license")' Disabled="true" />
-                </DrylTreeNode>
-            </DrylTreeView>
-        </div>
-
-        <div class="col" style="gap: var(--sp-2);">
-            <span class="eyebrow">Selected</span>
-            <code>@(_selected?.ToString() ?? "—")</code>
-        </div>
-    </section>
+    <DemoExample Title="Hierarchical tree" Source="TreeView/Files">
+        <DRYL.Components.Demo.Components.Examples.TreeView.Files />
+    </DemoExample>
 
 </div>
-
-@code {
-    private object? _selected = "readme";
-}

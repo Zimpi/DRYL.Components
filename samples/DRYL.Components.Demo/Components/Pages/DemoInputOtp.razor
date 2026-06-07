@@ -1,95 +1,33 @@
 @page "/otp"
-@using System.ComponentModel.DataAnnotations
 
 <PageTitle>DRYL — OTP Input</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylInputOtp</h2>
-        <p class="lead">
-            Fixed-box code entry for OTP and 2FA flows. Type a digit to auto-advance;
-            paste a full code to fill all boxes at once. Use <code>@@bind-Value</code>
-            to get the raw string and validate its length via DataAnnotations.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="otp">
+        Fixed-box code entry for OTP and 2FA flows. Type a digit to auto-advance;
+        paste a full code to fill all boxes at once. Use <code>@@bind-Value</code>
+        to get the raw string and validate its length via DataAnnotations.
+    </ComponentDocHeader>
 
-    <div class="col" style="gap: var(--sp-6);">
+    <DemoExample Title="Basics" Source="InputOtp/Basics">
+        <DRYL.Components.Demo.Components.Examples.InputOtp.Basics />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Basics</h3>
-            <div class="col" style="gap: var(--sp-4);">
-                <DrylInputOtp @bind-Value="_code6" Label="6-digit code" />
-                <DrylInputOtp @bind-Value="_code4" Label="4-digit PIN" Digits="4" />
-            </div>
-        </section>
+    <DemoExample Title="States" Source="InputOtp/States">
+        <DRYL.Components.Demo.Components.Examples.InputOtp.States />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>States</h3>
-            <div class="col" style="gap: var(--sp-4);">
-                <DrylInputOtp Label="Error" State="InputState.Error"
-                              HelperText="The code you entered is incorrect." />
-                <DrylInputOtp Label="Success" State="InputState.Success"
-                              HelperText="Code verified successfully." />
-                <DrylInputOtp Label="Disabled" Disabled="true" />
-            </div>
-        </section>
+    <DemoExample Title="AI mode" Source="InputOtp/AiMode">
+        <DRYL.Components.Demo.Components.Examples.InputOtp.AiMode />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>AI mode</h3>
-            <div class="col" style="gap: var(--sp-4);">
-                <DrylInputOtp Label="Thinking" Ai="AiState.Thinking" />
-                <DrylInputOtp Label="Generated" Ai="AiState.Generated" />
-            </div>
-        </section>
+    <DemoExample Title="Form validation" Source="InputOtp/Validation">
+        <DRYL.Components.Demo.Components.Examples.InputOtp.Validation />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Form validation</h3>
-            <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
-                <DataAnnotationsValidator />
-                <div class="col" style="gap: var(--sp-4);">
-                    <DrylInputOtp @bind-Value="_model.Code"
-                                  Label="Enter your 6-digit verification code"
-                                  HelperText="Check your authenticator app or SMS." />
-                    <button type="submit" class="btn btn-primary" style="align-self: flex-start;">Verify</button>
-                    @if (_verified)
-                    {
-                        <p style="color: var(--success); font-size: 13px;">Code accepted!</p>
-                    }
-                </div>
-            </EditForm>
-        </section>
+    <DemoExample Title="Live preview" Source="InputOtp/LivePreview">
+        <DRYL.Components.Demo.Components.Examples.InputOtp.LivePreview />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Live preview</h3>
-            <div class="col" style="gap: var(--sp-3);">
-                <DrylInputOtp @bind-Value="_code6" Label="Code" />
-                <p style="color: var(--fg-muted); font-size: 13px;">
-                    Bound value: <code>"@_code6"</code> (@_code6.Length / 6 digits)
-                </p>
-            </div>
-        </section>
-
-    </div>
 </div>
-
-@code {
-    private string _code6 = "";
-    private string _code4 = "";
-    private bool _verified;
-
-    private OtpModel _model = new();
-
-    private void HandleValidSubmit()
-    {
-        _verified = true;
-    }
-
-    private class OtpModel
-    {
-        [Required(ErrorMessage = "Code is required.")]
-        [StringLength(6, MinimumLength = 6, ErrorMessage = "Please enter all 6 digits.")]
-        public string Code { get; set; } = "";
-    }
-}

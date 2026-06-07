@@ -1,0 +1,31 @@
+@inject IDrylToastService Toasts
+
+<div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary" OnClick="ShowDefault">
+        Default
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                LeadingIcon="Check" OnClick="ShowSuccess">
+        Success
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                LeadingIcon="Alert" OnClick="ShowWarning">
+        Warning
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                LeadingIcon="Alert" OnClick="ShowError">
+        Error
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                LeadingIcon="Info" OnClick="ShowInfo">
+        Info
+    </DrylButton>
+</div>
+
+@code {
+    private void ShowDefault() => Toasts.Show("Settings saved to your workspace.");
+    private void ShowSuccess() => Toasts.ShowSuccess("Deployment finished in 12.4 s.");
+    private void ShowWarning() => Toasts.ShowWarning("Cache miss rate is unusually high.");
+    private void ShowError()   => Toasts.ShowError("Failed to reach the payments service.");
+    private void ShowInfo()    => Toasts.ShowInfo("A new version of DRYL is available.");
+}

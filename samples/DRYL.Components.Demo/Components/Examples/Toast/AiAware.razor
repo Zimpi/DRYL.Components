@@ -1,0 +1,78 @@
+@inject IDrylToastService Toasts
+
+<div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                LeadingIcon="Sparkle"
+                Ai="AiState.Thinking"
+                OnClick="ShowAiThinking">
+        AI · Thinking
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                LeadingIcon="Sparkle"
+                Ai="AiState.Streaming"
+                OnClick="ShowAiStreaming">
+        AI · Streaming
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                LeadingIcon="Sparkle"
+                Ai="AiState.Generated"
+                OnClick="ShowAiGenerated">
+        AI · Generated
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                LeadingIcon="Rocket"
+                OnClick="ShowAiLifecycle">
+        Run a full AI lifecycle
+    </DrylButton>
+</div>
+
+@code {
+    private void ShowAiThinking() =>
+        Toasts.Show("Analyzing 12 K rows for anomalies…", new ToastOptions
+        {
+            Title = "Pulse model",
+            Ai = AiState.Thinking,
+            Duration = 6000
+        });
+
+    private void ShowAiStreaming() =>
+        Toasts.Show("Drafting executive summary…", new ToastOptions
+        {
+            Title = "Streaming",
+            Ai = AiState.Streaming,
+            Variant = ToastVariant.Info,
+            Duration = 6000
+        });
+
+    private void ShowAiGenerated() =>
+        Toasts.Show("Generated 3 candidate playlists from your listening history.",
+            new ToastOptions
+            {
+                Title = "Suggestions ready",
+                Ai = AiState.Generated,
+                Variant = ToastVariant.Success,
+                Duration = 7000
+            });
+
+    private async Task ShowAiLifecycle()
+    {
+        var toast = Toasts.Show("Reading transactions…", new ToastOptions
+        {
+            Title = "Reconciliation",
+            Ai = AiState.Thinking,
+            Duration = 0
+        });
+
+        await Task.Delay(1500);
+        toast.SetAi(AiState.Streaming);
+        await Task.Delay(2200);
+        toast.SetAi(AiState.Generated);
+        await Task.Delay(1800);
+        toast.Close();
+
+        Toasts.ShowSuccess(
+            "Reconciliation complete — 1 248 transactions matched, 0 unresolved.",
+            title: "Done",
+            options: new ToastOptions { Ai = AiState.Generated, Duration = 7000 });
+    }
+}

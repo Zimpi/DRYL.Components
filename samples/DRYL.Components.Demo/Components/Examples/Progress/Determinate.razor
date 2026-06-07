@@ -1,0 +1,13 @@
+<div class="col" style="gap: var(--sp-4);">
+    <DrylProgress Value="@_value" ShowLabel="true" LabelText="Uploading" />
+    <div class="row" style="gap: var(--sp-2);">
+        <DrylButton Size="DrylButton.ButtonSize.Small" Variant="DrylButton.ButtonVariant.Secondary"
+                    @onclick="() => _value = Math.Max(0, _value - 10)">−10</DrylButton>
+        <DrylButton Size="DrylButton.ButtonSize.Small" Variant="DrylButton.ButtonVariant.Secondary"
+                    @onclick="() => _value = Math.Min(100, _value + 10)">+10</DrylButton>
+    </div>
+</div>
+
+@code {
+    private double _value = 40;
+}

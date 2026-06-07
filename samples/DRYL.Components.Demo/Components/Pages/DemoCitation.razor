@@ -4,44 +4,18 @@
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Data</span>
-        <h2>DrylCitation</h2>
-        <p class="lead">
-            Inline source-attribution for AI / RAG answers. A small
-            <code>[n]</code> chip reveals the source title, URL and snippet in a
-            popover — keeping a generated answer verifiable without cluttering it.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="citation">
+        Inline source-attribution for AI / RAG answers. A small
+        <code>[n]</code> chip reveals the source title, URL and snippet in a
+        popover — keeping a generated answer verifiable without cluttering it.
+    </ComponentDocHeader>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Inline chips</h3>
-        <DrylCard>
-            <p style="margin: 0; line-height: 1.7;">
-                Berlin is the capital and largest city of Germany<DrylCitation Index="1"
-                    Title="Britannica — Berlin"
-                    Url="https://www.britannica.com/place/Berlin"
-                    Snippet="Berlin, capital and chief urban centre of Germany." />.
-                Its population is roughly 3.7 million<DrylCitation Index="2"
-                    Title="Statistik Berlin-Brandenburg"
-                    Url="https://www.statistik-berlin-brandenburg.de"
-                    Snippet="Einwohnerzahl Berlin: rund 3,7 Millionen." />.
-            </p>
-        </DrylCard>
-    </section>
+    <DemoExample Title="Inline chips" Source="Citation/InlineChips">
+        <DRYL.Components.Demo.Components.Examples.Citation.InlineChips />
+    </DemoExample>
 
-    <section class="col" style="gap: var(--sp-3);">
-        <h3>Source list</h3>
-        <DrylCitationList Title="Sources">
-            <DrylCitationListItem Index="1"
-                Title="Britannica — Berlin"
-                Url="https://www.britannica.com/place/Berlin"
-                Snippet="Berlin, capital and chief urban centre of Germany." />
-            <DrylCitationListItem Index="2"
-                Title="Statistik Berlin-Brandenburg"
-                Url="https://www.statistik-berlin-brandenburg.de"
-                Snippet="Einwohnerzahl Berlin: rund 3,7 Millionen." />
-        </DrylCitationList>
-    </section>
+    <DemoExample Title="Source list" Source="Citation/SourceList">
+        <DRYL.Components.Demo.Components.Examples.Citation.SourceList />
+    </DemoExample>
 
 </div>

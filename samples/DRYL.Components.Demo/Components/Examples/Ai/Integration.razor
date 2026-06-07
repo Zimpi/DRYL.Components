@@ -1,0 +1,24 @@
+<DrylCodeBlock Language="csharp" Code="@_codeSample" ShowLineNumbers />
+
+@code {
+    private const string _codeSample = """
+        private AiState _state = AiState.None;
+
+        private async Task AskAi()
+        {
+            _state = AiState.Thinking;
+            var response = await chatClient.GetStreamingResponseAsync(prompt);
+
+            _state = AiState.Streaming;
+            await foreach (var chunk in response)
+            {
+                _text += chunk.Text;
+                StateHasChanged();
+            }
+
+            _state = AiState.Generated;       // one-shot wash
+            await Task.Delay(900);
+            _state = AiState.Active;          // settle back to idle AI mode
+        }
+        """;
+}

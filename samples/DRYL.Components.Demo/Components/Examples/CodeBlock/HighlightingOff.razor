@@ -1,0 +1,10 @@
+<DrylCodeBlock Language="csharp" Code="@_csharp" Highlight="false" />
+
+@code {
+    private const string _csharp = """
+        public sealed record Person(string Name, int Age)
+        {
+            public bool IsAdult => Age >= 18;
+        }
+        """;
+}

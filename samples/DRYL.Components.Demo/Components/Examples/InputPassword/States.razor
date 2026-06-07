@@ -1,0 +1,20 @@
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); max-width: 1080px;">
+    <DrylInputPassword @bind-Value="_success"
+                       Label="Success"
+                       State="InputState.Success"
+                       HelperText="Strong password." />
+    <DrylInputPassword @bind-Value="_error"
+                       Label="Error"
+                       State="InputState.Error"
+                       HelperText="Too weak." />
+    <DrylInputPassword @bind-Value="_dummy"
+                       Disabled="true"
+                       Label="Disabled"
+                       Placeholder="••••••••" />
+</div>
+
+@code {
+    private string? _success = "v3ryStr0ng!";
+    private string? _error = "abc";
+    private string? _dummy;
+}

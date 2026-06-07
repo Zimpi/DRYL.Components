@@ -1,0 +1,45 @@
+<div style="max-width: 360px;">
+    <DrylAutocomplete TItem="User"
+                      @bind-Value="_user"
+                      Items="@_users"
+                      DisplayText="@(u => u.FullName)"
+                      Label="Assign to">
+        <ItemTemplate Context="user">
+            <div style="display:flex; align-items:center; gap: var(--sp-2);">
+                <div style="width:28px; height:28px; border-radius:50%; background: var(--glass-3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color: var(--fg); flex-shrink:0;">
+                    @user.Initials
+                </div>
+                <div style="display:flex; flex-direction:column; gap:1px; min-width:0;">
+                    <span style="color: var(--fg); font-size:13px;">@user.FullName</span>
+                    <span style="color: var(--fg-dim); font-size:11px;">@user.Email</span>
+                </div>
+            </div>
+        </ItemTemplate>
+    </DrylAutocomplete>
+</div>
+@if (_user is not null)
+{
+    <p>Assigned to: <strong>@_user.FullName</strong> (<code>@_user.Email</code>)</p>
+}
+
+@code {
+    private User? _user;
+
+    private static readonly User[] _users =
+    [
+        new User("Alice Müller",    "alice@example.com"),
+        new User("Bob Schmidt",     "bob@example.com"),
+        new User("Clara Fischer",   "clara@example.com"),
+        new User("Daniel Wagner",   "daniel@example.com"),
+        new User("Eva Becker",      "eva@example.com"),
+        new User("Frank Schneider", "frank@example.com"),
+    ];
+
+    private record User(string FullName, string Email)
+    {
+        public string Initials => string.Concat(
+            FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .Take(2)
+                    .Select(w => char.ToUpperInvariant(w[0])));
+    }
+}

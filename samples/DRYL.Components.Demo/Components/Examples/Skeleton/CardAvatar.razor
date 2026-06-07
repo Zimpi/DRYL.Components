@@ -1,0 +1,35 @@
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4);">
+
+    <div class="col" style="gap: var(--sp-2);">
+        <p style="font-size: 12px; color: var(--fg-dim);">Card — Streaming</p>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
+                      Ai="AiState.Streaming" />
+    </div>
+
+    <div class="col" style="gap: var(--sp-2);">
+        <p style="font-size: 12px; color: var(--fg-dim);">Card — Thinking</p>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card"
+                      Ai="AiState.Thinking" />
+    </div>
+
+    <div class="col" style="gap: var(--sp-2);">
+        <p style="font-size: 12px; color: var(--fg-dim);">Image — Streaming</p>
+        <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Image"
+                      Ai="AiState.Streaming" />
+    </div>
+
+    <div class="col" style="gap: var(--sp-2);">
+        <p style="font-size: 12px; color: var(--fg-dim);">Avatar — Thinking</p>
+        <div class="row" style="gap: var(--sp-3);">
+            <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar"
+                          Size="DrylSkeleton.SkeletonSize.Small"
+                          Ai="AiState.Thinking" />
+            <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar"
+                          Ai="AiState.Streaming" />
+            <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Avatar"
+                          Size="DrylSkeleton.SkeletonSize.Large"
+                          Ai="AiState.Active" />
+        </div>
+    </div>
+
+</div>

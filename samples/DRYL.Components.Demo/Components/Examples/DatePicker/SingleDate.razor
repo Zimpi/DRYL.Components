@@ -1,0 +1,11 @@
+<div style="max-width: 260px;">
+    <DrylDatePicker @bind-Value="_date" Label="Select date" />
+</div>
+@if (_date.HasValue)
+{
+    <p>Selected: <strong>@_date.Value.ToString("d MMMM yyyy")</strong></p>
+}
+
+@code {
+    private DateOnly? _date;
+}

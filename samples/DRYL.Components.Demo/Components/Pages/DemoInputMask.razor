@@ -1,145 +1,38 @@
 @page "/input-mask"
-@using System.ComponentModel.DataAnnotations
 
 <PageTitle>DRYL — Input Mask</PageTitle>
 
 <div class="col fade-in" style="gap: var(--sp-7);">
 
-    <div class="col" style="gap: var(--sp-2);">
-        <span class="eyebrow">Inputs</span>
-        <h2>DrylInputMask</h2>
-        <p class="lead">
-            Masked input that auto-formats structured data as the user types.
-            Pick a predefined <code>MaskType</code> (Phone, IBAN, postal code,
-            credit card) or pass a <code>CustomPattern</code> using
-            <code>#</code> for digits and <code>A</code> for letters.
-        </p>
-    </div>
+    <ComponentDocHeader Slug="input-mask">
+        Masked input that auto-formats structured data as the user types.
+        Pick a predefined <code>MaskType</code> (Phone, IBAN, postal code,
+        credit card) or pass a <code>CustomPattern</code> using
+        <code>#</code> for digits and <code>A</code> for letters.
+    </ComponentDocHeader>
 
-    <div class="col" style="gap: var(--sp-6);">
+    <DemoExample Title="Predefined masks" Source="InputMask/Predefined">
+        <DRYL.Components.Demo.Components.Examples.InputMask.Predefined />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Predefined masks</h3>
-            <div class="col" style="gap: var(--sp-4); max-width: 480px;">
-                <DrylInputMask @bind-Value="_phone"
-                               Mask="MaskType.Phone"
-                               Label="Phone"
-                               LeadingIcon="Phone"
-                               HelperText="International format." />
-                <DrylInputMask @bind-Value="_iban"
-                               Mask="MaskType.Iban"
-                               Label="IBAN"
-                               HelperText="DE22 2001 0020 0039 3944 00" />
-                <DrylInputMask @bind-Value="_plz"
-                               Mask="MaskType.PostalCode"
-                               Label="Postal code (PLZ)"
-                               HelperText="5 digits." />
-                <DrylInputMask @bind-Value="_card"
-                               Mask="MaskType.CreditCard"
-                               Label="Card number"
-                               LeadingIcon="CreditCard"
-                               HelperText="16 digits, space-separated groups of 4." />
-            </div>
-        </section>
+    <DemoExample Title="Custom pattern" Source="InputMask/CustomPattern">
+        <DRYL.Components.Demo.Components.Examples.InputMask.CustomPattern />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Custom pattern</h3>
-            <div class="col" style="gap: var(--sp-4); max-width: 480px;">
-                <DrylInputMask @bind-Value="_custom"
-                               Mask="MaskType.Custom"
-                               CustomPattern="##/##/####"
-                               Label="Date (DD/MM/YYYY)"
-                               HelperText="Uses pattern: ##/##/####" />
-                <DrylInputMask @bind-Value="_plate"
-                               Mask="MaskType.Custom"
-                               CustomPattern="AAA-####"
-                               Label="License plate"
-                               HelperText="Uses pattern: AAA-####" />
-            </div>
-        </section>
+    <DemoExample Title="States" Source="InputMask/States">
+        <DRYL.Components.Demo.Components.Examples.InputMask.States />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>States</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); max-width: 720px;">
-                <DrylInputMask Mask="MaskType.Phone" Label="Error"
-                               State="InputState.Error" HelperText="Invalid format." />
-                <DrylInputMask Mask="MaskType.Phone" Label="Success"
-                               State="InputState.Success" Value="+49 176 123 4567" />
-                <DrylInputMask Mask="MaskType.Phone" Label="Disabled"
-                               Disabled="true" Value="+49 176 123 4567" />
-            </div>
-        </section>
+    <DemoExample Title="AI mode" Source="InputMask/AiMode">
+        <DRYL.Components.Demo.Components.Examples.InputMask.AiMode />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>AI mode</h3>
-            <div class="col" style="gap: var(--sp-4); max-width: 480px;">
-                <DrylInputMask Mask="MaskType.Phone" Label="Thinking" Ai="AiState.Thinking" />
-                <DrylInputMask Mask="MaskType.Phone" Label="Generated"
-                               Ai="AiState.Generated" Value="+49 176 123 4567" />
-            </div>
-        </section>
+    <DemoExample Title="Form validation" Source="InputMask/Validation">
+        <DRYL.Components.Demo.Components.Examples.InputMask.Validation />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Form validation</h3>
-            <EditForm Model="@_model" OnValidSubmit="HandleValidSubmit">
-                <DataAnnotationsValidator />
-                <div class="col" style="gap: var(--sp-4); max-width: 480px;">
-                    <DrylInputMask @bind-Value="_model.Phone"
-                                   Mask="MaskType.Phone"
-                                   Label="Phone (required)"
-                                   LeadingIcon="Phone" />
-                    <DrylInputMask @bind-Value="_model.PostalCode"
-                                   Mask="MaskType.PostalCode"
-                                   Label="Postal code (required)" />
-                    <button type="submit" class="btn btn-primary" style="align-self: flex-start;">Continue</button>
-                    @if (_submitted)
-                    {
-                        <p style="color: var(--success); font-size: 13px;">
-                            Saved: @_model.Phone / @_model.PostalCode
-                        </p>
-                    }
-                </div>
-            </EditForm>
-        </section>
+    <DemoExample Title="Live preview" Source="InputMask/LivePreview">
+        <DRYL.Components.Demo.Components.Examples.InputMask.LivePreview />
+    </DemoExample>
 
-        <section class="col" style="gap: var(--sp-3);">
-            <h3>Live preview</h3>
-            <div class="col" style="gap: var(--sp-3); max-width: 480px;">
-                <DrylInputMask @bind-Value="_phone"
-                               Mask="MaskType.Phone"
-                               Label="Phone" />
-                <p style="color: var(--fg-muted); font-size: 13px;">
-                    Bound value: <code>"@_phone"</code>
-                </p>
-            </div>
-        </section>
-
-    </div>
 </div>
-
-@code {
-    private string _phone  = "";
-    private string _iban   = "";
-    private string _plz    = "";
-    private string _card   = "";
-    private string _custom = "";
-    private string _plate  = "";
-    private bool _submitted;
-
-    private MaskModel _model = new();
-
-    private void HandleValidSubmit()
-    {
-        _submitted = true;
-    }
-
-    private class MaskModel
-    {
-        [Required(ErrorMessage = "Phone is required.")]
-        public string Phone { get; set; } = "";
-
-        [Required(ErrorMessage = "Postal code is required.")]
-        [StringLength(5, MinimumLength = 5, ErrorMessage = "Enter all 5 digits.")]
-        public string PostalCode { get; set; } = "";
-    }
-}

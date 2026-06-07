@@ -1,18 +1,7 @@
 @inherits LayoutComponentBase
 
 <DrylLayout>
-    <DrylAppBar>
-        <div class="crumb">
-            <DrylIcon Name="Sparkle" Size="14" />
-            <span>DRYL</span>
-            <span class="sep">/</span>
-            <b>@CurrentSection</b>
-        </div>
-
-        <div style="flex: 1;"></div>
-
-        <DrylBadge Kind="DrylBadge.BadgeKind.Warning">Pre-0.1</DrylBadge>
-    </DrylAppBar>
+    <TopBar OnSearch="OpenPalette" />
 
     <DrylDrawer @bind-Open="_drawerOpen">
         <NavMenu />
@@ -29,8 +18,8 @@
 </DrylLayout>
 
 <DrylCommandPalette @bind-Open="_cmdOpen"
-                    Items="@_demoCommands"
-                    Placeholder="Search demo components…" />
+                    Items="@ComponentCatalog.ToCommandItems()"
+                    Placeholder="Search components…" />
 
 <DrylDialogProvider />
 <DrylToastProvider Position="ToastPosition.BottomRight" />
@@ -42,59 +31,8 @@
 </div>
 
 @code {
-    [CascadingParameter] private HttpContext? Http { get; set; }
-
     private bool _drawerOpen;
     private bool _cmdOpen;
 
-    private static readonly CommandItem[] _demoCommands =
-    [
-        new() { Label = "Overview",          Icon = "Home",     Type = CommandItemType.Navigate, Href = "/",                 Category = "Navigation" },
-        new() { Label = "Buttons",           Icon = "Bolt",     Type = CommandItemType.Navigate, Href = "/buttons",          Category = "Navigation" },
-        new() { Label = "Menu",              Icon = "Menu",     Type = CommandItemType.Navigate, Href = "/menu",             Category = "Navigation" },
-        new() { Label = "Command Palette",   Icon = "Command",  Type = CommandItemType.Navigate, Href = "/command-palette",  Category = "Navigation" },
-        new() { Label = "Cards",             Icon = "Layers",   Type = CommandItemType.Navigate, Href = "/cards",            Category = "Navigation" },
-        new() { Label = "Dialog",            Icon = "Box",      Type = CommandItemType.Navigate, Href = "/dialog",           Category = "Navigation" },
-        new() { Label = "Toast",             Icon = "Bell",     Type = CommandItemType.Navigate, Href = "/toasts",           Category = "Navigation" },
-        new() { Label = "Badges",            Icon = "Star",     Type = CommandItemType.Navigate, Href = "/badges",           Category = "Navigation" },
-        new() { Label = "Tables",            Icon = "Grid",     Type = CommandItemType.Navigate, Href = "/tables",           Category = "Navigation" },
-        new() { Label = "Icons",             Icon = "Palette",  Type = CommandItemType.Navigate, Href = "/icons",            Category = "Navigation" },
-        new() { Label = "Inputs",            Icon = "Type",     Type = CommandItemType.Navigate, Href = "/inputs",           Category = "Navigation" },
-        new() { Label = "Form Controls",     Icon = "Check",    Type = CommandItemType.Navigate, Href = "/forms",            Category = "Navigation" },
-        new() { Label = "Autocomplete",      Icon = "Search",   Type = CommandItemType.Navigate, Href = "/autocomplete",     Category = "Navigation" },
-        new() { Label = "Date Picker",       Icon = "Calendar", Type = CommandItemType.Navigate, Href = "/datepicker",       Category = "Navigation" },
-        new() { Label = "Expansion",         Icon = "ChevronDown", Type = CommandItemType.Navigate, Href = "/expansion",     Category = "Navigation" },
-        new() { Label = "Tabs",              Icon = "Folder",   Type = CommandItemType.Navigate, Href = "/tabs",             Category = "Navigation" },
-        new() { Label = "Stepper",           Icon = "ArrowRight",Type = CommandItemType.Navigate,Href = "/stepper",          Category = "Navigation" },
-        new() { Label = "Alerts",            Icon = "AlertCircle", Type = CommandItemType.Navigate, Href = "/alerts",        Category = "Navigation" },
-        new() { Label = "Tooltip",           Icon = "Info",     Type = CommandItemType.Navigate, Href = "/tooltip",          Category = "Navigation" },
-        new() { Label = "Spinner",           Icon = "Loader",   Type = CommandItemType.Navigate, Href = "/spinners",         Category = "Navigation" },
-        new() { Label = "Skeleton",          Icon = "LayoutList",Type = CommandItemType.Navigate, Href = "/skeleton",        Category = "Navigation" },
-        new() { Label = "AI Mode",           Icon = "Sparkle",  Type = CommandItemType.Navigate, Href = "/ai",              Category = "Navigation" },
-    ];
-
-    private string CurrentSection
-    {
-        get
-        {
-            var path = Http?.Request.Path.Value?.Trim('/') ?? "";
-            return path switch
-            {
-                "" => "Overview",
-                "buttons" => "Buttons",
-                "inputs" => "Inputs",
-                "forms" => "Form Controls",
-                "cards" => "Cards",
-                "badges" => "Badges",
-                "icons" => "Icons",
-                "expansion" => "Expansion",
-                "dialog" => "Dialog",
-                "toasts" => "Toast",
-                "ai" => "AI Mode",
-                "tables" => "Tables",
-                "command-palette" => "Command Palette",
-                _ => "Components"
-            };
-        }
-    }
+    private void OpenPalette() => _cmdOpen = true;
 }

@@ -1,0 +1,14 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<div style="max-width: 480px;">
+    <DrylFileUpload FilesChanged="HandleFiles"
+                    Label="Upload for analysis"
+                    Ai="AiState.Thinking"
+                    HelperText="AI will process the files after upload." />
+</div>
+
+@code {
+    private List<IBrowserFile> _files = [];
+
+    private void HandleFiles(IReadOnlyList<IBrowserFile> files) => _files = files.ToList();
+}

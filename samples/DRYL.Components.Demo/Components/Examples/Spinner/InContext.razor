@@ -1,0 +1,24 @@
+<div class="row" style="gap: var(--sp-3); flex-wrap: wrap;">
+
+    <DrylCard style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start;">
+        <div class="row" style="gap: var(--sp-3); align-items: center;">
+            <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" />
+            <span style="color: var(--fg-muted); font-size: 13px;">Saving changes…</span>
+        </div>
+    </DrylCard>
+
+    <DrylCard style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start;">
+        <div class="row" style="gap: var(--sp-3); align-items: center;">
+            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Dots" Size="DrylSpinner.SpinnerSize.Small" Ai="AiState.Streaming" />
+            <span style="color: var(--fg-muted); font-size: 13px;">Model responding…</span>
+        </div>
+    </DrylCard>
+
+    <DrylCard style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start;">
+        <div class="row" style="gap: var(--sp-3); align-items: center;">
+            <DrylSpinner Variant="DrylSpinner.SpinnerVariant.Pulse" Size="DrylSpinner.SpinnerSize.Small" Ai="AiState.Thinking" />
+            <span style="color: var(--fg-muted); font-size: 13px;">Tool call in flight…</span>
+        </div>
+    </DrylCard>
+
+</div>
