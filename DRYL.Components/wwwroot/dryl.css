@@ -463,7 +463,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .input:focus, .textarea:focus, .select:focus {
   border-color: var(--accent-line);
   background: var(--glass-2);
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124,92,255,0.18);
+  /* 1px flush ring fuses with the border into one crisp accent edge, then a soft
+     halo, then ambient glow — reads as a single confident corner, not a thin line
+     with a detached block around it. */
+  box-shadow: 0 0 0 1px var(--accent-line),
+              0 0 0 4px rgba(124, 92, 255, 0.12),
+              0 0 24px rgba(124, 92, 255, 0.18);
 }
 /* The global :focus-visible rule adds a bright cyan outline that clashes with the
    violet glow above. Suppress it here — the glow already satisfies WCAG focus visibility. */
@@ -760,8 +765,11 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); background-clip: padding-box; border: 2px solid transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* Focus ring for keyboard users */
-:focus-visible { outline: 2px solid var(--accent-b); outline-offset: 2px; border-radius: 4px; }
+/* Focus ring for keyboard users.
+   Do NOT force a border-radius here — modern browsers draw the outline along the
+   element's own radius, and clobbering it (every component shares this rule's
+   specificity) makes rounded surfaces like .input snap to square corners on focus. */
+:focus-visible { outline: 2px solid var(--accent-b); outline-offset: 2px; }
 
 /* ============== APP CHROME ============== */
 .app-shell {

@@ -23,7 +23,9 @@
 .chip-input-inner:focus-within:not(.chip-input-inner--disabled) {
     border-color: var(--accent-line);
     background: var(--glass-2);
-    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124, 92, 255, 0.18);
+    box-shadow: 0 0 0 1px var(--accent-line),
+                0 0 0 4px rgba(124, 92, 255, 0.12),
+                0 0 24px rgba(124, 92, 255, 0.18);
 }
 
 .chip-input-inner--error {
