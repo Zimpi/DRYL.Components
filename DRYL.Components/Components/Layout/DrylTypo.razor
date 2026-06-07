@@ -1,0 +1,126 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylTypo — typography primitive.
+
+    Renders text at one of the system type steps. <c>Variant</c>
+    drives the look (size / weight / colour); <c>As</c> independently
+    chooses the rendered HTML tag, so an H2-looking heading can be an
+    <c>&lt;h1&gt;</c> for document outline, or Body text a <c>&lt;span&gt;</c>.
+
+    Usage:
+      <DrylTypo Variant="TypoVariant.H1">Page title</DrylTypo>
+      <DrylTypo Variant="TypoVariant.Lead">Short standfirst.</DrylTypo>
+      <DrylTypo Variant="TypoVariant.Eyebrow">Section</DrylTypo>
+      <DrylTypo Variant="TypoVariant.Body" Color="TypoColor.Muted">Body copy.</DrylTypo>
+      <DrylTypo Variant="TypoVariant.H2" As="h1" Gradient>Styled as H2, tagged h1</DrylTypo>
+    ───────────────────────────────────────────────────────── *@
+
+@Render
+
+@code {
+    /// <summary>Type step that drives size / weight / default colour. Defaults to <see cref="TypoVariant.Body"/>.</summary>
+    [Parameter] public TypoVariant Variant { get; set; } = TypoVariant.Body;
+
+    /// <summary>Overrides the rendered HTML tag (e.g. <c>"h1"</c>, <c>"span"</c>, <c>"label"</c>). When null, a semantic tag is chosen from <see cref="Variant"/>.</summary>
+    [Parameter] public string? As { get; set; }
+
+    /// <summary>Foreground colour, mapped to the <c>--fg*</c> tokens. <see cref="TypoColor.Default"/> keeps the variant's own colour.</summary>
+    [Parameter] public TypoColor Color { get; set; } = TypoColor.Default;
+
+    /// <summary>Text alignment. Defaults to <see cref="TypoAlign.Start"/> (inherit).</summary>
+    [Parameter] public TypoAlign Align { get; set; } = TypoAlign.Start;
+
+    /// <summary>When true, fills the text with the accent gradient (uses the shared <c>.gradient-text</c> primitive).</summary>
+    [Parameter] public bool Gradient { get; set; }
+
+    /// <summary>Text content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the rendered element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string Tag => As ?? Variant switch
+    {
+        TypoVariant.H1      => "h1",
+        TypoVariant.H2      => "h2",
+        TypoVariant.H3      => "h3",
+        TypoVariant.H4      => "h4",
+        TypoVariant.Lead    => "p",
+        TypoVariant.Caption => "span",
+        TypoVariant.Eyebrow => "div",
+        _ => "p"
+    };
+
+    private string CssClass
+    {
+        get
+        {
+            var variant = Variant switch
+            {
+                TypoVariant.H1      => "typo-h1",
+                TypoVariant.H2      => "typo-h2",
+                TypoVariant.H3      => "typo-h3",
+                TypoVariant.H4      => "typo-h4",
+                TypoVariant.Lead    => "typo-lead",
+                TypoVariant.Caption => "typo-caption",
+                TypoVariant.Eyebrow => "typo-eyebrow",
+                _ => "typo-body"
+            };
+            var gradient = Gradient ? "gradient-text" : string.Empty;
+            return string.Join(' ', new[] { "typo", variant, gradient }
+                                 .Where(s => !string.IsNullOrWhiteSpace(s)));
+        }
+    }
+
+    private string? Style
+    {
+        get
+        {
+            var parts = new List<string>();
+            var color = Color switch
+            {
+                TypoColor.Default => null,
+                TypoColor.Strong  => "var(--fg)",
+                TypoColor.Muted   => "var(--fg-muted)",
+                TypoColor.Dim     => "var(--fg-dim)",
+                TypoColor.Faint   => "var(--fg-faint)",
+                _ => null
+            };
+            // Gradient owns the text colour; don't fight it.
+            if (color is not null && !Gradient) parts.Add($"color: {color}");
+
+            var align = Align switch
+            {
+                TypoAlign.Center  => "center",
+                TypoAlign.End     => "right",
+                TypoAlign.Justify => "justify",
+                _ => null
+            };
+            if (align is not null) parts.Add($"text-align: {align}");
+
+            return parts.Count == 0 ? null : string.Join("; ", parts);
+        }
+    }
+
+    private RenderFragment Render => builder =>
+    {
+        builder.OpenElement(0, Tag);
+        builder.AddAttribute(1, "class", CssClass);
+        var style = Style;
+        if (style is not null) builder.AddAttribute(2, "style", style);
+        builder.AddMultipleAttributes(3, AdditionalAttributes);
+        builder.AddContent(4, ChildContent);
+        builder.CloseElement();
+    };
+
+    /// <summary>Type step rendered by a <see cref="DrylTypo"/>.</summary>
+    public enum TypoVariant { H1, H2, H3, H4, Lead, Body, Caption, Eyebrow }
+
+    /// <summary>Foreground colour, mapped to the <c>--fg*</c> tokens.</summary>
+    public enum TypoColor { Default, Strong, Muted, Dim, Faint }
+
+    /// <summary>Text alignment of a <see cref="DrylTypo"/>.</summary>
+    public enum TypoAlign { Start, Center, End, Justify }
+}

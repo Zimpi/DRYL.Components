@@ -1,0 +1,102 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylStack — flex layout primitive.
+
+    Arranges children in a vertical or horizontal flow with a
+    token-driven gap. Replaces ad-hoc `.row` / `.col` / `.between`
+    utility markup with a strongly-typed, composable container.
+
+    Usage:
+      <DrylStack Gap="StackGap.Md">
+          <DrylButton>One</DrylButton>
+          <DrylButton>Two</DrylButton>
+      </DrylStack>
+
+      <DrylStack Direction="StackDirection.Horizontal"
+                 Justify="StackJustify.Between"
+                 Align="StackAlign.Center">
+          <h3>Title</h3>
+          <DrylButton>Action</DrylButton>
+      </DrylStack>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="stack" style="@Style" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>Main-axis direction. Defaults to <see cref="StackDirection.Vertical"/>.</summary>
+    [Parameter] public StackDirection Direction { get; set; } = StackDirection.Vertical;
+
+    /// <summary>Spacing between children, mapped to the <c>--sp-*</c> scale. Defaults to <see cref="StackGap.Md"/> (12px).</summary>
+    [Parameter] public StackGap Gap { get; set; } = StackGap.Md;
+
+    /// <summary>Cross-axis alignment (<c>align-items</c>). Defaults to <see cref="StackAlign.Stretch"/>.</summary>
+    [Parameter] public StackAlign Align { get; set; } = StackAlign.Stretch;
+
+    /// <summary>Main-axis distribution (<c>justify-content</c>). Defaults to <see cref="StackJustify.Start"/>.</summary>
+    [Parameter] public StackJustify Justify { get; set; } = StackJustify.Start;
+
+    /// <summary>When true, children wrap onto multiple lines once they overflow.</summary>
+    [Parameter] public bool Wrap { get; set; }
+
+    /// <summary>Stack content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the stack container.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string Style
+    {
+        get
+        {
+            var direction = Direction == StackDirection.Horizontal ? "row" : "column";
+            var gap = Gap switch
+            {
+                StackGap.None => "0",
+                StackGap.Xs   => "var(--sp-1)",
+                StackGap.Sm   => "var(--sp-2)",
+                StackGap.Md   => "var(--sp-3)",
+                StackGap.Lg   => "var(--sp-4)",
+                StackGap.Xl   => "var(--sp-5)",
+                StackGap.Xxl  => "var(--sp-6)",
+                _ => "var(--sp-3)"
+            };
+            var align = Align switch
+            {
+                StackAlign.Start    => "flex-start",
+                StackAlign.Center   => "center",
+                StackAlign.End      => "flex-end",
+                StackAlign.Baseline => "baseline",
+                _ => "stretch"
+            };
+            var justify = Justify switch
+            {
+                StackJustify.Center  => "center",
+                StackJustify.End     => "flex-end",
+                StackJustify.Between => "space-between",
+                StackJustify.Around  => "space-around",
+                StackJustify.Evenly  => "space-evenly",
+                _ => "flex-start"
+            };
+            var wrap = Wrap ? "wrap" : "nowrap";
+
+            return $"display: flex; flex-direction: {direction}; gap: {gap}; " +
+                   $"align-items: {align}; justify-content: {justify}; flex-wrap: {wrap};";
+        }
+    }
+
+    /// <summary>Main-axis direction of a <see cref="DrylStack"/>.</summary>
+    public enum StackDirection { Vertical, Horizontal }
+
+    /// <summary>Gap between stack children, mapped to the <c>--sp-*</c> spacing scale.</summary>
+    public enum StackGap { None, Xs, Sm, Md, Lg, Xl, Xxl }
+
+    /// <summary>Cross-axis alignment of stack children.</summary>
+    public enum StackAlign { Stretch, Start, Center, End, Baseline }
+
+    /// <summary>Main-axis distribution of stack children.</summary>
+    public enum StackJustify { Start, Center, End, Between, Around, Evenly }
+}

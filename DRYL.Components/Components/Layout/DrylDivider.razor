@@ -1,0 +1,53 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDivider — thin rule that separates content.
+
+    Horizontal by default; an optional centred label turns it into
+    a labelled separator ("— OR —"). Vertical mode is a 1px rule for
+    splitting items inside a horizontal flow (e.g. a toolbar) — drop
+    it inside a flex row.
+
+    Usage:
+      <DrylDivider />
+
+      <DrylDivider>OR</DrylDivider>
+
+      <DrylStack Direction="StackDirection.Horizontal">
+          <span>Left</span>
+          <DrylDivider Orientation="DividerOrientation.Vertical" />
+          <span>Right</span>
+      </DrylStack>
+    ───────────────────────────────────────────────────────── *@
+
+@if (Orientation == DividerOrientation.Vertical)
+{
+    <div class="divider-v" role="separator" aria-orientation="vertical" @attributes="AdditionalAttributes"></div>
+}
+else if (ChildContent is null)
+{
+    <div class="divider" role="separator" @attributes="AdditionalAttributes"></div>
+}
+else
+{
+    <div class="divider-labelled" role="separator" @attributes="AdditionalAttributes">
+        <span class="divider-labelled-line"></span>
+        <span class="divider-labelled-text">@ChildContent</span>
+        <span class="divider-labelled-line"></span>
+    </div>
+}
+
+@code {
+    /// <summary>Orientation of the rule. Defaults to <see cref="DividerOrientation.Horizontal"/>.</summary>
+    [Parameter] public DividerOrientation Orientation { get; set; } = DividerOrientation.Horizontal;
+
+    /// <summary>Optional centred label. Only honoured for a horizontal divider.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the divider element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Orientation of a <see cref="DrylDivider"/>.</summary>
+    public enum DividerOrientation { Horizontal, Vertical }
+}

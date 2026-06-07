@@ -584,13 +584,15 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .btn:hover .btn-ico-trail { transform: none; }
 }
 
-.input-wrapper .input-icon {
+.input-wrapper .input-icon,
+.tbl-search .input-icon {
   position: absolute;
   color: var(--fg-dim);
   pointer-events: none;
   transition: color var(--dur-med) var(--ease-out);
 }
-.input-wrapper:focus-within .input-icon { color: var(--fg-muted); }
+.input-wrapper:focus-within .input-icon,
+.tbl-search:focus-within .input-icon { color: var(--fg-muted); }
 .input-wrapper .input-icon-leading  { left: 12px; }
 .input-wrapper .input-icon-trailing { right: 12px; }
 

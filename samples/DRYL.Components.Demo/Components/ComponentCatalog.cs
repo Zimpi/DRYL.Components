@@ -98,6 +98,9 @@ public static class ComponentCatalog
         new("Tabs",        "tabs",        "Layout", "DrylTabs",       "Layout", true,  "Tabbed interface — gliding gradient underline.",      "Folder"),
         new("Stepper",     "stepper",     "Layout", "DrylStepper",    "Layout", true,  "Multi-step wizard — horizontal or vertical, AI ring.","ArrowRight"),
         new("Scroll Area", "scroll-area", "Layout", "DrylScrollArea", "Layout", false, "Scrollable region with the thin DRYL scrollbar.",     "Layers"),
+        new("Typography",  "typography",  "Layout", "DrylTypo",       "Layout", false, "Type scale primitive — Variant look, As tag, colours.", "Type"),
+        new("Stack",       "stack",       "Layout", "DrylStack",      "Layout", false, "Flex layout — direction, gap, align, justify, wrap.",   "Blocks"),
+        new("Divider",     "divider",     "Layout", "DrylDivider",    "Layout", false, "Thin rule — horizontal, labelled or vertical.",         "Menu"),
 
         // ── Feedback ──────────────────────────────────────────────
         new("Alert",          "alerts",         "Feedback", "DrylAlert",         "Feedback", true,  "Feedback banner — 5 variants, optional title, dismissible.","Alert"),

@@ -1,0 +1,24 @@
+/* Labelled horizontal divider: line — text — line.
+   The plain .divider / .divider-v primitives live in dryl.css. */
+.divider-labelled {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+}
+
+.divider-labelled-line {
+    flex: 1 1 0;
+    height: 1px;
+    background: var(--line);
+}
+
+.divider-labelled-text {
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    white-space: nowrap;
+}
