@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IDrylDialogService, DrylDialogService>();
         services.AddScoped<IDrylToastService, DrylToastService>();
+        services.AddScoped<IDrylNotificationService, DrylNotificationService>();
         return services;
     }
 }

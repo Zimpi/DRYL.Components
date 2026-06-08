@@ -66,6 +66,27 @@ public class DrylColumn<TItem> : ComponentBase, IDisposable
     [Parameter] public string? Width { get; set; }
 
     /// <summary>
+    /// Freezes this column to the leading or trailing edge so it stays in view during horizontal
+    /// scroll (e.g. an identity column). Requires the table to be horizontally scrollable
+    /// (set <see cref="DrylTable{TItem}.Height"/> or place it in a constrained container).
+    /// Pinned columns are excluded from drag-reorder. Default <see cref="ColumnPin.None"/>.
+    /// </summary>
+    [Parameter] public ColumnPin Pinned { get; set; } = ColumnPin.None;
+
+    /// <summary>
+    /// When the table enables <see cref="DrylTable{TItem}.ResizableColumns"/>, set this to
+    /// <c>false</c> to lock this column's width. Default <c>true</c>.
+    /// </summary>
+    [Parameter] public bool Resizable { get; set; } = true;
+
+    /// <summary>
+    /// When the table enables <see cref="DrylTable{TItem}.ReorderableColumns"/>, set this to
+    /// <c>false</c> to keep this column fixed in place. Pinned columns are never reorderable.
+    /// Default <c>true</c>.
+    /// </summary>
+    [Parameter] public bool Reorderable { get; set; } = true;
+
+    /// <summary>
     /// Initial visibility — when <c>true</c>, the column starts hidden. Users can toggle visibility
     /// at runtime via the column-visibility menu (see <see cref="DrylTable{TItem}.AllowColumnVisibility"/>).
     /// </summary>
@@ -73,6 +94,17 @@ public class DrylColumn<TItem> : ComponentBase, IDisposable
 
     /// <summary>Cell renderer. Receives the row item. When omitted, the column renders <c>Field</c>'s value as text.</summary>
     [Parameter] public RenderFragment<TItem>? CellTemplate { get; set; }
+
+    /// <summary>
+    /// Editor renderer for inline editing. When set (and the parent table has
+    /// <see cref="DrylTable{TItem}.Editable"/> enabled), the cell swaps to this template while the
+    /// row/cell is being edited. Receives the item under edit — bind your DRYL inputs to its
+    /// properties (e.g. <c>&lt;DrylInputText @bind-Value="row.Name" /&gt;</c>). When the table is
+    /// given a <see cref="DrylTable{TItem}.CloneRow"/> function the item passed here is an isolated
+    /// working copy, so edits can be cancelled cleanly. Columns without an
+    /// <see cref="EditTemplate"/> stay read-only during editing.
+    /// </summary>
+    [Parameter] public RenderFragment<TItem>? EditTemplate { get; set; }
 
     /// <summary>Optional header renderer. When omitted, <see cref="Title"/> is rendered as text.</summary>
     [Parameter] public RenderFragment? HeaderTemplate { get; set; }
@@ -123,6 +155,9 @@ public class DrylColumn<TItem> : ComponentBase, IDisposable
 
     /// <summary>Returns the column value for an item, or null when no <see cref="Field"/> is set.</summary>
     public object? GetValue(TItem item) => _compiledFieldGetter?.Invoke(item);
+
+    /// <summary>True when this column supplies an inline editor via <see cref="EditTemplate"/>.</summary>
+    public bool IsEditable => EditTemplate is not null;
 
     /// <summary>Maps <see cref="Align"/> to the matching CSS alignment value.</summary>
     public string TextAlign => Align switch

@@ -189,13 +189,23 @@
                     }
                     @foreach (var col in VisibleColumns)
                     {
+                        var dragCol = col;
+                        var canDragCol = CanReorderColumn(dragCol);
                         <th class="@HeaderCssClass(col)"
                             scope="col"
                             style="@HeaderStyle(col)"
-                            aria-sort="@HeaderAriaSort(col)">
+                            aria-sort="@HeaderAriaSort(col)"
+                            data-col-key="@col.Key"
+                            data-pin="@PinData(col)"
+                            draggable="@(canDragCol ? "true" : "false")"
+                            @ondragstart="() => OnColDragStart(dragCol)"
+                            @ondragenter="() => OnColDragEnter(dragCol)"
+                            @ondragover:preventDefault="canDragCol"
+                            @ondrop="() => OnColDrop(dragCol)"
+                            @ondragend="OnColDragEnd">
                             <div class="tbl-th-inner">
                                 <span class="tbl-th-clickable"
-                                      tabindex="@(col.Sortable ? 0 : (int?)null)"
+                                      tabindex="@(col.Sortable || canDragCol ? 0 : (int?)null)"
                                       @onclick="@((MouseEventArgs e) => OnHeaderClick(col, e))"
                                       @onkeydown="@((KeyboardEventArgs e) => OnHeaderKeyDown(col, e))">
                                     <span class="tbl-th-label">
@@ -298,9 +308,17 @@
                                     </div>
                                 }
                             </div>
+                            @if (ResizableColumns && col.Resizable)
+                            {
+                                <span class="tbl-col-resize"
+                                      data-col-key="@col.Key"
+                                      role="separator"
+                                      aria-orientation="vertical"
+                                      aria-label="@($"Resize {col.DisplayTitle} column")"></span>
+                            }
                         </th>
                     }
-                    @if (RowActions is not null)
+                    @if (ShowActionsColumn)
                     {
                         <th class="tbl-col-actions" scope="col" aria-label="Actions"></th>
                     }
@@ -402,6 +420,7 @@
         @{ var rowIndex = ReorderColumnVisible ? _view.IndexOf(item) : -1; }
         <tr class="@RowCssClass(item, rowIndex)"
             @onclick="() => HandleRowClick(item)"
+            @onkeydown="@((KeyboardEventArgs e) => OnEditKeyDown(e, item))"
             @key="item"
             @ondragenter="() => OnDragEnter(rowIndex)"
             @ondragover:preventDefault="ReorderColumnVisible"
@@ -454,23 +473,63 @@
 
             @foreach (var col in VisibleColumns)
             {
-                <td class="@CellCssClass(col)" style="@CellStyle(col)">
-                    @if (col.CellTemplate is not null)
+                var c = col;
+                var editingThisCell = IsEditingCell(item, c);
+                <td class="@CellCssClass(c, editingThisCell)" style="@CellStyle(c)"
+                    data-col-key="@c.Key"
+                    data-pin="@PinData(c)"
+                    @ondblclick="() => OnCellDoubleClick(item, c)"
+                    @ondblclick:stopPropagation="EditingEnabled">
+                    @if (editingThisCell)
                     {
-                        @col.CellTemplate(item)
+                        @c.EditTemplate!(EditTarget(item))
+                    }
+                    else if (c.CellTemplate is not null)
+                    {
+                        @c.CellTemplate(item)
                     }
                     else
                     {
-                        @col.GetValue(item)
+                        @c.GetValue(item)
                     }
                 </td>
             }
 
-            @if (RowActions is not null)
+            @if (ShowActionsColumn)
             {
                 <td class="tbl-col-actions" @onclick:stopPropagation>
                     <div class="tbl-row-actions">
-                        @RowActions(item)
+                        @if (IsEditingRow(item))
+                        {
+                            <button type="button"
+                                    class="tbl-edit-btn tbl-edit-btn--commit"
+                                    @onclick="CommitEdit"
+                                    aria-label="Save changes"
+                                    title="Save (Enter)">
+                                <DrylIcon Name="Check" Size="14" />
+                            </button>
+                            <button type="button"
+                                    class="tbl-edit-btn tbl-edit-btn--cancel"
+                                    @onclick="CancelEdit"
+                                    aria-label="Cancel editing"
+                                    title="Cancel (Esc)">
+                                <DrylIcon Name="X" Size="14" />
+                            </button>
+                        }
+                        else
+                        {
+                            @if (EditingEnabled && HasEditableColumns)
+                            {
+                                <button type="button"
+                                        class="tbl-edit-btn"
+                                        @onclick="() => BeginEdit(item)"
+                                        aria-label="Edit row"
+                                        title="Edit">
+                                    <DrylIcon Name="Edit" Size="14" />
+                                </button>
+                            }
+                            @RowActions?.Invoke(item)
+                        }
                     </div>
                 </td>
             }
@@ -648,6 +707,55 @@
     /// </summary>
     [Parameter] public EventCallback<RowReorderEventArgs> OnRowReordered { get; set; }
 
+    /// <summary>
+    /// Enables inline editing. Columns that declare an <see cref="DrylColumn{TItem}.EditTemplate"/>
+    /// become editable; double-clicking a row (or a cell in <see cref="TableEditMode.Cell"/> mode)
+    /// or pressing the pencil action enters edit mode. Enter commits, Escape cancels. Pair with
+    /// <see cref="OnRowCommitted"/> and, for clean cancellation, <see cref="CloneRow"/>.
+    /// Editing is ignored in server mode (<see cref="DataProvider"/>).
+    /// </summary>
+    [Parameter] public bool Editable { get; set; }
+
+    /// <summary>
+    /// Granularity of inline editing — <see cref="TableEditMode.Row"/> (default) edits every
+    /// editable column of the row at once; <see cref="TableEditMode.Cell"/> edits only the
+    /// activated cell.
+    /// </summary>
+    [Parameter] public TableEditMode EditMode { get; set; } = TableEditMode.Row;
+
+    /// <summary>
+    /// Optional snapshot factory used to edit an isolated working copy so Escape can cancel
+    /// cleanly. When set, the table clones the row on edit-start and passes the clone to the
+    /// column <see cref="DrylColumn{TItem}.EditTemplate"/>s; on commit you receive both the
+    /// original and the edited copy via <see cref="OnRowCommitted"/>. When null, edits are applied
+    /// live to the original item and Escape only exits edit mode (no revert).
+    /// </summary>
+    [Parameter] public Func<TItem, TItem>? CloneRow { get; set; }
+
+    /// <summary>
+    /// Raised when the user commits an inline edit (Enter or the commit button). See
+    /// <see cref="RowEditEventArgs{TItem}"/> for how the original and edited items relate.
+    /// </summary>
+    [Parameter] public EventCallback<RowEditEventArgs<TItem>> OnRowCommitted { get; set; }
+
+    /// <summary>Raised when the user cancels an inline edit (Escape or the cancel button). Carries the original row.</summary>
+    [Parameter] public EventCallback<TItem> OnRowCancelled { get; set; }
+
+    /// <summary>
+    /// Lets users drag the right edge of a column header to resize it (per-column opt-out via
+    /// <see cref="DrylColumn{TItem}.Resizable"/>). New widths are persisted when
+    /// <see cref="PersistStateKey"/> is set. Backed by a tiny pointer-event helper, no npm.
+    /// </summary>
+    [Parameter] public bool ResizableColumns { get; set; }
+
+    /// <summary>
+    /// Lets users drag a column header onto another to reorder columns, or focus a header and
+    /// press <c>Alt</c>+<c>Arrow Left</c>/<c>Arrow Right</c> for a keyboard-accessible move
+    /// (per-column opt-out via <see cref="DrylColumn{TItem}.Reorderable"/>; pinned columns never
+    /// move). The order is persisted when <see cref="PersistStateKey"/> is set.
+    /// </summary>
+    [Parameter] public bool ReorderableColumns { get; set; }
+
     /// <summary>If true, renders a loading spinner in place of rows.</summary>
     [Parameter] public bool Loading { get; set; }
 
@@ -705,11 +813,59 @@
     private int? _pendingFocusGrip;
     private ElementReference _rootEl;
 
+    // Inline editing — one row at a time. _editBuffer is the item handed to the column
+    // EditTemplates: a clone when CloneRow is set (so cancel reverts), otherwise the live item.
+    // _editingColumnKey scopes editing to a single cell in TableEditMode.Cell.
+    private TItem? _editingItem;
+    private TItem? _editBuffer;
+    private string? _editingColumnKey;
+    private bool _pendingFocusEditor;
+    private bool _editingDisabledWarned;
+
+    // Column resize / reorder / pin. _columnWidths holds runtime resize overrides (key → CSS
+    // width); _columnOrder holds the user's drag/keyboard column order (empty = registration
+    // order). _colDrag* track an in-flight header drag. _dotNetRef + _resizeAttached wire the
+    // pointer-driven resize helper; _pendingColLayout re-measures sticky pin offsets after render.
+    private readonly Dictionary<string, string> _columnWidths = new(StringComparer.Ordinal);
+    private readonly List<string> _columnOrder = [];
+    private string? _colDragKey;
+    private string? _colDragOverKey;
+    private string? _pendingFocusHeaderKey;
+    private DotNetObjectReference<DrylTable<TItem>>? _dotNetRef;
+    private bool _resizeAttached;
+    private bool _pendingColLayout;
+
     private bool AllSelected =>
         _view.Count > 0 && _view.All(i => _selected.Contains(i));
 
+    // Effective column order: pinned-start first, then unpinned, then pinned-end; within each
+    // group the user's drag/keyboard order (or registration order when none). OrderBy is a stable
+    // sort, so the pin partition preserves the inner ordering.
+    private static int PinRank(ColumnPin pin) => pin switch
+    {
+        ColumnPin.Start => 0,
+        ColumnPin.End => 2,
+        _ => 1
+    };
+
+    private int OrderIndexOf(string key)
+    {
+        var i = _columnOrder.IndexOf(key);
+        return i >= 0 ? i : int.MaxValue;
+    }
+
+    private IEnumerable<DrylColumn<TItem>> OrderedColumns =>
+        _columns
+            .OrderBy(c => OrderIndexOf(c.Key))
+            .OrderBy(c => PinRank(c.Pinned));
+
     private IEnumerable<DrylColumn<TItem>> VisibleColumns =>
-        _columns.Where(c => !_hiddenColumns.Contains(c.Key));
+        OrderedColumns.Where(c => !_hiddenColumns.Contains(c.Key));
+
+    private bool HasPinnedColumns => _columns.Any(c => c.Pinned != ColumnPin.None);
+
+    private bool CanReorderColumn(DrylColumn<TItem> col) =>
+        ReorderableColumns && col.Reorderable && col.Pinned == ColumnPin.None;
 
     private bool UseGrouping => GroupBy is not null;
 
@@ -721,6 +877,27 @@
     // The handle is live only when no sort is applied — reordering a sorted view is meaningless,
     // so the grip is shown but disabled until the user clears the sort.
     private bool CanReorderNow => ReorderColumnVisible && _sort.Count == 0;
+
+    // Inline editing only makes sense over a client-side list; a DataProvider owns its own rows.
+    private bool EditingEnabled => Editable && DataProvider is null;
+
+    private bool HasEditableColumns => _columns.Any(c => c.IsEditable);
+
+    // The trailing actions column is needed whenever there are per-row actions OR inline editing
+    // (which renders the pencil / commit / cancel affordances there).
+    private bool ShowActionsColumn => RowActions is not null || (EditingEnabled && HasEditableColumns);
+
+    private bool IsEditingRow(TItem item) =>
+        _editingItem is not null && EqualityComparer<TItem>.Default.Equals(_editingItem, item);
+
+    // Whether this specific cell should render its editor: in Row mode every editable column of the
+    // editing row; in Cell mode only the activated column.
+    private bool IsEditingCell(TItem item, DrylColumn<TItem> col) =>
+        col.IsEditable && IsEditingRow(item) &&
+        (EditMode == TableEditMode.Row || _editingColumnKey == col.Key);
+
+    // The item the EditTemplates bind to — the working copy when one exists, else the live row.
+    private TItem EditTarget(TItem item) => _editBuffer is TItem buffer ? buffer : item;
 
     private string WrapperClass
     {
@@ -763,6 +940,8 @@
             _sort.RemoveAll(s => s.ColumnKey == column.Key);
             _filters.Remove(column.Key);
             _hiddenColumns.Remove(column.Key);
+            _columnWidths.Remove(column.Key);
+            _columnOrder.Remove(column.Key);
             _columnsDirty = true;
             InvokeAsync(StateHasChanged);
         }
@@ -799,6 +978,13 @@
                 "DrylTable: Reorderable is ignored when Virtualize, GroupBy or DataProvider is set — row reordering requires a plain client-side list.");
         }
 
+        if (Editable && DataProvider is not null && !_editingDisabledWarned)
+        {
+            _editingDisabledWarned = true;
+            Console.WriteLine(
+                "DrylTable: Editable is ignored in server mode (DataProvider is set) — inline editing requires a client-side list.");
+        }
+
         var itemsChanged = !ReferenceEquals(_lastItemsRef, Items);
         _lastItemsRef = Items;
 
@@ -806,6 +992,14 @@
         {
             _columnsDirty = false;
             await RebuildViewAsync();
+        }
+
+        // Editing a row that's no longer in the current view (its Items entry was removed) would
+        // leave a dangling buffer; drop the edit so commit/cancel can't act on a vanished row.
+        if (_editingItem is not null && Items is not null
+            && !Items.Any(i => EqualityComparer<TItem>.Default.Equals(i, _editingItem)))
+        {
+            ClearEditState();
         }
     }
 
@@ -834,6 +1028,38 @@
             _pendingFocusGrip = null;
             try { await JS.InvokeVoidAsync("dryl.table.focusGrip", _rootEl, gripIndex); }
             catch (Microsoft.JSInterop.JSException) { /* element gone — best effort */ }
+        }
+
+        if (_pendingFocusEditor)
+        {
+            _pendingFocusEditor = false;
+            try { await JS.InvokeVoidAsync("dryl.table.focusFirstEditor", _rootEl); }
+            catch (Microsoft.JSInterop.JSException) { /* element gone — best effort */ }
+        }
+
+        // Attach the pointer-driven column-resize helper once; the delegated listener lives on the
+        // stable root element and survives re-renders.
+        if (ResizableColumns && !_resizeAttached)
+        {
+            _resizeAttached = true;
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("dryl.table.initColumnResize", _rootEl, _dotNetRef); }
+            catch (Microsoft.JSInterop.JSException) { _resizeAttached = false; }
+        }
+
+        if (_pendingFocusHeaderKey is string headerKey)
+        {
+            _pendingFocusHeaderKey = null;
+            try { await JS.InvokeVoidAsync("dryl.table.focusHeader", _rootEl, headerKey); }
+            catch (Microsoft.JSInterop.JSException) { /* element gone — best effort */ }
+        }
+
+        // Re-measure sticky offsets for pinned columns after each render (resize / visibility /
+        // order can change them). Pure horizontal scrolling doesn't re-render, so this stays put.
+        if (HasPinnedColumns)
+        {
+            try { await JS.InvokeVoidAsync("dryl.table.layoutPinned", _rootEl); }
+            catch (Microsoft.JSInterop.JSException) { /* best effort */ }
         }
 
         _seenItems.Clear();
@@ -1017,6 +1243,13 @@
 
     private async Task OnHeaderKeyDown(DrylColumn<TItem> column, KeyboardEventArgs e)
     {
+        // Alt+Arrow Left/Right moves the column — keyboard-accessible alternative to header drag.
+        if (e.AltKey && CanReorderColumn(column) && e.Key is "ArrowLeft" or "ArrowRight")
+        {
+            await MoveColumnStep(column, e.Key == "ArrowLeft" ? -1 : 1);
+            _pendingFocusHeaderKey = column.Key;
+            return;
+        }
         if (!column.Sortable) return;
         if (e.Key is not ("Enter" or " ")) return;
         ToggleSort(column, e.ShiftKey);
@@ -1228,27 +1461,42 @@
         var classes = new List<string>();
         if (col.Sortable) classes.Add("tbl-th-sort");
         if (col.Filterable) classes.Add("tbl-th-filterable");
+        if (col.Pinned == ColumnPin.Start) classes.Add("tbl-pin tbl-pin-start");
+        else if (col.Pinned == ColumnPin.End) classes.Add("tbl-pin tbl-pin-end");
+        if (_colDragKey == col.Key) classes.Add("tbl-th--col-dragging");
+        else if (_colDragOverKey == col.Key) classes.Add("tbl-th--col-drop-target");
         if (col.Align != ColumnAlign.Start) classes.Add($"tbl-align-{col.Align.ToString().ToLowerInvariant()}");
         return string.Join(' ', classes);
     }
+
+    private string? EffectiveWidth(DrylColumn<TItem> col) =>
+        _columnWidths.TryGetValue(col.Key, out var w) ? w : col.Width;
 
     private string? HeaderStyle(DrylColumn<TItem> col)
     {
-        var parts = new List<string>();
-        if (!string.IsNullOrEmpty(col.Width)) parts.Add($"width: {col.Width}");
-        return parts.Count == 0 ? null : string.Join("; ", parts);
+        var width = EffectiveWidth(col);
+        return string.IsNullOrEmpty(width) ? null : $"width: {width}";
     }
 
-    private string CellCssClass(DrylColumn<TItem> col)
+    private string CellCssClass(DrylColumn<TItem> col, bool editing = false)
     {
         var classes = new List<string>();
         if (col.Primary) classes.Add("tbl-td-primary");
+        if (editing) classes.Add("tbl-td-editing");
+        if (col.Pinned == ColumnPin.Start) classes.Add("tbl-pin tbl-pin-start");
+        else if (col.Pinned == ColumnPin.End) classes.Add("tbl-pin tbl-pin-end");
         if (col.Align != ColumnAlign.Start) classes.Add($"tbl-align-{col.Align.ToString().ToLowerInvariant()}");
         return string.Join(' ', classes);
     }
 
-    private string? CellStyle(DrylColumn<TItem> col) =>
-        col.Align != ColumnAlign.Start ? $"text-align: {col.TextAlign}" : null;
+    private string? CellStyle(DrylColumn<TItem> col)
+    {
+        var parts = new List<string>();
+        var width = EffectiveWidth(col);
+        if (!string.IsNullOrEmpty(width)) parts.Add($"width: {width}");
+        if (col.Align != ColumnAlign.Start) parts.Add($"text-align: {col.TextAlign}");
+        return parts.Count == 0 ? null : string.Join("; ", parts);
+    }
 
     private bool ShowAiEnter(TItem item) =>
         (Ai == AiState.Streaming || Ai == AiState.Generated) && !_seenItems.Contains(item);
@@ -1257,6 +1505,7 @@
     {
         var classes = new List<string>();
         if (_selected.Contains(item)) classes.Add("tbl-row--selected");
+        if (IsEditingRow(item)) classes.Add("tbl-row--editing");
         if (ShowAiEnter(item)) classes.Add("tbl-row--ai-enter");
         if (ReorderColumnVisible && rowIndex >= 0)
         {
@@ -1352,6 +1601,178 @@
         await OnRowReordered.InvokeAsync(new RowReorderEventArgs(from, to));
     }
 
+    // ───── Inline editing ─────
+
+    /// <summary>
+    /// Programmatically begins editing the given row. In <see cref="TableEditMode.Cell"/> mode the
+    /// first editable column is activated. No-op when editing is disabled or the row has no
+    /// editable columns.
+    /// </summary>
+    public void BeginEdit(TItem item)
+    {
+        if (!EditingEnabled || !HasEditableColumns) return;
+        if (EditMode == TableEditMode.Cell)
+        {
+            var first = VisibleColumns.FirstOrDefault(c => c.IsEditable);
+            if (first is null) return;
+            StartEdit(item, first.Key);
+        }
+        else
+        {
+            StartEdit(item, null);
+        }
+    }
+
+    /// <summary>
+    /// Programmatically begins editing a single cell, identified by its column key. Honoured only
+    /// when the table is in <see cref="TableEditMode.Cell"/> mode and the column is editable.
+    /// </summary>
+    public void BeginEditCell(TItem item, string columnKey)
+    {
+        if (!EditingEnabled) return;
+        var col = _columns.FirstOrDefault(c => c.Key == columnKey);
+        if (col is null || !col.IsEditable) return;
+        StartEdit(item, EditMode == TableEditMode.Cell ? columnKey : null);
+    }
+
+    private void StartEdit(TItem item, string? columnKey)
+    {
+        _editingItem = item;
+        _editingColumnKey = columnKey;
+        _editBuffer = CloneRow is not null ? CloneRow(item) : item;
+        _pendingFocusEditor = true;
+    }
+
+    private void ClearEditState()
+    {
+        _editingItem = default;
+        _editBuffer = default;
+        _editingColumnKey = null;
+    }
+
+    private void OnCellDoubleClick(TItem item, DrylColumn<TItem> col)
+    {
+        if (!EditingEnabled || !col.IsEditable) return;
+        // Don't restart an in-progress edit (would discard buffered changes).
+        if (IsEditingRow(item)) return;
+        StartEdit(item, EditMode == TableEditMode.Cell ? col.Key : null);
+    }
+
+    private async Task OnEditKeyDown(KeyboardEventArgs e, TItem item)
+    {
+        if (!IsEditingRow(item)) return;
+        switch (e.Key)
+        {
+            case "Enter": await CommitEdit(); break;
+            case "Escape": await CancelEdit(); break;
+        }
+    }
+
+    private async Task CommitEdit()
+    {
+        if (_editingItem is not TItem original) return;
+        var edited = _editBuffer is TItem buffer ? buffer : original;
+        ClearEditState();
+        await OnRowCommitted.InvokeAsync(new RowEditEventArgs<TItem>(original, edited));
+    }
+
+    private async Task CancelEdit()
+    {
+        if (_editingItem is not TItem original) return;
+        ClearEditState();
+        await OnRowCancelled.InvokeAsync(original);
+    }
+
+    // ───── Column resize / reorder / pin ─────
+
+    private static string? PinData(DrylColumn<TItem> col) => col.Pinned switch
+    {
+        ColumnPin.Start => "start",
+        ColumnPin.End => "end",
+        _ => null
+    };
+
+    // Seed the explicit order list (lazily) with the current pin-partitioned visual order so the
+    // first move has a concrete order to mutate.
+    private void EnsureColumnOrder()
+    {
+        if (_columnOrder.Count == 0)
+            foreach (var c in OrderedColumns) _columnOrder.Add(c.Key);
+    }
+
+    private void OnColDragStart(DrylColumn<TItem> col)
+    {
+        if (!CanReorderColumn(col)) return;
+        _colDragKey = col.Key;
+        _colDragOverKey = col.Key;
+    }
+
+    private void OnColDragEnter(DrylColumn<TItem> col)
+    {
+        if (_colDragKey is null || !CanReorderColumn(col)) return;
+        _colDragOverKey = col.Key;
+    }
+
+    private async Task OnColDrop(DrylColumn<TItem> col)
+    {
+        if (_colDragKey is string from && CanReorderColumn(col))
+            await MoveColumn(from, col.Key);
+        _colDragKey = null;
+        _colDragOverKey = null;
+    }
+
+    private void OnColDragEnd()
+    {
+        _colDragKey = null;
+        _colDragOverKey = null;
+    }
+
+    // Moves the column with key fromKey to the position of toKey. Reordering is confined to a
+    // single pin group (you can't drag a column out of/into the frozen edges).
+    private async Task MoveColumn(string fromKey, string toKey)
+    {
+        if (fromKey == toKey) return;
+        var fromCol = _columns.FirstOrDefault(c => c.Key == fromKey);
+        var toCol = _columns.FirstOrDefault(c => c.Key == toKey);
+        if (fromCol is null || toCol is null || fromCol.Pinned != toCol.Pinned) return;
+
+        EnsureColumnOrder();
+        var from = _columnOrder.IndexOf(fromKey);
+        var to = _columnOrder.IndexOf(toKey);
+        if (from < 0 || to < 0) return;
+
+        _columnOrder.RemoveAt(from);
+        var targetIdx = _columnOrder.IndexOf(toKey);
+        var insertIdx = from < to ? targetIdx + 1 : targetIdx;
+        _columnOrder.Insert(insertIdx, fromKey);
+
+        MarkPersistDirty();
+        await Task.CompletedTask;
+    }
+
+    // One-step keyboard move among the reorderable columns of the same pin group.
+    private async Task MoveColumnStep(DrylColumn<TItem> col, int dir)
+    {
+        var group = VisibleColumns.Where(c => c.Pinned == col.Pinned && CanReorderColumn(c)).ToList();
+        var idx = group.FindIndex(c => c.Key == col.Key);
+        var target = idx + dir;
+        if (idx < 0 || target < 0 || target >= group.Count) return;
+        await MoveColumn(col.Key, group[target].Key);
+    }
+
+    /// <summary>
+    /// Invoked from the resize pointer helper when the user releases a column's drag handle.
+    /// Stores the new width (in px) as a runtime override and persists it.
+    /// </summary>
+    [JSInvokable]
+    public void OnColumnResized(string key, double widthPx)
+    {
+        if (widthPx <= 0) return;
+        _columnWidths[key] = $"{Math.Round(widthPx)}px";
+        MarkPersistDirty();
+        InvokeAsync(StateHasChanged);
+    }
+
     // ───── State persistence ─────
 
     private void MarkPersistDirty()
@@ -1366,7 +1787,9 @@
         List<PersistedFilter> Filters,
         int Page,
         int PageSize,
-        List<string> Hidden);
+        List<string> Hidden,
+        Dictionary<string, string>? Widths = null,
+        List<string>? Order = null);
 
     private async Task RestoreStateAsync(string key)
     {
@@ -1399,6 +1822,14 @@
             _hiddenColumns.Clear();
             foreach (var k in state.Hidden) _hiddenColumns.Add(k);
 
+            _columnWidths.Clear();
+            if (state.Widths is not null)
+                foreach (var (k, w) in state.Widths) _columnWidths[k] = w;
+
+            _columnOrder.Clear();
+            if (state.Order is { Count: > 0 })
+                _columnOrder.AddRange(state.Order);
+
             await RebuildViewAsync();
             StateHasChanged();
         }
@@ -1427,7 +1858,9 @@
             Filters: filters,
             Page: _page,
             PageSize: _pageSize,
-            Hidden: _hiddenColumns.ToList());
+            Hidden: _hiddenColumns.ToList(),
+            Widths: _columnWidths.Count > 0 ? new Dictionary<string, string>(_columnWidths) : null,
+            Order: _columnOrder.Count > 0 ? _columnOrder.ToList() : null);
 
         try
         {
@@ -1512,6 +1945,13 @@
         _searchDebounceCts?.Dispose();
         _dataProviderCts?.Cancel();
         _dataProviderCts?.Dispose();
-        await ValueTask.CompletedTask;
+
+        if (_resizeAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.table.disposeColumnResize", _rootEl); }
+            catch (Microsoft.JSInterop.JSException) { /* circuit gone */ }
+            catch (Microsoft.JSInterop.JSDisconnectedException) { /* circuit gone */ }
+        }
+        _dotNetRef?.Dispose();
     }
 }

@@ -867,6 +867,132 @@ window.dryl.table = {
             const btn = root.querySelector('.tbl-grip[data-grip-index="' + index + '"]');
             if (btn) { try { btn.focus(); } catch (_) { /* element gone */ } }
         });
+    },
+    // focusFirstEditor(root): after a cell/row enters inline-edit mode, move focus to the
+    // first form control inside the editing row so the user can type immediately and so
+    // Enter/Escape (handled on the row) reach the keyboard. Deferred a frame so the editor
+    // template has been rendered into the DOM before we try to focus it.
+    focusFirstEditor(root) {
+        if (!root) return;
+        requestAnimationFrame(() => {
+            const row = root.querySelector('tr.tbl-row--editing');
+            if (!row) return;
+            const editor = row.querySelector(
+                '.tbl-td-editing input, .tbl-td-editing select, .tbl-td-editing textarea, ' +
+                '.tbl-td-editing [tabindex]:not([tabindex="-1"])');
+            if (editor) {
+                try {
+                    editor.focus();
+                    if (typeof editor.select === 'function') editor.select();
+                } catch (_) { /* element gone */ }
+            }
+        });
+    },
+
+    // focusHeader(root, key): restore focus to a column header's clickable region after a
+    // keyboard column-move so repeated Alt+Arrow presses keep working.
+    focusHeader(root, key) {
+        if (!root) return;
+        const sel = (window.CSS && CSS.escape) ? CSS.escape(key) : key;
+        requestAnimationFrame(() => {
+            const th = root.querySelector('th[data-col-key="' + sel + '"]');
+            const target = th && (th.querySelector('.tbl-th-clickable') || th);
+            if (target) { try { target.focus(); } catch (_) { /* element gone */ } }
+        });
+    },
+
+    // initColumnResize(root, dotnet): one delegated pointerdown listener on the stable table root.
+    // When it lands on a .tbl-col-resize grip we live-resize the owning <th> (and its body cells,
+    // matched by data-col-key) until pointerup, then report the final width back to .NET so it can
+    // store + persist it. No Blazor re-render happens mid-drag, so JS owns the width until release.
+    initColumnResize(root, dotnet) {
+        if (!root || root.__drylResizeAttached) return;
+        root.__drylResizeAttached = true;
+
+        let active = false, th = null, key = null, startX = 0, startW = 0, lastW = 0, bodyCells = null;
+        const esc = (k) => (window.CSS && CSS.escape) ? CSS.escape(k) : k;
+
+        const onMove = (e) => {
+            if (!active) return;
+            lastW = Math.max(48, startW + (e.clientX - startX));
+            th.style.width = lastW + 'px';
+            if (bodyCells) bodyCells.forEach(c => { c.style.width = lastW + 'px'; });
+        };
+        const onUp = () => {
+            if (!active) return;
+            active = false;
+            root.classList.remove('tbl-resizing');
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            if (dotnet && lastW > 0) {
+                try { dotnet.invokeMethodAsync('OnColumnResized', key, lastW); } catch (_) { /* circuit gone */ }
+            }
+        };
+        const onDown = (e) => {
+            const grip = e.target.closest && e.target.closest('.tbl-col-resize');
+            if (!grip || !root.contains(grip)) return;
+            th = grip.closest('th');
+            if (!th) return;
+            key = grip.getAttribute('data-col-key');
+            const table = th.closest('table');
+            bodyCells = table ? Array.from(table.querySelectorAll('td[data-col-key="' + esc(key) + '"]')) : null;
+            active = true;
+            startX = e.clientX;
+            startW = th.offsetWidth;
+            lastW = startW;
+            root.classList.add('tbl-resizing');
+            e.preventDefault();
+            e.stopPropagation();
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+        };
+
+        root.__drylResizeDown = onDown;
+        root.addEventListener('pointerdown', onDown);
+    },
+
+    disposeColumnResize(root) {
+        if (!root || !root.__drylResizeAttached) return;
+        if (root.__drylResizeDown) root.removeEventListener('pointerdown', root.__drylResizeDown);
+        root.__drylResizeAttached = false;
+        root.__drylResizeDown = null;
+    },
+
+    // layoutPinned(root): measure cumulative widths of pinned columns and set the sticky left/right
+    // offset on the matching header + body cells (by column index, which lines up because thead and
+    // tbody share the same leading/trailing structural columns). Re-run after every render; pure
+    // horizontal scrolling is CSS-only and doesn't re-render, so the offsets stay put while scrolling.
+    layoutPinned(root) {
+        if (!root) return;
+        requestAnimationFrame(() => {
+            const table = root.querySelector('table.tbl');
+            if (!table) return;
+            const headRow = table.querySelector('thead tr');
+            if (!headRow) return;
+            const ths = Array.from(headRow.children);
+
+            const lefts = {}, rights = {};
+            let leftAcc = 0;
+            for (let i = 0; i < ths.length; i++) {
+                if (ths[i].dataset.pin === 'start') { lefts[i] = leftAcc; leftAcc += ths[i].offsetWidth; }
+            }
+            let rightAcc = 0;
+            for (let i = ths.length - 1; i >= 0; i--) {
+                if (ths[i].dataset.pin === 'end') { rights[i] = rightAcc; rightAcc += ths[i].offsetWidth; }
+            }
+
+            const applyRow = (cells) => {
+                for (let i = 0; i < cells.length; i++) {
+                    if (lefts[i] !== undefined) cells[i].style.left = lefts[i] + 'px';
+                    else if (rights[i] !== undefined) cells[i].style.right = rights[i] + 'px';
+                }
+            };
+            applyRow(ths);
+            table.querySelectorAll('tbody tr').forEach(tr => {
+                const cells = Array.from(tr.children);
+                if (cells.length === ths.length) applyRow(cells); // skip colspan (empty/group/detail) rows
+            });
+        });
     }
 };
 

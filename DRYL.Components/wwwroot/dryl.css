@@ -1945,6 +1945,133 @@ td.tbl-col-actions {
   justify-content: flex-end;
 }
 
+/* ============== TABLE INLINE EDITING ============== */
+
+/* The row currently being edited gets a soft accent wash so it stands apart from
+   the rest of the body, including under the hover rule. */
+.tbl-root .tbl tbody tr.tbl-row--editing td,
+.tbl-root .tbl tbody tr.tbl-row--editing:hover td {
+  background: var(--accent-soft);
+}
+
+/* A cell hosting an inline editor sheds the text padding so the control fills the
+   cell, and lets DRYL inputs stretch to the column width. */
+td.tbl-td-editing {
+  padding-top: var(--sp-1);
+  padding-bottom: var(--sp-1);
+}
+td.tbl-td-editing .input,
+td.tbl-td-editing .select,
+td.tbl-td-editing .textarea,
+td.tbl-td-editing input,
+td.tbl-td-editing select {
+  width: 100%;
+}
+
+/* Edit affordances in the actions column: pencil (enter), commit, cancel. */
+.tbl-edit-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-edit-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--fg);
+  background: var(--glass-1);
+}
+.tbl-edit-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.tbl-edit-btn--commit {
+  border-color: var(--accent-line);
+  color: var(--accent-a);
+}
+.tbl-edit-btn--commit:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-a);
+}
+.tbl-edit-btn--cancel:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: transparent;
+}
+
+/* ============== TABLE COLUMN PIN / RESIZE / REORDER ============== */
+
+/* Pinned (frozen) columns — the layout helper sets the per-column left/right offset; CSS owns
+   the sticky behaviour, opaque backing and layering. */
+.tbl .tbl-pin {
+  position: sticky;
+  z-index: 1;
+  background: var(--bg-2);
+}
+/* Keep pinned body cells opaque through hover so scrolling content can't bleed under them. */
+.tbl-root .tbl tbody tr td.tbl-pin,
+.tbl-root .tbl tbody tr:hover td.tbl-pin {
+  background: var(--bg-2);
+}
+/* Pinned header cells sit above the sticky header row and the pinned body cells. */
+.tbl-root .tbl thead th.tbl-pin {
+  z-index: 4;
+}
+/* Edge rule that separates a frozen column from the scrolling area. */
+.tbl .tbl-pin-start { box-shadow: inset -1px 0 0 var(--line); }
+.tbl .tbl-pin-end   { box-shadow: inset 1px 0 0 var(--line); }
+
+/* Column resize grip — sits at the right edge of a resizable header. */
+.tbl-col-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+.tbl-col-resize::after {
+  content: "";
+  position: absolute;
+  top: 20%;
+  right: 3px;
+  width: 2px;
+  height: 60%;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl th:hover .tbl-col-resize::after { opacity: 1; }
+.tbl-col-resize:hover::after { background: var(--accent-line); opacity: 1; }
+
+/* While a resize drag is in progress, lock text selection for a clean drag. */
+.tbl-resizing { user-select: none; cursor: col-resize; }
+
+/* Reorderable headers — grab affordance + drag/drop states. */
+.tbl th[draggable="true"] .tbl-th-clickable { cursor: grab; }
+.tbl th.tbl-th--col-dragging { opacity: 0.5; }
+.tbl th.tbl-th--col-drop-target {
+  box-shadow: inset 2px 0 0 var(--accent-a);
+}
+
 /* Floating bulk-action bar — slides in from the top when a row is selected. */
 .tbl-bulk-bar {
   position: sticky;

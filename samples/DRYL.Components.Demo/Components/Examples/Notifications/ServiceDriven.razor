@@ -1,0 +1,29 @@
+@inject IDrylNotificationService Notifications
+
+<div class="row" style="gap: var(--sp-4); align-items: center;">
+    <DrylNotifications />
+    <DrylButton Variant="DrylButton.ButtonVariant.Secondary" Size="DrylButton.ButtonSize.Small"
+                LeadingIcon="Server" OnClick="PushInfo">
+        Push notification
+    </DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                LeadingIcon="Sparkle" OnClick="PushAi">
+        Push AI result
+    </DrylButton>
+</div>
+
+@code {
+    private int _n = 3;
+
+    protected override void OnInitialized()
+    {
+        Notifications.Add(new() { Title = "Deployment #2 finished", Message = "All 6 services are healthy.", Icon = "Server", Timestamp = DateTimeOffset.Now.AddMinutes(-4) });
+        Notifications.Add(new() { Title = "Build passed", Message = "main · 2m 14s", Icon = "Check", Read = true, Timestamp = DateTimeOffset.Now.AddMinutes(-26) });
+    }
+
+    private void PushInfo() =>
+        Notifications.Add($"Deployment #{_n++} finished", "All 6 services are healthy.", "Server");
+
+    private void PushAi() =>
+        Notifications.Add("Your report was generated", "The Q2 revenue summary is ready to view.", ai: AiState.Generated);
+}

@@ -1,0 +1,253 @@
+@namespace DRYL.Components
+@implements IDisposable
+@inject IServiceProvider Services
+
+@*  ─────────────────────────────────────────────────────────
+    DrylNotifications — bell + inbox panel for app shells.
+
+    Bundles a bell trigger (with an unread-count badge) and a popover
+    inbox panel (DrylPopover) listing notifications with icon, title,
+    relative time, read state and per-item dismiss. AI-generated entries
+    carry the shared AI aura.
+
+    Two modes:
+      • Service-driven (default) — bind to IDrylNotificationService;
+        push entries from anywhere and the bell updates live:
+          <DrylNotifications />
+      • Controlled — drive it from your own state:
+          <DrylNotifications Items="@_items"
+                             OnMarkRead="MarkRead"
+                             OnMarkAllRead="MarkAllRead" />
+    ───────────────────────────────────────────────────────── *@
+
+<DrylPopover @bind-Open="_open"
+             Placement="Placement"
+             PanelRole="dialog"
+             PanelAriaLabel="@AriaLabel"
+             class="notif-anchor"
+             @attributes="AdditionalAttributes">
+    <TriggerContent>
+        <button type="button"
+                class="notif-bell @(_open ? "is-active" : null)"
+                aria-label="@BellAriaLabel"
+                aria-haspopup="dialog"
+                aria-expanded="@(_open ? "true" : "false")">
+            <DrylIcon Name="Bell" Size="18" />
+            @if (Unread > 0)
+            {
+                <span class="notif-badge" aria-hidden="true">@BadgeLabel</span>
+            }
+        </button>
+    </TriggerContent>
+    <PanelContent>
+        <div class="notif-panel">
+            <header class="notif-panel-head">
+                <span class="notif-panel-title">@Title</span>
+                <div class="notif-panel-actions">
+                    @if (Unread > 0)
+                    {
+                        <button type="button" class="notif-action" @onclick="MarkAllReadAsync">
+                            <DrylIcon Name="CheckCheck" Size="13" />
+                            <span>Mark all read</span>
+                        </button>
+                    }
+                    @if (ShowClearAll && Current.Count > 0)
+                    {
+                        <button type="button" class="notif-action" @onclick="ClearAsync" aria-label="Clear all notifications">
+                            <DrylIcon Name="Trash" Size="13" />
+                        </button>
+                    }
+                </div>
+            </header>
+
+            @if (Current.Count == 0)
+            {
+                <div class="notif-empty">
+                    <DrylEmptyState Icon="BellOff" Size="EmptyStateSize.Small"
+                                    Title="@EmptyTitle" Description="@EmptyText" />
+                </div>
+            }
+            else
+            {
+                <DrylScrollArea MaxHeight="@MaxHeight">
+                    <ul class="notif-list" role="list">
+                        @foreach (var n in Current)
+                        {
+                            var item = n;
+                            <li class="notif-item @(item.Read ? null : "is-unread") @AuraClass(item)"
+                                role="listitem"
+                                @key="item.Id">
+                                @if (item.Ai != AiState.None)
+                                {
+                                    <div class="ai-aura-ring"></div>
+                                    <div class="ai-aura-glow"></div>
+                                }
+                                <button type="button" class="notif-item-main" @onclick="@(() => ItemClickAsync(item))">
+                                    <span class="notif-item-icon">
+                                        <DrylIcon Name="@IconFor(item)" Size="15" />
+                                    </span>
+                                    <span class="notif-item-body">
+                                        <span class="notif-item-title">@item.Title</span>
+                                        @if (!string.IsNullOrEmpty(item.Message))
+                                        {
+                                            <span class="notif-item-message">@item.Message</span>
+                                        }
+                                        <span class="notif-item-time">@RelativeTime(item.Timestamp)</span>
+                                    </span>
+                                    @if (!item.Read)
+                                    {
+                                        <span class="notif-item-dot" aria-label="Unread"></span>
+                                    }
+                                </button>
+                                <button type="button"
+                                        class="notif-item-dismiss"
+                                        @onclick="@(() => RemoveAsync(item))"
+                                        aria-label="@($"Dismiss {item.Title}")">
+                                    <DrylIcon Name="X" Size="12" />
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </DrylScrollArea>
+            }
+        </div>
+    </PanelContent>
+</DrylPopover>
+
+@code {
+    /// <summary>
+    /// Controlled notification list. When set, the component renders these and raises the
+    /// <c>On*</c> callbacks instead of mutating the <see cref="IDrylNotificationService"/>.
+    /// Leave null to bind to the registered service.
+    /// </summary>
+    [Parameter] public IReadOnlyList<DrylNotification>? Items { get; set; }
+
+    /// <summary>Raised when a notification row is clicked (after it is marked read).</summary>
+    [Parameter] public EventCallback<DrylNotification> OnItemClick { get; set; }
+
+    /// <summary>Raised in controlled mode when a row should be marked read.</summary>
+    [Parameter] public EventCallback<DrylNotification> OnMarkRead { get; set; }
+
+    /// <summary>Raised in controlled mode when "Mark all read" is pressed.</summary>
+    [Parameter] public EventCallback OnMarkAllRead { get; set; }
+
+    /// <summary>Raised in controlled mode when a row is dismissed.</summary>
+    [Parameter] public EventCallback<DrylNotification> OnRemove { get; set; }
+
+    /// <summary>Raised in controlled mode when "Clear all" is pressed.</summary>
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    /// <summary>Panel heading. Default "Notifications".</summary>
+    [Parameter] public string Title { get; set; } = "Notifications";
+
+    /// <summary>Empty-state heading. Default "All caught up".</summary>
+    [Parameter] public string EmptyTitle { get; set; } = "All caught up";
+
+    /// <summary>Empty-state description. Default "No new notifications.".</summary>
+    [Parameter] public string EmptyText { get; set; } = "No new notifications.";
+
+    /// <summary>Where the panel opens relative to the bell. Default <see cref="PopoverPlacement.BottomEnd"/>.</summary>
+    [Parameter] public PopoverPlacement Placement { get; set; } = PopoverPlacement.BottomEnd;
+
+    /// <summary>Unread counts above this show as "N+". Default 99.</summary>
+    [Parameter] public int MaxBadgeCount { get; set; } = 99;
+
+    /// <summary>Shows the "Clear all" action in the panel header. Default true.</summary>
+    [Parameter] public bool ShowClearAll { get; set; } = true;
+
+    /// <summary>Max height of the scrollable list area (any CSS length). Default "360px".</summary>
+    [Parameter] public string MaxHeight { get; set; } = "360px";
+
+    /// <summary>Accessible label for the panel. Default "Notifications".</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Notifications";
+
+    /// <summary>Pass-through HTML attributes on the anchor element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _open;
+    private IDrylNotificationService? _service;
+
+    // Service-driven unless the consumer supplied an explicit Items list.
+    private bool Controlled => Items is not null;
+
+    private IReadOnlyList<DrylNotification> Current =>
+        Items ?? _service?.Notifications ?? Array.Empty<DrylNotification>();
+
+    private int Unread => Current.Count(n => !n.Read);
+
+    private string BadgeLabel => Unread > MaxBadgeCount ? $"{MaxBadgeCount}+" : Unread.ToString();
+
+    private string BellAriaLabel =>
+        Unread > 0 ? $"Notifications, {Unread} unread" : "Notifications";
+
+    protected override void OnInitialized()
+    {
+        if (!Controlled)
+        {
+            _service = Services.GetService(typeof(IDrylNotificationService)) as IDrylNotificationService;
+            if (_service is not null) _service.OnChanged += HandleServiceChanged;
+        }
+    }
+
+    private void HandleServiceChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task ItemClickAsync(DrylNotification n)
+    {
+        if (!n.Read)
+        {
+            if (_service is not null) _service.MarkRead(n.Id);
+            else { n.Read = true; await OnMarkRead.InvokeAsync(n); }
+        }
+        await OnItemClick.InvokeAsync(n);
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        if (_service is not null) _service.MarkAllRead();
+        else await OnMarkAllRead.InvokeAsync();
+    }
+
+    private async Task RemoveAsync(DrylNotification n)
+    {
+        if (_service is not null) _service.Remove(n.Id);
+        else await OnRemove.InvokeAsync(n);
+    }
+
+    private async Task ClearAsync()
+    {
+        if (_service is not null) _service.Clear();
+        else await OnClear.InvokeAsync();
+    }
+
+    // AI-provenance entries default to a sparkle; otherwise use the supplied icon or a bell.
+    private static string IconFor(DrylNotification n) =>
+        !string.IsNullOrEmpty(n.Icon) ? n.Icon! : (n.Ai != AiState.None ? "Sparkle" : "Bell");
+
+    private static string? AuraClass(DrylNotification n) => n.Ai switch
+    {
+        AiState.None => null,
+        AiState.Thinking => "ai-aura ai-thinking",
+        AiState.Streaming => "ai-aura ai-streaming",
+        AiState.Generated => "ai-aura ai-generated",
+        _ => "ai-aura"
+    };
+
+    // Relative "x ago" label; falls back to an absolute date past a week. InvariantCulture so the
+    // month abbreviation is locale-stable (see the SVG/number locale guidance in the repo).
+    private static string RelativeTime(DateTimeOffset ts)
+    {
+        var diff = DateTimeOffset.Now - ts;
+        if (diff < TimeSpan.Zero) diff = TimeSpan.Zero;
+        if (diff.TotalSeconds < 60) return "just now";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+        return ts.ToString("MMM d", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public void Dispose()
+    {
+        if (_service is not null) _service.OnChanged -= HandleServiceChanged;
+    }
+}

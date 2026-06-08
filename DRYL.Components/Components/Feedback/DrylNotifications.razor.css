@@ -1,0 +1,238 @@
+/* DrylNotifications — bell trigger + inbox panel. Tokens only. */
+
+/* ── Bell trigger ── */
+.notif-bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line);
+    background: var(--glass-1);
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition:
+        border-color var(--dur-fast) var(--ease-out),
+        color var(--dur-fast) var(--ease-out),
+        background var(--dur-fast) var(--ease-out);
+}
+.notif-bell:hover {
+    border-color: var(--line-strong);
+    color: var(--fg);
+    background: var(--glass-2);
+}
+.notif-bell.is-active {
+    border-color: var(--accent-line);
+    color: var(--fg);
+}
+.notif-bell:focus-visible {
+    outline: none;
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.notif-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--fg);
+    background: var(--accent-grad);
+    border-radius: var(--r-pill);
+    box-shadow: 0 0 0 2px var(--bg-1);
+}
+
+/* ── Panel ── */
+.notif-panel {
+    width: 340px;
+    max-width: 92vw;
+}
+.notif-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+.notif-panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+}
+.notif-panel-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+}
+.notif-action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 4px 8px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-sm);
+    color: var(--fg-dim);
+    font-size: 11px;
+    cursor: pointer;
+    transition:
+        color var(--dur-fast) var(--ease-out),
+        background var(--dur-fast) var(--ease-out);
+}
+.notif-action:hover {
+    color: var(--fg);
+    background: var(--glass-1);
+}
+.notif-action:focus-visible {
+    outline: none;
+    color: var(--fg);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.notif-empty {
+    padding: var(--sp-4) var(--sp-3) var(--sp-6);
+}
+
+/* ── List + items ── */
+.notif-list {
+    list-style: none;
+    margin: 0;
+    padding: var(--sp-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+.notif-item {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    border-radius: var(--r-md);
+    transition: background var(--dur-fast) var(--ease-out);
+}
+
+/* AI-provenance rows carry the shared aura. Keep the rotating ring and glow INSIDE the
+   card's rounded bounds (same treatment as DrylTable / DrylToast) — otherwise the outer
+   glow bleeds sideways and the DrylScrollArea's straight edges clip it into a hard,
+   square-cornered box around each rounded card. */
+.notif-item.ai-aura .ai-aura-ring { inset: 0; }
+.notif-item.ai-aura .ai-aura-glow {
+    box-shadow:
+        inset 0 0 0 1px var(--accent-line),
+        inset 0 0 24px rgba(124, 92, 255, 0.16),
+        inset 0 0 48px rgba(34, 211, 238, 0.07);
+}
+.notif-item:hover {
+    background: var(--glass-1);
+}
+.notif-item.is-unread,
+.notif-item.is-unread:hover {
+    background: var(--accent-soft);
+}
+
+.notif-item-main {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-3);
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-md);
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+}
+.notif-item-main:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.notif-item-icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-sm);
+    background: var(--glass-2);
+    border: 1px solid var(--line);
+    color: var(--fg-muted);
+}
+.notif-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.notif-item-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+}
+.notif-item-message {
+    font-size: 12px;
+    color: var(--fg-muted);
+    line-height: 1.45;
+}
+.notif-item-time {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--fg-dim);
+    font-family: var(--font-mono);
+}
+
+.notif-item-dot {
+    flex: none;
+    align-self: center;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--r-pill);
+    background: var(--accent-grad);
+    box-shadow: 0 0 6px var(--accent-line);
+}
+
+.notif-item-dismiss {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    margin: var(--sp-2) var(--sp-2) var(--sp-2) 0;
+    background: transparent;
+    border: 0;
+    border-radius: var(--r-xs);
+    color: var(--fg-dim);
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        opacity var(--dur-fast) var(--ease-out),
+        color var(--dur-fast) var(--ease-out),
+        background var(--dur-fast) var(--ease-out);
+}
+.notif-item:hover .notif-item-dismiss,
+.notif-item-dismiss:focus-visible {
+    opacity: 1;
+}
+.notif-item-dismiss:hover {
+    color: var(--fg);
+    background: var(--glass-2);
+}
+.notif-item-dismiss:focus-visible {
+    outline: none;
+    color: var(--fg);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}

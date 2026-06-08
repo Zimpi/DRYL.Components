@@ -1,0 +1,21 @@
+<DrylNotifications Items="@_items"
+                   OnMarkRead="OnMarkRead"
+                   OnMarkAllRead="OnMarkAllRead"
+                   OnRemove="OnRemove"
+                   OnClear="OnClear" />
+
+@code {
+    private readonly List<DrylNotification> _items =
+    [
+        new() { Title = "New comment on PR #482", Message = "\"Looks good — merging.\"", Icon = "Code",     Timestamp = DateTimeOffset.Now.AddMinutes(-3) },
+        new() { Title = "Build passed",           Message = "main · 2m 14s",            Icon = "Check", Read = true, Timestamp = DateTimeOffset.Now.AddMinutes(-22) },
+        new() { Title = "Storage at 80%",         Message = "Consider archiving old artifacts.", Icon = "Database", Timestamp = DateTimeOffset.Now.AddHours(-5) },
+    ];
+
+    // In controlled mode the component already flips Read on a row click before raising OnMarkRead,
+    // so this handler is just where you'd persist the change. MarkAll / Remove / Clear are applied here.
+    private void OnMarkRead(DrylNotification n) { }
+    private void OnMarkAllRead() { foreach (var n in _items) n.Read = true; }
+    private void OnRemove(DrylNotification n) => _items.Remove(n);
+    private void OnClear() => _items.Clear();
+}

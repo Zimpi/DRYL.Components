@@ -111,6 +111,7 @@ public static class ComponentCatalog
         new("Progress",       "progress",       "Feedback", "DrylProgress",      "Feedback", true,  "Linear bar — determinate / indeterminate, percentage.",     "Activity"),
         new("Empty State",    "empty-state",    "Feedback", "DrylEmptyState",    "Feedback", true,  "No-data placeholder — icon, title, description, action.",   "Search"),
         new("Error Boundary", "error-boundary", "Feedback", "DrylErrorBoundary", "Feedback", true,  "Glass fallback — retry / recover, dev-only detail toggle.", "Alert"),
+        new("Notifications",  "notifications",  "Feedback", "DrylNotifications",  "Feedback", true,  "Bell + inbox panel — unread badge, mark-read, AI entries.", "Bell"),
 
         // ── Intelligence ──────────────────────────────────────────
         new("AI Mode",   "ai",        "Intelligence", "DrylAiIndicator", "AI", true, "Pulsing status pill adapting label and speed to AiState.", "Sparkle"),
