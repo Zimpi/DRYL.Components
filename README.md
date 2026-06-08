@@ -369,6 +369,8 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylMultiSelect` | Inputs       | ✅      | ✅ Done    | Multi-selection dropdown; removable chips; `@bind-SelectedValues` |
 | `DrylRadioGroup<TValue>` | Inputs | ✅     | ✅ Done    | Radio group inheriting `InputBase<TValue>`; Vertical / Horizontal |
 | `DrylRadio<TValue>` | Inputs     | —       | ✅ Done    | Single radio option inside `DrylRadioGroup`; cascading context    |
+| `DrylSegmentedControl<TValue>` | Inputs | — | ✅ Done | iOS-style mode switch; gliding indicator; `@bind-Value`; arrow-key nav |
+| `DrylSegment<TValue>` | Inputs   | —       | ✅ Done    | Single segment inside `DrylSegmentedControl`; cascading context   |
 | `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
 | `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
 | `DrylSlider`      | Inputs       | ✅      | ✅ Done    | Range slider bound to `double`; accent gradient fill, AI-aware    |

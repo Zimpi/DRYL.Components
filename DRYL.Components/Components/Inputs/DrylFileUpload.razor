@@ -168,7 +168,7 @@
         get
         {
             if (Ai == AiState.None) return string.Empty;
-            var classes = new List<string> { "ai-aura" };
+            var classes = new List<string> { "file-upload-wrapper", "ai-aura" };
             switch (Ai)
             {
                 case AiState.Thinking:  classes.Add("ai-thinking");  break;

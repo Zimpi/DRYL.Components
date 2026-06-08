@@ -1,0 +1,73 @@
+@namespace DRYL.Components
+@typeparam TValue
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSegment<TValue> — single option inside a DrylSegmentedControl.
+
+    Renders no DOM of its own — the parent DrylSegmentedControl collects
+    every segment via the cascading reference and draws the track button
+    plus the gliding indicator. Must be placed inside a
+    DrylSegmentedControl<TValue>.
+
+    Usage:
+      <DrylSegmentedControl @bind-Value="_view">
+          <DrylSegment Value="@("list")"     Label="List"     Icon="List" />
+          <DrylSegment Value="@("board")"    Label="Board"    Icon="Columns" />
+          <DrylSegment Value="@("calendar")" Label="Calendar" Icon="Calendar" />
+      </DrylSegmentedControl>
+    ───────────────────────────────────────────────────────── *@
+
+@code {
+    [CascadingParameter] private DrylSegmentedControl<TValue>? Parent { get; set; }
+
+    /// <summary>The value this segment selects. Required.</summary>
+    [Parameter, EditorRequired] public TValue? Value { get; set; }
+
+    /// <summary>Text shown in the segment. Optional when <see cref="ChildContent"/> is supplied.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Optional leading icon name (see <see cref="DrylIcon"/>).</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>If true, this segment is unselectable and skipped by keyboard navigation.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Custom segment content, rendered in place of <see cref="Label"/>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    internal string InternalId { get; } = Guid.NewGuid().ToString("N");
+
+    private bool _registered;
+    private bool _prevDisabled;
+    private string? _prevLabel;
+    private string? _prevIcon;
+
+    protected override void OnInitialized()
+    {
+        if (Parent is null)
+            throw new InvalidOperationException(
+                "DrylSegment must be placed inside a DrylSegmentedControl.");
+
+        Parent.RegisterSegment(this);
+        _registered = true;
+        _prevDisabled = Disabled;
+        _prevLabel = Label;
+        _prevIcon = Icon;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!_registered) return;
+
+        if (Disabled != _prevDisabled || Label != _prevLabel || Icon != _prevIcon)
+        {
+            _prevDisabled = Disabled;
+            _prevLabel = Label;
+            _prevIcon = Icon;
+            Parent?.NotifySegmentChanged();
+        }
+    }
+
+    public void Dispose() => Parent?.UnregisterSegment(this);
+}

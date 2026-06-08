@@ -1,0 +1,208 @@
+@namespace DRYL.Components
+@typeparam TValue
+@implements IDisposable
+@using System.Globalization
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSegmentedControl<TValue> — a compact iOS-style segmented
+    switcher for exclusive view / mode selection in toolbars and
+    headers (List / Board / Calendar, Day / Week / Month, …).
+
+    A glass track holds equal-width segments; a single accent
+    indicator glides between them on a spring. Unlike DrylRadioGroup
+    this is a lightweight @bind-Value control, not an EditForm input,
+    and unlike DrylTabs it carries no panel — it only reports the
+    chosen value.
+
+    Usage:
+      <DrylSegmentedControl @bind-Value="_view" AriaLabel="View mode">
+          <DrylSegment Value="@("list")"     Label="List"     Icon="List" />
+          <DrylSegment Value="@("board")"    Label="Board"    Icon="Columns" />
+          <DrylSegment Value="@("calendar")" Label="Calendar" Icon="Calendar" />
+      </DrylSegmentedControl>
+
+    Keyboard: ArrowRight/Down select the next segment, ArrowLeft/Up
+    the previous, Home/End jump to the ends (disabled segments are
+    skipped). Roving tabindex + role="radiogroup".
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@TrackCss"
+     role="radiogroup"
+     aria-label="@AriaLabel"
+     style="--seg-count:@_segments.Count"
+     @attributes="AdditionalAttributes">
+
+    @if (SelectedIndex >= 0)
+    {
+        <div class="seg-indicator"
+             style="transform: translateX(@(FormattableString.Invariant($"{SelectedIndex * 100}%")))"
+             aria-hidden="true"></div>
+    }
+
+    @for (var i = 0; i < _segments.Count; i++)
+    {
+        var seg = _segments[i];
+        var index = i;
+        var isSelected = index == SelectedIndex;
+        var segDisabled = Disabled || seg.Disabled;
+        <button type="button"
+                class="@SegmentCss(isSelected)"
+                role="radio"
+                aria-checked="@(isSelected ? "true" : "false")"
+                tabindex="@(IsFocusable(index) ? 0 : -1)"
+                disabled="@segDisabled"
+                @key="seg.InternalId"
+                @ref="_refs[index]"
+                @onclick="() => SelectAsync(seg)"
+                @onkeydown="e => OnKeyDownAsync(e, index)">
+            @if (!string.IsNullOrEmpty(seg.Icon))
+            {
+                <DrylIcon Name="@seg.Icon" Size="14" Class="seg-icon" />
+            }
+            @if (seg.ChildContent is not null)
+            {
+                @seg.ChildContent
+            }
+            else if (!string.IsNullOrEmpty(seg.Label))
+            {
+                <span class="seg-label">@seg.Label</span>
+            }
+        </button>
+    }
+
+    @* DrylSegment children render no DOM of their own — this slot exists so
+       they instantiate and register against the cascading parent. *@
+    <CascadingValue Value="this" IsFixed="true">
+        @ChildContent
+    </CascadingValue>
+</div>
+
+@code {
+    /// <summary>The currently selected value. Supports two-way binding via <c>@bind-Value</c>.</summary>
+    [Parameter] public TValue Value { get; set; } = default!;
+
+    /// <summary>Fires when the user selects a different segment.</summary>
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+
+    /// <summary>The <see cref="DrylSegment{TValue}"/> declarations.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Control size.</summary>
+    [Parameter] public SegmentedSize Size { get; set; } = SegmentedSize.Medium;
+
+    /// <summary>If true, the control stretches to fill its container and segments share the width equally.</summary>
+    [Parameter] public bool Block { get; set; }
+
+    /// <summary>If true, every segment is disabled.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label for the group (read by screen readers).</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Extra CSS class(es) on the track.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the track element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly List<DrylSegment<TValue>> _segments = new();
+    private ElementReference[] _refs = Array.Empty<ElementReference>();
+
+    private int SelectedIndex =>
+        _segments.FindIndex(s => EqualityComparer<TValue>.Default.Equals(s.Value, Value));
+
+    internal void RegisterSegment(DrylSegment<TValue> segment)
+    {
+        if (_segments.Contains(segment)) return;
+        _segments.Add(segment);
+        EnsureRefCapacity();
+        StateHasChanged();
+    }
+
+    internal void UnregisterSegment(DrylSegment<TValue> segment)
+    {
+        if (_segments.Remove(segment))
+        {
+            EnsureRefCapacity();
+            StateHasChanged();
+        }
+    }
+
+    internal void NotifySegmentChanged() => StateHasChanged();
+
+    private void EnsureRefCapacity()
+    {
+        if (_refs.Length != _segments.Count)
+            _refs = new ElementReference[_segments.Count];
+    }
+
+    // The selected segment is the tab stop; if nothing is selected, the first
+    // enabled segment carries it so the group stays keyboard-reachable.
+    private bool IsFocusable(int index)
+    {
+        var selected = SelectedIndex;
+        if (selected >= 0) return index == selected;
+        return index == _segments.FindIndex(s => !(Disabled || s.Disabled));
+    }
+
+    private async Task SelectAsync(DrylSegment<TValue> segment)
+    {
+        if (Disabled || segment.Disabled) return;
+        if (EqualityComparer<TValue>.Default.Equals(segment.Value, Value)) return;
+
+        Value = segment.Value!;
+        if (ValueChanged.HasDelegate)
+            await ValueChanged.InvokeAsync(segment.Value!);
+        StateHasChanged();
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e, int index)
+    {
+        var enabled = Enumerable.Range(0, _segments.Count)
+            .Where(i => !(Disabled || _segments[i].Disabled))
+            .ToList();
+        if (enabled.Count == 0) return;
+
+        var pos = enabled.IndexOf(index);
+        if (pos < 0) pos = 0;
+
+        int? targetIndex = e.Key switch
+        {
+            "ArrowRight" or "ArrowDown" => enabled[(pos + 1) % enabled.Count],
+            "ArrowLeft" or "ArrowUp"    => enabled[(pos - 1 + enabled.Count) % enabled.Count],
+            "Home"                      => enabled[0],
+            "End"                       => enabled[^1],
+            _ => null
+        };
+
+        if (targetIndex is null) return;
+
+        await SelectAsync(_segments[targetIndex.Value]);
+        if (targetIndex.Value < _refs.Length)
+            await _refs[targetIndex.Value].FocusAsync();
+    }
+
+    private string TrackCss
+    {
+        get
+        {
+            var parts = new List<string> { "seg" };
+            parts.Add(Size switch
+            {
+                SegmentedSize.Small => "seg--sm",
+                SegmentedSize.Large => "seg--lg",
+                _ => "seg--md"
+            });
+            if (Block) parts.Add("seg--block");
+            if (Disabled) parts.Add("seg--disabled");
+            if (!string.IsNullOrEmpty(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    private static string SegmentCss(bool isSelected) =>
+        isSelected ? "seg-item seg-item--selected" : "seg-item";
+
+    public void Dispose() => _segments.Clear();
+}

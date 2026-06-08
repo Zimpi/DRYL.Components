@@ -1,0 +1,88 @@
+/* ── Segmented control ──────────────────────────────────────────────
+   A glass track with equal-width segments and a single gliding accent
+   indicator. Grid (not flex) so every segment is the same width even
+   when the track shrink-wraps its content — the indicator's pure-CSS
+   position maths rely on equal columns. */
+
+.seg {
+    position: relative;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    width: fit-content;
+    max-width: 100%;
+    padding: var(--sp-1);
+    background: var(--glass-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    isolation: isolate;
+}
+
+.seg--block {
+    width: 100%;
+}
+
+/* The sliding selection surface. Its width is one column; translateX moves
+   it by whole-column steps (set inline from the selected index). Because an
+   absolutely positioned element resolves % width against the padding box,
+   subtracting the track padding yields exactly the segment width. */
+.seg-indicator {
+    position: absolute;
+    z-index: 0;
+    top: var(--sp-1);
+    bottom: var(--sp-1);
+    left: var(--sp-1);
+    width: calc((100% - 2 * var(--sp-1)) / var(--seg-count));
+    border-radius: var(--r-sm);
+    background: var(--glass-3);
+    border: 1px solid var(--accent-line);
+    box-shadow: 0 0 0 1px var(--accent-line), 0 0 20px rgba(124, 92, 255, 0.18);
+    transition: transform var(--dur-med) var(--ease-spring);
+    pointer-events: none;
+}
+
+.seg-item {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    border: 0;
+    background: transparent;
+    color: var(--fg-muted);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    border-radius: var(--r-sm);
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+.seg-item:hover { color: var(--fg); }
+
+.seg-item--selected { color: var(--fg); font-weight: 600; }
+
+.seg-item:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.seg-item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    color: var(--fg-muted);
+}
+
+.seg-icon { flex-shrink: 0; }
+
+/* ── Sizes — mirror the DrylButton height scale ── */
+.seg--sm .seg-item { height: 30px; padding: 0 12px; font-size: 12px; }
+.seg--md .seg-item { height: 38px; padding: 0 16px; font-size: 13px; }
+.seg--lg .seg-item { height: 46px; padding: 0 22px; font-size: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .seg-indicator { transition: none; }
+}

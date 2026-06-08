@@ -81,6 +81,7 @@ public static class ComponentCatalog
         new("Number",        "input-number",    "Inputs", "DrylInputNumber",   "Inputs", true,  "Generic numeric input with optional ± stepper.",             "Hash"),
         new("Form Controls", "forms",           "Inputs", null,                "Inputs", false, "Textarea, select, checkbox, toggle — EditForm-integrated.",  "Check"),
         new("Radio Group",   "radio",           "Inputs", "DrylRadioGroup",    "Inputs", false, "Radio group — vertical or horizontal layout.",               "Circle"),
+        new("Segmented Control","segmented-control","Inputs","DrylSegmentedControl","Inputs", false, "Exclusive view / mode switch — gliding accent indicator.","Blocks"),
         new("Multi Select",  "multiselect",     "Inputs", "DrylMultiSelect",   "Inputs", true,  "Multi-selection dropdown — removable chips, @bind.",         "List"),
         new("Slider",        "slider",          "Inputs", "DrylSlider",        "Inputs", true,  "Range slider — accent gradient fill.",                       "Sliders"),
         new("File Upload",   "file-upload",     "Inputs", "DrylFileUpload",    "Inputs", true,  "Drag-and-drop or click-to-browse, multiple files.",          "Upload"),

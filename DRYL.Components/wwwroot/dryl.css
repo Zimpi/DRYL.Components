@@ -393,6 +393,18 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   color: var(--fg);
 }
 
+/* Disabled — must read clearly as inert across every variant: dimmed, flat,
+   desaturated, and stripped of the accent glow that otherwise makes a primary
+   look active. Hover sheen, press and icon springs are already gated behind
+   :not(:disabled). */
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.5);
+  transform: none;
+}
+
 .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: var(--r-sm); }
 .btn-sm.btn-icon { width: 30px; padding: 0; }
 .btn-lg { height: 46px; padding: 0 22px; font-size: 14px; }
@@ -534,6 +546,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .input-wrapper.ai-aura,
 .textarea-wrapper.ai-aura {
   border-radius: var(--r-md);
+}
+
+/* AI mode on the file-upload drop zone — echo the .file-drop radius (--r-lg)
+   on the wrapper so the rotating ring and breathing glow trace its rounded
+   corners instead of a square box. */
+.file-upload-wrapper.ai-aura {
+  border-radius: var(--r-lg);
 }
 
 /* AI mode on radio groups — give the wrapper a surface + radius so the

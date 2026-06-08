@@ -1,0 +1,19 @@
+<div class="col" style="gap: var(--sp-4); align-items: flex-start;">
+    @* A single disabled segment — skipped by clicks and keyboard navigation. *@
+    <DrylSegmentedControl @bind-Value="_v" AriaLabel="Plan">
+        <DrylSegment Value="@("free")" Label="Free" />
+        <DrylSegment Value="@("pro")" Label="Pro" />
+        <DrylSegment Value="@("enterprise")" Label="Enterprise" Disabled />
+    </DrylSegmentedControl>
+
+    @* The whole control disabled. *@
+    <DrylSegmentedControl @bind-Value="_v" Disabled AriaLabel="Plan (disabled)">
+        <DrylSegment Value="@("free")" Label="Free" />
+        <DrylSegment Value="@("pro")" Label="Pro" />
+        <DrylSegment Value="@("enterprise")" Label="Enterprise" />
+    </DrylSegmentedControl>
+</div>
+
+@code {
+    private string _v = "pro";
+}
