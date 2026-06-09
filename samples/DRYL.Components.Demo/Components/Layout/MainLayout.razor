@@ -1,10 +1,37 @@
 @inherits LayoutComponentBase
 
-<DrylLayout>
-    <TopBar OnSearch="OpenPalette" />
+@*  The website's own chrome is built from the DRYL app-shell components and
+    doubles as a live reference for them: a Pinnable DrylDrawer (collapse state
+    persisted to localStorage) with Header / Content / Footer slots, collapsed
+    from the DrylAppBar via ShowSidebarToggle, and DrylLayout coordinating the
+    grid reflow. On mobile the same drawer becomes the hamburger overlay. *@
 
-    <DrylDrawer @bind-Open="_drawerOpen">
-        <NavMenu />
+<DrylLayout SidebarWidth="260px">
+    <TopBar OnSearch="OpenPalette" ShowSidebarToggle="true" />
+
+    <DrylDrawer Mode="SidebarMode.Pinnable"
+                PersistStateKey="dryl.demo.sidebar"
+                @bind-Open="_drawerOpen"
+                @bind-Collapsed="_navCollapsed">
+        <Header>
+            <div class="brand">
+                <div class="brand-mark">
+                    <img src="favicon.png" alt="" class="brand-mark-logo" />
+                </div>
+                <div class="brand-text sidebar-collapse-hide">
+                    <span class="brand-name">DRYL</span>
+                    <span class="brand-sub">v0.1 · WIP</span>
+                </div>
+            </div>
+        </Header>
+        <Content>
+            <NavMenu />
+        </Content>
+        <Footer>
+            <DrylNavGroup Title="Project">
+                <DrylNavLink Href="@ComponentCatalog.RepoUrl" Icon="Code" External>GitHub</DrylNavLink>
+            </DrylNavGroup>
+        </Footer>
     </DrylDrawer>
 
     <DrylMainContent>
@@ -32,6 +59,7 @@
 
 @code {
     private bool _drawerOpen;
+    private bool _navCollapsed;
     private bool _cmdOpen;
 
     private void OpenPalette() => _cmdOpen = true;

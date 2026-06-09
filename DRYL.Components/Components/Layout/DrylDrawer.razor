@@ -1,43 +1,119 @@
 @namespace DRYL.Components
-@implements IDisposable
+@implements IAsyncDisposable
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
-    DrylDrawer — sidebar inside a DrylLayout.
+    DrylDrawer — sidebar inside a DrylLayout (or standalone).
 
-    Responsive: on desktop (>= 1024px) the drawer is always
-    visible as a grid column. On mobile it becomes a fixed
-    overlay controlled by <c>Open</c>; a backdrop closes it.
+    Modes (SidebarMode):
+      • Auto         flyout overlay on mobile, in-flow column on
+                     desktop — the historical default.
+      • Static       always an in-flow column, never dismissable.
+      • Collapsible  in-flow column the user can collapse to an
+                     icon rail via @bind-Collapsed.
+      • Pinnable     like Collapsible, but the collapsed state is
+                     persisted to localStorage (PersistStateKey).
+      • Flyout       always an overlay; Escape / backdrop close it
+                     and focus is trapped while open.
+
+    Slots: pass plain ChildContent for a simple list, or use
+    Header / Content / Footer to pin a header and footer around a
+    scrolling nav area.
 
     Usage:
-      <DrylDrawer @bind-Open="open">
-          <DrylNavGroup Title="Library">
-              <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
-              <DrylNavLink Href="buttons" Icon="Bolt">Buttons</DrylNavLink>
-          </DrylNavGroup>
+      <DrylDrawer Mode="SidebarMode.Pinnable"
+                  PersistStateKey="dryl.nav"
+                  @bind-Collapsed="navCollapsed">
+          <Header><DrylBrand/></Header>
+          <Content>
+              <DrylNavGroup Title="Library">
+                  <DrylNavLink Href="" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+              </DrylNavGroup>
+          </Content>
+          <Footer><DrylNavLink Href="settings" Icon="Settings">Settings</DrylNavLink></Footer>
       </DrylDrawer>
     ───────────────────────────────────────────────────────── *@
 
-<div class="sidebar-backdrop @(Open ? "is-open" : null)" @onclick="CloseAsync"></div>
+@if (_rendersBackdrop)
+{
+    <div class="sidebar-backdrop @(Mode == SidebarMode.Flyout ? "sidebar-backdrop--flyout" : null) @(Open ? "is-open" : null)"
+         @onclick="CloseAsync"></div>
+}
 
-<aside class="sidebar @(Open ? "is-open" : null) @Class" @attributes="AdditionalAttributes">
-    @ChildContent
+<aside @ref="_aside"
+       class="@CssClass"
+       style="@StyleVars"
+       tabindex="-1"
+       @attributes="AdditionalAttributes">
+    @if (_useSlots)
+    {
+        @if (Header is not null)
+        {
+            <div class="sidebar-header">@Header</div>
+        }
+        <div class="sidebar-content">@(Content ?? ChildContent)</div>
+        @if (Footer is not null)
+        {
+            <div class="sidebar-footer">@Footer</div>
+        }
+    }
+    else
+    {
+        @ChildContent
+    }
 </aside>
 
 @code {
     /// <summary>Cascaded from <see cref="DrylLayout"/>. Null if the drawer is used outside a layout.</summary>
     [CascadingParameter] public DrylLayoutContext? Context { get; set; }
 
+    /// <summary>Operating mode. Default <see cref="SidebarMode.Auto"/> (desktop column, mobile overlay).</summary>
+    [Parameter] public SidebarMode Mode { get; set; } = SidebarMode.Auto;
+
     /// <summary>
-    /// Open state. Only affects the mobile overlay — on desktop the drawer is always laid out
-    /// in the grid regardless of this value. Default <c>false</c> so mobile starts closed.
+    /// Overlay open state (used by <see cref="SidebarMode.Auto"/> on mobile and by
+    /// <see cref="SidebarMode.Flyout"/> at all widths). Default <c>false</c>.
     /// </summary>
     [Parameter] public bool Open { get; set; }
 
     /// <summary>Two-way binding callback for <see cref="Open"/>.</summary>
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
 
-    /// <summary>Drawer body (brand, nav groups, footer links, etc.).</summary>
+    /// <summary>
+    /// Collapsed (icon-only rail) state for <see cref="SidebarMode.Collapsible"/> and
+    /// <see cref="SidebarMode.Pinnable"/>. Two-way bindable (<c>@bind-Collapsed</c>).
+    /// </summary>
+    [Parameter] public bool Collapsed { get; set; }
+
+    /// <summary>Two-way binding callback for <see cref="Collapsed"/>.</summary>
+    [Parameter] public EventCallback<bool> CollapsedChanged { get; set; }
+
+    /// <summary>
+    /// Expanded width as a CSS length (e.g. <c>"300px"</c>). Drives the standalone / flyout width.
+    /// Inside a <see cref="DrylLayout"/> the in-flow column width comes from <c>DrylLayout.SidebarWidth</c>.
+    /// </summary>
+    [Parameter] public string? Width { get; set; }
+
+    /// <summary>Collapsed rail width as a CSS length (e.g. <c>"56px"</c>). Defaults to the <c>--sidebar-collapsed-w</c> token.</summary>
+    [Parameter] public string? CollapsedWidth { get; set; }
+
+    /// <summary>
+    /// localStorage key used by <see cref="SidebarMode.Pinnable"/> to persist the collapsed state
+    /// across visits. Ignored for other modes.
+    /// </summary>
+    [Parameter] public string? PersistStateKey { get; set; }
+
+    /// <summary>Pinned header region (brand, search) — stays put while Content scrolls. Switches to slotted layout.</summary>
+    [Parameter] public RenderFragment? Header { get; set; }
+
+    /// <summary>Scrolling navigation region. Switches to slotted layout. Falls back to <see cref="ChildContent"/> when null.</summary>
+    [Parameter] public RenderFragment? Content { get; set; }
+
+    /// <summary>Pinned footer region (settings, account) — stays put while Content scrolls. Switches to slotted layout.</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    /// <summary>Drawer body when no Header/Content/Footer slots are used (brand, nav groups, footer links, etc.).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     /// <summary>Extra CSS class(es) applied to the .sidebar root.</summary>
@@ -47,7 +123,47 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    private ElementReference _aside;
+    private DotNetObjectReference<DrylDrawer>? _dotNetRef;
+    private bool _flyoutAttached;
+    private bool _persistLoaded;
     private DrylLayoutContext? _registered;
+    private bool _collapseRegistered;
+
+    private bool _collapsible => Mode is SidebarMode.Collapsible or SidebarMode.Pinnable;
+    // Every mode except Static can overlay the content: Auto / Collapsible / Pinnable
+    // become a fixed overlay on mobile (via the dryl.css media query), and Flyout
+    // overlays at every width. Static is always an in-flow column.
+    private bool _rendersBackdrop => Mode is not SidebarMode.Static;
+    private bool _useSlots => Header is not null || Content is not null || Footer is not null;
+
+    private string CssClass
+    {
+        get
+        {
+            var mode = Mode switch
+            {
+                SidebarMode.Static => "sidebar--static",
+                SidebarMode.Flyout => "sidebar--flyout",
+                _ => null
+            };
+            var open = (_rendersBackdrop && Open) ? "is-open" : null;
+            var collapsed = (_collapsible && Collapsed) ? "is-collapsed" : null;
+            return string.Join(' ', new[] { "sidebar", mode, open, collapsed, Class }
+                .Where(s => !string.IsNullOrEmpty(s)));
+        }
+    }
+
+    private string? StyleVars
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (!string.IsNullOrEmpty(Width)) parts.Add($"--sidebar-w:{Width}");
+            if (!string.IsNullOrEmpty(CollapsedWidth)) parts.Add($"--sidebar-collapsed-w:{CollapsedWidth}");
+            return parts.Count == 0 ? null : string.Join(';', parts);
+        }
+    }
 
     protected override void OnInitialized()
     {
@@ -59,8 +175,65 @@
         if (!ReferenceEquals(_registered, Context))
         {
             _registered?.UnregisterDrawer(this);
+            if (_collapseRegistered) _registered?.UnregisterSidebarToggle(ToggleCollapseAsync);
             _registered = Context;
             _registered?.RegisterDrawer(this);
+            _collapseRegistered = false;
+        }
+
+        // Keep the collapse toggler registration in step with the current mode so a
+        // DrylAppBar button (Context.ToggleSidebarAsync) drives this drawer.
+        if (_collapsible && !_collapseRegistered)
+        {
+            _registered?.RegisterSidebarToggle(ToggleCollapseAsync);
+            _collapseRegistered = true;
+        }
+        else if (!_collapsible && _collapseRegistered)
+        {
+            _registered?.UnregisterSidebarToggle(ToggleCollapseAsync);
+            _collapseRegistered = false;
+        }
+
+        if (_registered is not null && _collapsible && _registered.SidebarCollapsed != Collapsed)
+        {
+            _registered.SidebarCollapsed = Collapsed;
+            _registered.NotifyStateChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Pinnable: restore the persisted collapsed state once, after first interactive render.
+        if (firstRender && Mode == SidebarMode.Pinnable && !string.IsNullOrEmpty(PersistStateKey))
+        {
+            _persistLoaded = true;
+            try
+            {
+                var stored = await JS.InvokeAsync<string?>("dryl.storage.get", PersistStateKey);
+                if (stored is "true" or "false")
+                {
+                    var value = stored == "true";
+                    if (value != Collapsed) await SetCollapsedAsync(value, persist: false);
+                }
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+
+        // Flyout: trap focus + wire Escape while open; tear down when closed.
+        if (Mode == SidebarMode.Flyout && Open && !_flyoutAttached)
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.modal.attach", _aside, _dotNetRef,
+                    new { closeOnEscape = true, trapFocus = true });
+                _flyoutAttached = true;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+        else if (_flyoutAttached && (Mode != SidebarMode.Flyout || !Open))
+        {
+            await DetachFlyoutAsync();
         }
     }
 
@@ -80,11 +253,50 @@
         StateHasChanged();
     }
 
+    /// <summary>Collapses or expands the sidebar (Collapsible / Pinnable modes). Public so consumers can drive it.</summary>
+    public Task ToggleCollapseAsync() => SetCollapsedAsync(!Collapsed, persist: true);
+
+    private async Task SetCollapsedAsync(bool value, bool persist)
+    {
+        if (Collapsed == value) return;
+        Collapsed = value;
+        if (CollapsedChanged.HasDelegate) await CollapsedChanged.InvokeAsync(value);
+
+        if (_registered is not null)
+        {
+            _registered.SidebarCollapsed = value;
+            _registered.NotifyStateChanged();
+        }
+
+        if (persist && Mode == SidebarMode.Pinnable && !string.IsNullOrEmpty(PersistStateKey))
+        {
+            try { await JS.InvokeVoidAsync("dryl.storage.set", PersistStateKey, value ? "true" : "false"); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+
+        StateHasChanged();
+    }
+
     private Task CloseAsync() => SetOpenAsync(false);
 
-    public void Dispose()
+    /// <summary>Invoked from JS (dryl.modal) when Escape is pressed while a flyout is open.</summary>
+    [JSInvokable]
+    public Task OnEscape() => SetOpenAsync(false);
+
+    private async Task DetachFlyoutAsync()
+    {
+        if (!_flyoutAttached) return;
+        try { await JS.InvokeVoidAsync("dryl.modal.detach", _aside); }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        _flyoutAttached = false;
+    }
+
+    public async ValueTask DisposeAsync()
     {
         Nav.LocationChanged -= OnLocationChanged;
+        if (_collapseRegistered) _registered?.UnregisterSidebarToggle(ToggleCollapseAsync);
         _registered?.UnregisterDrawer(this);
+        await DetachFlyoutAsync();
+        _dotNetRef?.Dispose();
     }
 }

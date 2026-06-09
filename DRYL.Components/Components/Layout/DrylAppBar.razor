@@ -4,42 +4,77 @@
 @*  ─────────────────────────────────────────────────────────
     DrylAppBar — sticky top bar inside a DrylLayout.
 
-    When a sibling DrylDrawer is present and ShowDrawerToggle
-    is true, renders a hamburger button on the left that
-    toggles the drawer. The hamburger is hidden on desktop via
-    CSS (the drawer is always visible there).
+    Two layout modes:
 
-    Usage:
-      <DrylAppBar>
-          <div class="crumb">...</div>
-          <div style="flex:1"></div>
-          <DrylBadge>Pre-0.1</DrylBadge>
-      </DrylAppBar>
+    • Legacy / flat — pass plain ChildContent and the bar lays it
+      out as a single flex row (used by the website chrome).
+
+    • Slotted — pass any of Start / Center / End and the bar renders
+      three balanced regions so Center stays optically centred:
+        <DrylAppBar Elevation="AppBarElevation.Raised">
+            <Start>…</Start>
+            <Center>…</Center>
+            <End>…</End>
+        </DrylAppBar>
+
+    When a sibling DrylDrawer is present and ShowDrawerToggle is
+    true, a hamburger renders on the left that toggles the drawer
+    overlay (visible on mobile only). ShowSidebarToggle adds a
+    desktop-visible button that collapses/expands the sidebar.
     ───────────────────────────────────────────────────────── *@
 
-<header class="topbar @Class" @attributes="AdditionalAttributes">
-    @if (ShowDrawerToggle && Context?.HasDrawer == true)
+<header class="topbar@(Elevation == AppBarElevation.Raised ? " is-raised" : null) @Class" @attributes="AdditionalAttributes">
+    @if (_useSlots)
     {
-        <button type="button"
-                class="drawer-toggle"
-                aria-label="Toggle navigation"
-                aria-expanded="@(Context.DrawerOpen ? "true" : "false")"
-                @onclick="ToggleDrawerAsync">
-            <DrylIcon Name="Menu" Size="18" />
-        </button>
+        <div class="topbar-start">
+            @DrawerToggle
+            @SidebarToggle
+            @Start
+        </div>
+        @if (Center is not null)
+        {
+            <div class="topbar-center">@Center</div>
+        }
+        <div class="topbar-end">@End</div>
     }
-    @ChildContent
+    else
+    {
+        @DrawerToggle
+        @SidebarToggle
+        @ChildContent
+    }
 </header>
 
 @code {
     /// <summary>Cascaded from <see cref="DrylLayout"/>. Null if the app bar is used outside a layout.</summary>
     [CascadingParameter] public DrylLayoutContext? Context { get; set; }
 
-    /// <summary>Bar contents (breadcrumbs, search, badges, etc.).</summary>
+    /// <summary>
+    /// Bar contents in legacy single-row mode. Ignored when any of
+    /// <see cref="Start"/> / <see cref="Center"/> / <see cref="End"/> is set.
+    /// </summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>When true (default), renders a hamburger button on mobile that toggles the sibling drawer.</summary>
+    /// <summary>Leading region (brand, nav). Setting it switches the bar to slotted layout.</summary>
+    [Parameter] public RenderFragment? Start { get; set; }
+
+    /// <summary>Optically centred region (title, breadcrumbs). Setting it switches the bar to slotted layout.</summary>
+    [Parameter] public RenderFragment? Center { get; set; }
+
+    /// <summary>Trailing region (actions, avatar, badges). Setting it switches the bar to slotted layout.</summary>
+    [Parameter] public RenderFragment? End { get; set; }
+
+    /// <summary>Resting elevation of the bar. Default <see cref="AppBarElevation.Flat"/>.</summary>
+    [Parameter] public AppBarElevation Elevation { get; set; } = AppBarElevation.Flat;
+
+    /// <summary>When true (default), renders a hamburger on mobile that toggles the sibling drawer overlay.</summary>
     [Parameter] public bool ShowDrawerToggle { get; set; } = true;
+
+    /// <summary>
+    /// When true, renders a desktop-visible button that collapses / expands the sibling sidebar
+    /// (via <see cref="DrylLayoutContext.ToggleSidebarAsync"/>). Default <c>false</c>.
+    /// </summary>
+    [Parameter] public bool ShowSidebarToggle { get; set; }
 
     /// <summary>Extra CSS class(es) applied to the .topbar root.</summary>
     [Parameter] public string? Class { get; set; }
@@ -47,6 +82,30 @@
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool _useSlots => Start is not null || Center is not null || End is not null;
+
+    private RenderFragment? DrawerToggle =>
+        (ShowDrawerToggle && Context?.HasDrawer == true)
+            ? @<button type="button"
+                       class="drawer-toggle"
+                       aria-label="Toggle navigation"
+                       aria-expanded="@(Context!.DrawerOpen ? "true" : "false")"
+                       @onclick="ToggleDrawerAsync">
+                   <DrylIcon Name="Menu" Size="18" />
+               </button>
+            : null;
+
+    private RenderFragment? SidebarToggle =>
+        (ShowSidebarToggle && Context?.CanCollapseSidebar == true)
+            ? @<button type="button"
+                       class="sidebar-toggle"
+                       aria-label="@(Context!.SidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")"
+                       aria-pressed="@(Context.SidebarCollapsed ? "true" : "false")"
+                       @onclick="ToggleSidebarAsync">
+                   <DrylIcon Name="@(Context.SidebarCollapsed ? "ChevronsRight" : "ChevronsLeft")" Size="18" />
+               </button>
+            : null;
 
     private DrylLayoutContext? _subscribed;
 
@@ -63,6 +122,8 @@
     private void OnContextChanged() => InvokeAsync(StateHasChanged);
 
     private Task ToggleDrawerAsync() => Context?.ToggleDrawerAsync() ?? Task.CompletedTask;
+
+    private Task ToggleSidebarAsync() => Context?.ToggleSidebarAsync() ?? Task.CompletedTask;
 
     public void Dispose()
     {

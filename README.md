@@ -386,9 +386,9 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, `Pinned`, `Resizable`, `Hidden`, custom `CellTemplate` / `EditTemplate` / `HeaderTemplate`, alignment |
 | `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |
 | `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
-| `DrylLayout`      | Layout       | —       | ✅ Done    | Root shell — CSS grid with sidebar + topbar slots, cascades layout context |
-| `DrylAppBar`      | Layout       | —       | ✅ Done    | Sticky top bar with optional responsive drawer-toggle hamburger |
-| `DrylDrawer`      | Layout       | —       | ✅ Done    | Sidebar: always-visible column on desktop, overlay on mobile (`@bind-Open`) |
+| `DrylLayout`      | Layout       | —       | ✅ Done    | Root shell — CSS grid; `SidebarWidth`, app-bar-driven collapse coordination |
+| `DrylAppBar`      | Layout       | —       | ✅ Done    | Sticky top bar; `Elevation`, `Start`/`Center`/`End` slots, drawer + sidebar toggles |
+| `DrylDrawer`      | Layout       | —       | ✅ Done    | Sidebar; `Mode` Auto/Static/Collapsible/Pinnable/Flyout, `@bind-Collapsed`, slots |
 | `DrylMainContent` | Layout       | —       | ✅ Done    | Main content slot inside `DrylLayout`; handles scroll and padding |
 | `DrylNavGroup`    | Layout       | —       | ✅ Done    | Labelled group; `Collapsible` + `DefaultExpanded` for accordion sub-menus; optional `Href` makes the header a NavLink |
 | `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row; `Sub` renders indented child item inside a collapsible group; supports external links |

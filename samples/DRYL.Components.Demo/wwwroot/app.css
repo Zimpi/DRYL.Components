@@ -221,6 +221,25 @@ html, body {
 }
 .demo-example-code { padding: var(--sp-4); }
 
+/* ─── App Shell demo — frame the nested chrome inside a fixed-height box so the
+   live DrylLayout (which is normally 100vh) sits cleanly inside a doc preview. ─── */
+.demo-shell {
+    height: 320px;
+    width: 100%;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--bg-2);
+}
+.demo-shell .app-shell { min-height: 0; height: 100%; }
+.demo-shell .sidebar  { height: 100%; position: relative; z-index: 1; }
+.demo-shell .topbar   { position: relative; }
+.demo-shell .main     { padding: var(--sp-5); max-width: none; overflow: auto; }
+
+/* Sidebar brand text wrapper — stacks name over sub via a class (not inline
+   style) so the collapsed icon rail's .sidebar-collapse-hide can hide it. */
+.brand-text { display: flex; flex-direction: column; }
+
 /* Blazor reconnect / error UI — keep visible but unobtrusive */
 #blazor-error-ui {
     color-scheme: dark;

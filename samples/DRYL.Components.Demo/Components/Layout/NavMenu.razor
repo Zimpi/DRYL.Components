@@ -1,35 +1,22 @@
 @using Microsoft.AspNetCore.Components.Routing
 
 @*  Sidebar navigation — generated entirely from ComponentCatalog so it can
-    never drift from the command palette or the /components overview. *@
+    never drift from the command palette or the /components overview.
 
-<div class="brand">
-    <div class="brand-mark">
-        <img src="favicon.png" alt="" class="brand-mark-logo" />
-    </div>
-    <div style="display: flex; flex-direction: column;">
-        <span class="brand-name">DRYL</span>
-        <span class="brand-sub">v0.1 · WIP</span>
-    </div>
-</div>
+    Renders only the scrolling nav groups; the brand and the Project/GitHub
+    links live in the DrylDrawer Header / Footer slots in MainLayout. *@
 
-<div class="nav-scroll">
-    <DrylNavGroup Title="General" Collapsible DefaultExpanded="true">
-        <DrylNavLink Href="components" Icon="Grid">All components</DrylNavLink>
-        <DrylNavLink Href="getting-started" Icon="Rocket">Get Started</DrylNavLink>
-    </DrylNavGroup>
-
-    @foreach (var group in ComponentCatalog.ByCategory())
-    {
-        <DrylNavGroup Title="@group.Key" Collapsible DefaultExpanded="true">
-            @foreach (var entry in group)
-            {
-                <DrylNavLink Href="@entry.Slug" Icon="@entry.Icon">@entry.Title</DrylNavLink>
-            }
-        </DrylNavGroup>
-    }
-</div>
-
-<DrylNavGroup Title="Project">
-    <DrylNavLink Href="@ComponentCatalog.RepoUrl" Icon="Code" External>GitHub</DrylNavLink>
+<DrylNavGroup Title="General" Collapsible DefaultExpanded="true">
+    <DrylNavLink Href="components" Icon="Grid">All components</DrylNavLink>
+    <DrylNavLink Href="getting-started" Icon="Rocket">Get Started</DrylNavLink>
 </DrylNavGroup>
+
+@foreach (var group in ComponentCatalog.ByCategory())
+{
+    <DrylNavGroup Title="@group.Key" Collapsible DefaultExpanded="true">
+        @foreach (var entry in group)
+        {
+            <DrylNavLink Href="@entry.Slug" Icon="@entry.Icon">@entry.Title</DrylNavLink>
+        }
+    </DrylNavGroup>
+}

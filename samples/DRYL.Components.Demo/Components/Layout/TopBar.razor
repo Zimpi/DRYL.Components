@@ -5,7 +5,7 @@
     search trigger, GitHub link and version badge on the right.
     Renders DrylAppBar directly so it stays the grid "topbar" child. *@
 
-<DrylAppBar>
+<DrylAppBar ShowSidebarToggle="ShowSidebarToggle">
     <a href="" class="brand topbar-brand">
         <div class="brand-mark">
             <img src="favicon.png" alt="" class="brand-mark-logo" />
@@ -43,4 +43,11 @@
 @code {
     /// <summary>Invoked when the search trigger is clicked — the host layout opens its command palette.</summary>
     [Parameter] public EventCallback OnSearch { get; set; }
+
+    /// <summary>
+    /// When true, the app bar shows a sidebar collapse/expand button. Only renders when a
+    /// collapsible drawer is mounted in the surrounding <c>DrylLayout</c> — so it stays hidden
+    /// on the drawer-less landing layout. Default <c>false</c>.
+    /// </summary>
+    [Parameter] public bool ShowSidebarToggle { get; set; }
 }

@@ -102,6 +102,7 @@ public static class ComponentCatalog
         new("Typography",  "typography",  "Layout", "DrylTypo",       "Layout", false, "Type scale primitive — Variant look, As tag, colours.", "Type"),
         new("Stack",       "stack",       "Layout", "DrylStack",      "Layout", false, "Flex layout — direction, gap, align, justify, wrap.",   "Blocks"),
         new("Divider",     "divider",     "Layout", "DrylDivider",    "Layout", false, "Thin rule — horizontal, labelled or vertical.",         "Menu"),
+        new("App Shell",   "app-shell",   "Layout", null,             "Layout", false, "AppBar + Sidebar + Layout — slots, elevation, collapse.","Layers"),
 
         // ── Feedback ──────────────────────────────────────────────
         new("Alert",          "alerts",         "Feedback", "DrylAlert",         "Feedback", true,  "Feedback banner — 5 variants, optional title, dismissible.","Alert"),

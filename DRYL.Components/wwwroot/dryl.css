@@ -87,6 +87,12 @@
   --z-modal:   100;
   --z-popover: 150;
   --z-toast:   200;
+
+  /* App chrome dimensions — consumed by .topbar / .sidebar / .app-shell.
+     Overridable per layout via inline custom properties (DrylLayout.SidebarWidth). */
+  --appbar-h:            60px;
+  --sidebar-w:          260px;
+  --sidebar-collapsed-w: 56px;
 }
 
 * { box-sizing: border-box; }
@@ -795,12 +801,22 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 /* ============== APP CHROME ============== */
 .app-shell {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
   grid-template-rows: auto 1fr;
   grid-template-areas:
     "drawer topbar"
     "drawer main";
   min-height: 100vh;
+  transition: grid-template-columns var(--dur-med) var(--ease-in-out);
+}
+/* Collapsed sidebar: the grid column shrinks to icon width. DrylLayout sets
+   this class from its SidebarCollapsed state so the body reflows in step with
+   the sidebar's own .is-collapsed width animation. Desktop only — on mobile the
+   grid is a single column and the sidebar is an overlay, so collapse is moot. */
+@media (min-width: 1024px) {
+  .app-shell.is-sidebar-collapsed {
+    grid-template-columns: var(--sidebar-collapsed-w) 1fr;
+  }
 }
 .app-shell > .sidebar { grid-area: drawer; }
 .app-shell > .topbar  { grid-area: topbar; }
@@ -818,6 +834,91 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   flex-direction: column;
   gap: 4px;
   z-index: 10;
+  overflow: hidden;
+  transition: width var(--dur-med) var(--ease-in-out),
+              padding var(--dur-med) var(--ease-in-out);
+}
+
+/* Structured slots (DrylDrawer Header / Content / Footer). The content area
+   scrolls; header and footer stay pinned. Purely additive — drawers that pass
+   plain ChildContent never render these wrappers. */
+.sidebar-header { flex: 0 0 auto; }
+.sidebar-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-1); }
+.sidebar-footer {
+  flex: 0 0 auto;
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+/* Collapsed: icon-only rail. Hide text labels but keep leading icons centred.
+   No JS needed — the nav primitives already wrap labels in <span>.
+   Confined to desktop so the mobile overlay (below) always shows full labels —
+   the collapsed state is a desktop affordance only. */
+@media (min-width: 1024px) {
+  .sidebar.is-collapsed {
+    width: var(--sidebar-collapsed-w);
+    padding-left: var(--sp-2);
+    padding-right: var(--sp-2);
+  }
+  .sidebar.is-collapsed .nav-item > span,
+  .sidebar.is-collapsed .nav-title,
+  .sidebar.is-collapsed .nav-section-toggle-label,
+  .sidebar.is-collapsed .nav-section-link span,
+  .sidebar.is-collapsed .nav-section-chevron,
+  .sidebar.is-collapsed .sidebar-collapse-hide {
+    display: none;
+  }
+  .sidebar.is-collapsed .nav-item,
+  .sidebar.is-collapsed .nav-section-toggle { justify-content: center; }
+}
+
+/* Static mode: never becomes an overlay, stays an in-flow column at any width. */
+.sidebar--static { transform: none !important; }
+
+/* Flyout mode: always an overlay (fixed, off-canvas) regardless of viewport,
+   sliding in when .is-open. Pairs with the always-rendered .sidebar-backdrop. */
+.sidebar--flyout {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  transform: translateX(-100%);
+  transition: transform var(--dur-med) var(--ease-out);
+  z-index: var(--z-drawer);
+  border-right: 1px solid var(--line-strong);
+}
+.sidebar--flyout.is-open { transform: translateX(0); }
+
+/* Desktop-visible sidebar collapse toggle (DrylAppBar ShowSidebarToggle / a
+   header button). Reuses the hamburger visual but is shown at all widths. */
+.sidebar-toggle {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--r-sm);
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.sidebar-toggle:hover {
+  background: var(--glass-2);
+  border-color: var(--line-strong);
+  color: var(--fg);
+}
+.sidebar-toggle:focus-visible {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .sidebar-backdrop {
@@ -831,6 +932,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   pointer-events: none;
   transition: opacity var(--dur-med) var(--ease-out);
 }
+/* Flyout drawers overlay at every viewport width, so their backdrop must show
+   regardless of the mobile media query below. */
+.sidebar-backdrop--flyout { display: block; }
+.sidebar-backdrop--flyout.is-open { opacity: 1; pointer-events: auto; }
 
 .drawer-toggle {
   display: none;
@@ -890,6 +995,11 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   }
   .drawer-toggle {
     display: inline-flex;
+  }
+  /* The collapse toggle is a desktop affordance; on mobile the hamburger
+     (drawer-toggle) opens the overlay instead, so hide the collapse button. */
+  .sidebar-toggle {
+    display: none;
   }
   .topbar { padding: 0 16px; }
   .main   { padding: 24px 16px 64px; }
@@ -1138,7 +1248,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 .topbar {
-  height: 60px;
+  height: var(--appbar-h);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -1148,8 +1258,20 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   backdrop-filter: blur(20px);
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: var(--z-sticky);
 }
+/* Raised elevation: lifts the bar off the content with a shadow and a denser
+   glass tint. Flat (default) keeps the original flush look. */
+.topbar.is-raised {
+  background: var(--glass-2);
+  box-shadow: var(--shadow-md);
+}
+/* Slotted layout (DrylAppBar Start / Center / End). Only rendered when at least
+   one of those slots is used; plain ChildContent keeps the flat flex row above.
+   Start and End flex equally so Center stays optically centred between them. */
+.topbar-start  { display: flex; align-items: center; gap: var(--sp-3); flex: 1 1 0; min-width: 0; }
+.topbar-center { display: flex; align-items: center; gap: var(--sp-3); flex: 0 1 auto; justify-content: center; min-width: 0; }
+.topbar-end    { display: flex; align-items: center; gap: var(--sp-3); flex: 1 1 0; min-width: 0; justify-content: flex-end; }
 .crumb {
   display: flex;
   align-items: center;

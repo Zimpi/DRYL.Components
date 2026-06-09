@@ -1,0 +1,33 @@
+@* A complete app shell — DrylLayout coordinates a DrylAppBar and a Collapsible
+   DrylDrawer. The app bar's ShowSidebarToggle button calls into the shared layout
+   context to collapse the sidebar to an icon rail; the body reflows in step.
+   (.demo-shell only frames the live preview to a fixed height for these docs.) *@
+<div class="demo-shell">
+    <DrylLayout SidebarWidth="220px" SidebarCollapsedWidth="60px">
+        <DrylAppBar ShowSidebarToggle Elevation="AppBarElevation.Raised">
+            <Start><strong>Acme</strong></Start>
+            <End><DrylAvatar Initials="AC" Size="AvatarSize.Small" /></End>
+        </DrylAppBar>
+
+        <DrylDrawer Mode="SidebarMode.Collapsible" @bind-Collapsed="_collapsed">
+            <DrylNavGroup Title="Workspace">
+                <DrylNavLink Href="app-shell" Icon="Home" Match="NavLinkMatch.All">Overview</DrylNavLink>
+                <DrylNavLink Href="app-shell" Icon="Grid">Projects</DrylNavLink>
+                <DrylNavLink Href="app-shell" Icon="Activity">Activity</DrylNavLink>
+                <DrylNavLink Href="app-shell" Icon="Settings">Settings</DrylNavLink>
+            </DrylNavGroup>
+        </DrylDrawer>
+
+        <DrylMainContent>
+            <h3 style="margin-top: 0;">Content</h3>
+            <p class="lead" style="margin: 0;">
+                Sidebar is @(_collapsed ? "collapsed" : "expanded"). Use the chevron
+                button in the app bar to toggle it.
+            </p>
+        </DrylMainContent>
+    </DrylLayout>
+</div>
+
+@code {
+    private bool _collapsed;
+}

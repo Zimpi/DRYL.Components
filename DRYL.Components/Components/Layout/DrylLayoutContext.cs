@@ -39,6 +39,42 @@ public sealed class DrylLayoutContext
 
     internal void NotifyStateChanged() => StateChanged?.Invoke();
 
+    // ── Sidebar collapse coordination ──────────────────────────────────────────
+    // The DrylDrawer owns its collapsed state (via @bind-Collapsed) and registers a
+    // toggler here so a DrylAppBar button — or any consumer — can collapse / expand
+    // it without wiring state by hand. DrylLayout reads SidebarCollapsed to reflect
+    // the icon-width grid column on the .app-shell.
+
+    private Func<Task>? _sidebarToggler;
+
+    /// <summary>
+    /// Current collapsed state of the registered sidebar drawer. <c>false</c> when no
+    /// collapsible drawer is mounted. Maintained by <see cref="DrylDrawer"/>.
+    /// </summary>
+    public bool SidebarCollapsed { get; internal set; }
+
+    /// <summary>True when a collapsible/pinnable <see cref="DrylDrawer"/> has registered a toggler.</summary>
+    public bool CanCollapseSidebar => _sidebarToggler is not null;
+
+    internal void RegisterSidebarToggle(Func<Task> toggler)
+    {
+        _sidebarToggler = toggler;
+        StateChanged?.Invoke();
+    }
+
+    internal void UnregisterSidebarToggle(Func<Task> toggler)
+    {
+        if (ReferenceEquals(_sidebarToggler, toggler))
+        {
+            _sidebarToggler = null;
+            SidebarCollapsed = false;
+            StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Collapses or expands the registered collapsible sidebar. No-op when none is mounted.</summary>
+    public Task ToggleSidebarAsync() => _sidebarToggler?.Invoke() ?? Task.CompletedTask;
+
     /// <summary>Toggles the registered drawer. No-op when none is mounted.</summary>
     public Task ToggleDrawerAsync() => _drawer?.ToggleAsync() ?? Task.CompletedTask;
 

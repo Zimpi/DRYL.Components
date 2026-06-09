@@ -86,6 +86,16 @@ DRYL has **one** AI vocabulary. Every AI-aware component re-uses it; no componen
 - Never invent a new AI animation, color, gradient, or duration. If you think you need one, propose adding it to `dryl.css` and ask the maintainer — same rule as 2.1.
 - Components that semantically can't host AI mode (e.g. `DrylBadge`, `DrylToggle`) do not get an `Ai` parameter. Don't add it "just in case".
 
+### 2.11 Icon-only buttons always have a tooltip
+**Every** button that renders only an icon (no visible text label) **must** be wrapped in a `DrylTooltip` that names its action. No exceptions.
+
+- This is both a usability and an accessibility requirement — a bare icon is ambiguous without a label on hover/focus.
+- The tooltip text and the `aria-label` (see 2.9) should say the same thing.
+- A button with visible text next to its icon does **not** need a tooltip; this rule is only for icon-*only* buttons.
+
+✅ `<DrylTooltip Text="Delete row"><DrylButton IconOnly aria-label="Delete row"><DrylIcon Name="trash" /></DrylButton></DrylTooltip>`
+❌ `<DrylButton IconOnly><DrylIcon Name="trash" /></DrylButton>`
+
 ---
 
 ## 3. How to build a new component
@@ -144,6 +154,7 @@ If any of these are unclear, **ask** before writing code.
 - ❌ Inline `style="..."` for values that have a token (one-offs are fine for layout: `style="grid-template-columns: 1fr 1fr;"` is OK; `style="color: #f4f4f7;"` is not)
 - ❌ Add an external npm/JS library — DRYL has zero of them
 - ❌ Write `<button>` instead of using a component — DRYL is the components
+- ❌ Ship an icon-only button without a `DrylTooltip` — see rule 2.11
 - ❌ Use emojis in component output (icons go through `DrylIcon`)
 - ❌ Use `setTimeout` without `using IDisposable` cleanup
 - ❌ Break public API of an existing component without a version bump
