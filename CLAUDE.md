@@ -15,8 +15,9 @@ The design system lives in three files:
 - `dryl.css` — every token and every primitive (including the AI mode primitives)
 - `DESIGN_TOKENS.md` — readable reference of every token, when to use it
 - `COMPONENT_PATTERNS.md` — how to structure a `.razor` component, including AI-aware components
+- `CONVENTIONS.md` — the binding public-API naming rules (events, parameters, enums, slots) enforced for the 1.0 freeze
 
-If a value is missing from those three files, **do not invent it** — propose adding it to `dryl.css` as a new token and ask the maintainer to review.
+If a value is missing from those files, **do not invent it** — propose adding it to `dryl.css` as a new token and ask the maintainer to review.
 
 ---
 

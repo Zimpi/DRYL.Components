@@ -19,6 +19,8 @@ DRYL has a single source of truth for *how* components are built:
   (`None / Active / Thinking / Streaming / Generated`) and the `.ai-aura*`
   primitives — never a per-component AI state.
 - **Strongly-typed parameters.** `enum` for variants, never `string`.
+- **Follow the API conventions.** Public parameter / event / enum / slot naming
+  must match [`CONVENTIONS.md`](CONVENTIONS.md). These are frozen at 1.0.
 - **Accessibility is not optional.** Keyboard-reachable, ARIA-labeled, visible
   focus rings; icon-only buttons always get a `DrylTooltip`.
 
