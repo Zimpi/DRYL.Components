@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a new component, parameter, or design token
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of request
+      options:
+        - New component
+        - New parameter / API on an existing component
+        - New design token (color / spacing / radius / etc.)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to build, and what's missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API / design
+      description: |
+        Sketch the API. Use enums for variants. If this is AI-aware, it must use the
+        shared AiState — see CLAUDE.md §2.10. If it needs a new token, propose it here.
+      render: razor
+    validations:
+      required: false
+  - type: checkboxes
+    id: consistency
+    attributes:
+      label: Design-system fit
+      options:
+        - label: This fits the DRYL design system (dark, glassy, token-driven) — see CLAUDE.md
+          required: true
