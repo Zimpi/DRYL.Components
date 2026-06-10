@@ -1,0 +1,35 @@
+<div class="row" style="gap: var(--sp-4); flex-wrap: wrap; align-items: flex-start;">
+    <div style="width: 180px;">
+        <DrylImage Src="@Sample" Alt="Square crop"
+                   Ratio="DrylImage.ImageRatio.Square"
+                   Rounded="DrylImage.ImageRounded.Md" Border />
+        <p class="lead" style="margin-top: var(--sp-2);">Square · rounded · border</p>
+    </div>
+
+    <div style="width: 260px;">
+        <DrylImage Src="@Sample" Alt="Widescreen crop"
+                   Ratio="DrylImage.ImageRatio.Video"
+                   Rounded="DrylImage.ImageRounded.Lg" Shadow />
+        <p class="lead" style="margin-top: var(--sp-2);">16:9 · object-fit cover</p>
+    </div>
+
+    <div style="width: 140px;">
+        <DrylImage Src="@Sample" Alt="Portrait crop"
+                   Ratio="DrylImage.ImageRatio.Portrait"
+                   Fit="DrylImage.ImageFit.Contain"
+                   Rounded="DrylImage.ImageRounded.Md" Border />
+        <p class="lead" style="margin-top: var(--sp-2);">3:4 · contain</p>
+    </div>
+</div>
+
+@code {
+    // Inline violet→cyan gradient so the demo renders with no network.
+    private const string Sample =
+        "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'>" +
+        "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>" +
+        "<stop offset='0' stop-color='%237c5cff'/><stop offset='1' stop-color='%2322d3ee'/>" +
+        "</linearGradient></defs><rect width='400' height='400' fill='%23070708'/>" +
+        "<rect width='400' height='400' fill='url(%23g)' opacity='0.5'/>" +
+        "<circle cx='200' cy='200' r='96' fill='none' stroke='white' stroke-opacity='0.55' stroke-width='2'/>" +
+        "</svg>";
+}

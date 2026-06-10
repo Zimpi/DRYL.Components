@@ -1,0 +1,28 @@
+@page "/image"
+
+<PageTitle>DRYL — Image</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <ComponentDocHeader Slug="image">
+        A responsive image surface with smart defaults — lazy + async loading, an automatic
+        aspect-ratio to kill layout shift, object-fit cover, a shimmer skeleton while loading
+        and a stylised icon fallback on error. AI-native: with <code>Ai</code> set, the image
+        area itself reacts — a faint accent wash, a drifting violet→cyan cloud while thinking,
+        a blur-to-sharp <code>Streaming</code> reveal (drive it with <code>Progress</code>) and
+        a scale-in once <code>Generated</code>.
+    </ComponentDocHeader>
+
+    <DemoExample Title="Ratios, fit &amp; rounding" Source="Image/Basics">
+        <DRYL.Components.Demo.Components.Examples.Image.Basics />
+    </DemoExample>
+
+    <DemoExample Title="Error fallback" Source="Image/Fallback">
+        <DRYL.Components.Demo.Components.Examples.Image.Fallback />
+    </DemoExample>
+
+    <DemoExample Title="AI states" Source="Image/AiStates">
+        <DRYL.Components.Demo.Components.Examples.Image.AiStates />
+    </DemoExample>
+
+</div>

@@ -1,0 +1,103 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylList — token-driven list container.
+
+    Wraps a semantic <ul> / <ol> and hosts DrylListItem children.
+    Replaces ad-hoc bullet/number markup with a strongly-typed,
+    DRYL-styled list: choose a marker Variant, a Density that maps
+    to the spacing scale, and optional hairline Dividers between rows.
+    Nest another DrylList inside a DrylListItem for indented sub-lists.
+
+    Usage:
+      <DrylList>
+          <DrylListItem>First</DrylListItem>
+          <DrylListItem>Second</DrylListItem>
+      </DrylList>
+
+      <DrylList Ordered Variant="DrylList.ListVariant.Decimal" Dividers>
+          <DrylListItem Icon="Check">Step one</DrylListItem>
+          <DrylListItem>
+              Parent
+              <DrylList>
+                  <DrylListItem>Nested child</DrylListItem>
+              </DrylList>
+          </DrylListItem>
+      </DrylList>
+    ───────────────────────────────────────────────────────── *@
+
+@if (Ordered)
+{
+    <ol class="@RootClass" @attributes="AdditionalAttributes">
+        <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
+    </ol>
+}
+else
+{
+    <ul class="@RootClass" @attributes="AdditionalAttributes">
+        <CascadingValue Value="this" IsFixed="true">@ChildContent</CascadingValue>
+    </ul>
+}
+
+@code {
+    /// <summary>Render an ordered <c>&lt;ol&gt;</c> instead of a <c>&lt;ul&gt;</c>. Default: false.</summary>
+    [Parameter] public bool Ordered { get; set; }
+
+    /// <summary>Marker style shown to the left of each item that has no <c>Icon</c> or <c>Start</c> slot. Default: <see cref="ListVariant.Default"/>.</summary>
+    [Parameter] public ListVariant Variant { get; set; } = ListVariant.Default;
+
+    /// <summary>Row spacing, mapped to the <c>--sp-*</c> scale. Default: <see cref="ListDensity.Default"/>.</summary>
+    [Parameter] public ListDensity Density { get; set; } = ListDensity.Default;
+
+    /// <summary>Draw a hairline <c>var(--line)</c> divider between adjacent items. Default: false.</summary>
+    [Parameter] public bool Dividers { get; set; }
+
+    /// <summary>The list items — normally a sequence of <see cref="DrylListItem"/>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the list element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass
+    {
+        get
+        {
+            var density = Density switch
+            {
+                ListDensity.Compact     => "list--compact",
+                ListDensity.Comfortable => "list--comfortable",
+                _                       => "list--default"
+            };
+            var variant = Variant switch
+            {
+                ListVariant.Disc    => "list--disc",
+                ListVariant.Decimal => "list--decimal",
+                ListVariant.Dash    => "list--dash",
+                ListVariant.None    => "list--none",
+                _                   => "list--marker-default"
+            };
+            return Dividers ? $"list {density} {variant} list--dividers" : $"list {density} {variant}";
+        }
+    }
+
+    internal ListVariant ItemVariant => Variant;
+
+    /// <summary>Marker style of a <see cref="DrylList"/>.</summary>
+    public enum ListVariant
+    {
+        /// <summary>Small DRYL dot in <c>var(--fg-dim)</c>.</summary>
+        Default,
+        /// <summary>Classic disc bullet (•).</summary>
+        Disc,
+        /// <summary>Auto-incrementing number (1. 2. 3.).</summary>
+        Decimal,
+        /// <summary>No marker — content sits flush.</summary>
+        None,
+        /// <summary>En-dash bullet (–).</summary>
+        Dash
+    }
+
+    /// <summary>Row spacing of a <see cref="DrylList"/>.</summary>
+    public enum ListDensity { Compact, Default, Comfortable }
+}

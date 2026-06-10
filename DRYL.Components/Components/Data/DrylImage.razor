@@ -1,0 +1,303 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylImage — intelligent, responsive image surface.
+
+    Smart defaults remove the usual boilerplate: lazy + async by
+    default, an automatic aspect-ratio (from Width+Height or Ratio)
+    to kill layout shift, object-fit cover, a shimmer skeleton while
+    loading and a stylised fallback (icon + alt) on error.
+
+    AI-native: with Ai set, the image area itself reacts — Active
+    washes a faint accent over it, Thinking drifts a violet→cyan
+    cloud, Streaming sharpens from blur (drive it with Progress or
+    let it run on a timer), and Generated reveals with a scale-in.
+    Built entirely on the shared .ai-aura* primitives — no new
+    colours, states or animations invented.
+
+    Usage:
+      <DrylImage Src="/img/hero.jpg" Alt="Dashboard" Ratio="DrylImage.ImageRatio.Wide" />
+
+      <DrylImage Src="@_url" Alt="Generated artwork"
+                 Ratio="DrylImage.ImageRatio.Square"
+                 Ai="AiState.Streaming" Progress="_progress" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@WrapClass" style="@WrapStyle"
+     aria-live="@(Ai == AiState.None ? null : "polite")"
+     aria-label="@StateLabel"
+     @attributes="AdditionalAttributes">
+
+    @if (Ai != AiState.None)
+    {
+        <div class="ai-aura-ring"></div>
+        <div class="ai-aura-glow"></div>
+        @if (Ai is AiState.Active or AiState.Generated)
+        {
+            <div class="ai-aura-wash" @key="_genKey"></div>
+        }
+    }
+
+    @if (_phase != Phase.Failed)
+    {
+        <img class="@ImgClass" style="@ImgStyle"
+             src="@_currentSrc" alt="@Alt"
+             loading="@(Lazy ? "lazy" : "eager")" decoding="async"
+             @onload="OnLoad" @onerror="OnError" />
+    }
+
+    @if (_phase == Phase.Loading && ShowSkeleton)
+    {
+        <div class="img-skel" aria-hidden="true">
+            <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Image" />
+        </div>
+    }
+
+    @if (_phase == Phase.Failed)
+    {
+        <div class="img-fallback" role="img" aria-label="@Alt">
+            <DrylIcon Name="@(FallbackIcon ?? "ImageOff")" Size="22" />
+            @if (!string.IsNullOrWhiteSpace(Alt))
+            {
+                <span class="img-fallback-text">@Alt</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Image URL. Required.</summary>
+    [Parameter, EditorRequired] public string Src { get; set; } = "";
+
+    /// <summary>Alternative text — required for accessibility and reused by the error fallback.</summary>
+    [Parameter, EditorRequired] public string Alt { get; set; } = "";
+
+    /// <summary>Intrinsic width in px. With <see cref="Height"/> it sets an automatic aspect-ratio (prevents CLS) and caps the rendered width.</summary>
+    [Parameter] public int? Width { get; set; }
+
+    /// <summary>Intrinsic height in px. With <see cref="Width"/> it sets an automatic aspect-ratio.</summary>
+    [Parameter] public int? Height { get; set; }
+
+    /// <summary>How the image fills its box (<c>object-fit</c>). Default: <see cref="ImageFit.Cover"/>.</summary>
+    [Parameter] public ImageFit Fit { get; set; } = ImageFit.Cover;
+
+    /// <summary>Focal point when cropped (<c>object-position</c>). Default: <see cref="ImagePosition.Center"/>.</summary>
+    [Parameter] public ImagePosition Position { get; set; } = ImagePosition.Center;
+
+    /// <summary>Corner rounding, mapped to the <c>--r-*</c> scale. Default: <see cref="ImageRounded.None"/>.</summary>
+    [Parameter] public ImageRounded Rounded { get; set; } = ImageRounded.None;
+
+    /// <summary>Forced aspect-ratio. Overrides the <see cref="Width"/>/<see cref="Height"/> ratio. Default: <see cref="ImageRatio.Auto"/>.</summary>
+    [Parameter] public ImageRatio Ratio { get; set; } = ImageRatio.Auto;
+
+    /// <summary>Lazy-load the image (<c>loading="lazy"</c>). Default: true.</summary>
+    [Parameter] public bool Lazy { get; set; } = true;
+
+    /// <summary>Alternative image tried when <see cref="Src"/> fails to load before falling back to the icon.</summary>
+    [Parameter] public string? FallbackSrc { get; set; }
+
+    /// <summary>Icon name shown in the error fallback. Default: <c>ImageOff</c>.</summary>
+    [Parameter] public string? FallbackIcon { get; set; }
+
+    /// <summary>Show the shimmer skeleton while loading. Default: true.</summary>
+    [Parameter] public bool ShowSkeleton { get; set; } = true;
+
+    /// <summary>Draw a 1px <c>var(--line)</c> border around the frame.</summary>
+    [Parameter] public bool Border { get; set; }
+
+    /// <summary>Lift the frame with <c>var(--shadow-sm)</c>.</summary>
+    [Parameter] public bool Shadow { get; set; }
+
+    /// <summary>
+    /// AI activity state. Drives the shared DRYL AI vocabulary, applied to the image
+    /// area itself: <see cref="AiState.Active"/> washes a faint accent over it;
+    /// <see cref="AiState.Thinking"/> drifts a violet→cyan cloud; <see cref="AiState.Streaming"/>
+    /// sharpens the image from blur; <see cref="AiState.Generated"/> reveals it with a scale-in.
+    /// Defaults to <see cref="AiState.None"/> — AI styling is opt-in.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Streaming sharpen progress, 0–100. When set (and <see cref="Ai"/> is
+    /// <see cref="AiState.Streaming"/>) the blur interpolates from full to zero as it
+    /// rises. Leave null to run the sharpen on a timer over <see cref="BlurDuration"/>.
+    /// </summary>
+    [Parameter] public int? Progress { get; set; }
+
+    /// <summary>Duration (ms) of the timed Streaming sharpen used when <see cref="Progress"/> is null. Default: 2000.</summary>
+    [Parameter] public int BlurDuration { get; set; } = 2000;
+
+    /// <summary>Pass-through HTML attributes applied to the frame element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private enum Phase { Loading, Loaded, Failed }
+    private Phase _phase = Phase.Loading;
+    private string? _currentSrc;
+    private string? _trackedSrc;
+    private bool _usedFallbackSrc;
+    private object _genKey = new();
+    private AiState _prevAi;
+
+    protected override void OnParametersSet()
+    {
+        // Reset the load lifecycle whenever the source changes.
+        if (!string.Equals(_trackedSrc, Src, StringComparison.Ordinal))
+        {
+            _trackedSrc = Src;
+            _currentSrc = Src;
+            _usedFallbackSrc = false;
+            _phase = string.IsNullOrEmpty(Src) ? Phase.Failed : Phase.Loading;
+        }
+
+        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+            _genKey = new();
+        _prevAi = Ai;
+    }
+
+    private void OnLoad() => _phase = Phase.Loaded;
+
+    private void OnError()
+    {
+        if (!_usedFallbackSrc && !string.IsNullOrWhiteSpace(FallbackSrc))
+        {
+            _usedFallbackSrc = true;
+            _currentSrc = FallbackSrc;
+            _phase = Phase.Loading;
+        }
+        else
+        {
+            _phase = Phase.Failed;
+        }
+    }
+
+    private bool HasRatio => Ratio != ImageRatio.Auto || (Width is > 0 && Height is > 0);
+
+    private string WrapClass
+    {
+        get
+        {
+            var parts = new List<string> { "img-wrap" };
+            parts.Add(HasRatio ? "img-wrap--ratio" : "img-wrap--natural");
+
+            parts.Add(Rounded switch
+            {
+                ImageRounded.Sm   => "img-wrap--r-sm",
+                ImageRounded.Md   => "img-wrap--r-md",
+                ImageRounded.Lg   => "img-wrap--r-lg",
+                ImageRounded.Full => "img-wrap--r-full",
+                _                 => "img-wrap--r-none"
+            });
+
+            if (Border) parts.Add("img-wrap--border");
+            if (Shadow) parts.Add("img-wrap--shadow");
+
+            if (Ai != AiState.None)
+            {
+                parts.Add("ai-aura");
+                parts.Add(Ai switch
+                {
+                    AiState.Active    => "ai-active img--ai-active",
+                    AiState.Thinking  => "ai-thinking img--thinking",
+                    AiState.Streaming => "ai-streaming img--streaming",
+                    AiState.Generated => "ai-generated img--generated",
+                    _                 => string.Empty
+                });
+            }
+
+            return string.Join(' ', parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+        }
+    }
+
+    private string ImgClass
+    {
+        get
+        {
+            var parts = new List<string> { "img-el" };
+            if (_phase == Phase.Loaded) parts.Add("is-loaded");
+            if (Ai == AiState.Streaming)
+                parts.Add(Progress.HasValue ? "img-el--stream-progress" : "img-el--stream-auto");
+            return string.Join(' ', parts);
+        }
+    }
+
+    private string WrapStyle
+    {
+        get
+        {
+            var styles = new List<string>();
+
+            var ratio = Ratio switch
+            {
+                ImageRatio.Square   => "1 / 1",
+                ImageRatio.Video    => "16 / 9",
+                ImageRatio.Portrait => "3 / 4",
+                ImageRatio.Wide     => "21 / 9",
+                _ => Width is > 0 && Height is > 0
+                        ? FormattableString.Invariant($"{Width} / {Height}")
+                        : null
+            };
+            if (ratio is not null) styles.Add($"aspect-ratio: {ratio}");
+            if (Width is > 0) styles.Add(FormattableString.Invariant($"width: {Width}px"));
+            if (Ai == AiState.Streaming && !Progress.HasValue)
+                styles.Add(FormattableString.Invariant($"--img-blur-dur: {BlurDuration}ms"));
+
+            return string.Join("; ", styles);
+        }
+    }
+
+    private string ImgStyle
+    {
+        get
+        {
+            var fit = Fit switch
+            {
+                ImageFit.Contain   => "contain",
+                ImageFit.Fill      => "fill",
+                ImageFit.None      => "none",
+                ImageFit.ScaleDown => "scale-down",
+                _                  => "cover"
+            };
+            var pos = Position switch
+            {
+                ImagePosition.Top    => "top",
+                ImagePosition.Bottom => "bottom",
+                ImagePosition.Left   => "left",
+                ImagePosition.Right  => "right",
+                _                    => "center"
+            };
+            var styles = new List<string> { $"object-fit: {fit}", $"object-position: {pos}" };
+
+            // Streaming with explicit progress: interpolate blur 12px → 0 as it rises.
+            if (Ai == AiState.Streaming && Progress.HasValue)
+            {
+                var p = Math.Clamp(Progress.Value, 0, 100);
+                var blur = Math.Round((100 - p) / 100.0 * 12, 2);
+                styles.Add(FormattableString.Invariant($"filter: blur({blur}px)"));
+            }
+
+            return string.Join("; ", styles);
+        }
+    }
+
+    private string? StateLabel => Ai switch
+    {
+        AiState.Active    => "AI ready",
+        AiState.Thinking  => "Generating image…",
+        AiState.Streaming => Progress.HasValue ? $"Generating image… {Math.Clamp(Progress.Value, 0, 100)}%" : "Generating image…",
+        AiState.Generated => "Image ready",
+        _                 => null
+    };
+
+    /// <summary>How the image fills its box (<c>object-fit</c>).</summary>
+    public enum ImageFit { Cover, Contain, Fill, None, ScaleDown }
+
+    /// <summary>Focal point of a cropped image (<c>object-position</c>).</summary>
+    public enum ImagePosition { Center, Top, Bottom, Left, Right }
+
+    /// <summary>Corner rounding mapped to the <c>--r-*</c> radius scale.</summary>
+    public enum ImageRounded { None, Sm, Md, Lg, Full }
+
+    /// <summary>Forced aspect-ratio.</summary>
+    public enum ImageRatio { Auto, Square, Video, Portrait, Wide }
+}

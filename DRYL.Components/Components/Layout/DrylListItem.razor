@@ -1,0 +1,130 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylListItem — a single row inside a DrylList.
+
+    Renders a leading marker (inherited from the parent list's
+    Variant), or an Icon / Start slot in its place, then the row
+    content, then an optional End slot for trailing badges or
+    actions. Set OnClick to make the row interactive (it becomes a
+    keyboard-focusable button); Selected highlights it with the
+    accent line; Disabled dims it and blocks interaction.
+
+    Usage:
+      <DrylListItem Icon="Check" Selected>Active item</DrylListItem>
+
+      <DrylListItem OnClick="@Open">
+          <Start><DrylAvatar Initials="JZ" Size="DrylAvatar.AvatarSize.Small" /></Start>
+          Jan Zimprich
+          <End><DrylBadge>Admin</DrylBadge></End>
+      </DrylListItem>
+    ───────────────────────────────────────────────────────── *@
+
+<li class="@ItemClass">
+    @if (Interactive)
+    {
+        <button type="button"
+                class="list-item-row"
+                disabled="@Disabled"
+                aria-current="@(Selected ? "true" : null)"
+                @onclick="HandleClick">
+            @Leading
+            <span class="list-item-content">@ChildContent</span>
+        </button>
+    }
+    else
+    {
+        <div class="list-item-row" aria-current="@(Selected ? "true" : null)">
+            @Leading
+            <div class="list-item-content">@ChildContent</div>
+        </div>
+    }
+
+    @if (End is not null)
+    {
+        <div class="list-item-end">@End</div>
+    }
+</li>
+
+@code {
+    [CascadingParameter] private DrylList? Parent { get; set; }
+
+    /// <summary>Optional leading <see cref="DrylIcon"/> name, shown in place of the list marker.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    /// <summary>Dim the row and block interaction. Default: false.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Highlight the row with the accent line and a glass tint. Default: false.</summary>
+    [Parameter] public bool Selected { get; set; }
+
+    /// <summary>Raised when an interactive row is clicked or activated by keyboard. Supplying it makes the row interactive.</summary>
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    /// <summary>Leading slot (avatar, checkbox, custom icon) — takes precedence over <see cref="Icon"/> and the marker.</summary>
+    [Parameter] public RenderFragment? Start { get; set; }
+
+    /// <summary>Trailing slot (badge, action button) pinned to the right edge of the row.</summary>
+    [Parameter] public RenderFragment? End { get; set; }
+
+    /// <summary>The row's main content. May contain a nested <see cref="DrylList"/> for sub-items.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the <c>&lt;li&gt;</c> element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool Interactive => OnClick.HasDelegate && !Disabled;
+
+    private Task HandleClick() => OnClick.HasDelegate ? OnClick.InvokeAsync() : Task.CompletedTask;
+
+    private string ItemClass
+    {
+        get
+        {
+            var parts = new List<string> { "list-item" };
+            if (Selected)             parts.Add("is-selected");
+            if (Disabled)             parts.Add("is-disabled");
+            if (OnClick.HasDelegate)  parts.Add("is-interactive");
+            return string.Join(' ', parts);
+        }
+    }
+
+    private RenderFragment Leading => builder =>
+    {
+        if (Start is not null)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "list-item-start");
+            builder.AddContent(2, Start);
+            builder.CloseElement();
+        }
+        else if (!string.IsNullOrEmpty(Icon))
+        {
+            builder.OpenElement(3, "span");
+            builder.AddAttribute(4, "class", "list-item-icon");
+            builder.OpenComponent<DrylIcon>(5);
+            builder.AddComponentParameter(6, nameof(DrylIcon.Name), Icon);
+            builder.AddComponentParameter(7, nameof(DrylIcon.Size), 15);
+            builder.CloseComponent();
+            builder.CloseElement();
+        }
+        else if (MarkerVariant != DrylList.ListVariant.None)
+        {
+            builder.OpenElement(8, "span");
+            builder.AddAttribute(9, "class", $"list-marker {MarkerClass}");
+            builder.AddAttribute(10, "aria-hidden", "true");
+            builder.CloseElement();
+        }
+    };
+
+    private DrylList.ListVariant MarkerVariant => Parent?.ItemVariant ?? DrylList.ListVariant.Default;
+
+    private string MarkerClass => MarkerVariant switch
+    {
+        DrylList.ListVariant.Disc    => "list-marker--disc",
+        DrylList.ListVariant.Decimal => "list-marker--decimal",
+        DrylList.ListVariant.Dash    => "list-marker--dash",
+        _                            => "list-marker--default"
+    };
+}

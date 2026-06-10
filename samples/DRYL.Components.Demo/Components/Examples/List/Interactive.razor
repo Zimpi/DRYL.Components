@@ -1,0 +1,32 @@
+<DrylList Variant="DrylList.ListVariant.None" Dividers style="max-width: 360px;">
+    <DrylListItem Icon="Check" Selected>
+        <ChildContent>Production environment</ChildContent>
+        <End><DrylBadge Kind="DrylBadge.BadgeKind.Success" Dot>Live</DrylBadge></End>
+    </DrylListItem>
+
+    <DrylListItem OnClick="@(() => _picked = "Staging")">
+        <Start><DrylIcon Name="Server" Size="15" /></Start>
+        <ChildContent>Staging environment</ChildContent>
+        <End><DrylIcon Name="ChevronRight" Size="15" /></End>
+    </DrylListItem>
+
+    <DrylListItem OnClick="@(() => _picked = "Preview")">
+        <Start><DrylIcon Name="Server" Size="15" /></Start>
+        <ChildContent>Preview environment</ChildContent>
+        <End><DrylIcon Name="ChevronRight" Size="15" /></End>
+    </DrylListItem>
+
+    <DrylListItem Icon="Lock" Disabled>
+        <ChildContent>Archived environment</ChildContent>
+        <End><DrylBadge>Read-only</DrylBadge></End>
+    </DrylListItem>
+</DrylList>
+
+@if (_picked is not null)
+{
+    <p class="lead" style="margin-top: var(--sp-3);">Selected: <strong>@_picked</strong></p>
+}
+
+@code {
+    private string? _picked;
+}

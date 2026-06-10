@@ -63,6 +63,7 @@ public static class ComponentCatalog
         // ── Data ──────────────────────────────────────────────────
         new("Badge",            "badges",           "Data", "DrylBadge",           "Data", false, "Neutral · Accent · Success · Warning · Danger, optional dot.","Star"),
         new("Avatar",           "avatar",           "Data", "DrylAvatar",          "Data", false, "Image → initials → icon fallback; sizes, presence dot.",     "User"),
+        new("Image",            "image",            "Data", "DrylImage",           "Data", true,  "Responsive image — ratios, skeleton, fallback, AI reveal.",  "Image"),
         new("Table",            "tables",           "Data", "DrylTable",           "Data", true,  "Declarative columns — search, sort, filter, paging, more.",  "Grid"),
         new("Pagination",       "pagination",       "Data", "DrylPagination",      "Data", false, "Standalone page navigator with smart-ellipsis range.",       "Dots"),
         new("Tree View",        "tree",             "Data", "DrylTreeView",        "Data", false, "Hierarchical tree — WAI-ARIA keyboard nav, roving tabindex.","Folder"),
@@ -101,6 +102,7 @@ public static class ComponentCatalog
         new("Scroll Area", "scroll-area", "Layout", "DrylScrollArea", "Layout", false, "Scrollable region with the thin DRYL scrollbar.",     "Layers"),
         new("Typography",  "typography",  "Layout", "DrylTypo",       "Layout", false, "Type scale primitive — Variant look, As tag, colours.", "Type"),
         new("Stack",       "stack",       "Layout", "DrylStack",      "Layout", false, "Flex layout — direction, gap, align, justify, wrap.",   "Blocks"),
+        new("List",        "list",        "Layout", "DrylList",       "Layout", false, "Token-driven list — markers, density, slots, nesting.", "List"),
         new("Divider",     "divider",     "Layout", "DrylDivider",    "Layout", false, "Thin rule — horizontal, labelled or vertical.",         "Menu"),
         new("App Shell",   "app-shell",   "Layout", null,             "Layout", false, "AppBar + Sidebar + Layout — slots, elevation, collapse.","Layers"),
 

@@ -4277,3 +4277,132 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .citation-item-title { color: var(--fg); font-size: 13px; font-weight: 600; }
 .citation-item-snippet { margin: 0; color: var(--fg-muted); font-size: 12.5px; line-height: 1.5; }
+
+/* ── DrylList / DrylListItem ───────────────────────────────────
+   Token-driven list. The container (.list) sets the row gap via a
+   density custom property; each item (.list-item) is a flex row of
+   [marker | content | end]. Markers, dividers, selected and
+   interactive states are all token-driven. Counter scoping per
+   .list keeps Decimal numbering correct across nested sub-lists. */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  counter-reset: dryl-list;
+  --list-pad-y: var(--sp-2);
+  --list-gap: var(--sp-1);
+}
+.list--compact     { --list-pad-y: var(--sp-1); --list-gap: 0; }
+.list--default     { --list-pad-y: var(--sp-2); --list-gap: var(--sp-1); }
+.list--comfortable { --list-pad-y: var(--sp-3); --list-gap: var(--sp-2); }
+
+.list-item {
+  counter-increment: dryl-list;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-2);
+  margin-top: var(--list-gap);
+  border-radius: var(--r-sm);
+}
+.list-item:first-child { margin-top: 0; }
+
+/* Dividers — a hairline rule between adjacent rows (no inter-row gap). */
+.list--dividers { --list-gap: 0; }
+.list--dividers > .list-item { margin-top: 0; border-radius: 0; }
+.list--dividers > .list-item + .list-item { border-top: 1px solid var(--line); }
+
+/* Nested sub-list — indent and add a connector rail. */
+.list .list-item .list {
+  margin-top: var(--sp-1);
+  padding-left: var(--sp-4);
+  border-left: 1px solid var(--line);
+}
+
+/* Row body (div for static, button for interactive) — shared layout. */
+.list-item-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--list-pad-y) var(--sp-2);
+  border-radius: inherit;
+  color: var(--fg-muted);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.list-item-content { min-width: 0; flex: 1 1 auto; line-height: 1.5; }
+
+/* Marker + leading slots — aligned to the first text line. */
+.list-marker,
+.list-item-icon,
+.list-item-start {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.5em;
+}
+.list-marker { min-width: var(--sp-3); color: var(--fg-dim); }
+.list-marker--default::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--fg-dim);
+}
+.list-marker--disc::before { content: '\2022'; font-size: 1.1em; line-height: 1; }
+.list-marker--dash::before { content: '\2013'; }
+.list-marker--decimal {
+  color: var(--fg-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.list-marker--decimal::before { content: counter(dryl-list) '.'; }
+.list-item-icon { color: var(--fg-dim); }
+
+/* Trailing slot — pinned right, vertically centred on the row. */
+.list-item-end {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding-right: var(--sp-2);
+  align-self: center;
+}
+
+/* Interactive rows — button reset + hover/active affordance. */
+button.list-item-row {
+  width: 100%;
+  font: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.list-item.is-interactive > .list-item-row:hover {
+  background: var(--glass-1);
+  border-color: var(--line);
+  color: var(--fg);
+}
+button.list-item-row:focus-visible {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Selected — accent line + glass tint. */
+.list-item.is-selected > .list-item-row {
+  background: var(--glass-2);
+  border-left: 2px solid var(--accent-line);
+  color: var(--fg);
+}
+.list-item.is-selected .list-marker { color: var(--accent-b); }
+
+/* Disabled — dim and inert. */
+.list-item.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
