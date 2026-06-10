@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@inherits DrylAiAware
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -21,11 +22,11 @@
 <div @ref="_el"
      class="@CssClass"
      @attributes="AdditionalAttributes">
-    @if (Ai != AiState.None)
+    @if (EffectiveAi != AiState.None)
     {
         <div class="ai-aura-ring"></div>
         <div class="ai-aura-glow"></div>
-        @if (Ai == AiState.Generated)
+        @if (EffectiveAi == AiState.Generated)
         {
             <div class="ai-aura-wash" @key="_genTick"></div>
         }
@@ -50,8 +51,8 @@
     /// <summary>Padding preset for the card. Use <see cref="CardPadding.None"/> for custom layout.</summary>
     [Parameter] public CardPadding Padding { get; set; } = CardPadding.Default;
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
-    [Parameter] public AiState Ai { get; set; } = AiState.None;
+    // AI ambient state (the Ai parameter) is inherited from DrylAiAware; it controls the
+    // gradient border, glow, and reveal animation, and resolves against a surrounding DrylAiScope.
 
     /// <summary>Card body content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -67,13 +68,13 @@
 
     protected override void OnParametersSet()
     {
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated)
         {
             // Force the wash element to be re-keyed so its one-shot animation re-runs
             // every time the consumer transitions back into Generated.
             _genTick++;
         }
-        _prevAi = Ai;
+        _prevAi = EffectiveAi;
     }
 
     private string CssClass
@@ -89,8 +90,8 @@
             };
             var classes = new List<string> { "glass-card", pad };
             if (Spotlight) classes.Add("spotlight-card");
-            if (Ai != AiState.None) classes.Add("ai-aura");
-            switch (Ai)
+            if (EffectiveAi != AiState.None) classes.Add("ai-aura");
+            switch (EffectiveAi)
             {
                 case AiState.Thinking:  classes.Add("ai-thinking");  break;
                 case AiState.Streaming: classes.Add("ai-streaming"); break;

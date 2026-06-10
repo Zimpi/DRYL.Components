@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@inherits DrylAiAware
 
 @*  ─────────────────────────────────────────────────────────
     DrylButton — primary action component.
@@ -84,8 +85,8 @@
     /// <summary>Button label content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>AI ambient state — adds a rotating gradient ring around the button. Additive to <see cref="Variant"/>.</summary>
-    [Parameter] public AiState Ai { get; set; } = AiState.None;
+    // AI ambient state (the Ai parameter) is inherited from DrylAiAware and adds a
+    // rotating gradient ring; it resolves against a surrounding DrylAiScope.
 
     /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
@@ -111,8 +112,8 @@
             };
             var iconOnly = ChildContent is null ? "btn-icon" : string.Empty;
             var pressed = Pressed == true ? "btn--active" : string.Empty;
-            var aiAura = Ai != AiState.None ? "ai-aura" : string.Empty;
-            var aiMod = Ai switch
+            var aiAura = EffectiveAi != AiState.None ? "ai-aura" : string.Empty;
+            var aiMod = EffectiveAi switch
             {
                 AiState.Thinking  => "ai-thinking",
                 AiState.Streaming => "ai-streaming",

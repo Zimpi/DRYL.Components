@@ -1,0 +1,142 @@
+@namespace DRYL.Components
+@using System.Text
+@using System.Threading
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAiStream — binds an IAsyncEnumerable<string> token stream
+    to the UI, driving AiState automatically and rendering the
+    accumulated text.
+
+    Usage:
+      <DrylAiStream Source="@_tokens" Key="answer">
+        <DrylMarkdown Content="@context.Text" Ai="@context.State" />
+      </DrylAiStream>
+
+    Without ChildContent it renders the raw text. When Key is set and
+    the service is registered, a surrounding <DrylAiScope Key="answer">
+    lights up in lockstep. Cancels and restarts cleanly when Source changes.
+    ───────────────────────────────────────────────────────── *@
+
+@if (ChildContent is not null)
+{
+    @ChildContent(_context)
+}
+else
+{
+    @_context.Text
+}
+
+@code {
+    /// <summary>The token stream to consume. Replacing it cancels the previous run and starts over.</summary>
+    [Parameter] public IAsyncEnumerable<string>? Source { get; set; }
+
+    /// <summary>
+    /// Optional operation key. When set and the service is registered, the stream pushes its
+    /// state to <see cref="IDrylAiActivityService"/> so a surrounding <c>DrylAiScope</c> reacts.
+    /// </summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>Renders the streamed text + state. Receives an <see cref="AiStreamContext"/>.</summary>
+    [Parameter] public RenderFragment<AiStreamContext>? ChildContent { get; set; }
+
+    /// <summary>Raised once the stream completes successfully, with the full text.</summary>
+    [Parameter] public EventCallback<string> OnCompleted { get; set; }
+
+    /// <summary>State to settle to after the <see cref="AiState.Generated"/> reveal. Default <see cref="AiState.None"/>.</summary>
+    [Parameter] public AiState SettleTo { get; set; } = AiState.None;
+
+    [Inject] private IServiceProvider Services { get; set; } = default!;
+
+    // Dwell time on the Generated reveal before relaxing to SettleTo. Not a CSS duration —
+    // a logical pause so the one-shot reveal is perceivable.
+    private const int SettleDelayMs = 1200;
+
+    private readonly AiStreamContext _context = new();
+    private readonly StringBuilder _sb = new();
+    private IDrylAiActivityService? _service;
+    private IAsyncEnumerable<string>? _current;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized() =>
+        _service = Services.GetService<IDrylAiActivityService>();
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(Source, _current))
+        {
+            _current = Source;
+            _ = RunAsync();
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
+        _sb.Clear();
+        Apply(AiState.Thinking, string.Empty);
+
+        if (Source is null)
+        {
+            Apply(AiState.None, string.Empty);
+            return;
+        }
+
+        var sawToken = false;
+        try
+        {
+            await foreach (var token in Source.WithCancellation(ct))
+            {
+                if (!sawToken)
+                {
+                    sawToken = true;
+                    Apply(AiState.Streaming, _sb.ToString());
+                }
+                _sb.Append(token);
+                Apply(AiState.Streaming, _sb.ToString());
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return; // superseded by a newer Source or disposed
+        }
+        catch
+        {
+            Apply(AiState.None, _context.Text);
+            return; // surfaced via the stream itself; keep the UI consistent
+        }
+
+        Apply(AiState.Generated, _sb.ToString());
+        if (OnCompleted.HasDelegate) await OnCompleted.InvokeAsync(_sb.ToString());
+
+        try { await Task.Delay(SettleDelayMs, ct); }
+        catch (OperationCanceledException) { return; }
+
+        Apply(SettleTo, _context.Text);
+    }
+
+    private void Apply(AiState state, string text)
+    {
+        _context.State = state;
+        _context.Text = text;
+
+        if (_service is not null && Key is not null)
+        {
+            if (state == AiState.None) _service.Clear(Key);
+            else _service.Set(Key, state);
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

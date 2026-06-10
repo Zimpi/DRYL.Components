@@ -1,3 +1,4 @@
+using DRYL.Components.Ai;
 using DRYL.Components.Dialogs;
 using DRYL.Components.Toasts;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,8 +11,9 @@ namespace DRYL.Components;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Register DRYL component services — <see cref="IDrylDialogService"/> and
-    /// <see cref="IDrylToastService"/>.
+    /// Register DRYL component services — <see cref="IDrylDialogService"/>,
+    /// <see cref="IDrylToastService"/>, <see cref="IDrylNotificationService"/> and
+    /// <see cref="IDrylAiActivityService"/>.
     /// Call this in <c>Program.cs</c>:
     /// <code>builder.Services.AddDrylComponents();</code>
     /// Then place a single <c>&lt;DrylDialogProvider/&gt;</c> and (if you want
@@ -22,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDrylDialogService, DrylDialogService>();
         services.AddScoped<IDrylToastService, DrylToastService>();
         services.AddScoped<IDrylNotificationService, DrylNotificationService>();
+        services.AddScoped<IDrylAiActivityService, DrylAiActivityService>();
         return services;
     }
 }

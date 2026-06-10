@@ -361,6 +361,8 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
 | `DrylImage`       | Data         | ✅      | ✅ Done    | Responsive image; auto aspect-ratio, skeleton, fallback; AI blur-to-sharp reveal |
 | `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
+| `DrylAiScope`     | Intelligence | ✅      | ✅ Done    | Coordinates `AiState` across descendants by operation key; service- or `State`-driven; child `Ai` wins |
+| `DrylAiStream`    | Intelligence | ✅      | ✅ Done    | Binds an `IAsyncEnumerable<string>` token stream to the UI; auto Thinking→Streaming→Generated; lights up a `DrylAiScope` |
 | `DrylToolCall`    | Intelligence | ✅      | ✅ Done    | Agent tool/function call: name, live status pill, collapsible JSON args/result; `Error` alert; stack in `DrylTimeline` |
 | `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
 | `DrylInputPassword` | Inputs     | ✅      | ✅ Done    | Password input with show/hide eye toggle; inherits `InputBase<string>` |
@@ -436,12 +438,13 @@ DRYL.Components/             The library (Razor Class Library, .NET 10)
   AiState.cs                 The AI state enum — shared across all AI-aware components
   Components/
     Actions/                 DrylButton, DrylButtonGroup, DrylSplitButton
-    AI/                      DrylAiIndicator (AI-specific components live here)
+    AI/                      DrylAiIndicator, DrylAiScope, DrylAiStream (AI-specific components live here)
     Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi, DrylColumn, DrylPagination
       Models/                SortDescriptor, FilterDescriptor, DataRequest, DataResult, ColumnAlign, ColumnFilterType
     Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
     Layout/                  DrylExpansion, DrylLayout, DrylMainContent, DrylAppBar, DrylDrawer, DrylNavGroup, DrylNavLink
     Surfaces/                DrylCard, DrylDialog, DrylDialogProvider, DrylToast, DrylToastProvider
+  Ai/                        IDrylAiActivityService, IDrylAiOperation, AiScope, AiStreamContext, DrylAiAware
   Dialogs/                   IDrylDialogService, DialogOptions, DialogResult, DialogParameters
   Toasts/                    IDrylToastService, ToastOptions, ToastVariant, ToastPosition
   Extensions/                ServiceCollectionExtensions (AddDrylComponents)

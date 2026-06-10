@@ -18,11 +18,11 @@
     }
 
     <div class="@WrapperCssClass">
-        @if (Ai != AiState.None)
+        @if (EffectiveAi != AiState.None)
         {
             <div class="ai-aura-ring"></div>
             <div class="ai-aura-glow"></div>
-            @if (Ai == AiState.Generated)
+            @if (EffectiveAi == AiState.Generated)
             {
                 <div class="ai-aura-wash" @key="_genTick"></div>
             }
@@ -78,6 +78,12 @@
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation around the textarea.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); an explicit <see cref="Ai"/> overrides it.</summary>
+    [CascadingParameter] private AiScope? AiScopeContext { get; set; }
+
+    /// <summary>Resolved AI state: explicit <see cref="Ai"/> wins, otherwise the inherited scope.</summary>
+    private AiState EffectiveAi => AiScope.Resolve(Ai, AiScopeContext);
+
     private readonly string _id       = $"dryl-ta-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
     private AiState _prevAi = AiState.None;
@@ -94,8 +100,8 @@
     protected override void OnParametersSet()
     {
         base.OnParametersSet();
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
     }
 
     private bool HasValidationError =>
@@ -108,8 +114,8 @@
         get
         {
             var classes = new List<string> { "textarea-wrapper" };
-            if (Ai != AiState.None) classes.Add("ai-aura");
-            switch (Ai)
+            if (EffectiveAi != AiState.None) classes.Add("ai-aura");
+            switch (EffectiveAi)
             {
                 case AiState.Thinking:  classes.Add("ai-thinking");  break;
                 case AiState.Streaming: classes.Add("ai-streaming"); break;

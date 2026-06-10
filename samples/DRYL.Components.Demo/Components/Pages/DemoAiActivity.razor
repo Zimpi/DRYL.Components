@@ -1,0 +1,26 @@
+@page "/ai-activity"
+
+<PageTitle>DRYL — AI Activity</PageTitle>
+
+<div class="col fade-in" style="gap: var(--sp-7);">
+
+    <ComponentDocHeader Slug="ai-activity">
+        Where <code>AiState</code> is a per-component visual, <code>DrylAiScope</code> and
+        <code>IDrylAiActivityService</code> coordinate it across a whole region keyed by
+        operation — so a button, a card and an input light up in lockstep while the model
+        works. <code>DrylAiStream</code> binds an <code>IAsyncEnumerable&lt;string&gt;</code>
+        token stream straight to the UI, driving the state automatically. No LLM SDK
+        required — you bring the stream, DRYL maps it to the shared AI vocabulary.
+    </ComponentDocHeader>
+
+    <DemoExample Title="Scope coordination" Source="AiActivity/ScopeCoordination"
+                 Description="One Begin() call lights up every AI-aware component inside the scope — none of them sets an Ai parameter.">
+        <DRYL.Components.Demo.Components.Examples.AiActivity.ScopeCoordination />
+    </DemoExample>
+
+    <DemoExample Title="Streaming a response" Source="AiActivity/Streaming"
+                 Description="DrylAiStream consumes a token stream into a chat bubble; the surrounding scope reacts via the shared key.">
+        <DRYL.Components.Demo.Components.Examples.AiActivity.Streaming />
+    </DemoExample>
+
+</div>

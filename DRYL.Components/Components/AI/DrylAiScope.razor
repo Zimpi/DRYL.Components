@@ -1,0 +1,86 @@
+@namespace DRYL.Components
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAiScope — broadcasts a shared AiState to every AI-aware
+    component inside it, keyed by operation.
+
+    Usage (service-driven — components light up together):
+      <DrylAiScope Key="compose">
+        <DrylButton>Generate</DrylButton>
+        <DrylCard>…</DrylCard>
+      </DrylAiScope>
+
+      In code:
+        using var op = AiActivity.Begin("compose");
+        op.Streaming();
+        // op.Dispose() settles the scope back to None
+
+    Usage (explicit, no service needed):
+      <DrylAiScope State="AiState.Thinking"> … </DrylAiScope>
+
+    A component's own Ai parameter always overrides the scope.
+    ───────────────────────────────────────────────────────── *@
+
+<CascadingValue Value="_scope" IsFixed="false">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    /// <summary>
+    /// Operation key. When set and <c>AddDrylComponents()</c> registered the service,
+    /// the scope mirrors <see cref="IDrylAiActivityService"/> state for this key.
+    /// </summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>
+    /// Explicit state override. When set, the scope broadcasts this value and ignores the
+    /// service entirely — useful for demos or fully manual control. Leave <c>null</c> to
+    /// track the service by <see cref="Key"/>.
+    /// </summary>
+    [Parameter] public AiState? State { get; set; }
+
+    /// <summary>Content whose AI-aware descendants inherit the scope state.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Inject] private IServiceProvider Services { get; set; } = default!;
+
+    private IDrylAiActivityService? _service;
+    private AiScope _scope = new();
+
+    protected override void OnInitialized()
+    {
+        // The service is optional: an explicit-State scope works without AddDrylComponents().
+        _service = Services.GetService<IDrylAiActivityService>();
+        if (_service is not null) _service.OnChanged += OnServiceChanged;
+    }
+
+    protected override void OnParametersSet() => Rebuild();
+
+    private void Rebuild()
+    {
+        var state = State
+            ?? (_service is not null && Key is not null ? _service.GetState(Key) : AiState.None);
+
+        // Always a fresh instance so the CascadingValue notifies subscribers on change.
+        _scope = new AiScope { Key = Key, State = state };
+    }
+
+    private void OnServiceChanged(string key)
+    {
+        if (State is not null) return;   // explicit override ignores the service
+        if (key != Key) return;
+
+        InvokeAsync(() =>
+        {
+            Rebuild();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        if (_service is not null) _service.OnChanged -= OnServiceChanged;
+    }
+}

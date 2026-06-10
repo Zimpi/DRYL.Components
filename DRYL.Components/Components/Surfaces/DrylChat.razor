@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@inherits DrylAiAware
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
@@ -24,11 +25,11 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCssClass" style="--chat-height: @Height" @attributes="AdditionalAttributes">
-    @if (Ai != AiState.None)
+    @if (EffectiveAi != AiState.None)
     {
         <div class="ai-aura-ring"></div>
         <div class="ai-aura-glow"></div>
-        @if (Ai == AiState.Generated)
+        @if (EffectiveAi == AiState.Generated)
         {
             <div class="ai-aura-wash" @key="_genTick"></div>
         }
@@ -62,8 +63,8 @@
     /// <summary>Accessible label for the message log.</summary>
     [Parameter] public string AriaLabel { get; set; } = "Conversation";
 
-    /// <summary>AI ambient state applied to the whole panel.</summary>
-    [Parameter] public AiState Ai { get; set; } = AiState.None;
+    // AI ambient state applied to the whole panel (the Ai parameter) is inherited from
+    // DrylAiAware and resolves against a surrounding DrylAiScope.
 
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
@@ -75,8 +76,8 @@
 
     protected override void OnParametersSet()
     {
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -93,10 +94,10 @@
         get
         {
             var parts = new List<string> { "chat" };
-            if (Ai != AiState.None)
+            if (EffectiveAi != AiState.None)
             {
                 parts.Add("ai-aura");
-                switch (Ai)
+                switch (EffectiveAi)
                 {
                     case AiState.Thinking:  parts.Add("ai-thinking");  break;
                     case AiState.Streaming: parts.Add("ai-streaming"); break;

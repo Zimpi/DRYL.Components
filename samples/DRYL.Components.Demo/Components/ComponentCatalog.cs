@@ -117,8 +117,9 @@ public static class ComponentCatalog
         new("Notifications",  "notifications",  "Feedback", "DrylNotifications",  "Feedback", true,  "Bell + inbox panel — unread badge, mark-read, AI entries.", "Bell"),
 
         // ── Intelligence ──────────────────────────────────────────
-        new("AI Mode",   "ai",        "Intelligence", "DrylAiIndicator", "AI", true, "Pulsing status pill adapting label and speed to AiState.", "Sparkle"),
-        new("Tool Call", "tool-call", "Intelligence", "DrylToolCall",    "AI", true, "Agent tool call — status pill, collapsible JSON args/result.","Wrench"),
+        new("AI Mode",     "ai",          "Intelligence", "DrylAiIndicator", "AI", true, "Pulsing status pill adapting label and speed to AiState.", "Sparkle"),
+        new("AI Activity", "ai-activity", "Intelligence", "DrylAiScope",     "Ai", true, "Coordinate AiState across components; bind token streams.","Activity"),
+        new("Tool Call",   "tool-call",   "Intelligence", "DrylToolCall",    "AI", true, "Agent tool call — status pill, collapsible JSON args/result.","Wrench"),
     ];
 
     /// <summary>Entries grouped by category in <see cref="CategoryOrder"/> order.</summary>

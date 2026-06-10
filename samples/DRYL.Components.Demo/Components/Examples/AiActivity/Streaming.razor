@@ -1,0 +1,55 @@
+<div class="col" style="gap: var(--sp-4);">
+    <div class="row">
+        <DrylButton OnClick="Start" Loading="_streaming">Stream a response</DrylButton>
+    </div>
+
+    @* The chat panel and the assistant bubble inherit the "answer" scope, which
+       DrylAiStream drives as tokens arrive. *@
+    <DrylAiScope Key="answer">
+        <DrylChat Height="200px">
+            <DrylMessage Role="MessageRole.Assistant" Author="DRYL AI" AvatarIcon="Sparkle">
+                @if (_source is not null)
+                {
+                    <DrylAiStream Source="_source" Key="answer" OnCompleted="OnCompleted">
+                        @context.Text
+                    </DrylAiStream>
+                }
+                else
+                {
+                    <text>Press “Stream a response”.</text>
+                }
+            </DrylMessage>
+        </DrylChat>
+    </DrylAiScope>
+</div>
+
+@code {
+    private IAsyncEnumerable<string>? _source;
+    private bool _streaming;
+
+    private void Start()
+    {
+        _streaming = true;
+        _source = Tokens();   // a fresh enumerable → DrylAiStream restarts
+    }
+
+    private void OnCompleted(string _)
+    {
+        _streaming = false;
+        StateHasChanged();
+    }
+
+    // Stands in for a model token stream (e.g. Microsoft.Extensions.AI).
+    private static async IAsyncEnumerable<string> Tokens()
+    {
+        const string answer =
+            "Here is a short, streamed summary — arriving one token at a time, " +
+            "exactly the way a model would emit it.";
+
+        foreach (var word in answer.Split(' '))
+        {
+            await Task.Delay(80);
+            yield return word + " ";
+        }
+    }
+}

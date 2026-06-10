@@ -54,11 +54,11 @@
                  OnClose="HandleClosed">
         <TriggerContent>
             <div class="@WrapperCssClass">
-                @if (Ai != AiState.None)
+                @if (EffectiveAi != AiState.None)
                 {
                     <div class="ai-aura-ring"></div>
                     <div class="ai-aura-glow"></div>
-                    @if (Ai == AiState.Generated)
+                    @if (EffectiveAi == AiState.Generated)
                     {
                         <div class="ai-aura-wash" @key="_genTick"></div>
                     }
@@ -178,6 +178,12 @@
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); an explicit <see cref="Ai"/> overrides it.</summary>
+    [CascadingParameter] private AiScope? AiScopeContext { get; set; }
+
+    /// <summary>Resolved AI state: explicit <see cref="Ai"/> wins, otherwise the inherited scope.</summary>
+    private AiState EffectiveAi => AiScope.Resolve(Ai, AiScopeContext);
+
     /// <summary>Static item list used with client-side filtering.</summary>
     [Parameter] public IEnumerable<TItem>? Items { get; set; }
 
@@ -225,8 +231,8 @@
     {
         base.OnParametersSet();
 
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
 
         // Sync input text when the bound value changes externally
         if (!ReferenceEquals(CurrentValue, _prevValue))
@@ -383,8 +389,8 @@
         get
         {
             var classes = new List<string> { "input-wrapper" };
-            if (Ai != AiState.None) classes.Add("ai-aura");
-            switch (Ai)
+            if (EffectiveAi != AiState.None) classes.Add("ai-aura");
+            switch (EffectiveAi)
             {
                 case AiState.Thinking:  classes.Add("ai-thinking");  break;
                 case AiState.Streaming: classes.Add("ai-streaming"); break;
