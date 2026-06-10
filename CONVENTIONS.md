@@ -20,7 +20,7 @@ library already follows — see `CLAUDE.md` for the design-system rules and
   `[Parameter] public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;`
 - **Boolean parameters use a plain adjective / state word — no `Is`/`Has`
   prefix — and default to `false`:** `Disabled`, `Loading`, `Open`, `Selected`,
-  `Readonly`, `Required`.
+  `ReadOnly`, `Required`.
 - **Required values** are non-nullable and named for the thing
   (`Src`, `Alt`, `Text`); optional values are nullable (`string?`).
 - **Pass-through HTML attributes** use exactly:
