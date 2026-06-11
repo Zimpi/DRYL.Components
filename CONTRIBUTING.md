@@ -66,7 +66,8 @@ Conventional-commit style is appreciated: `feat:`, `fix:`, `docs:`, `refactor:`,
 
 DRYL follows [Semantic Versioning](https://semver.org/). Maintainers set the
 version and cut releases; contributors only write into the `[Unreleased]`
-section of the changelog — never create a version section yourself.
+section of the changelog — never create a version section yourself. The full
+release flow is documented in [`RELEASING.md`](RELEASING.md).
 
 ## License
 

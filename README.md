@@ -534,6 +534,21 @@ Right now this is a solo effort, but contributions will be welcome once the core
 
 ---
 
+## Support DRYL
+
+DRYL is built and maintained in the open as a solo effort. If it saves you time
+or you'd like to see it reach a stable 1.0 faster, you can support the work:
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg?logo=github)](https://github.com/sponsors/Zimpi)
+
+- **[GitHub Sponsors](https://github.com/sponsors/Zimpi)** — one-off or recurring.
+
+Sponsorships are appreciated but never required: DRYL is MIT-licensed and will
+always be free to use. Starring the repo and filing good issues helps just as
+much.
+
+---
+
 ## Credits
 
 DRYL stands on the shoulders of these open-source projects:
