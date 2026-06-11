@@ -6,7 +6,10 @@ name: Release
 #   git push origin v0.1.0
 #
 # The version is taken from the tag (v0.1.0 -> 0.1.0), so it always matches.
-# Requires a repository secret named NUGET_API_KEY (an api key from nuget.org).
+# Uses Trusted Publishing (OIDC) — no API key secret required.
+# Configure the Trusted Publisher on nuget.org:
+#   Owner → Trusted Publishing → GitHub Actions
+#   Repository: <your-repo-name>   Workflow File: release.yml
 
 on:
   push:
@@ -14,7 +17,8 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: write   # needed to create the GitHub Release
+  contents: write   # create the GitHub Release
+  id-token: write   # required for OIDC trusted publishing
 
 jobs:
   publish:
@@ -54,7 +58,6 @@ jobs:
       - name: Push to nuget.org
         run: >
           dotnet nuget push "artifacts/*.nupkg"
-          --api-key "${{ secrets.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
