@@ -88,6 +88,14 @@
     // AI ambient state (the Ai parameter) is inherited from DrylAiAware and adds a
     // rotating gradient ring; it resolves against a surrounding DrylAiScope.
 
+    /// <summary>
+    /// Extra CSS class(es) merged onto the button's own classes. Because Blazor
+    /// matches attribute names case-insensitively, a consumer-supplied
+    /// <c>class="..."</c> also binds here and is merged in — it does not clobber
+    /// the component's identity classes (which a bare <c>@attributes</c> splat would).
+    /// </summary>
+    [Parameter] public string? Class { get; set; }
+
     /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
@@ -120,7 +128,7 @@
                 AiState.Generated => "ai-generated",
                 _ => string.Empty
             };
-            return string.Join(' ', new[] { "btn", variant, size, iconOnly, pressed, aiAura, aiMod }
+            return string.Join(' ', new[] { "btn", variant, size, iconOnly, pressed, aiAura, aiMod, Class }
                                  .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }

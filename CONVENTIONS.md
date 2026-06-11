@@ -25,6 +25,14 @@ library already follows — see `CLAUDE.md` for the design-system rules and
   (`Src`, `Alt`, `Text`); optional values are nullable (`string?`).
 - **Pass-through HTML attributes** use exactly:
   `[Parameter(CaptureUnmatchedValues = true)] public IDictionary<string, object>? AdditionalAttributes { get; set; }`
+- **Extra CSS classes** use a typed, optional `string? Class` that the component
+  **merges** into its own root class string (`string.Join(' ', new[] { "btn", …, Class }.Where(…))`).
+  This is mandatory, not decorative: a consumer's `class="x"` binds to the
+  `Class` parameter (Blazor matches attribute names case-insensitively) and is
+  merged, whereas relying on the bare `@attributes` splat for `class` **clobbers**
+  the component's own identity classes (the splat overrides the explicit
+  `class="…"`). Therefore every consumer-facing component carries a merged
+  `Class`; never drop it as "redundant".
 
 ## 3. Events
 
