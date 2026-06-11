@@ -85,9 +85,14 @@
     /// <summary>If true, the control stretches to its container's full width.</summary>
     [Parameter] public bool Block { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the split-button's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     /// <summary>Pass-through HTML attributes applied to the split-button wrapper.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string CssClass => Block ? "split-btn split-btn--block" : "split-btn";
+    private string CssClass =>
+        string.Join(' ', new[] { "split-btn", Block ? "split-btn--block" : null, Class }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
 }

@@ -58,4 +58,14 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("seg--md", classes);
         Assert.Contains("my-extra", classes);
     }
+
+    [Fact]
+    public void ButtonGroup_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylButtonGroup>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("[role=group]").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("btn-group", classes);
+        Assert.Contains("x", classes);
+    }
 }
