@@ -35,16 +35,24 @@
     /// <summary>Override the default state-derived label.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the indicator's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     /// <summary>Pass-through HTML attributes.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string CssClass => State switch
-    {
-        AiState.Thinking  => "ai-indicator is-thinking",
-        AiState.Streaming => "ai-indicator is-streaming",
-        _ => "ai-indicator"
-    };
+    private string CssClass =>
+        string.Join(' ', new[]
+        {
+            State switch
+            {
+                AiState.Thinking  => "ai-indicator is-thinking",
+                AiState.Streaming => "ai-indicator is-streaming",
+                _ => "ai-indicator"
+            },
+            Class
+        }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
     private string DefaultLabel => State switch
     {

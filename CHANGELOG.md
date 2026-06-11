@@ -139,6 +139,7 @@ Version bump guide:
 - `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
 
 ### Fixed
+- `DrylAiIndicator`, `DrylToolCall` — Same consumer-`class` clobber fix: both now expose a merged `Class` parameter
 - `DrylButtonGroup`, `DrylSplitButton` — Same consumer-`class` clobber fix as `DrylButton`: both now expose a merged `Class` parameter so a consumer's `class="..."` is folded into the group/split-button classes instead of overriding them
 - `DrylButton` — A consumer-supplied `class="..."` no longer wipes the button's own classes. Passing a class through the `@attributes` splat overrode the explicit `class="btn btn-primary …"` (Blazor's splat clobbers a same-element `class`, it does not merge), so `<DrylButton class="mt-4">` rendered `class="mt-4"` and lost all button styling. A new merged `Class` parameter now captures it (Blazor matches `class`→`Class` case-insensitively) and folds it in. The same convention is being rolled out to the other components that expose `AdditionalAttributes` without a `Class` parameter
 - `DrylTable` — Persisted column widths are now formatted with `InvariantCulture`. A resized column wider than 999px previously rendered an invalid CSS width (e.g. `1.200px`) under group-separator locales such as German, collapsing the column; widths now always use a `.`-free integer pixel value

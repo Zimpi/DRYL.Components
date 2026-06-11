@@ -68,4 +68,26 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("btn-group", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void AiIndicator_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylAiIndicator>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("[role=status]").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("ai-indicator", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void ToolCall_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "get_weather")
+            .AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.tool-call").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("tool-call", classes);
+        Assert.Contains("x", classes);
+    }
 }

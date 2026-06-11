@@ -96,6 +96,9 @@
     /// <summary>Initial expanded state of the body. Default <c>false</c>.</summary>
     [Parameter] public bool DefaultExpanded { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the tool-call's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
@@ -143,6 +146,7 @@
                     case AiState.Generated: parts.Add("ai-generated"); break;
                 }
             }
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }
     }
