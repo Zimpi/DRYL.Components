@@ -1768,7 +1768,7 @@
     public void OnColumnResized(string key, double widthPx)
     {
         if (widthPx <= 0) return;
-        _columnWidths[key] = $"{Math.Round(widthPx)}px";
+        _columnWidths[key] = FormattableString.Invariant($"{Math.Round(widthPx)}px");
         MarkPersistDirty();
         InvokeAsync(StateHasChanged);
     }
