@@ -55,7 +55,7 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -o artifacts
 
-      - name: NuGet login (OIDC → temp API key)
+      - name: NuGet login (OIDC)
         uses: NuGet/login@v1
         id: nuget-login
         with:
