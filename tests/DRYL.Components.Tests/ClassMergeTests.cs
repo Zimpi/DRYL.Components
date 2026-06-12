@@ -120,4 +120,24 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("timeline", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void Alert_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylAlert>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("div.alert").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("alert", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Progress_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylProgress>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.progress-field").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("progress-field", classes);
+        Assert.Contains("x", classes);
+    }
 }
