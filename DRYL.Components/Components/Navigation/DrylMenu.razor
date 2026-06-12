@@ -32,6 +32,7 @@
              CloseOnEscape="false"
              OnOpen="HandleOpened"
              OnKeyDown="HandleKeyDown"
+             Class="@Class"
              @attributes="AdditionalAttributes">
     <TriggerContent>
         @Trigger
@@ -62,6 +63,9 @@
     /// <summary>Pass-through HTML attributes on the outer anchor element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the menu's popover anchor.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private bool _isOpen;
     private bool _shouldFocusPanel;

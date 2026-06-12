@@ -139,6 +139,7 @@ Version bump guide:
 - `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
 
 ### Fixed
+- Surfaces (`DrylCard`, `DrylChat`, `DrylDialog`, `DrylMarkdown`, `DrylMessage`, `DrylPopover`, `DrylToast`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter. With this, **all 61 components that accept pass-through attributes now merge a consumer `class` instead of clobbering their identity classes** — the library-wide convention (`CONVENTIONS.md` §2) is complete
 - Navigation (`DrylBreadcrumbs`, `DrylMenu`, `DrylMenuItem`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylMenu` forwards it to its `DrylPopover`)
 - Layout (`DrylDivider`, `DrylExpansion`, `DrylList`, `DrylListItem`, `DrylScrollArea`, `DrylStack`, `DrylTypo`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylListItem` additionally now splats its `AdditionalAttributes`, previously captured but never rendered)
 - Inputs (`DrylChipInput`, `DrylFormField`, `DrylValidationSummary`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter applied to its field root

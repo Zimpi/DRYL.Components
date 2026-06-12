@@ -180,4 +180,35 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("breadcrumbs-nav", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void Card_merges_consumer_class_without_clobbering()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose; // DrylCard calls dryl.spotlight.track on render
+        var cut = Render<DrylCard>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("div.glass-card").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("glass-card", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Popover_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylPopover>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.popover-anchor").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("popover-anchor", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Message_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylMessage>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("div.chat-msg").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("chat-msg", classes);
+        Assert.Contains("x", classes);
+    }
 }

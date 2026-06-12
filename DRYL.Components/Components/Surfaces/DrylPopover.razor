@@ -97,6 +97,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the popover anchor's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private ElementReference _anchor;
     private ElementReference _panel;
     private DotNetObjectReference<DrylPopover>? _dotnetRef;
@@ -182,7 +185,12 @@
             await SetOpenAsync(false);
     }
 
-    private string AnchorCssClass => Block ? "popover-anchor popover-anchor--block" : "popover-anchor";
+    private string AnchorCssClass =>
+        string.Join(' ', new[]
+        {
+            Block ? "popover-anchor popover-anchor--block" : "popover-anchor",
+            Class
+        }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
     private string PlacementToken => Placement switch
     {
