@@ -7,35 +7,35 @@
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4.svg)](https://dotnet.microsoft.com/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg?logo=github)](https://github.com/sponsors/Zimpi)
 
-An open-source UI component library for **Blazor Server** and **Blazor WebAssembly** with an unapologetically modern, dark aesthetic.
+**Dark. Glassy. Alive — and AI-native.**
+The open-source UI library for **Blazor Server** and **Blazor WebAssembly**, built for products that ship with a model in the loop.
 
 ```bash
 dotnet add package DRYL.Components
 ```
 
-> **Status: Early development — not production-ready.**
-> DRYL is being built in the open. The design system is in place and several reference components exist, but the library is **not yet suitable for production use**. Expect breaking changes, missing components, and rough edges until `1.0`.
+![DRYL — Mission Control, the sample app's overview page](docs/screenshots/overview.png)
+
+<sub>One screen, ~30 components, nothing but a layout grid on top — the <code>/overview</code> page of the sample app. Everything in this picture, including the app shell it runs in, is a DRYL component.</sub>
+
+> **Status: `1.0.0-rc.1`** — the public API is frozen and baking as a release candidate. If anything in the API feels wrong, [open an issue](https://github.com/Zimpi/DRYL.Components/issues) — now is exactly the time.
 
 ---
 
-## Vision
+## Why DRYL?
 
-DRYL is **dark, glassy, alive — and AI-native**.
+Most Blazor component libraries are ports of Bootstrap or Material — safe, neutral, indistinguishable. They were designed for the apps of 2014. **Your app has a language model in it.**
 
-Most Blazor component libraries feel like ports of Bootstrap or Material — safe, neutral, indistinguishable. DRYL is the opposite. Surfaces are translucent layers stacked on pure black, accents glow in a violet-to-cyan gradient, and motion is intentional rather than decorative.
+DRYL starts from that reality. AI is not a spinner you bolt on at the end — it is a **first-class state of the UI**. Every AI-capable surface accepts a single `Ai` parameter, and that one parameter drives a shared visual vocabulary across the whole library: a rotating gradient border while the model thinks, an accelerated glow while tokens stream, a one-shot accent wash the moment the answer lands. Users learn the language once and *feel* where the AI is working — on a card, a table, a dialog, an input — without ever reading a label.
 
-The goal is a small, opinionated set of components — buttons, cards, inputs, tables, modals, navigation — that look like they belong in a product built in 2026, not 2014. And because 2026 products are increasingly driven by language models and tool calling, every DRYL surface knows how to **wear its AI state**: a card filled by a model breathes with a rotating gradient border, an input bound to a streaming completion glows while tokens arrive, and a generated block reveals itself with a one-shot accent wash. The result is a system where you can feel which parts of the UI are alive with AI without ever reading a label.
+And it looks the part:
 
-Every component reads from a single token file ([`dryl.css`](DRYL.Components/wwwroot/dryl.css)), so the entire visual language can be re-tuned in one place.
-
-**Principles**
-
-- **Token-driven.** Every color, spacing, radius, shadow and duration is a CSS variable. No magic numbers.
-- **Dark only.** No light theme. Dark is the design, not a toggle.
-- **Glass surfaces.** Translucent layers with `backdrop-filter`, never solid blocks.
-- **AI-aware.** Every interactive surface can opt into an `AiState` — Active, Thinking, Streaming, Generated. The system signals AI presence consistently across components, so users learn the visual language once.
-- **No JS frameworks.** Zero npm packages on top of Blazor — just CSS, Razor, and minimal interop.
-- **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings. AI activity is announced via `aria-live`.
+- **Dark only.** Translucent glass layers stacked on pure black. No light theme, no toggle — dark *is* the design.
+- **Accents glow, never scream.** A violet-to-cyan gradient lives in 1px borders, glow rings and tiny indicators — never in shouting background fills.
+- **Motion is intentional.** Three durations, three easings, system-wide. Nothing flickers, nothing crawls.
+- **One token file.** Every color, spacing, radius, shadow and duration is a CSS variable in [`dryl.css`](DRYL.Components/wwwroot/dryl.css). Re-tune the entire visual language in one place.
+- **86 components, zero JavaScript dependencies.** No npm, no JS framework underneath — just CSS, Razor, and minimal interop. One approved .NET dependency ([Markdig](https://github.com/xoofx/markdig)) for Markdown rendering.
+- **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings — and AI activity announced via `aria-live`, so the glow is never the only signal.
 
 ---
 
@@ -80,43 +80,9 @@ builder.Services.AddDrylComponents();
 
 ---
 
-## Preview
-
-### Design system overview
-![DRYL — design system overview](docs/screenshots/overview.png)
-
-### Buttons
-![DrylButton — variants and states](docs/screenshots/buttons.png)
-
-### Cards
-![DrylCard — glass surface with cursor spotlight](docs/screenshots/cards.png)
-
-### Badges
-![DrylBadge — neutral, accent, success, warning and danger variants](docs/screenshots/badges.png)
-
-### Text input
-![DrylInputText — form-bound text input with icon slots](docs/screenshots/inputtext.png)
-
-### Form controls
-![DrylCheckbox, DrylSelect, DrylTextarea and DrylToggle](docs/screenshots/form_controls.png)
-
-### Tables
-![DrylTable — generic table with sticky header, row selection and optional KPI summary bar](docs/screenshots/tables.png)
-
-### AI Mode
-![DRYL — AI Mode demo with lifecycle simulation and streaming rows](docs/screenshots/aimode.png)
-
-### Dialog
-![DrylDialog — service-driven glass dialog with Human-in-the-Middle AI flow](docs/screenshots/dialog.png)
-
-### Alerts
-![DrylAlert — five variants with optional title, dismiss button and AI mode](docs/screenshots/alerts.png)
-
----
-
 ## AI Mode — first-class citizen
 
-DRYL treats AI as a **first-class state of the UI**, not an afterthought. Every surface in the library that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That one parameter drives a consistent, learnable visual vocabulary — users see the same rotating gradient border on a card that's streaming tokens as they do on an expansion panel being filled by a tool call.
+Every surface in the library that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That one parameter drives a consistent, learnable visual vocabulary — users see the same rotating gradient border on a card that's streaming tokens as they do on an expansion panel being filled by a tool call.
 
 ### The five states
 
@@ -386,7 +352,9 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 
 ---
 
-## What's in the box (today)
+## What's in the box
+
+**86 components across 8 categories** — actions, surfaces, navigation, data, inputs, layout, feedback, and a dedicated **Intelligence** category (`DrylAiScope`, `DrylAiStream`, `DrylToolCall`, `DrylChat`, `DrylCitation`, …) for building agent UIs: token streams, tool-call traces, RAG citations, human-in-the-middle review. Every component is token-driven, dark, and keyboard-accessible.
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
 | ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
@@ -481,39 +449,9 @@ For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`C
 
 ---
 
-## Repository layout
+## Run the demo
 
-```
-DRYL.Components/             The library (Razor Class Library, .NET 10)
-  AiState.cs                 The AI state enum — shared across all AI-aware components
-  Components/
-    Actions/                 DrylButton, DrylButtonGroup, DrylSplitButton
-    AI/                      DrylAiIndicator, DrylAiScope, DrylAiStream (AI-specific components live here)
-    Data/                    DrylBadge, DrylIcon, DrylTable, DrylTableKpi, DrylColumn, DrylPagination
-      Models/                SortDescriptor, FilterDescriptor, DataRequest, DataResult, ColumnAlign, ColumnFilterType
-    Inputs/                  DrylInputText, DrylCheckbox, DrylSelect, DrylTextarea, DrylToggle
-    Layout/                  DrylExpansion, DrylLayout, DrylMainContent, DrylAppBar, DrylDrawer, DrylNavGroup, DrylNavLink
-    Surfaces/                DrylCard, DrylDialog, DrylDialogProvider, DrylToast, DrylToastProvider
-  Ai/                        IDrylAiActivityService, IDrylAiOperation, AiScope, AiStreamContext, DrylAiAware
-  Dialogs/                   IDrylDialogService, DialogOptions, DialogResult, DialogParameters
-  Toasts/                    IDrylToastService, ToastOptions, ToastVariant, ToastPosition
-  Extensions/                ServiceCollectionExtensions (AddDrylComponents)
-  wwwroot/
-    dryl.css                 The single stylesheet — every token, every primitive (incl. AI mode)
-    js/dryl.js               Minimal JS interop (namespaced as window.dryl.*)
-
-samples/DRYL.Components.Demo/   Sample Blazor app showing all components live
-prototype/                       Original HTML prototype — visual target
-CLAUDE.md                        Rules for AI agents contributing to DRYL
-DESIGN_TOKENS.md                 Token reference
-COMPONENT_PATTERNS.md            Component anatomy & folder conventions
-```
-
----
-
-## Try it locally
-
-DRYL is not yet published to NuGet. To explore the demo app:
+The sample app doubles as the documentation site — every component, every variant, every AI state, live:
 
 ```bash
 git clone https://github.com/Zimpi/DRYL.Components.git
@@ -521,11 +459,13 @@ cd DRYL.Components
 dotnet run --project samples/DRYL.Components.Demo
 ```
 
+Open `/overview` for the Mission Control screen from the top of this page, hit <kbd>Ctrl</kbd>+<kbd>K</kbd> to jump anywhere — the command palette is `DrylCommandPalette`, the docs shell is `DrylLayout` + `DrylDrawer` + `DrylAppBar`. The site eats its own dog food, all the way down.
+
 ---
 
 ## Contributing
 
-Right now this is a solo effort, but contributions will be welcome once the core stabilizes. If you want to help:
+DRYL is a solo effort built in the open, and with the API now frozen for `1.0` it's a great time to get involved. If you want to help:
 
 1. Read [`CLAUDE.md`](CLAUDE.md) — the contribution rules (they apply to humans too).
 2. Open an issue before starting work on a new component.
