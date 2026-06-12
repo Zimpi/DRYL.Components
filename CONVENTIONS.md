@@ -75,8 +75,10 @@ library already follows — see `CLAUDE.md` for the design-system rules and
 
 ## Known deviations (to be fixed before 1.0)
 
-These exist today and are tracked for the API-freeze audit (board #39):
+All deviations tracked for the API-freeze audit (board #39) have been resolved:
 
-- `DrylExpansion` — `IsOpen` / `IsOpenChanged` → should be `Open` / `OpenChanged`.
-- `DrylPagination` / `DrylTable` — pagination events mix `On`-prefixed and bare
-  forms; normalise to the rules in §3.
+- ~~`DrylExpansion` — `IsOpen` / `IsOpenChanged`~~ → now `Open` / `OpenChanged`.
+- ~~`DrylPagination` / `DrylTable` — pagination events mix `On`-prefixed and bare
+  forms~~ → normalised to §3: `DrylPagination` exposes `CurrentPage`/`CurrentPageChanged`
+  and `PageSize`/`PageSizeChanged`; `DrylTable` exposes `Page`/`PageChanged` and
+  `PageSize`/`PageSizeChanged` (all bindable, no `On` prefix).

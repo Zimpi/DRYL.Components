@@ -1,13 +1,13 @@
 <p style="margin-bottom: var(--sp-3);">
-    <code>@@bind-IsOpen</code> lets you control state externally.
+    <code>@@bind-Open</code> lets you control state externally.
     Panel two starts open: <strong>@(_panel2Open ? "open" : "closed")</strong>
 </p>
 <div>
     <DrylExpansion Title="Panel One">
         <p>Toggle me.</p>
     </DrylExpansion>
-    <DrylExpansion Title="Panel Two (pre-opened)" @bind-IsOpen="_panel2Open">
-        <p>This panel starts open because <code>IsOpen</code> was initialised to <code>true</code>.</p>
+    <DrylExpansion Title="Panel Two (pre-opened)" @bind-Open="_panel2Open">
+        <p>This panel starts open because <code>Open</code> was initialised to <code>true</code>.</p>
     </DrylExpansion>
     <DrylExpansion Title="Panel Three">
         <p>Toggle me too.</p>

@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] — 2026-06-12
+
+First release candidate for 1.0. The public API is frozen as of this tag: after
+1.0.0, any change to the conventions in `CONVENTIONS.md` on an existing component
+is a breaking change (MAJOR bump). This RC completes the API-freeze event-name
+audit (board #39), the JS-interop render-mode audit (#40) and the first wave of
+behavioural test coverage for the complex/stateful surfaces (#41).
+
 ### Added
 - `DrylButton` — New `Class` parameter that merges extra CSS class(es) onto the button's own classes. This is also the fix for a class-clobber bug (see Fixed); a consumer's `class="..."` now binds to `Class` and is merged instead of overriding the button's identity classes. Establishes the library-wide convention (see `CONVENTIONS.md` §2) being rolled out to the remaining components
 - **NuGet packaging** — `DRYL.Components` is now a publishable NuGet package with full metadata (id, description, tags, MIT license expression, project/repository URLs, icon, package README and release notes), a symbol package (`.snupkg`), XML documentation and SourceLink-enabled deterministic builds
@@ -127,6 +135,9 @@ Version bump guide:
 - `DrylIcon` — Sechs neue Icons: `Circle` (lucide: circle), `Command` (lucide: command), `Hash` (lucide: hash), `List` (lucide: list), `Sliders` (lucide: sliders-horizontal), `Upload` (lucide: upload); werden in der Demo-Navigationsleiste verwendet
 
 ### Changed
+- **BREAKING (API freeze)** `DrylExpansion` — Renamed `IsOpen` / `IsOpenChanged` → `Open` / `OpenChanged` to follow the no-`Is` boolean convention (`CONVENTIONS.md` §2/§3). Update `@bind-IsOpen` → `@bind-Open`. Resolves the last of the board #39 event-name deviations
+- **BREAKING (API freeze)** `DrylPagination` — Renamed the page/size events to the bindable `<Property>Changed` form (`CONVENTIONS.md` §3): `OnPageChanged` → `CurrentPageChanged` and `OnPageSizeChanged` → `PageSizeChanged`. Both pair with their property for `@bind-CurrentPage` / `@bind-PageSize`
+- **BREAKING (API freeze)** `DrylTable` — Normalised pagination to match `PageSize`/`PageSizeChanged`: the current page is now the two-way bindable `Page` / `PageChanged` (replaces the notification-style `OnPageChanged`). Use `@bind-Page` to control or observe the page; `PageSize`/`PageSizeChanged` are unchanged
 - `DrylButton`, `DrylCard`, `DrylMessage`, `DrylChat`, `DrylInputText`, `DrylTextarea`, `DrylAutocomplete`, `DrylSelect` — These AI-aware components now inherit their `AiState` from a surrounding `DrylAiScope` when no explicit `Ai` is set, so a single operation can light them up together. An explicit `Ai` still wins, and with no scope present behaviour is unchanged. The four non-`InputBase` ones (`DrylButton`, `DrylCard`, `DrylMessage`, `DrylChat`) now derive from the new `DrylAiAware` base class. **No public API change**
 - `DrylCodeBlock` — Now syntax-highlights code server-side via a tiny dependency-free C# tokenizer (no JS, no npm — CLAUDE.md rules 2.1 / 2.8). Token colors map only onto existing DRYL tokens (keyword→`--accent-a`, type→`--accent-b`, string→`--success`, number→`--warning`, comment→`--fg-faint`, punctuation→`--fg-muted`). Languages: `csharp`, `javascript`/`typescript`, `json`, `html`/`xml`, `css`, `bash`, `sql`, `python` (with common aliases); unknown languages fall back to plain text. Every token is HTML-encoded before wrapping, so model-authored code stays injection-safe. New `Highlight` parameter (bool, default `true`) opts out to verbatim plain text. Highlighting also flows automatically through `DrylMarkdown` fenced code blocks. **No breaking change**
 - `DrylMessage` — New optional `Text` (string) and `Markdown` (bool) parameters: when `Text` is set it takes precedence over `ChildContent`, and with `Markdown="true"` it is rendered through `DrylMarkdown` (formatted Markdown + code blocks) — ideal for streaming LLM output. Defaults keep existing `ChildContent` usages unchanged. **No breaking change**
@@ -139,6 +150,7 @@ Version bump guide:
 - `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
 
 ### Fixed
+- `DrylFileUpload`, `DrylMultiSelect` — `DisposeAsync` no longer throws a `JSDisconnectedException` when the Blazor Server circuit is already gone at teardown. Both guarded the prerender case (`_jsReady`) but called `dryl.*.detach` without catching a disconnected circuit; the detach is now wrapped in `try { … } catch (JSDisconnectedException) catch (JSException)` like the other interop components. Closes the render-mode audit (board #40): all 20 JS-interop components are now verified prerender-safe (no JS before first interactive render) with a guarded, disconnect-tolerant `DisposeAsync`
 - Surfaces (`DrylCard`, `DrylChat`, `DrylDialog`, `DrylMarkdown`, `DrylMessage`, `DrylPopover`, `DrylToast`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter. With this, **all 61 components that accept pass-through attributes now merge a consumer `class` instead of clobbering their identity classes** — the library-wide convention (`CONVENTIONS.md` §2) is complete
 - Navigation (`DrylBreadcrumbs`, `DrylMenu`, `DrylMenuItem`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylMenu` forwards it to its `DrylPopover`)
 - Layout (`DrylDivider`, `DrylExpansion`, `DrylList`, `DrylListItem`, `DrylScrollArea`, `DrylStack`, `DrylTypo`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylListItem` additionally now splats its `AdditionalAttributes`, previously captured but never rendered)

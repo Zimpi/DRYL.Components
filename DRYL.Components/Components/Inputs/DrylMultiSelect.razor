@@ -319,7 +319,11 @@
     public async ValueTask DisposeAsync()
     {
         if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.menu.detach", _anchor);
+        {
+            try { await JS.InvokeVoidAsync("dryl.menu.detach", _anchor); }
+            catch (JSDisconnectedException) { /* circuit closing */ }
+            catch (JSException) { /* element already gone */ }
+        }
         _dotnetRef?.Dispose();
     }
 }

@@ -219,7 +219,11 @@
     public async ValueTask DisposeAsync()
     {
         if (_jsReady)
-            await JS.InvokeVoidAsync("dryl.fileupload.detach", _dropZone);
+        {
+            try { await JS.InvokeVoidAsync("dryl.fileupload.detach", _dropZone); }
+            catch (JSDisconnectedException) { /* circuit closing */ }
+            catch (JSException) { /* element already gone */ }
+        }
         _dotnetRef?.Dispose();
     }
 }

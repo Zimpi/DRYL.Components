@@ -11,7 +11,7 @@
 
     <div>
         <DrylExpansion Title="Deployment summary · DACH" Icon="Rocket"
-                       IsOpen="_open" IsOpenChanged="v => _open = v"
+                       Open="_open" OpenChanged="v => _open = v"
                        Ai="_state">
             <ChildContent>
                 @if (string.IsNullOrEmpty(_content))

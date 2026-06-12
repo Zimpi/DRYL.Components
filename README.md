@@ -168,7 +168,7 @@ private async Task AskAi()
     @_text
 </DrylCard>
 
-<DrylExpansion Title="AI summary" Icon="Sparkle" Ai="@_state" @bind-IsOpen="_open">
+<DrylExpansion Title="AI summary" Icon="Sparkle" Ai="@_state" @bind-Open="_open">
     <ChildContent>@_text</ChildContent>
 </DrylExpansion>
 ```
@@ -378,11 +378,9 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 `DrylPagination` is also usable on its own — drop it under any list, gallery or feed.
 
 ```razor
-<DrylPagination CurrentPage="@page"
-                PageSize="@size"
-                TotalCount="@total"
-                OnPageChanged="@(p => page = p)"
-                OnPageSizeChanged="@(s => { size = s; page = 0; })" />
+<DrylPagination @bind-CurrentPage="page"
+                @bind-PageSize="size"
+                TotalCount="@total" />
 ```
 
 ---
