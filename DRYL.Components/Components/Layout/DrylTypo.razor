@@ -41,6 +41,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the typography element's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private string Tag => As ?? Variant switch
     {
         TypoVariant.H1      => "h1",
@@ -69,7 +72,7 @@
                 _ => "typo-body"
             };
             var gradient = Gradient ? "gradient-text" : string.Empty;
-            return string.Join(' ', new[] { "typo", variant, gradient }
+            return string.Join(' ', new[] { "typo", variant, gradient, Class }
                                  .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }

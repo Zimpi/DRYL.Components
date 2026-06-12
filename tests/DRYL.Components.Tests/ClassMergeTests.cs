@@ -150,4 +150,24 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("field", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void Stack_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylStack>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.stack").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("stack", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Divider_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylDivider>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.divider").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("divider", classes);
+        Assert.Contains("x", classes);
+    }
 }
