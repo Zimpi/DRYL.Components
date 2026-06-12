@@ -155,6 +155,7 @@ public static class ComponentCatalog
         var items = new List<CommandItem>
         {
             new() { Label = "Home",       Icon = "Home",   Type = CommandItemType.Navigate, Href = "/",                Category = "Pages" },
+            new() { Label = "Overview",    Icon = "Sparkle",Type = CommandItemType.Navigate, Href = "/overview",        Category = "Pages" },
             new() { Label = "Components",  Icon = "Grid",   Type = CommandItemType.Navigate, Href = "/components",      Category = "Pages" },
             new() { Label = "Get Started", Icon = "Rocket", Type = CommandItemType.Navigate, Href = "/getting-started", Category = "Pages" },
         };
