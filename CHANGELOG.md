@@ -139,6 +139,7 @@ Version bump guide:
 - `dryl.css` — New primitives for collapsible nav: `.nav-scroll` (scrollable sidebar middle area), `.nav-section-toggle`, `.nav-section-header`, `.nav-section-link`, `.nav-section-chevron-btn`, `.nav-section-chevron`, `.nav-children`, `.nav-children-inner`, `.nav-item--sub`
 
 ### Fixed
+- Navigation (`DrylBreadcrumbs`, `DrylMenu`, `DrylMenuItem`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylMenu` forwards it to its `DrylPopover`)
 - Layout (`DrylDivider`, `DrylExpansion`, `DrylList`, `DrylListItem`, `DrylScrollArea`, `DrylStack`, `DrylTypo`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylListItem` additionally now splats its `AdditionalAttributes`, previously captured but never rendered)
 - Inputs (`DrylChipInput`, `DrylFormField`, `DrylValidationSummary`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter applied to its field root
 - Feedback components (`DrylAlert`, `DrylEmptyState`, `DrylErrorBoundary`, `DrylNotifications`, `DrylProgress`, `DrylSkeleton`, `DrylSpinner`, `DrylTooltip`) — Same consumer-`class` clobber fix: each now exposes a merged `Class` parameter (`DrylErrorBoundary` forwards it to its fallback `DrylAlert`)

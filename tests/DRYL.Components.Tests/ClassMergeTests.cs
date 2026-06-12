@@ -170,4 +170,14 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("divider", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void Breadcrumbs_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylBreadcrumbs>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("nav.breadcrumbs-nav").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("breadcrumbs-nav", classes);
+        Assert.Contains("x", classes);
+    }
 }
