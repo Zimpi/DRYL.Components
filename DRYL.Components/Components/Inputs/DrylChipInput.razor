@@ -15,7 +15,7 @@
     entries are silently ignored.
     ───────────────────────────────────────────────────────── *@
 
-<div class="field">
+<div class="field @Class">
     @if (!string.IsNullOrEmpty(Label))
     {
         <label class="field-label" for="@_inputId">@Label</label>
@@ -109,6 +109,9 @@
 
     /// <summary>Additional HTML attributes forwarded to the inner input element.</summary>
     [Parameter(CaptureUnmatchedValues = true)] public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the field root's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private readonly string _inputId  = $"dryl-chip-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";

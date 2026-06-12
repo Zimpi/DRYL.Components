@@ -21,7 +21,7 @@
       </EditForm>
     ───────────────────────────────────────────────────────── *@
 
-<div class="field" @attributes="AdditionalAttributes">
+<div class="field @Class" @attributes="AdditionalAttributes">
     @if (!string.IsNullOrEmpty(Label))
     {
         <label class="field-label">
@@ -62,6 +62,9 @@
     /// <summary>Pass-through HTML attributes on the field wrapper.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the field root's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private FieldIdentifier? _field;
 

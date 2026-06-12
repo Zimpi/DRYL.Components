@@ -140,4 +140,14 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("progress-field", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void FormField_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylFormField<string>>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.field").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("field", classes);
+        Assert.Contains("x", classes);
+    }
 }
