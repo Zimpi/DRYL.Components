@@ -4,17 +4,15 @@
     DrylPagination — page-size selector + page navigation.
 
     Usage (standalone):
-      <DrylPagination CurrentPage="@page"
-                      PageSize="@size"
-                      TotalCount="@total"
-                      OnPageChanged="@(p => page = p)"
-                      OnPageSizeChanged="@(s => size = s)" />
+      <DrylPagination @bind-CurrentPage="page"
+                      @bind-PageSize="size"
+                      TotalCount="@total" />
 
     Pages are zero-indexed on the wire (CurrentPage = 0 is page 1). The
     component handles the conversion to 1-based labels in the UI.
     ───────────────────────────────────────────────────────── *@
 
-<div class="tbl-pagination" @attributes="AdditionalAttributes">
+<div class="tbl-pagination @Class" @attributes="AdditionalAttributes">
 
     @if (TotalCount > 0)
     {
@@ -116,15 +114,18 @@
     /// <summary>Hides the page-size selector when false. Default true.</summary>
     [Parameter] public bool ShowPageSize { get; set; } = true;
 
-    /// <summary>Raised with the new zero-indexed page when the user clicks a page button.</summary>
-    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+    /// <summary>Raised with the new zero-indexed page when the user clicks a page button. Pairs with <see cref="CurrentPage"/> for <c>@bind-CurrentPage</c>.</summary>
+    [Parameter] public EventCallback<int> CurrentPageChanged { get; set; }
 
-    /// <summary>Raised with the new page size when the user picks a size in the selector.</summary>
-    [Parameter] public EventCallback<int> OnPageSizeChanged { get; set; }
+    /// <summary>Raised with the new page size when the user picks a size in the selector. Pairs with <see cref="PageSize"/> for <c>@bind-PageSize</c>.</summary>
+    [Parameter] public EventCallback<int> PageSizeChanged { get; set; }
 
     /// <summary>Pass-through HTML attributes applied to the outermost element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the pagination bar's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private readonly string _sizeId = $"dryl-pgsize-{Guid.NewGuid():N}";
 
@@ -133,14 +134,14 @@
     private Task Go(int page)
     {
         var clamped = Math.Max(0, Math.Min(page, TotalPages - 1));
-        return clamped == CurrentPage ? Task.CompletedTask : OnPageChanged.InvokeAsync(clamped);
+        return clamped == CurrentPage ? Task.CompletedTask : CurrentPageChanged.InvokeAsync(clamped);
     }
 
     private Task OnSizeChange(ChangeEventArgs e)
     {
         if (e.Value is null) return Task.CompletedTask;
         if (!int.TryParse(e.Value.ToString(), out var newSize) || newSize <= 0) return Task.CompletedTask;
-        return OnPageSizeChanged.InvokeAsync(newSize);
+        return PageSizeChanged.InvokeAsync(newSize);
     }
 
     // Returns the visible page list — int values are zero-indexed page numbers,

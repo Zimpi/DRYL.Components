@@ -16,7 +16,7 @@
       </DrylBreadcrumbs>
     ───────────────────────────────────────────────────────── *@
 
-<nav class="breadcrumbs-nav" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
+<nav class="breadcrumbs-nav @Class" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
     <ol class="breadcrumbs">
         @{
             var tokens = BuildDisplayTokens();
@@ -95,6 +95,9 @@
     /// <summary>Pass-through HTML attributes on the nav element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the breadcrumbs nav's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private readonly List<DrylBreadcrumbItem> _items = new();
 

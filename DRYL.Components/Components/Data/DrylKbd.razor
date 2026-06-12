@@ -16,7 +16,7 @@
 
 @if (Keys is { Length: > 0 })
 {
-    <span class="kbd-group" @attributes="AdditionalAttributes">
+    <span class="kbd-group @Class" @attributes="AdditionalAttributes">
         @for (var i = 0; i < Keys.Length; i++)
         {
             @if (i > 0)
@@ -29,7 +29,7 @@
 }
 else
 {
-    <kbd class="kbd" @attributes="AdditionalAttributes">@ChildContent</kbd>
+    <kbd class="kbd @Class" @attributes="AdditionalAttributes">@ChildContent</kbd>
 }
 
 @code {
@@ -48,4 +48,7 @@ else
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the kbd's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 }

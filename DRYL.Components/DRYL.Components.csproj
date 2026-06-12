@@ -1,20 +1,53 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1</Version>
-  </PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
 
+    <!-- ===== NuGet package identity ===== -->
+    <PackageId>DRYL.Components</PackageId>
+    <Version>1.0.0-rc.1</Version>
+    <Title>DRYL — Blazor Component Library</Title>
+    <Description>DRYL is a dark, glassy, AI-native UI component library for Blazor Server and Blazor WebAssembly. Token-driven, accessible by default, with a shared AI-state visual vocabulary (Active / Thinking / Streaming / Generated) across every surface — and zero JavaScript framework dependencies.</Description>
+    <PackageTags>blazor;blazor-components;ui;components;razor;dark;glassmorphism;ai;design-system;blazor-server;blazor-webassembly</PackageTags>
+
+    <!-- ===== License, readme, icon ===== -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>See CHANGELOG.md at https://github.com/Zimpi/DRYL.Components/blob/main/CHANGELOG.md</PackageReleaseNotes>
+
+    <!-- ===== Packability + symbols ===== -->
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- XML doc comments are intentionally incomplete during early development -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
 
   <ItemGroup>
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 
+  <!-- Files packed into the .nupkg (not just referenced) -->
+  <ItemGroup>
+    <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Markdig" Version="1.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.8" />
+  </ItemGroup>
+
+  <!-- The Components.Web metapackage version must track the target framework. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

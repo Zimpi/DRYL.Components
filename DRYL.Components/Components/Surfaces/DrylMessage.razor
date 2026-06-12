@@ -21,7 +21,7 @@
 
 @if (Role == MessageRole.System)
 {
-    <div class="chat-msg chat-msg--system" @attributes="AdditionalAttributes">
+    <div class="chat-msg chat-msg--system @Class" @attributes="AdditionalAttributes">
         <span class="chat-system-line">@ChildContent</span>
     </div>
 }
@@ -140,6 +140,9 @@ else
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the message row's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
@@ -155,7 +158,11 @@ else
         : null;
 
     private string RootCssClass =>
-        Role == MessageRole.User ? "chat-msg chat-msg--user" : "chat-msg chat-msg--assistant";
+        string.Join(' ', new[]
+        {
+            Role == MessageRole.User ? "chat-msg chat-msg--user" : "chat-msg chat-msg--assistant",
+            Class
+        }.Where(s => !string.IsNullOrWhiteSpace(s)));
 
     private string BubbleCssClass
     {

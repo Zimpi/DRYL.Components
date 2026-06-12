@@ -21,7 +21,7 @@
       </DrylStack>
     ───────────────────────────────────────────────────────── *@
 
-<div class="stack" style="@Style" @attributes="AdditionalAttributes">
+<div class="stack @Class" style="@Style" @attributes="AdditionalAttributes">
     @ChildContent
 </div>
 
@@ -47,6 +47,9 @@
     /// <summary>Pass-through HTML attributes on the stack container.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the stack's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private string Style
     {

@@ -14,7 +14,7 @@
       </DrylDescriptionList>
     ───────────────────────────────────────────────────────── *@
 
-<dl class="desc-list" style="--desc-cols: @Columns" @attributes="AdditionalAttributes">
+<dl class="desc-list @Class" style="--desc-cols: @Columns" @attributes="AdditionalAttributes">
     <CascadingValue Value="this" IsFixed="true">
         @ChildContent
     </CascadingValue>
@@ -33,6 +33,9 @@
     /// <summary>Pass-through HTML attributes on the &lt;dl&gt; element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the list's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     internal DescriptionLayout ItemLayout => Layout;
 }

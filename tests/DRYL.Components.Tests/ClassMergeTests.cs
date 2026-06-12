@@ -1,0 +1,214 @@
+using Bunit;
+using DRYL.Components;
+
+namespace DRYL.Components.Tests;
+
+/// <summary>
+/// Pins the DRYL class-composition contract for the 1.0 API freeze. A
+/// consumer-supplied <c>class</c> must be <em>merged</em> with a component's own
+/// identity classes, never override them. The mechanism is a typed <c>Class</c>
+/// parameter: Blazor matches attribute names case-insensitively, so a consumer's
+/// <c>class="x"</c> binds to <c>Class</c> (not to <c>AdditionalAttributes</c>) and
+/// the component folds it into its computed class string. A bare
+/// <c>@attributes</c> splat would instead clobber the explicit <c>class</c>, so
+/// every consumer-facing component carries a merged <c>Class</c> parameter.
+/// </summary>
+public class ClassMergeTests : BunitContext
+{
+    [Fact]
+    public void Button_merges_consumer_class_without_clobbering_identity_classes()
+    {
+        var cut = Render<DrylButton>(ps => ps
+            .AddUnmatched("class", "mt-4")
+            .AddChildContent("Save"));
+
+        var classes = (cut.Find("button").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Contains("btn", classes);          // identity class survives
+        Assert.Contains("btn-primary", classes);  // variant class survives
+        Assert.Contains("mt-4", classes);         // consumer class merged in
+    }
+
+    [Fact]
+    public void Button_typed_Class_parameter_is_merged()
+    {
+        var cut = Render<DrylButton>(ps => ps
+            .Add(p => p.Class, "danger-zone")
+            .AddChildContent("Delete"));
+
+        var classes = (cut.Find("button").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Contains("btn", classes);
+        Assert.Contains("danger-zone", classes);
+    }
+
+    [Fact]
+    public void SegmentedControl_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylSegmentedControl<string>>(ps => ps
+            .Add(p => p.AriaLabel, "View")
+            .AddUnmatched("class", "my-extra"));
+
+        var classes = (cut.Find("[role=radiogroup]").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Contains("seg", classes);
+        Assert.Contains("seg--md", classes);
+        Assert.Contains("my-extra", classes);
+    }
+
+    [Fact]
+    public void ButtonGroup_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylButtonGroup>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("[role=group]").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("btn-group", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void AiIndicator_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylAiIndicator>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("[role=status]").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("ai-indicator", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void ToolCall_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "get_weather")
+            .AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.tool-call").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("tool-call", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Badge_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylBadge>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("span").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("badge", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Stat_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylStat>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.stat").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("stat", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Timeline_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylTimeline>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.timeline").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("timeline", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Alert_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylAlert>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("div.alert").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("alert", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Progress_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylProgress>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.progress-field").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("progress-field", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void FormField_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylFormField<string>>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.field").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("field", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Stack_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylStack>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.stack").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("stack", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Divider_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylDivider>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.divider").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("divider", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Breadcrumbs_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylBreadcrumbs>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("nav.breadcrumbs-nav").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("breadcrumbs-nav", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Card_merges_consumer_class_without_clobbering()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose; // DrylCard calls dryl.spotlight.track on render
+        var cut = Render<DrylCard>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("div.glass-card").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("glass-card", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Popover_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylPopover>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.popover-anchor").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("popover-anchor", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Message_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylMessage>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("div.chat-msg").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("chat-msg", classes);
+        Assert.Contains("x", classes);
+    }
+}

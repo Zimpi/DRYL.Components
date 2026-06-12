@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (8 / 9 / 10)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore DRYL.slnx
+
+      - name: Build
+        run: dotnet build DRYL.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test DRYL.slnx -c Release --no-build --verbosity normal
+
+      - name: Pack (validate packaging)
+        run: dotnet pack DRYL.Components/DRYL.Components.csproj -c Release --no-build -o artifacts
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.*nupkg
+          if-no-files-found: error

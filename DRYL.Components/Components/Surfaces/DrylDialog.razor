@@ -106,6 +106,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the dialog's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private readonly string _titleId = $"dryl-dlg-title-{Guid.NewGuid():N}";
     private AiState _prevAi = AiState.None;
     private int _genTick;
@@ -160,6 +163,7 @@
                 case AiState.Streaming: classes.Add("ai-streaming"); break;
                 case AiState.Generated: classes.Add("ai-generated"); break;
             }
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }
     }

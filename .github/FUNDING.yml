@@ -1,0 +1,5 @@
+# These are supported funding model platforms
+# https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+github: [Zimpi]            # Shows the "Sponsor" button once GitHub Sponsors is enabled for this account.
+

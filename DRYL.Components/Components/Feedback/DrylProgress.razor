@@ -14,7 +14,7 @@
     hosted on a wrapper so it is not clipped by the track's overflow.
     ───────────────────────────────────────────────────────── *@
 
-<div class="progress-field" @attributes="AdditionalAttributes">
+<div class="progress-field @Class" @attributes="AdditionalAttributes">
     @if (ShowLabelRow)
     {
         <div class="progress-label-row">
@@ -91,6 +91,9 @@
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the progress field's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private AiState _prevAi = AiState.None;
     private int _genTick;

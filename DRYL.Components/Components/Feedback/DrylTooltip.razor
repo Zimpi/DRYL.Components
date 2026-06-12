@@ -18,7 +18,7 @@
     Placement: Top (default) / Bottom / Left / Right.
     ───────────────────────────────────────────────────────── *@
 
-<span class="tt-wrap" @attributes="AdditionalAttributes">
+<span class="tt-wrap @Class" @attributes="AdditionalAttributes">
     @ChildContent
     @if (!string.IsNullOrEmpty(Text))
     {
@@ -39,6 +39,9 @@
     /// <summary>Pass-through HTML-Attribute (werden auf den Wrapper-Span angewendet).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the tooltip wrapper's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private string TooltipClass => Placement switch
     {

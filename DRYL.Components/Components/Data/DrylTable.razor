@@ -404,8 +404,8 @@
                             PageSize="@_pageSize"
                             TotalCount="@_filteredCount"
                             PageSizeOptions="@PageSizeOptions"
-                            OnPageChanged="OnPageChangedInternal"
-                            OnPageSizeChanged="OnPageSizeChangedInternal" />
+                            CurrentPageChanged="OnPageChangedInternal"
+                            PageSizeChanged="OnPageSizeChangedInternal" />
         </div>
     }
 
@@ -621,8 +621,14 @@
     /// <summary>Page-size options shown in the pagination footer. Default: <c>[10, 20, 50, 100]</c>.</summary>
     [Parameter] public IReadOnlyList<int> PageSizeOptions { get; set; } = [10, 20, 50, 100];
 
-    /// <summary>Raised when the user navigates to a different page (zero-indexed).</summary>
-    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+    /// <summary>
+    /// Zero-indexed current page. Two-way bindable — the table updates this when the user
+    /// navigates in the footer, and honours an externally set value. Defaults to 0 (first page).
+    /// </summary>
+    [Parameter] public int Page { get; set; }
+
+    /// <summary>Raised when the user navigates to a different page (zero-indexed). Pairs with <see cref="Page"/> for <c>@bind-Page</c>.</summary>
+    [Parameter] public EventCallback<int> PageChanged { get; set; }
 
     /// <summary>
     /// Optional row grouping. When set, rows are grouped by the returned key (per page slice
@@ -779,6 +785,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the table root's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private readonly List<DrylColumn<TItem>> _columns = [];
     private readonly HashSet<TItem> _selected = [];
     private readonly HashSet<TItem> _seenItems = [];
@@ -800,6 +809,7 @@
     private int _page;
     private int _pageSize;
     private int _lastSeenPageSize;
+    private int _lastSeenPage;
     private IEnumerable<TItem>? _lastItemsRef;
     private bool _columnsDirty;
     private string? _openFilterColumn;
@@ -913,6 +923,7 @@
                 case AiState.Streaming: if (Bordered) classes.Add("ai-streaming"); break;
                 case AiState.Generated: if (Bordered) classes.Add("ai-generated"); break;
             }
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }
     }
@@ -962,6 +973,12 @@
         {
             _lastSeenPageSize = PageSize;
             _pageSize = PageSize;
+        }
+
+        if (Page != _lastSeenPage)
+        {
+            _lastSeenPage = Page;
+            _page = Page;
         }
 
         if (Virtualize && GroupBy is not null && !_virtualizeWarned)
@@ -1329,8 +1346,9 @@
     private async Task OnPageChangedInternal(int page)
     {
         _page = page;
+        _lastSeenPage = page;
         MarkPersistDirty();
-        await OnPageChanged.InvokeAsync(page);
+        await PageChanged.InvokeAsync(page);
         await RebuildViewAsync();
     }
 
@@ -1768,7 +1786,7 @@
     public void OnColumnResized(string key, double widthPx)
     {
         if (widthPx <= 0) return;
-        _columnWidths[key] = $"{Math.Round(widthPx)}px";
+        _columnWidths[key] = FormattableString.Invariant($"{Math.Round(widthPx)}px");
         MarkPersistDirty();
         InvokeAsync(StateHasChanged);
     }

@@ -15,7 +15,7 @@
 
 @if (_messages.Count > 0)
 {
-    <div class="validation-summary" role="alert" @attributes="AdditionalAttributes">
+    <div class="validation-summary @Class" role="alert" @attributes="AdditionalAttributes">
         <span class="validation-summary-icon"><DrylIcon Name="Alert" Size="16" /></span>
         <div class="validation-summary-body">
             @if (!string.IsNullOrEmpty(Title))
@@ -41,6 +41,9 @@
     /// <summary>Pass-through HTML attributes on the summary element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the summary's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private List<string> _messages = new();
     private EditContext? _subscribed;

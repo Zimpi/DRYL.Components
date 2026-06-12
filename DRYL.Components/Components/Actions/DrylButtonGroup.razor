@@ -38,9 +38,14 @@
     /// <summary>If true, the group stretches to its container's full width and segments share the space equally.</summary>
     [Parameter] public bool Block { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the group's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     /// <summary>Pass-through HTML attributes applied to the group element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string CssClass => Block ? "btn-group btn-group--block" : "btn-group";
+    private string CssClass =>
+        string.Join(' ', new[] { "btn-group", Block ? "btn-group--block" : null, Class }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
 }

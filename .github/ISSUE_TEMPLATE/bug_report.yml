@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a defect in a DRYL component
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug! Please fill out the sections below.
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      description: Which DRYL component is affected?
+      placeholder: e.g. DrylTable, DrylDialog
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal markup / steps. A repro project link is ideal.
+      placeholder: |
+        1. Render <DrylX ... />
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Hosting model
+      options:
+        - Blazor Server
+        - Blazor WebAssembly
+        - Both / not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: DRYL version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: dotnet
+    attributes:
+      label: .NET version
+      placeholder: e.g. net8.0
+    validations:
+      required: true

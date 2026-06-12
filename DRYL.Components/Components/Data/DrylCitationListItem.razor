@@ -6,7 +6,7 @@
     external link to the source.
     ───────────────────────────────────────────────────────── *@
 
-<li class="citation-item" value="@Index" @attributes="AdditionalAttributes">
+<li class="citation-item @Class" value="@Index" @attributes="AdditionalAttributes">
     <span class="citation-item-index">@Index</span>
     <div class="citation-item-body">
         @if (!string.IsNullOrEmpty(Title))
@@ -43,6 +43,9 @@
     /// <summary>Pass-through HTML attributes on the list item.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the item's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private string DisplayUrl
     {

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/DRYL.Components.Demo/DRYL.Components.Demo.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DRYL.Components.Tests/DRYL.Components.Tests.csproj" />
+  </Folder>
+  <Project Path="DRYL.Components/DRYL.Components.csproj" />
+</Solution>

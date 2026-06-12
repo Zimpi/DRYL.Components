@@ -2,8 +2,8 @@
     <DrylPagination CurrentPage="@_page"
                     PageSize="@_size"
                     TotalCount="247"
-                    OnPageChanged="@(p => _page = p)"
-                    OnPageSizeChanged="@(s => { _size = s; _page = 0; })" />
+                    CurrentPageChanged="@(p => _page = p)"
+                    PageSizeChanged="@(s => { _size = s; _page = 0; })" />
 </div>
 
 @code {

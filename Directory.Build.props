@@ -1,0 +1,41 @@
+<Project>
+
+  <!--
+    Shared MSBuild properties for every project in the DRYL repository.
+    Package-specific metadata (PackageId, Description, multi-targeting, …) lives
+    in the individual project files. Anything common to the whole repo lives here.
+  -->
+
+  <PropertyGroup>
+    <!-- Language / analysis -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Authorship / ownership (shown on nuget.org) -->
+    <Authors>Jan Zimprich</Authors>
+    <Company>Jan Zimprich</Company>
+    <Product>DRYL</Product>
+    <Copyright>Copyright © 2026 Jan Zimprich</Copyright>
+
+    <!-- Repository links -->
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Zimpi/DRYL.Components</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Zimpi/DRYL.Components</PackageProjectUrl>
+
+    <!-- Reproducible / debuggable builds.
+         SourceLink is built into the .NET SDK since 8.0 — no package reference needed. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+
+    <!-- Only true on CI (set by the GitHub Actions workflow). Enables fully
+         deterministic, path-normalised builds without affecting local dev. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Nothing is packable unless a project opts in. Keeps the demo + tests
+         out of any 'dotnet pack' run. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

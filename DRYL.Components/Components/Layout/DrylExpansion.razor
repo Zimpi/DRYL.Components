@@ -8,7 +8,7 @@
           Panel One content
       </DrylExpansion>
 
-      <DrylExpansion Title="Service health" Icon="Server" @bind-IsOpen="_open">
+      <DrylExpansion Title="Service health" Icon="Server" @bind-Open="_open">
           <p>All systems normal.</p>
       </DrylExpansion>
 
@@ -72,10 +72,10 @@
     [Parameter] public string? Icon { get; set; }
 
     /// <summary>Whether the panel is currently expanded. Supports two-way binding.</summary>
-    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public bool Open { get; set; }
 
     /// <summary>Fires when the user toggles the panel.</summary>
-    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
 
     /// <summary>If true, the panel cannot be toggled.</summary>
     [Parameter] public bool Disabled { get; set; }
@@ -93,6 +93,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the expansion's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private bool _isOpen;
     private readonly string _bodyId = $"expansion-body-{Guid.NewGuid():N}";
     private AiState _prevAi = AiState.None;
@@ -100,7 +103,7 @@
 
     protected override void OnParametersSet()
     {
-        _isOpen = IsOpen;
+        _isOpen = Open;
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
     }
@@ -109,10 +112,10 @@
     {
         if (Disabled) return;
         _isOpen = !_isOpen;
-        IsOpen = _isOpen;
-        if (IsOpenChanged.HasDelegate)
+        Open = _isOpen;
+        if (OpenChanged.HasDelegate)
         {
-            await IsOpenChanged.InvokeAsync(_isOpen);
+            await OpenChanged.InvokeAsync(_isOpen);
         }
     }
 
@@ -130,6 +133,7 @@
                 case AiState.Streaming: classes.Add("ai-streaming"); break;
                 case AiState.Generated: classes.Add("ai-generated"); break;
             }
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }
     }

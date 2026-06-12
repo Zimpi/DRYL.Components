@@ -1,0 +1,78 @@
+name: Release
+
+# Publishes DRYL.Components to nuget.org when a version tag is pushed.
+#
+#   git tag v0.1.0
+#   git push origin v0.1.0
+#
+# The version is taken from the tag (v0.1.0 -> 0.1.0), so it always matches.
+# Uses Trusted Publishing (OIDC) — no API key secret required.
+# Configure the Trusted Publisher on nuget.org:
+#   Owner → Trusted Publishing → GitHub Actions
+#   Repository: <your-repo-name>   Workflow File: release.yml
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write   # create the GitHub Release
+  id-token: write   # required for OIDC trusted publishing
+
+jobs:
+  publish:
+    name: Pack & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (8 / 9 / 10)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Derive version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore DRYL.slnx
+
+      - name: Build
+        run: dotnet build DRYL.slnx -c Release --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        run: dotnet test DRYL.slnx -c Release --no-build --verbosity normal
+
+      - name: Pack
+        run: >
+          dotnet pack DRYL.Components/DRYL.Components.csproj
+          -c Release --no-build
+          -p:Version=${{ steps.version.outputs.version }}
+          -o artifacts
+
+      - name: NuGet login (OIDC)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: DRYL.Components ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg

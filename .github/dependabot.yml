@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # NuGet dependencies across the solution
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      microsoft:
+        patterns:
+          - "Microsoft.*"
+      xunit:
+        patterns:
+          - "xunit*"
+    labels:
+      - "dependencies"
+
+  # GitHub Actions used by the workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

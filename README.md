@@ -1,6 +1,17 @@
 # DRYL
 
+[![NuGet](https://img.shields.io/nuget/v/DRYL.Components.svg)](https://www.nuget.org/packages/DRYL.Components)
+[![Downloads](https://img.shields.io/nuget/dt/DRYL.Components.svg)](https://www.nuget.org/packages/DRYL.Components)
+[![CI](https://github.com/Zimpi/DRYL.Components/actions/workflows/ci.yml/badge.svg)](https://github.com/Zimpi/DRYL.Components/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4.svg)](https://dotnet.microsoft.com/)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg?logo=github)](https://github.com/sponsors/Zimpi)
+
 An open-source UI component library for **Blazor Server** and **Blazor WebAssembly** with an unapologetically modern, dark aesthetic.
+
+```bash
+dotnet add package DRYL.Components
+```
 
 > **Status: Early development — not production-ready.**
 > DRYL is being built in the open. The design system is in place and several reference components exist, but the library is **not yet suitable for production use**. Expect breaking changes, missing components, and rough edges until `1.0`.
@@ -25,6 +36,47 @@ Every component reads from a single token file ([`dryl.css`](DRYL.Components/www
 - **AI-aware.** Every interactive surface can opt into an `AiState` — Active, Thinking, Streaming, Generated. The system signals AI presence consistently across components, so users learn the visual language once.
 - **No JS frameworks.** Zero npm packages on top of Blazor — just CSS, Razor, and minimal interop.
 - **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings. AI activity is announced via `aria-live`.
+
+---
+
+## Installation & getting started
+
+DRYL targets **.NET 8, 9 and 10**.
+
+**1. Add the package**
+
+```bash
+dotnet add package DRYL.Components
+```
+
+**2. Register services** in `Program.cs`
+
+```csharp
+builder.Services.AddDrylComponents();
+```
+
+**3. Reference the stylesheet** in your host page (`App.razor` / `_Host.cshtml` / `wwwroot/index.html`)
+
+```html
+<link rel="stylesheet" href="_content/DRYL.Components/dryl.css" />
+```
+
+**4. Add the providers** once in your root layout (for service-driven dialogs, toasts and notifications)
+
+```razor
+<DrylDialogProvider />
+<DrylToastProvider />
+```
+
+**5. Use components**
+
+```razor
+@using DRYL.Components
+
+<DrylCard>
+    <DrylButton Variant="ButtonVariant.Primary">Hello DRYL</DrylButton>
+</DrylCard>
+```
 
 ---
 
@@ -117,7 +169,7 @@ private async Task AskAi()
     @_text
 </DrylCard>
 
-<DrylExpansion Title="AI summary" Icon="Sparkle" Ai="@_state" @bind-IsOpen="_open">
+<DrylExpansion Title="AI summary" Icon="Sparkle" Ai="@_state" @bind-Open="_open">
     <ChildContent>@_text</ChildContent>
 </DrylExpansion>
 ```
@@ -327,11 +379,9 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 `DrylPagination` is also usable on its own — drop it under any list, gallery or feed.
 
 ```razor
-<DrylPagination CurrentPage="@page"
-                PageSize="@size"
-                TotalCount="@total"
-                OnPageChanged="@(p => page = p)"
-                OnPageSizeChanged="@(s => { size = s; page = 0; })" />
+<DrylPagination @bind-CurrentPage="page"
+                @bind-PageSize="size"
+                TotalCount="@total" />
 ```
 
 ---
@@ -480,6 +530,21 @@ Right now this is a solo effort, but contributions will be welcome once the core
 1. Read [`CLAUDE.md`](CLAUDE.md) — the contribution rules (they apply to humans too).
 2. Open an issue before starting work on a new component.
 3. Every PR must respect the token system. No invented colors, no arbitrary spacings.
+
+---
+
+## Support DRYL
+
+DRYL is built and maintained in the open as a solo effort. If it saves you time
+or you'd like to see it reach a stable 1.0 faster, you can support the work:
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg?logo=github)](https://github.com/sponsors/Zimpi)
+
+- **[GitHub Sponsors](https://github.com/sponsors/Zimpi)** — one-off or recurring.
+
+Sponsorships are appreciated but never required: DRYL is MIT-licensed and will
+always be free to use. Starring the repo and filing good issues helps just as
+much.
 
 ---
 

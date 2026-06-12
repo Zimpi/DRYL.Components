@@ -37,6 +37,9 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
+    /// <summary>Extra CSS class(es) merged onto the badge's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
     private string CssClass
     {
         get
@@ -50,7 +53,7 @@
                 _ => string.Empty
             };
             var dot = Dot ? "badge-dot" : string.Empty;
-            return string.Join(' ', new[] { "badge", kind, dot }
+            return string.Join(' ', new[] { "badge", kind, dot, Class }
                                  .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }
