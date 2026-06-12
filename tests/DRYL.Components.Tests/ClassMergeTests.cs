@@ -90,4 +90,34 @@ public class ClassMergeTests : BunitContext
         Assert.Contains("tool-call", classes);
         Assert.Contains("x", classes);
     }
+
+    [Fact]
+    public void Badge_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylBadge>(ps => ps.AddUnmatched("class", "x").AddChildContent("Hi"));
+        var classes = (cut.Find("span").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("badge", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Stat_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylStat>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.stat").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("stat", classes);
+        Assert.Contains("x", classes);
+    }
+
+    [Fact]
+    public void Timeline_merges_consumer_class_without_clobbering()
+    {
+        var cut = Render<DrylTimeline>(ps => ps.AddUnmatched("class", "x"));
+        var classes = (cut.Find("div.timeline").GetAttribute("class") ?? string.Empty)
+            .Split(' ', System.StringSplitOptions.RemoveEmptyEntries);
+        Assert.Contains("timeline", classes);
+        Assert.Contains("x", classes);
+    }
 }

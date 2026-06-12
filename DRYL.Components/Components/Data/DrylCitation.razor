@@ -18,7 +18,7 @@
              PanelAriaLabel="@($"Source {Index}{(string.IsNullOrEmpty(Title) ? "" : $": {Title}")}")">
     <TriggerContent>
         <button type="button"
-                class="citation-chip @(_open ? "citation-chip--open" : null)"
+                class="citation-chip @(_open ? "citation-chip--open" : null) @Class"
                 aria-label="@($"Source {Index}{(string.IsNullOrEmpty(Title) ? "" : $": {Title}")}")"
                 @attributes="AdditionalAttributes">
             @Index
@@ -64,6 +64,9 @@
     /// <summary>Pass-through HTML attributes on the chip.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the citation chip's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
 
     private bool _open;
 
