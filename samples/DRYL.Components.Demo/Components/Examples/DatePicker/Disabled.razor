@@ -1,9 +1,0 @@
-<div style="max-width: 260px;">
-    <DrylDatePicker @bind-Value="_disabledDate"
-                    Label="Fixed date"
-                    Disabled />
-</div>
-
-@code {
-    private DateOnly? _disabledDate = DateOnly.FromDateTime(DateTime.Today);
-}
