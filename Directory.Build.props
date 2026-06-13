@@ -21,7 +21,7 @@
     <!-- Repository links -->
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Zimpi/DRYL.Components</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/Zimpi/DRYL.Components</PackageProjectUrl>
+    <PackageProjectUrl>https://components.dryl.dev/</PackageProjectUrl>
 
     <!-- Reproducible / debuggable builds.
          SourceLink is built into the .NET SDK since 8.0 — no package reference needed. -->

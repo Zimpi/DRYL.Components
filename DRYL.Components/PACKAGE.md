@@ -56,6 +56,7 @@ builder.Services.AddDrylComponents();
 
 ## Links
 
-- **Repository & docs:** https://github.com/Zimpi/DRYL.Components
+- **Documentation:** https://components.dryl.dev/
+- **Repository:** https://github.com/Zimpi/DRYL.Components
 - **Changelog:** https://github.com/Zimpi/DRYL.Components/blob/main/CHANGELOG.md
 - **License:** MIT
