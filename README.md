@@ -5,6 +5,7 @@
 [![CI](https://github.com/Zimpi/DRYL.Components/actions/workflows/ci.yml/badge.svg)](https://github.com/Zimpi/DRYL.Components/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4.svg)](https://dotnet.microsoft.com/)
+[![Website](https://img.shields.io/badge/docs-components.dryl.dev-7c3aed.svg)](https://components.dryl.dev/)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg?logo=github)](https://github.com/sponsors/Zimpi)
 
 **Dark. Glassy. Alive — and AI-native.**
@@ -449,17 +450,9 @@ For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`C
 
 ---
 
-## Run the demo
+## Documentation & live demo
 
-The sample app doubles as the documentation site — every component, every variant, every AI state, live:
-
-```bash
-git clone https://github.com/Zimpi/DRYL.Components.git
-cd DRYL.Components
-dotnet run --project samples/DRYL.Components.Demo
-```
-
-Open `/overview` for the Mission Control screen from the top of this page, hit <kbd>Ctrl</kbd>+<kbd>K</kbd> to jump anywhere — the command palette is `DrylCommandPalette`, the docs shell is `DrylLayout` + `DrylDrawer` + `DrylAppBar`. The site eats its own dog food, all the way down.
+The live documentation site is available at **[components.dryl.dev](https://components.dryl.dev/)** — every component, every variant, every AI state, interactive.
 
 ---
 
