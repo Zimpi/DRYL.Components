@@ -19,7 +19,7 @@ dotnet add package DRYL.Components
 
 <sub>One screen, ~30 components, nothing but a layout grid on top — the <code>/overview</code> page of the sample app. Everything in this picture, including the app shell it runs in, is a DRYL component.</sub>
 
-> **Status: `1.0.0-rc.1`** — the public API is frozen and baking as a release candidate. If anything in the API feels wrong, [open an issue](https://github.com/Zimpi/DRYL.Components/issues) — now is exactly the time.
+> **Status: `1.0.0`** — the first stable release. The public API is frozen: any rename of a public parameter, event, enum or slot on an existing component is now a breaking change (MAJOR bump). Found a problem? [Open an issue](https://github.com/Zimpi/DRYL.Components/issues).
 
 ---
 

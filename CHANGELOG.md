@@ -14,13 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [1.0.0-rc.1] — 2026-06-12
+## [1.0.0] — 2026-06-24
 
-First release candidate for 1.0. The public API is frozen as of this tag: after
-1.0.0, any change to the conventions in `CONVENTIONS.md` on an existing component
-is a breaking change (MAJOR bump). This RC completes the API-freeze event-name
-audit (board #39), the JS-interop render-mode audit (#40) and the first wave of
-behavioural test coverage for the complex/stateful surfaces (#41).
+First stable release. The public API is now frozen: after 1.0.0, any rename of a
+public parameter, event, enum or slot on an existing component — the surface
+defined by `CONVENTIONS.md` — is a breaking change (MAJOR bump). 1.0.0 ships the
+content of `1.0.0-rc.1` unchanged: the API-freeze event-name audit (board #39),
+the JS-interop render-mode audit (#40) and the first wave of behavioural test
+coverage for the complex/stateful surfaces (#41). A browsable per-component API
+reference (#42) is published alongside it on the docs site.
 
 ### Added
 - `DrylButton` — New `Class` parameter that merges extra CSS class(es) onto the button's own classes. This is also the fix for a class-clobber bug (see Fixed); a consumer's `class="..."` now binds to `Class` and is merged instead of overriding the button's identity classes. Establishes the library-wide convention (see `CONVENTIONS.md` §2) being rolled out to the remaining components
@@ -313,5 +315,6 @@ First documented state of the library. All components are in early-development s
 
 ---
 
-[Unreleased]: https://github.com/Zimpi/DRYL.Components/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Zimpi/DRYL.Components/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Zimpi/DRYL.Components/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/Zimpi/DRYL.Components/releases/tag/v0.1.0
