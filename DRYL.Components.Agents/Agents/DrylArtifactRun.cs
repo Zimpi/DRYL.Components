@@ -11,10 +11,13 @@ namespace DRYL.Components.Agents;
 /// </summary>
 public sealed class DrylArtifactRun<T> : DrylRunBase
 {
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _deserializeOptions;
     private JsonNode? _json;
 
-    internal DrylArtifactRun(JsonSerializerOptions jsonOptions) => _jsonOptions = jsonOptions;
+    internal DrylArtifactRun(JsonSerializerOptions jsonOptions)
+    {
+        _deserializeOptions = new JsonSerializerOptions(jsonOptions) { PropertyNameCaseInsensitive = true };
+    }
 
     /// <summary>The live, progressively-merged artifact (fields not yet provided are null/default).</summary>
     public T? Artifact { get; private set; }
@@ -35,8 +38,7 @@ public sealed class DrylArtifactRun<T> : DrylRunBase
 
         _json = JsonMerge.Merge(_json, patchNode);
         Round++;
-        var opts = new JsonSerializerOptions(_jsonOptions) { PropertyNameCaseInsensitive = true };
-        Artifact = _json is null ? default : _json.Deserialize<T>(opts);
+        Artifact = _json is null ? default : _json.Deserialize<T>(_deserializeOptions);
         Raise();
 
         return maxRounds is { } m && Round >= m
