@@ -18,7 +18,15 @@
     /// <summary>The artifact build to visualise. Replacing it resubscribes.</summary>
     [Parameter] public DrylArtifactRun<T>? Run { get; set; }
 
-    /// <summary>Optional activity key; when set, a surrounding <c>DrylAiScope Key="..."</c> settles with the build.</summary>
+    /// <summary>
+    /// Optional activity key; when set, a surrounding <c>DrylAiScope Key="..."</c> settles with the build.
+    /// <para>
+    /// This key should match the <c>aiKey</c> passed to <c>DrylAgentRunner.StartBuild</c> for the same run.
+    /// The runner owns the activity service mid-run and drives the scope's live glow; <c>DrylAiBuild</c>
+    /// only touches the service at settle. Without a matching key, the scope will not glow during the build —
+    /// it will only transition once the run completes.
+    /// </para>
+    /// </summary>
     [Parameter] public string? Key { get; set; }
 
     /// <summary>Child content receiving the live <see cref="ArtifactSnapshot{T}"/>.</summary>

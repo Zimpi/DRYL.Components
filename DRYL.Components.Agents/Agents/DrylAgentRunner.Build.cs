@@ -20,6 +20,12 @@ public sealed partial class DrylAgentRunner
     /// observable <see cref="DrylArtifactRun{T}"/> whose <see cref="DrylArtifactRun{T}.Artifact"/>
     /// grows round by round.
     /// </summary>
+    /// <remarks>
+    /// <b>Key / aiKey coupling:</b> pass the same string to <paramref name="aiKey"/> here and to
+    /// <c>DrylAiBuild.Key</c> when rendering this run. The runner owns the activity service mid-run
+    /// and drives the scope's live glow; <c>DrylAiBuild</c> only touches it at settle. Without a
+    /// matching key the surrounding <c>DrylAiScope</c> will not glow during the build.
+    /// </remarks>
     public DrylArtifactRun<T> StartBuild<T>(
         AIAgent agent, AgentSession session, string prompt,
         DrylBuildOptions? options = null, string? aiKey = null, CancellationToken ct = default)
@@ -47,7 +53,10 @@ public sealed partial class DrylAgentRunner
     /// </summary>
     internal static AITool CreateUpdateTool<T>(DrylArtifactRun<T> run, DrylBuildOptions options)
     {
-        var toolName = options.UpdateToolName ?? $"update_{typeof(T).Name.ToLowerInvariant()}";
+        var typeName = typeof(T).Name;
+        var backtick = typeName.IndexOf('`');
+        if (backtick >= 0) typeName = typeName[..backtick];
+        var toolName = options.UpdateToolName ?? $"update_{typeName.ToLowerInvariant()}";
         var schema = AIJsonUtilities.CreateJsonSchema(typeof(T), serializerOptions: JsonOpts).GetRawText();
         var description =
             "Record or refine the artifact as you learn more. Call this repeatedly — include only " +

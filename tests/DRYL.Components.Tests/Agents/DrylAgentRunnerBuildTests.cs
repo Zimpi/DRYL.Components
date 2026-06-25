@@ -22,4 +22,13 @@ public class DrylAgentRunnerBuildTests
         var tool = DrylAgentRunner.CreateUpdateTool(run, new DrylBuildOptions { UpdateToolName = "draft" });
         Assert.Equal("draft", tool.Name);
     }
+
+    [Fact]
+    public void CreateUpdateTool_strips_generic_arity_from_default_name()
+    {
+        var run = new DrylArtifactRun<List<Recipe>>(new JsonSerializerOptions());
+        var tool = DrylAgentRunner.CreateUpdateTool(run, new DrylBuildOptions());
+        Assert.Equal("update_list", tool.Name);
+        Assert.DoesNotContain("`", tool.Name);
+    }
 }
