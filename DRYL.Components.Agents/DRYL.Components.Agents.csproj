@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="DRYL.Components.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
