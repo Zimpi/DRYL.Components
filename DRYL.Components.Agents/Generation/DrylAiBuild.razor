@@ -1,5 +1,6 @@
 @namespace DRYL.Components.Agents
 @typeparam T
+@using System.Threading
 @using DRYL.Components.Agents.Generation
 @using DRYL.Components.Ai
 @using Microsoft.Extensions.DependencyInjection
@@ -34,6 +35,7 @@
     private IDrylAiActivityService? _service;
     private DrylArtifactRun<T>? _subscribed;
     private bool _settling;
+    private CancellationTokenSource? _settleCts;
 
     protected override void OnInitialized() =>
         _service = Services.GetService<IDrylAiActivityService>();
@@ -44,6 +46,12 @@
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
         _subscribed = Run;
         if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        // I2: cancel any in-flight settle from the previous run and reset state
+        _settleCts?.Cancel();
+        _settleCts?.Dispose();
+        _settleCts = null;
+        _settling = false;
+        _snapshot.IsComplete = false;
         Sync();
     }
 
@@ -65,7 +73,13 @@
 
     private async Task SettleAsync()
     {
-        try { await Task.Delay(SettleDelayMs); } catch { /* fire-and-forget reveal dwell */ }
+        _settleCts?.Cancel();
+        _settleCts?.Dispose();
+        _settleCts = new CancellationTokenSource();
+        var ct = _settleCts.Token;
+
+        try { await Task.Delay(SettleDelayMs, ct); }
+        catch (OperationCanceledException) { return; }
 
         if (_service is not null && Key is not null)
         {
@@ -80,5 +94,7 @@
     public void Dispose()
     {
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _settleCts?.Cancel();
+        _settleCts?.Dispose();
     }
 }
