@@ -17,7 +17,7 @@ Version bump guide:
 ### Added
 - `DRYL.Components.Agents` — New companion package integrating the Microsoft Agent Framework (`Microsoft.Agents.AI`). Experimental, independently versioned (0.1.0), decoupled from core. The core stays dependency-free
 - `AddDrylAgents()` — DI extension registering `DrylAgentRunner` (scoped); call alongside `AddDrylComponents()`
-- `DrylAgentRunner` — Starts agent runs and bridges them to DRYL's AI vocabulary; `Start(...)` returns an observable run, `GenerateStreamingAsync<T>(...)` streams typed structured output
+- `DrylAgentRunner` — Starts agent runs and bridges them to DRYL's AI vocabulary; `Start(...)` returns an observable run, `GenerateStreamingAsync<T>(...)` streams typed structured output, `Replay(...)` drives a run from a pre-built update sequence (recorded runs / demos / tests)
 - `DrylAgentRun` — Observable run handle (`State`, `Text`, `ToolCalls`, `TextStream`, `OnChange`); drives `AiState` automatically and feeds `DrylAiScope`
 - `DrylToolInvocation` — Captured tool/function call with lifecycle-derived `AiState`; maps 1:1 onto the core `DrylToolCall`
 - `DrylAgentToolCalls` — Renders an agent run's tool calls via the core `DrylToolCall` (full trace, or `ActiveOnly`)

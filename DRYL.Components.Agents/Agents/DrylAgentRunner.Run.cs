@@ -20,6 +20,16 @@ public sealed partial class DrylAgentRunner
         return StartFromUpdates(updates, aiKey, ct);
     }
 
+    /// <summary>
+    /// Drive a <see cref="DrylAgentRun"/> from a pre-built sequence of
+    /// <see cref="AgentResponseUpdate"/>s instead of a live agent — useful for replaying a
+    /// recorded run, demos, or tests. Behaves exactly like <see cref="Start"/> (same
+    /// automatic <see cref="AiState"/> and tool-call mapping).
+    /// </summary>
+    public DrylAgentRun Replay(
+        IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey = null, CancellationToken ct = default)
+        => StartFromUpdates(updates, aiKey, ct);
+
     internal DrylAgentRun StartFromUpdates(
         IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct)
     {

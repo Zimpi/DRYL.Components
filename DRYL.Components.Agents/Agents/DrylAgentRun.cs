@@ -15,6 +15,14 @@ public sealed class DrylAgentRun : IAsyncDisposable
     private readonly TaskCompletionSource _completed =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    // Cached once so TextStream is a STABLE reference: consumers like DrylAiStream restart
+    // their enumeration whenever Source changes by reference, and the run re-renders on every
+    // tool-call/state change. A fresh ReadAllAsync() per access would reset the text mid-run.
+    private readonly IAsyncEnumerable<string> _textStream;
+
+    /// <summary>Creates an observable agent run.</summary>
+    public DrylAgentRun() => _textStream = _textChannel.Reader.ReadAllAsync();
+
     /// <summary>Current AI state, driven automatically by the run.</summary>
     public AiState State { get; internal set; } = AiState.Thinking;
 
@@ -28,7 +36,7 @@ public sealed class DrylAgentRun : IAsyncDisposable
     public event Action? OnChange;
 
     /// <summary>The text deltas as an async stream — feed directly to <c>DrylAiStream Source="..."</c>.</summary>
-    public IAsyncEnumerable<string> TextStream => _textChannel.Reader.ReadAllAsync();
+    public IAsyncEnumerable<string> TextStream => _textStream;
 
     internal void AddToolCall(DrylToolInvocation t) { _toolCalls.Add(t); Raise(); }
     internal void Raise() => OnChange?.Invoke();

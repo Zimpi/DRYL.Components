@@ -56,6 +56,15 @@ public class DrylAgentRunnerTests
     }
 
     [Fact]
+    public void TextStream_returns_a_stable_reference()
+    {
+        // Regression: a fresh ReadAllAsync() per access makes consumers (DrylAiStream) restart
+        // and clear their buffer on every re-render, dropping the streamed answer mid-run.
+        var run = new DrylAgentRun();
+        Assert.Same(run.TextStream, run.TextStream);
+    }
+
+    [Fact]
     public async Task Reasoning_before_text_keeps_state_Thinking()
     {
         var runner = new DrylAgentRunner();
