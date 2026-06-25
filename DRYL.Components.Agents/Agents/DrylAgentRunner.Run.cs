@@ -39,7 +39,7 @@ public sealed partial class DrylAgentRunner
     }
 
     private async Task ProcessAsync(
-        DrylAgentRun run, IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct)
+        DrylRunBase run, IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct)
     {
         SetState(run, AiState.Thinking, aiKey);
         var byCallId = new Dictionary<string, DrylToolInvocation>();
@@ -117,14 +117,14 @@ public sealed partial class DrylAgentRunner
             _ => JsonSerializer.Serialize(result, JsonOpts),
         };
 
-    private void SetState(DrylAgentRun run, AiState state, string? aiKey)
+    private void SetState(DrylRunBase run, AiState state, string? aiKey)
     {
         run.State = state;
         if (_activity is not null && aiKey is not null) _activity.Set(aiKey, state);
         run.Raise();
     }
 
-    private void SetStateRaw(DrylAgentRun run, AiState state, string? aiKey)
+    private void SetStateRaw(DrylRunBase run, AiState state, string? aiKey)
     {
         run.State = state;
         if (_activity is not null && aiKey is not null)
