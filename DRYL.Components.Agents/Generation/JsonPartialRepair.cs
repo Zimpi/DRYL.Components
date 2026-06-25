@@ -14,6 +14,26 @@ public static class JsonPartialRepair
     {
         if (string.IsNullOrWhiteSpace(partial)) return "null";
 
+        // Try closing the full buffer, then progressively drop the trailing char until it
+        // parses. Bounded by the buffer length; in practice succeeds within a few chars.
+        for (var len = partial.Length; len > 0; len--)
+        {
+            var candidate = CloseOnce(partial.AsSpan(0, len).ToString());
+            if (IsParseable(candidate)) return candidate;
+        }
+        return "null";
+    }
+
+    private static bool IsParseable(string json)
+    {
+        try { using var _ = System.Text.Json.JsonDocument.Parse(json); return true; }
+        catch (System.Text.Json.JsonException) { return false; }
+    }
+
+    private static string CloseOnce(string partial)
+    {
+        if (string.IsNullOrWhiteSpace(partial)) return "null";
+
         var stack = new Stack<char>();   // '{' or '['
         var inString = false;
         var escaped = false;
@@ -61,9 +81,10 @@ public static class JsonPartialRepair
         return sb.Length == 0 ? "null" : sb.ToString();
     }
 
-    // Drops a trailing structural token that can't be closed cleanly:
-    //   trailing ',' (before a not-yet-arrived element)  -> drop
-    //   trailing ':' (key with no value yet)             -> drop the key too
+    // Drops a trailing token that can't be closed cleanly:
+    //   trailing ',' (before a not-yet-arrived element)        -> drop
+    //   trailing ':' (key with no value yet)                   -> drop the key too
+    //   trailing incomplete number / literal value (12. / tru) -> drop the value (+ key)
     private static string DropTrailingIncomplete(string s)
     {
         var t = s.TrimEnd();
@@ -71,21 +92,49 @@ public static class JsonPartialRepair
 
         var last = t[^1];
         if (last == ',') return t[..^1].TrimEnd();
-        if (last == ':')
+        if (last == ':') return DropKeyBefore(t.Length - 1, t);
+
+        // Trailing value token (number or bare literal) — drop it if it's incomplete.
+        var start = t.Length;
+        while (start > 0 && IsValueChar(t[start - 1])) start--;
+        if (start < t.Length)
         {
-            var idx = t.Length - 1;            // at ':'
-            idx--;                              // before ':'
-            while (idx >= 0 && char.IsWhiteSpace(t[idx])) idx--;
-            if (idx >= 0 && t[idx] == '"')
+            var token = t[start..];
+            var p = start - 1;
+            while (p >= 0 && char.IsWhiteSpace(t[p])) p--;
+            if (p >= 0 && !IsCompleteValue(token))
             {
-                idx--;                         // skip closing quote of key
-                while (idx >= 0 && !(t[idx] == '"' && t[idx - 1] != '\\')) idx--;
-                idx--;                         // skip opening quote of key
+                if (t[p] == ':') return DropKeyBefore(p, t);          // object value -> drop key too
+                if (t[p] == ',') return t[..p].TrimEnd();             // array element -> drop with comma
+                if (t[p] == '[') return t[..(p + 1)];                 // first array element -> keep '['
             }
-            while (idx >= 0 && char.IsWhiteSpace(t[idx])) idx--;
-            if (idx >= 0 && t[idx] == ',') idx--;
-            return t[..(idx + 1)].TrimEnd();
         }
         return t;
     }
+
+    // Given the index of a ':' (or the value position whose key should go), remove the
+    // preceding key string and a dangling comma, returning the trimmed buffer.
+    private static string DropKeyBefore(int colonOrValuePos, string t)
+    {
+        var idx = colonOrValuePos - 1;         // before ':'
+        while (idx >= 0 && char.IsWhiteSpace(t[idx])) idx--;
+        if (idx >= 0 && t[idx] == '"')
+        {
+            idx--;                             // skip closing quote of key
+            while (idx >= 0 && !(t[idx] == '"' && (idx == 0 || t[idx - 1] != '\\'))) idx--;
+            idx--;                             // skip opening quote of key
+        }
+        while (idx >= 0 && char.IsWhiteSpace(t[idx])) idx--;
+        if (idx >= 0 && t[idx] == ',') idx--;
+        return t[..(idx + 1)].TrimEnd();
+    }
+
+    private static bool IsValueChar(char c) =>
+        char.IsLetterOrDigit(c) || c is '.' or '+' or '-';
+
+    private static bool IsCompleteValue(string token) =>
+        token is "true" or "false" or "null"
+        || (char.IsDigit(token[^1]) &&
+            double.TryParse(token, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out _));
 }

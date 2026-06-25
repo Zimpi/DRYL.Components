@@ -38,4 +38,35 @@ public class JsonPartialRepairTests
         Assert.Equal("a", steps[0].GetString());
         Assert.Equal("b", steps[1].GetString());
     }
+
+    [Fact]
+    public void Half_written_number_value_is_dropped()
+    {
+        using var doc = Parse("""{"name":"x","price":12.""");
+        Assert.Equal("x", doc.RootElement.GetProperty("name").GetString());
+        Assert.False(doc.RootElement.TryGetProperty("price", out _));
+    }
+
+    [Fact]
+    public void Half_written_literal_is_dropped()
+    {
+        using var doc = Parse("""{"a":1,"ok":tru""");
+        Assert.Equal(1, doc.RootElement.GetProperty("a").GetInt32());
+        Assert.False(doc.RootElement.TryGetProperty("ok", out _));
+    }
+
+    [Fact]
+    public void Dangling_key_before_colon_is_dropped()
+    {
+        using var doc = Parse("""{"a":1,"b""");
+        Assert.Equal(1, doc.RootElement.GetProperty("a").GetInt32());
+        Assert.False(doc.RootElement.TryGetProperty("b", out _));
+    }
+
+    [Fact]
+    public void Trailing_comma_is_dropped()
+    {
+        using var doc = Parse("""{"a":1,""");
+        Assert.Equal(1, doc.RootElement.GetProperty("a").GetInt32());
+    }
 }
