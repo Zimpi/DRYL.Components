@@ -33,25 +33,32 @@ public sealed partial class DrylAgentRunner
         options ??= new DrylBuildOptions();
         var run = new DrylArtifactRun<T>(JsonOpts);
 
+        // Stop an in-flight reveal when the caller cancels OR the run is disposed.
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, run.DisposalToken);
+
         var runOptions = new ChatClientAgentRunOptions
         {
             ChatOptions = new ChatOptions
             {
                 Instructions = options.Guidance ?? DefaultBuildGuidance,
-                Tools = new List<AITool> { CreateUpdateTool(run, options) },
+                Tools = new List<AITool> { CreateUpdateTool(run, options, linkedCts.Token) },
             }
         };
 
-        var updates = agent.RunStreamingAsync(prompt, session, runOptions, ct);
-        _ = ProcessAsync(run, updates, aiKey, ct);
+        var updates = agent.RunStreamingAsync(prompt, session, runOptions, linkedCts.Token);
+        _ = ProcessAsync(run, updates, aiKey, linkedCts.Token)
+            .ContinueWith(_ => linkedCts.Dispose(), TaskScheduler.Default);
         return run;
     }
 
     /// <summary>
     /// Builds the auto-generated <c>update_&lt;T&gt;</c> tool: it accepts a partial-<typeparamref name="T"/>
-    /// JSON patch, merges it into <paramref name="run"/>, and returns a receipt for the model.
+    /// JSON patch, reveals it into <paramref name="run"/> over <see cref="DrylBuildOptions.RevealDuration"/>,
+    /// and returns a receipt for the model. The delegate is async, so the framework's function-invocation
+    /// loop awaits the reveal and the model's next turn paces behind it.
     /// </summary>
-    internal static AITool CreateUpdateTool<T>(DrylArtifactRun<T> run, DrylBuildOptions options)
+    internal static AITool CreateUpdateTool<T>(
+        DrylArtifactRun<T> run, DrylBuildOptions options, CancellationToken ct = default)
     {
         var typeName = typeof(T).Name;
         var backtick = typeName.IndexOf('`');
@@ -63,7 +70,7 @@ public sealed partial class DrylAgentRunner
             "the fields you want to set or change; all fields are optional. Artifact shape: " + schema;
 
         return AIFunctionFactory.Create(
-            (JsonElement patch) => run.ApplyPatch(patch, options.MaxRounds),
+            (JsonElement patch) => run.ApplyPatchAsync(patch, options.MaxRounds, options.RevealDuration, ct),
             toolName, description);
     }
 }

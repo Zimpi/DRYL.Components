@@ -11,10 +11,10 @@ public class DrylAiBuildTests : BunitContext
     private sealed class Dish { public string? Title { get; set; } }
 
     [Fact]
-    public void Renders_the_current_artifact_snapshot()
+    public async Task Renders_the_current_artifact_snapshot()
     {
         var run = new DrylArtifactRun<Dish>(new JsonSerializerOptions());
-        run.ApplyPatch(JsonDocument.Parse("""{"title":"Pasta"}""").RootElement, maxRounds: null);
+        await run.ApplyPatchAsync(JsonDocument.Parse("""{"title":"Pasta"}""").RootElement, maxRounds: null, TimeSpan.Zero, default);
 
         var cut = Render<DrylAiBuild<Dish>>(p => p
             .Add(x => x.Run, run)
@@ -25,7 +25,7 @@ public class DrylAiBuildTests : BunitContext
     }
 
     [Fact]
-    public void Re_renders_when_the_run_raises_a_change()
+    public async Task Re_renders_when_the_run_raises_a_change()
     {
         var run = new DrylArtifactRun<Dish>(new JsonSerializerOptions());
 
@@ -36,7 +36,7 @@ public class DrylAiBuildTests : BunitContext
 
         Assert.Contains("empty", cut.Markup);
 
-        cut.InvokeAsync(() => run.ApplyPatch(JsonDocument.Parse("""{"title":"Risotto"}""").RootElement, null));
+        await cut.InvokeAsync(() => run.ApplyPatchAsync(JsonDocument.Parse("""{"title":"Risotto"}""").RootElement, null, TimeSpan.Zero, default));
 
         Assert.Contains("Risotto", cut.Markup);
     }
