@@ -1,0 +1,32 @@
+@namespace DRYL.Components.Agents.Tools
+@using DRYL.Components.Dialogs
+
+@*  Free-text agent question. Returns the entered text via DialogResult.Ok(string). *@
+
+<DrylDialog>
+    <ChildContent>
+        <p style="margin: 0 0 var(--sp-3); color: var(--fg-muted);">@Question</p>
+        <EditForm Model="@this" OnValidSubmit="Submit">
+            <DrylInputText @bind-Value="_text" Placeholder="@Placeholder" AriaLabel="@Question" />
+        </EditForm>
+    </ChildContent>
+    <ActionContent>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="Cancel">Cancel</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary" @onclick="Submit">Submit</DrylButton>
+    </ActionContent>
+</DrylDialog>
+
+@code {
+    /// <summary>The question shown above the text field.</summary>
+    [Parameter] public string Question { get; set; } = string.Empty;
+
+    /// <summary>Optional placeholder for the text field.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    [CascadingParameter] public IDrylDialogInstance Instance { get; set; } = default!;
+
+    private string _text = string.Empty;
+
+    private void Submit() => Instance.Close(DialogResult.Ok(_text));
+    private void Cancel() => Instance.Cancel();
+}
