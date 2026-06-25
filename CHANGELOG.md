@@ -25,6 +25,8 @@ Version bump guide:
 - `DrylAiGenerate<T>` / `GenerationSnapshot<T>` — Streams a typed object from raw JSON tokens and renders progressive partial snapshots; mirrors `DrylAiStream`
 - `DrylUiTools` — Factory for four human-in-the-loop `AIFunction` tools (`AskChoice`, `AskMultiChoice`, `RequestPermission`, `AskText`) backed by DRYL dialogs, plus an `All` collection
 - `DrylAskChoiceDialog` / `DrylAskMultiChoiceDialog` / `DrylAskTextDialog` — Agent-question dialogs (Agents package) composed from core components; `RequestPermission` reuses the core `DrylConfirmDialog`
+- `DrylAgentRunner.StartBuild<T>` — Starts a collaborative, iterative artifact build; framework-owned iteration guidance prompt + auto-injected `update_<T>` merge tool drive the model to refine `T` round-by-round via `DrylArtifactRun<T>`
+- `DrylAgentRunner.CreateUpdateTool<T>` — Internal factory that generates the typed `update_<T>` (or custom-named) `AIFunction` tool, embedding `T`'s JSON schema in the description so the model knows the artifact shape
 
 ## [1.0.0] — 2026-06-24
 
