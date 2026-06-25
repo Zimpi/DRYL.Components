@@ -1,0 +1,47 @@
+@namespace DRYL.Components.Agents
+@implements IDisposable
+
+@*  Thin wrapper: renders the agent run's tool calls using the core DrylToolCall. *@
+
+@if (Run is not null)
+{
+    foreach (var t in Visible)
+    {
+        <DrylToolCall @key="t.CallId"
+                      ToolName="@t.ToolName"
+                      Arguments="@t.Arguments"
+                      Result="@t.Result"
+                      Error="@t.Error"
+                      State="@t.State" />
+    }
+}
+
+@code {
+    /// <summary>The agent run whose tool calls to visualise.</summary>
+    [Parameter] public DrylAgentRun? Run { get; set; }
+
+    /// <summary>When true, render only the currently-running call; otherwise the full trace (default).</summary>
+    [Parameter] public bool ActiveOnly { get; set; }
+
+    private DrylAgentRun? _subscribed;
+
+    private IEnumerable<DrylToolInvocation> Visible =>
+        Run is null ? Enumerable.Empty<DrylToolInvocation>()
+        : ActiveOnly ? Run.ToolCalls.Where(t => t.State == AiState.Thinking)
+        : Run.ToolCalls;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+    }
+}
