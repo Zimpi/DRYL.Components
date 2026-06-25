@@ -15,6 +15,8 @@ public abstract class DrylRunBase : IAsyncDisposable
         Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true });
     private readonly TaskCompletionSource _completed =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly CancellationTokenSource _cts = new();
+    private bool _disposed;
 
     // Cached once so TextStream is a STABLE reference across re-renders: consumers like
     // DrylAiStream restart their enumeration whenever Source changes by reference, and the run
@@ -40,6 +42,9 @@ public abstract class DrylRunBase : IAsyncDisposable
     /// <summary>The text deltas as an async stream — feed directly to <c>DrylAiStream Source="..."</c>.</summary>
     public IAsyncEnumerable<string> TextStream => _textStream;
 
+    /// <summary>Cancelled when the run is disposed; lets in-flight work (e.g. an artifact reveal) stop cleanly.</summary>
+    internal CancellationToken DisposalToken => _cts.Token;
+
     internal void AddToolCall(DrylToolInvocation t) { _toolCalls.Add(t); Raise(); }
     internal void Raise() => OnChange?.Invoke();
     internal void PushText(string delta) => _textChannel.Writer.TryWrite(delta);
@@ -52,8 +57,14 @@ public abstract class DrylRunBase : IAsyncDisposable
     /// <summary>Cancels the run and releases its resources.</summary>
     public ValueTask DisposeAsync()
     {
-        _textChannel.Writer.TryComplete();
-        _completed.TrySetResult();
+        if (!_disposed)
+        {
+            _disposed = true;
+            _textChannel.Writer.TryComplete();
+            _completed.TrySetResult();
+            _cts.Cancel();
+            _cts.Dispose();
+        }
         return ValueTask.CompletedTask;
     }
 }
