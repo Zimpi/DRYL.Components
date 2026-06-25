@@ -27,6 +27,11 @@ Version bump guide:
 - `DrylAskChoiceDialog` / `DrylAskMultiChoiceDialog` / `DrylAskTextDialog` — Agent-question dialogs (Agents package) composed from core components; `RequestPermission` reuses the core `DrylConfirmDialog`
 - `DrylAgentRunner.StartBuild<T>` — Starts a collaborative, iterative artifact build; framework-owned iteration guidance prompt + auto-injected `update_<T>` merge tool drive the model to refine `T` round-by-round via `DrylArtifactRun<T>`
 - `DrylAgentRunner.CreateUpdateTool<T>` — Internal factory that generates the typed `update_<T>` (or custom-named) `AIFunction` tool, embedding `T`'s JSON schema in the description so the model knows the artifact shape
+- `DrylArtifactRun<T>` — Observable handle for a collaborative build; live progressively-merged `Artifact` + `Round` counter atop the shared run surface
+- `DrylBuildOptions` — `MaxRounds` safety cap (default 12), overridable `Guidance` prompt, custom `UpdateToolName`
+- `DrylAiBuild<T>` / `ArtifactSnapshot<T>` — Renders the live, progressively-merged artifact round-by-round (parallel to `DrylAiGenerate<T>`, but driven by discrete tool merges)
+- `JsonMerge` — Deep-merge engine for partial artifact patches (objects merge recursively, arrays/scalars replace, null/absent leaves existing)
+- `DrylRunBase` — Shared run plumbing (text channel, completion, stable `TextStream`, `OnChange`) extracted from `DrylAgentRun`; base for `DrylAgentRun` and `DrylArtifactRun<T>` (public surface of `DrylAgentRun` unchanged)
 
 ## [1.0.0] — 2026-06-24
 
