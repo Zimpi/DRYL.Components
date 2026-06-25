@@ -37,6 +37,9 @@ jobs:
       - name: Pack (validate packaging)
         run: dotnet pack DRYL.Components/DRYL.Components.csproj -c Release --no-build -o artifacts
 
+      - name: Pack Agents (validate packaging)
+        run: dotnet pack DRYL.Components.Agents/DRYL.Components.Agents.csproj -c Release --no-build -o artifacts
+
       - name: Upload package artifacts
         uses: actions/upload-artifact@v7
         with:
