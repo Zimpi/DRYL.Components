@@ -14,6 +14,18 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DRYL.Components.Agents` — New companion package integrating the Microsoft Agent Framework (`Microsoft.Agents.AI`). Experimental, independently versioned (0.1.0), decoupled from core. The core stays dependency-free
+- `AddDrylAgents()` — DI extension registering `DrylAgentRunner` (scoped); call alongside `AddDrylComponents()`
+- `DrylAgentRunner` — Starts agent runs and bridges them to DRYL's AI vocabulary; `Start(...)` returns an observable run, `GenerateStreamingAsync<T>(...)` streams typed structured output
+- `DrylAgentRun` — Observable run handle (`State`, `Text`, `ToolCalls`, `TextStream`, `OnChange`); drives `AiState` automatically and feeds `DrylAiScope`
+- `DrylToolInvocation` — Captured tool/function call with lifecycle-derived `AiState`; maps 1:1 onto the core `DrylToolCall`
+- `DrylAgentToolCalls` — Renders an agent run's tool calls via the core `DrylToolCall` (full trace, or `ActiveOnly`)
+- `PartialJsonReader<T>` / `JsonPartialRepair` — Tolerant partial-JSON snapshot engine for structured streaming (hold-last-good on parse failure)
+- `DrylAiGenerate<T>` / `GenerationSnapshot<T>` — Streams a typed object from raw JSON tokens and renders progressive partial snapshots; mirrors `DrylAiStream`
+- `DrylUiTools` — Factory for four human-in-the-loop `AIFunction` tools (`AskChoice`, `AskMultiChoice`, `RequestPermission`, `AskText`) backed by DRYL dialogs, plus an `All` collection
+- `DrylAskChoiceDialog` / `DrylAskMultiChoiceDialog` / `DrylAskTextDialog` — Agent-question dialogs (Agents package) composed from core components; `RequestPermission` reuses the core `DrylConfirmDialog`
+
 ## [1.0.0] — 2026-06-24
 
 First stable release. The public API is now frozen: after 1.0.0, any rename of a

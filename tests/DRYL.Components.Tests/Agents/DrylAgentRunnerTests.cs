@@ -60,14 +60,22 @@ public class DrylAgentRunnerTests
     {
         var runner = new DrylAgentRunner();
         var states = new List<AiState>();
-        var run = runner.StartFromUpdates(Updates(new[]
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async IAsyncEnumerable<AgentResponseUpdate> Gated(
+            [EnumeratorCancellation] CancellationToken ct = default)
         {
-            Content(new TextReasoningContent("hmm")),
-        }), aiKey: null, ct: default);
+            await gate.Task;   // don't emit until the test has subscribed
+            yield return Content(new TextReasoningContent("hmm"));
+        }
+
+        var run = runner.StartFromUpdates(Gated(), aiKey: null, ct: default);
         run.OnChange += () => states.Add(run.State);
+        gate.SetResult();
 
         await run.WaitForCompletionAsync();
 
         Assert.Contains(AiState.Thinking, states);
+        Assert.DoesNotContain(AiState.Streaming, states);
     }
 }
