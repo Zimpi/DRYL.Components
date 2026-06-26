@@ -1,0 +1,101 @@
+@namespace DRYL.Components.Agents
+@typeparam T
+@using System.Threading
+@using DRYL.Components.Agents.Generation
+@using DRYL.Components.Ai
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+
+@*  DrylAiGenerate<T> — streams raw JSON tokens (Source) into progressively-richer
+    partial snapshots of T. Parallel to DrylAiStream: Source-based, SDK-free, testable. *@
+
+@if (ChildContent is not null)
+{
+    @ChildContent(_snapshot)
+}
+
+@code {
+    /// <summary>Raw JSON token stream (e.g. from <c>DrylAgentRunner.GenerateStreamingAsync&lt;T&gt;</c>). Replacing it restarts.</summary>
+    [Parameter] public IAsyncEnumerable<string>? Source { get; set; }
+
+    /// <summary>Optional activity key; when set, a surrounding <c>DrylAiScope Key="..."</c> reacts.</summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>Child content receiving the live <see cref="GenerationSnapshot{T}"/>.</summary>
+    [Parameter] public RenderFragment<GenerationSnapshot<T>>? ChildContent { get; set; }
+
+    /// <summary>State to settle to after the Generated reveal. Default <see cref="AiState.None"/>.</summary>
+    [Parameter] public AiState SettleTo { get; set; } = AiState.None;
+
+    [Inject] private IServiceProvider Services { get; set; } = default!;
+
+    private const int SettleDelayMs = 1200;
+
+    private readonly GenerationSnapshot<T> _snapshot = new();
+    private IDrylAiActivityService? _service;
+    private IAsyncEnumerable<string>? _current;
+    private CancellationTokenSource? _cts;
+
+    protected override void OnInitialized() =>
+        _service = Services.GetService<IDrylAiActivityService>();
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(Source, _current))
+        {
+            _current = Source;
+            _ = RunAsync();
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
+        var reader = new PartialJsonReader<T>();
+        Apply(AiState.Thinking, default, complete: false);
+
+        if (Source is null) { Apply(AiState.None, default, complete: false); return; }
+
+        try
+        {
+            await foreach (var token in Source.WithCancellation(ct))
+            {
+                var value = reader.Append(token);
+                Apply(AiState.Streaming, value, complete: false);
+            }
+        }
+        catch (OperationCanceledException) { return; }
+        catch { Apply(AiState.None, _snapshot.Value, complete: false); return; }
+
+        Apply(AiState.Generated, reader.Current, complete: true);
+
+        try { await Task.Delay(SettleDelayMs, ct); }
+        catch (OperationCanceledException) { return; }
+
+        Apply(SettleTo, _snapshot.Value, complete: true);
+    }
+
+    private void Apply(AiState state, T? value, bool complete)
+    {
+        _snapshot.State = state;
+        _snapshot.Value = value;
+        _snapshot.IsComplete = complete;
+
+        if (_service is not null && Key is not null)
+        {
+            if (state == AiState.None) _service.Clear(Key);
+            else _service.Set(Key, state);
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}
