@@ -3,4 +3,5 @@
     <Project Path="tests/DRYL.Components.Tests/DRYL.Components.Tests.csproj" />
   </Folder>
   <Project Path="DRYL.Components/DRYL.Components.csproj" />
+  <Project Path="DRYL.Components.Agents/DRYL.Components.Agents.csproj" />
 </Solution>
