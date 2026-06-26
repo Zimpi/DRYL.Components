@@ -1,0 +1,52 @@
+@namespace DRYL.Components.Agents.Tools
+@using DRYL.Components.Dialogs
+
+@*  Single-choice agent question (radio list, recommended badged). *@
+
+<DrylDialog>
+    <ChildContent>
+        <p style="margin: 0 0 var(--sp-3); color: var(--fg-muted);">@Question</p>
+        <EditForm Model="@this">
+            <DrylRadioGroup TValue="string" @bind-Value="_selected">
+                @foreach (var option in Options)
+                {
+                    <div class="row" style="align-items: center; gap: var(--sp-2);">
+                        <DrylRadio TValue="string" Value="@option" Label="@option" />
+                        @if (IsRecommended(option))
+                        {
+                            <DrylBadge Kind="DrylBadge.BadgeKind.Accent">Recommended</DrylBadge>
+                        }
+                    </div>
+                }
+            </DrylRadioGroup>
+        </EditForm>
+    </ChildContent>
+    <ActionContent>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="Cancel">Cancel</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary" @onclick="Confirm">Confirm</DrylButton>
+    </ActionContent>
+</DrylDialog>
+
+@code {
+    /// <summary>The question shown above the options.</summary>
+    [Parameter] public string Question { get; set; } = string.Empty;
+
+    /// <summary>The selectable options.</summary>
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+
+    /// <summary>The recommended option, marked with a badge and selected by default.</summary>
+    [Parameter] public string? Recommended { get; set; }
+
+    [CascadingParameter] public IDrylDialogInstance Instance { get; set; } = default!;
+
+    private string? _selected;
+
+    protected override void OnInitialized() =>
+        _selected = Recommended ?? (Options.Count > 0 ? Options[0] : null);
+
+    private bool IsRecommended(string option) =>
+        Recommended is not null && string.Equals(option, Recommended, StringComparison.OrdinalIgnoreCase);
+
+    private void Confirm() => Instance.Close(DialogResult.Ok(_selected ?? string.Empty));
+    private void Cancel() => Instance.Cancel();
+}

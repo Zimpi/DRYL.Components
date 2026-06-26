@@ -1,0 +1,57 @@
+@namespace DRYL.Components.Agents.Tools
+@using DRYL.Components.Dialogs
+
+@*  Multi-choice agent question (checkbox list, recommendations pre-checked). *@
+
+<DrylDialog>
+    <ChildContent>
+        <p style="margin: 0 0 var(--sp-3); color: var(--fg-muted);">@Question</p>
+        <EditForm Model="@this">
+            @foreach (var option in Options)
+            {
+                <div class="row" style="align-items: center; gap: var(--sp-2);">
+                    <DrylCheckbox @bind-Value="_checked[option]" Label="@option" />
+                    @if (IsRecommended(option))
+                    {
+                        <DrylBadge Kind="DrylBadge.BadgeKind.Accent">Recommended</DrylBadge>
+                    }
+                </div>
+            }
+        </EditForm>
+    </ChildContent>
+    <ActionContent>
+        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="Cancel">Cancel</DrylButton>
+        <DrylButton Variant="DrylButton.ButtonVariant.Primary" @onclick="Confirm">Confirm</DrylButton>
+    </ActionContent>
+</DrylDialog>
+
+@code {
+    /// <summary>The question shown above the options.</summary>
+    [Parameter] public string Question { get; set; } = string.Empty;
+
+    /// <summary>The selectable options.</summary>
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = Array.Empty<string>();
+
+    /// <summary>Options recommended by the model — pre-checked and badged.</summary>
+    [Parameter] public IReadOnlyList<string>? Recommended { get; set; }
+
+    [CascadingParameter] public IDrylDialogInstance Instance { get; set; } = default!;
+
+    private readonly Dictionary<string, bool> _checked = new();
+
+    protected override void OnInitialized()
+    {
+        foreach (var option in Options)
+            _checked[option] = IsRecommended(option);
+    }
+
+    private bool IsRecommended(string option) =>
+        Recommended is not null &&
+        Recommended.Any(r => string.Equals(r, option, StringComparison.OrdinalIgnoreCase));
+
+    private void Confirm() =>
+        Instance.Close(DialogResult.Ok(
+            Options.Where(o => _checked.TryGetValue(o, out var v) && v).ToArray()));
+
+    private void Cancel() => Instance.Cancel();
+}
