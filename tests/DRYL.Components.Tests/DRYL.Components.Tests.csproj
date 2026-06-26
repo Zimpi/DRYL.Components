@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\DRYL.Components\DRYL.Components.csproj" />
+    <ProjectReference Include="..\..\DRYL.Components.Agents\DRYL.Components.Agents.csproj" />
   </ItemGroup>
 
   <ItemGroup>

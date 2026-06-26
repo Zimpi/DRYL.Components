@@ -445,6 +445,12 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylSkeleton`    | Feedback     | ✅      | ✅ Done    | Line / Text / Avatar / Card / Image / Custom; Streaming shifts shimmer to violet-cyan gradient |
 | `DrylErrorBoundary` | Feedback   | ✅      | ✅ Done    | Glass fallback around Blazor `ErrorBoundary`; retry / recover, dev-only detail toggle, custom fallback, AI-aware |
 | `DrylNotifications` | Feedback   | ✅      | ✅ Done    | Bell + badge + popover inbox; service-driven or controlled, mark-read, dismiss, AI-aware entries |
+| `DrylAgentToolCalls` | Intelligence | ✅   | ✅ Done    | (Agents package) Renders an agent run's tool calls via the core `DrylToolCall`; full trace or `ActiveOnly` |
+| `DrylAiGenerate<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Streams raw JSON tokens → progressive partial-snapshot UI (Apple-style guided generation) |
+| `DrylAiBuild<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Renders a live, iteratively-built structured artifact; each round reveals progressively (`DrylBuildOptions.RevealDuration`), refines `T` via `StartBuild<T>` |
+| `DrylAskChoiceDialog` | Surfaces  | —      | ✅ Done    | (Agents package) Single-choice agent question; radio list, recommended badge; HITL tool dialog |
+| `DrylAskMultiChoiceDialog` | Surfaces | —  | ✅ Done    | (Agents package) Multi-choice agent question; checkbox list, recommendations pre-checked; HITL tool dialog |
+| `DrylAskTextDialog` | Surfaces   | —      | ✅ Done    | (Agents package) Free-text agent question; `DrylInputText`; HITL tool dialog |
 
 For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 

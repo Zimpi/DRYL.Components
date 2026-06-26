@@ -1,0 +1,108 @@
+@namespace DRYL.Components.Agents
+@typeparam T
+@using System.Threading
+@using DRYL.Components.Agents.Generation
+@using DRYL.Components.Ai
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+
+@*  DrylAiBuild<T> — renders the live, progressively-merged artifact of a DrylArtifactRun<T>.
+    Parallel to DrylAiGenerate<T>, but driven by discrete tool merges (no token stream). *@
+
+@if (ChildContent is not null)
+{
+    @ChildContent(_snapshot)
+}
+
+@code {
+    /// <summary>The artifact build to visualise. Replacing it resubscribes.</summary>
+    [Parameter] public DrylArtifactRun<T>? Run { get; set; }
+
+    /// <summary>
+    /// Optional activity key; when set, a surrounding <c>DrylAiScope Key="..."</c> settles with the build.
+    /// <para>
+    /// This key should match the <c>aiKey</c> passed to <c>DrylAgentRunner.StartBuild</c> for the same run.
+    /// The runner owns the activity service mid-run and drives the scope's live glow; <c>DrylAiBuild</c>
+    /// only touches the service at settle. Without a matching key, the scope will not glow during the build —
+    /// it will only transition once the run completes.
+    /// </para>
+    /// </summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>Child content receiving the live <see cref="ArtifactSnapshot{T}"/>.</summary>
+    [Parameter] public RenderFragment<ArtifactSnapshot<T>>? ChildContent { get; set; }
+
+    /// <summary>State to settle to after the Generated reveal. Default <see cref="AiState.None"/>.</summary>
+    [Parameter] public AiState SettleTo { get; set; } = AiState.None;
+
+    [Inject] private IServiceProvider Services { get; set; } = default!;
+
+    private const int SettleDelayMs = 1200;
+
+    private readonly ArtifactSnapshot<T> _snapshot = new();
+    private IDrylAiActivityService? _service;
+    private DrylArtifactRun<T>? _subscribed;
+    private bool _settling;
+    private CancellationTokenSource? _settleCts;
+
+    protected override void OnInitialized() =>
+        _service = Services.GetService<IDrylAiActivityService>();
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        // I2: cancel any in-flight settle from the previous run and reset state
+        _settleCts?.Cancel();
+        _settleCts?.Dispose();
+        _settleCts = null;
+        _settling = false;
+        _snapshot.IsComplete = false;
+        Sync();
+    }
+
+    private void HandleChange() { Sync(); _ = InvokeAsync(StateHasChanged); }
+
+    private void Sync()
+    {
+        if (Run is null) return;
+        _snapshot.Artifact = Run.Artifact;
+        _snapshot.Round = Run.Round;
+        if (!_settling) _snapshot.State = Run.State;
+
+        if (Run.State == AiState.Generated && !_settling)
+        {
+            _settling = true;
+            _ = SettleAsync();
+        }
+    }
+
+    private async Task SettleAsync()
+    {
+        _settleCts?.Cancel();
+        _settleCts?.Dispose();
+        _settleCts = new CancellationTokenSource();
+        var ct = _settleCts.Token;
+
+        try { await Task.Delay(SettleDelayMs, ct); }
+        catch (OperationCanceledException) { return; }
+
+        if (_service is not null && Key is not null)
+        {
+            if (SettleTo == AiState.None) _service.Clear(Key);
+            else _service.Set(Key, SettleTo);
+        }
+        _snapshot.State = SettleTo;
+        _snapshot.IsComplete = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _settleCts?.Cancel();
+        _settleCts?.Dispose();
+    }
+}
