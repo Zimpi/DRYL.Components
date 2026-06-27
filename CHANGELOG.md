@@ -32,6 +32,17 @@ Version bump guide:
 - `DrylAiBuild<T>` / `ArtifactSnapshot<T>` — Renders the live artifact; each `update_<T>` round materializes progressively (Apple "guided generation" feel) over `DrylBuildOptions.RevealDuration` — the round's new/changed fields type in while earlier fields stay stable, with the `Streaming` aura shown during the reveal (parallel to `DrylAiGenerate<T>`)
 - `JsonMerge` — Deep-merge engine for partial artifact patches (objects merge recursively, arrays/scalars replace, null/absent leaves existing)
 - `DrylRunBase` — Shared run plumbing (text channel, completion, stable `TextStream`, `OnChange`) extracted from `DrylAgentRun`; base for `DrylAgentRun` and `DrylArtifactRun<T>` (public surface of `DrylAgentRun` unchanged)
+- `DrylPresence` — New motion primitive; defers a child's unmount until its exit animation finishes (motion.dev-style AnimatePresence). `Transition`: Fade / Scale / SlideUp / SlideDown / SlideLeft / SlideRight; `Appear`, `OnExited`
+- `DrylReveal` — New motion primitive; scroll-triggered staggered entrance via IntersectionObserver. `Transition`: Fade / Rise / ScaleIn; `Stagger`, `Once`, `Threshold`
+- `dryl.motion` — New JS module (`onExit`, `moveIndicator`, `observe`) powering the motion primitives; reduced-motion aware
+- `--reveal-step` — New motion token (60 ms) controlling `DrylReveal`'s per-child stagger step
+- `DrylTabs` — New `AnimateIndicator` parameter (default true) to opt out of the gliding underline
+
+### Changed
+- `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
+
+### Fixed
+- `DrylDialog` — Dialogs now animate out (scale + fade) on close instead of disappearing instantly; honours `prefers-reduced-motion`
 
 ## [1.0.0] — 2026-06-24
 

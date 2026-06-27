@@ -355,7 +355,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 
 ## What's in the box
 
-**86 components across 8 categories** — actions, surfaces, navigation, data, inputs, layout, feedback, and a dedicated **Intelligence** category (`DrylAiScope`, `DrylAiStream`, `DrylToolCall`, `DrylChat`, `DrylCitation`, …) for building agent UIs: token streams, tool-call traces, RAG citations, human-in-the-middle review. Every component is token-driven, dark, and keyboard-accessible.
+**88 components across 8 categories** — actions, surfaces, navigation, data, inputs, layout, feedback, and a dedicated **Intelligence** category (`DrylAiScope`, `DrylAiStream`, `DrylToolCall`, `DrylChat`, `DrylCitation`, …) for building agent UIs: token streams, tool-call traces, RAG citations, human-in-the-middle review. Every component is token-driven, dark, and keyboard-accessible.
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
 | ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
@@ -417,6 +417,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylStepper`     | Layout       | —       | ✅ Done    | Multi-step wizard container; Horizontal / Vertical orientation, `@bind-ActiveStep` |
 | `DrylStep`        | Layout       | ✅      | ✅ Done    | Single step inside `DrylStepper`; Pending / Active / Completed / Error states, AI ring |
 | `DrylScrollArea`  | Layout       | —       | ✅ Done    | Scrollable region with thin DRYL scrollbar; `MaxHeight` / `MaxWidth` / `Horizontal`; pure CSS |
+| `DrylReveal`      | Layout       | —       | ✅ Done    | Motion primitive; scroll-triggered staggered entrance (Fade / Rise / ScaleIn) via IntersectionObserver; reduced-motion aware |
 | `DrylTypo`        | Layout       | —       | ✅ Done    | Type scale primitive; `Variant` look + `As` tag, `Color`, `Align`, `Gradient` |
 | `DrylStack`       | Layout       | —       | ✅ Done    | Flex layout; `Direction` / `Gap` / `Align` / `Justify` / `Wrap`; replaces row/col markup |
 | `DrylList`        | Layout       | —       | ✅ Done    | Token-driven list; marker `Variant`, `Density`, `Dividers`, ordered; nesting |
@@ -428,6 +429,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylMessage`     | Surfaces     | ✅      | ✅ Done    | Chat bubble; User / Assistant / System roles; author, timestamp, avatar, typing dots; optional `Markdown`/`Text` for rich LLM output |
 | `DrylChatComposer`| Surfaces     | ✅      | ✅ Done    | Chat input; Enter sends, Shift+Enter newline, auto-grow textarea; `OnSend` callback |
 | `DrylPopover`     | Surfaces     | —       | ✅ Done    | Anchored floating-panel primitive; portals to `<body>` (never clipped); placement, click-outside / Escape, match-width |
+| `DrylPresence`    | Surfaces     | —       | ✅ Done    | Motion primitive; defers unmount until exit animation finishes (Fade / Scale / Slide); reduced-motion aware |
 | `DrylEmptyState`  | Feedback     | ✅      | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes; AI-aware |
 | `DrylDescriptionList` | Data     | —       | ✅ Done    | Semantic `<dl>` key/value view; Stacked / Inline; columns |
 | `DrylDescriptionItem` | Data     | —       | ✅ Done    | Term/value pair inside `DrylDescriptionList` |
