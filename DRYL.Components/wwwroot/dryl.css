@@ -854,26 +854,26 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 /* ──────────────────────────────────────────────────────────
  * Liquid Glass (experimental) — DrylLiquidGlass.
- * A progressive enhancement over the standard glass surface:
- *   • base frosted glass (backdrop-filter) — works everywhere
- *   • an SVG feDisplacementMap warps an edge sheen for the "liquid"
- *     refraction (works wherever SVG filters do = practically all)
- *   • a slow ambient drift loop (like .ai-aura / drift-*) keeps it alive
- *   • pointer-driven 3D tilt (--tx/--ty) + travelling specular
- *     highlight (--mx/--my), written by dryl.liquidglass
- * Degrades to plain glass and is fully stilled under reduced motion.
+ * Apple-style refraction: the surface actually LENSES the backdrop
+ * behind it via backdrop-filter + an SVG feDisplacementMap whose map
+ * is 0.5 (neutral) in the centre and ramps to the edges, so the
+ * background bends most at the rim — like thick rounded glass.
+ *   • backdrop displacement url() filter set inline per instance
+ *     (Chromium); graceful fallback to a plain frost elsewhere
+ *   • clear (not frosted) body + bright directional edge highlights
+ *   • pointer-driven 3D tilt (--tx/--ty) + travelling specular (--mx/--my)
+ * Stilled under prefers-reduced-motion.
  * ────────────────────────────────────────────────────────── */
 .lg {
   position: relative;
   border-radius: var(--r-lg);
-  background: var(--glass-1);
-  backdrop-filter: blur(6px) saturate(1.5);
-  -webkit-backdrop-filter: blur(6px) saturate(1.5);
-  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 0 24px rgba(255, 255, 255, 0.04);
+    0 10px 34px rgba(0, 0, 0, 0.30),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 20px rgba(255, 255, 255, 0.06);
   overflow: hidden;
   isolation: isolate;
   transform:
@@ -884,6 +884,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 .lg-refract,
+.lg-sheen,
 .lg-specular {
   position: absolute;
   inset: 0;
@@ -891,50 +892,44 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   pointer-events: none;
 }
 
-/* Edge sheen, displaced by the SVG filter (filter:url(#…) set inline per
-   instance) and slowly drifting so the refraction lives. Scaled up so the
-   displaced edges never reveal a gap. */
+/* The lens. The component sets backdrop-filter: url(#…) inline (the id is
+   per-instance). This rule is the FALLBACK for browsers without url() backdrop
+   filters — a plain frost so it still reads as glass. */
 .lg-refract {
-  background:
-    radial-gradient(140% 120% at 50% -10%, rgba(255, 255, 255, 0.22), transparent 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 45%);
-  animation: lg-drift 9s var(--ease-in-out) infinite;
   z-index: 0;
+  backdrop-filter: blur(2px) saturate(1.4);
+  -webkit-backdrop-filter: blur(2px) saturate(1.4);
 }
-@keyframes lg-drift {
-  0%   { transform: translate3d(0, 0, 0) scale(1.08); }
-  50%  { transform: translate3d(2%, -1.5%, 0) scale(1.11); }
-  100% { transform: translate3d(0, 0, 0) scale(1.08); }
+
+/* Static top gloss — the bright sheen along the upper edge. */
+.lg-sheen {
+  z-index: 1;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.22), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0.7;
 }
 
 /* Travelling glossy highlight — follows the pointer (falls back to top-centre). */
 .lg-specular {
+  z-index: 2;
   background: radial-gradient(
-    240px 240px at var(--mx, 50%) var(--my, 0%),
-    rgba(255, 255, 255, 0.30), transparent 60%);
+    220px 220px at var(--mx, 50%) var(--my, 0%),
+    rgba(255, 255, 255, 0.38), transparent 60%);
   mix-blend-mode: screen;
-  opacity: 0.65;
-  z-index: 1;
+  opacity: 0.6;
 }
 
 .lg-content {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   padding: var(--sp-5);
   color: var(--fg);
 }
-
-/* Intensity — drives sheen strength (the displacement scale is set on the
-   SVG filter per instance by the component). */
-.lg--subtle .lg-refract { opacity: 0.6; }
-.lg--strong .lg-refract { opacity: 1; }
-.lg--strong { backdrop-filter: blur(10px) saturate(1.7); -webkit-backdrop-filter: blur(10px) saturate(1.7); }
 
 .lg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .lg { transform: none; transition: none; }
-  .lg-refract { animation: none; }
 }
 
 /* Scrollbar */

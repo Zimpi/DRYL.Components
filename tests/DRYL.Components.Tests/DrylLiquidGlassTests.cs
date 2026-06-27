@@ -28,9 +28,9 @@ public class DrylLiquidGlassTests : BunitContext
     }
 
     [Theory]
-    [InlineData(LiquidGlassIntensity.Subtle, "lg--subtle", "18")]
-    [InlineData(LiquidGlassIntensity.Medium, "lg--medium", "34")]
-    [InlineData(LiquidGlassIntensity.Strong, "lg--strong", "60")]
+    [InlineData(LiquidGlassIntensity.Subtle, "lg--subtle", "40")]
+    [InlineData(LiquidGlassIntensity.Medium, "lg--medium", "80")]
+    [InlineData(LiquidGlassIntensity.Strong, "lg--strong", "140")]
     public void Intensity_drives_class_and_displacement_scale(
         LiquidGlassIntensity intensity, string cssClass, string scale)
     {
