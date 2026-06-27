@@ -80,6 +80,7 @@
   --dur-fast:    140ms;
   --dur-med:     240ms;
   --dur-slow:    420ms;
+  --reveal-step: 60ms;   /* stagger step between successive DrylReveal children */
 
   /* Layering */
   --z-sticky:    5;
@@ -780,6 +781,76 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .stagger > *:nth-child(7) { animation-delay: 360ms; }
 .stagger > *:nth-child(8) { animation-delay: 420ms; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ──────────────────────────────────────────────────────────
+ * Motion Foundation — shared primitives for DrylPresence and
+ * DrylReveal. All token-driven; all neutralised under
+ * prefers-reduced-motion (see the @media block right below).
+ * ────────────────────────────────────────────────────────── */
+
+/* Presence — enter/exit for a single child whose unmount is deferred
+ * by DrylPresence until the exit animation finishes. The *-out
+ * keyframes are matched by name in dryl.motion.onExit, so they must
+ * stay prefixed `presence-out`. DrylPresence renders a real wrapping
+ * element — animations do not apply to display:contents. */
+.presence { min-width: 0; }
+
+.presence-enter { animation: presence-in-fade var(--dur-med) var(--ease-out) both; }
+.presence-exit  { animation: presence-out-fade var(--dur-med) var(--ease-out) both; }
+
+.presence--scale.presence-enter      { animation-name: presence-in-scale; }
+.presence--scale.presence-exit       { animation-name: presence-out-scale; }
+.presence--slide-up.presence-enter   { animation-name: presence-in-up; }
+.presence--slide-up.presence-exit    { animation-name: presence-out-up; }
+.presence--slide-down.presence-enter { animation-name: presence-in-down; }
+.presence--slide-down.presence-exit  { animation-name: presence-out-down; }
+.presence--slide-left.presence-enter { animation-name: presence-in-left; }
+.presence--slide-left.presence-exit  { animation-name: presence-out-left; }
+.presence--slide-right.presence-enter{ animation-name: presence-in-right; }
+.presence--slide-right.presence-exit { animation-name: presence-out-right; }
+
+@keyframes presence-in-fade   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes presence-out-fade  { from { opacity: 1; } to { opacity: 0; } }
+@keyframes presence-in-scale  { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes presence-out-scale { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.94); } }
+@keyframes presence-in-up     { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes presence-out-up    { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(12px); } }
+@keyframes presence-in-down   { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes presence-out-down  { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-12px); } }
+@keyframes presence-in-left   { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes presence-out-left  { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
+@keyframes presence-in-right  { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes presence-out-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-12px); } }
+
+/* Reveal — scroll-triggered entrance. dryl.motion.observe adds
+ * .is-revealed when the wrapper scrolls into view; direct children
+ * tween in, optionally staggered via per-child --reveal-i. */
+.reveal > * {
+  opacity: 0;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+  transition-delay: calc(var(--reveal-i, 0) * var(--reveal-step));
+}
+.reveal--rise > *    { transform: translateY(16px); }
+.reveal--scale-in > *{ transform: scale(0.96); }
+.reveal.is-revealed > * { opacity: 1; transform: none; }
+
+/* Reduced motion — show end states instantly, no movement. dryl.motion also
+   short-circuits in JS, but this covers the CSS-only paths too. */
+@media (prefers-reduced-motion: reduce) {
+  .presence-enter,
+  .presence-exit { animation: none; }
+  .reveal > * {
+    transition: none;
+    transition-delay: 0ms;
+  }
+  .reveal--rise > *,
+  .reveal--scale-in > * { transform: none; }
+  .tabs.is-ink-ready .tab-ink { transition: none; }
+  .dialog-backdrop.is-exiting { animation: none; }
+  .dialog-backdrop.is-exiting .dialog { animation: none; }
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -2949,6 +3020,31 @@ td.tbl-td-editing select {
   to   { transform: scaleX(1); opacity: 1; }
 }
 
+/* Gliding underline (DrylTabs AnimateIndicator, the default). A single shared
+   ink element is measured + positioned by dryl.motion.moveIndicator; CSS
+   glides it on a spring. When present it replaces the per-tab ::after, which
+   stays as the fallback when AnimateIndicator=false or JS is unavailable. */
+.tabs--glide .tab.is-active::after { display: none; }
+.tab-ink {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: var(--accent-grad);
+  border-radius: 2px;
+  box-shadow: 0 0 12px var(--accent-a);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.tabs.is-ink-ready .tab-ink {
+  transition:
+    transform var(--dur-med) var(--ease-spring),
+    width var(--dur-med) var(--ease-spring),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
 .tab.is-disabled,
 .tab[disabled] {
   color: var(--fg-faint);
@@ -3045,6 +3141,16 @@ body.dryl-scroll-locked { overflow: hidden; }
    actually reach the edges. */
 .dialog-backdrop:has(.dialog-fullscreen) {
   padding: 0;
+}
+
+/* Exit — DrylDialogProvider adds .is-exiting and keeps the entry mounted until
+   dialogOut's animationend (caught by dryl.motion.onExit on the backdrop). */
+.dialog-backdrop.is-exiting { animation: fadeOut var(--dur-med) var(--ease-out) both; }
+.dialog-backdrop.is-exiting .dialog { animation: dialogOut var(--dur-med) var(--ease-in-out) both; }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes dialogOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.96) translateY(8px); }
 }
 
 .dialog {

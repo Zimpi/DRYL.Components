@@ -97,6 +97,24 @@ DRYL has **one** AI vocabulary. Every AI-aware component re-uses it; no componen
 ✅ `<DrylTooltip Text="Delete row"><DrylButton IconOnly aria-label="Delete row"><DrylIcon Name="trash" /></DrylButton></DrylTooltip>`
 ❌ `<DrylButton IconOnly><DrylIcon Name="trash" /></DrylButton>`
 
+### 2.12 Every component is animated — motion is not optional
+
+DRYL feels *alive*. **Every new component MUST be deliberately animated** — never ship a component that just appears, snaps, or toggles with no transition. Aim for the polish of [motion.dev](https://motion.dev): smooth, physical, intentional.
+
+Concretely, a new component must animate at least its relevant subset of:
+- **Enter / exit** — appears and disappears with a transition, never instantly. Anything that mounts/unmounts conditionally (panels, overlays, list items, toasts) wraps in `DrylPresence` so it also animates *out*, not just in.
+- **State changes** — hover, focus, active, selected, expanded, error → animated, not stepped (border-color, glow, transform — see rule 4's checklist).
+- **Layout movement** — an active marker that moves between targets *glides* (use `dryl.motion.moveIndicator` / a shared indicator), it does not jump.
+- **Reveal** — content-heavy or marketing surfaces use `DrylReveal` for staggered scroll-in where it fits.
+
+Rules that still bind every animation:
+- Only the fixed vocabulary — `--dur-fast|med|slow` and `--ease-out|in-out|spring` (rule 2.5). The motion.dev *feeling* comes from `--ease-spring` and good choreography, **not** from inventing new durations/easings.
+- Reuse the shared motion primitives (`DrylPresence`, `DrylReveal`, `dryl.motion.*`, the `.presence-*` / `.reveal-*` / `.ai-aura*` classes). Do not hand-roll a one-off animation when a primitive exists — extend the primitive in `dryl.css` and ask the maintainer (same bar as rule 2.1).
+- **Always** honour `prefers-reduced-motion: reduce` — the component must be fully usable with motion off (the primitives already do this; mirror it in any custom CSS).
+- Animation is decorative only: it must never change focus order, keyboard reachability, or ARIA semantics. Moving indicators are `aria-hidden`.
+
+If a component genuinely has nothing to animate, that is the rare exception — say so explicitly in its PR description. The default is: it moves.
+
 ---
 
 ## 3. How to build a new component
@@ -162,6 +180,7 @@ If any of these are unclear, **ask** before writing code.
 - ❌ Invent a per-component AI state enum (e.g. `ChatLoadingState`, `AiBusy`). Use `AiState` — see rule 2.10.
 - ❌ Add a new AI animation or color. The five `AiState` values map to the existing `.ai-aura*` and `.ai-indicator` primitives. If you want a new visual, propose extending the primitive in `dryl.css`.
 - ❌ Default `Ai` to anything other than `AiState.None`. AI styling must be opt-in.
+- ❌ Ship a new component that snaps/appears with no animation, or that mounts/unmounts without an enter **and** exit transition — see rule 2.12.
 
 ---
 
