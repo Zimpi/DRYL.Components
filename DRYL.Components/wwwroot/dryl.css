@@ -852,6 +852,91 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .dialog-backdrop.is-exiting .dialog { animation: none; }
 }
 
+/* ──────────────────────────────────────────────────────────
+ * Liquid Glass (experimental) — DrylLiquidGlass.
+ * A progressive enhancement over the standard glass surface:
+ *   • base frosted glass (backdrop-filter) — works everywhere
+ *   • an SVG feDisplacementMap warps an edge sheen for the "liquid"
+ *     refraction (works wherever SVG filters do = practically all)
+ *   • a slow ambient drift loop (like .ai-aura / drift-*) keeps it alive
+ *   • pointer-driven 3D tilt (--tx/--ty) + travelling specular
+ *     highlight (--mx/--my), written by dryl.liquidglass
+ * Degrades to plain glass and is fully stilled under reduced motion.
+ * ────────────────────────────────────────────────────────── */
+.lg {
+  position: relative;
+  border-radius: var(--r-lg);
+  background: var(--glass-1);
+  backdrop-filter: blur(6px) saturate(1.5);
+  -webkit-backdrop-filter: blur(6px) saturate(1.5);
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 24px rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  isolation: isolate;
+  transform:
+    perspective(900px)
+    rotateX(calc(var(--ty, 0) * -7deg))
+    rotateY(calc(var(--tx, 0) * 7deg));
+  transition: transform var(--dur-med) var(--ease-out);
+}
+
+.lg-refract,
+.lg-specular {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Edge sheen, displaced by the SVG filter (filter:url(#…) set inline per
+   instance) and slowly drifting so the refraction lives. Scaled up so the
+   displaced edges never reveal a gap. */
+.lg-refract {
+  background:
+    radial-gradient(140% 120% at 50% -10%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 45%);
+  animation: lg-drift 9s var(--ease-in-out) infinite;
+  z-index: 0;
+}
+@keyframes lg-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1.08); }
+  50%  { transform: translate3d(2%, -1.5%, 0) scale(1.11); }
+  100% { transform: translate3d(0, 0, 0) scale(1.08); }
+}
+
+/* Travelling glossy highlight — follows the pointer (falls back to top-centre). */
+.lg-specular {
+  background: radial-gradient(
+    240px 240px at var(--mx, 50%) var(--my, 0%),
+    rgba(255, 255, 255, 0.30), transparent 60%);
+  mix-blend-mode: screen;
+  opacity: 0.65;
+  z-index: 1;
+}
+
+.lg-content {
+  position: relative;
+  z-index: 2;
+  padding: var(--sp-5);
+  color: var(--fg);
+}
+
+/* Intensity — drives sheen strength (the displacement scale is set on the
+   SVG filter per instance by the component). */
+.lg--subtle .lg-refract { opacity: 0.6; }
+.lg--strong .lg-refract { opacity: 1; }
+.lg--strong { backdrop-filter: blur(10px) saturate(1.7); -webkit-backdrop-filter: blur(10px) saturate(1.7); }
+
+.lg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lg { transform: none; transition: none; }
+  .lg-refract { animation: none; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {

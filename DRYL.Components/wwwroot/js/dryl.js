@@ -1134,3 +1134,40 @@ window.dryl.motion = (() => {
     return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve };
 })();
 
+/* ──────────────────────────────────────────────────────────
+ * dryl.liquidglass — pointer-driven depth for DrylLiquidGlass.
+ *   Tracks the pointer over the surface and exposes it as CSS custom
+ *   properties the stylesheet turns into a 3D tilt (--tx/--ty) and a
+ *   travelling specular highlight (--mx/--my). All motion is CSS; JS
+ *   only writes the variables, so there is no per-frame Blazor cost.
+ *   The CSS side is gated on prefers-reduced-motion.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.liquidglass = {
+    track(el) {
+        if (!el || el.__drylLg) return;
+        const onMove = (e) => {
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height) return;
+            const px = (e.clientX - r.left) / r.width;   // 0..1
+            const py = (e.clientY - r.top) / r.height;   // 0..1
+            el.style.setProperty('--mx', (px * 100) + '%');
+            el.style.setProperty('--my', (py * 100) + '%');
+            el.style.setProperty('--tx', (px - 0.5).toFixed(3)); // -0.5..0.5
+            el.style.setProperty('--ty', (py - 0.5).toFixed(3));
+        };
+        const onLeave = () => {
+            el.style.setProperty('--tx', '0');
+            el.style.setProperty('--ty', '0');
+        };
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerleave', onLeave);
+        el.__drylLg = { onMove, onLeave };
+    },
+    untrack(el) {
+        if (!el || !el.__drylLg) return;
+        el.removeEventListener('pointermove', el.__drylLg.onMove);
+        el.removeEventListener('pointerleave', el.__drylLg.onLeave);
+        delete el.__drylLg;
+    }
+};
+

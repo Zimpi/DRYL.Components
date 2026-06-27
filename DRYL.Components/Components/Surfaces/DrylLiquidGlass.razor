@@ -1,0 +1,114 @@
+@namespace DRYL.Components
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylLiquidGlass — an Apple-style "liquid glass" surface
+    (experimental).
+
+    Layers a real SVG refraction over DRYL's frosted-glass base:
+    feTurbulence + feDisplacementMap warp an edge sheen, a slow
+    ambient drift keeps it alive, and the pointer drives a 3D tilt
+    plus a travelling specular highlight. It is a progressive
+    enhancement — it degrades to the standard glass surface and is
+    fully stilled under prefers-reduced-motion (rule 2.12).
+
+    Usage:
+      <DrylLiquidGlass Intensity="LiquidGlassIntensity.Strong">
+          <h3>Liquid glass</h3>
+          <p>Hover me — the surface refracts and tilts.</p>
+      </DrylLiquidGlass>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCss" @ref="_el" @attributes="AdditionalAttributes">
+
+    @* Per-instance displacement filter — a unique id so multiple surfaces
+       animate independently and never collide. *@
+    <svg class="lg-defs" aria-hidden="true" focusable="false">
+        <filter id="@_filterId" x="-20%" y="-20%" width="140%" height="140%"
+                color-interpolation-filters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.009 0.013"
+                          numOctaves="2" seed="7" result="noise" />
+            <feGaussianBlur in="noise" stdDeviation="1.5" result="noiseBlur" />
+            <feDisplacementMap in="SourceGraphic" in2="noiseBlur"
+                               scale="@DisplacementScale"
+                               xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+    </svg>
+
+    <div class="lg-refract" style="filter: url(#@_filterId);"></div>
+    <div class="lg-specular"></div>
+
+    <div class="lg-content">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary>The surface content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>How pronounced the refraction and frost are.</summary>
+    [Parameter] public LiquidGlassIntensity Intensity { get; set; } = LiquidGlassIntensity.Medium;
+
+    /// <summary>If true (default), the surface tilts and the highlight follows the pointer.</summary>
+    [Parameter] public bool Interactive { get; set; } = true;
+
+    /// <summary>Extra CSS class(es) merged onto the surface.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the surface element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly string _filterId = $"lg-{Guid.NewGuid():N}";
+    private ElementReference _el;
+    private bool _attached;
+
+    private int DisplacementScale => Intensity switch
+    {
+        LiquidGlassIntensity.Subtle => 18,
+        LiquidGlassIntensity.Strong => 60,
+        _ => 34
+    };
+
+    private string RootCss
+    {
+        get
+        {
+            var parts = new List<string>
+            {
+                "lg",
+                Intensity switch
+                {
+                    LiquidGlassIntensity.Subtle => "lg--subtle",
+                    LiquidGlassIntensity.Strong => "lg--strong",
+                    _ => "lg--medium"
+                }
+            };
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Interactive) return;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.liquidglass.track", _el);
+            _attached = true;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_attached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.liquidglass.untrack", _el); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+    }
+}
