@@ -6,7 +6,7 @@
 
 ## Problem
 
-The collaborative artifact builder (`DrylAgentRunner.StartBuild<T>` → `DrylArtifactRun<T>` → `DrylAiBuild<T>`) updates the rendered artifact through **discrete tool merges**: each `update_<T>` tool call merges a full patch atomically, so the card *appears* a whole round at a time rather than streaming in. Users expect the Apple "guided generation" feel — content materializing token-by-token — which the sibling single-shot path (`DrylAiGenerate<T>`) already delivers.
+The collaborative artifact builder (`DrylAgentRunner.StartBuild<T>` → `DrylArtifactRun<T>` → `DrylAiBuild<T>`) updates the rendered artifact through **discrete tool merges**: each `update_<T>` tool call merges a full patch atomically, so the card *appears* a whole round at a time rather than streaming in. Users expect the a guided, type-as-you-go reveal — content materializing token-by-token — which the sibling single-shot path (`DrylAiGenerate<T>`) already delivers.
 
 ## Why true token streaming is impossible here (spike result)
 
@@ -17,11 +17,11 @@ A feasibility spike (offline, inspecting `Microsoft.Extensions.AI` 10.x + `Micro
 
 So through `agent.RunStreamingAsync` → `AgentResponseUpdate.Contents`, an `update_<T>` call always arrives **complete**. Getting raw argument tokens would require dropping below `Microsoft.Extensions.AI` to the raw OpenAI SDK and hand-managing tool calls — discarding the entire `AsAIAgent` function-invocation loop, provider-locked, high risk. **Rejected.**
 
-The design below ("Approach B") therefore produces the Apple-style effect by **replaying the real, already-known merged content** progressively, reusing the package's existing partial-JSON engine.
+The design below ("Approach B") therefore produces the effect by **replaying the real, already-known merged content** progressively, reusing the package's existing partial-JSON engine.
 
 ## Goal
 
-When an `update_<T>` round lands, the artifact's **new/changed fields materialize progressively** (character/small-word granularity, ~1.2 s per round, Apple feel) while previously-committed fields stay stable. The collaborative ask → refine → ask loop, the round counter, and `MaxRounds` semantics are unchanged.
+When an `update_<T>` round lands, the artifact's **new/changed fields materialize progressively** (character/small-word granularity, ~1.2 s per round) while previously-committed fields stay stable. The collaborative ask → refine → ask loop, the round counter, and `MaxRounds` semantics are unchanged.
 
 ## Architecture
 
@@ -58,7 +58,7 @@ Because the patch overlays a **stable committed base**, fields from earlier roun
 
 ### Pacing
 
-`RevealDuration` is a **target duration per round**, not a per-character delay. The reveal splits the patch into roughly `N = clamp(patchTextLength, minSteps, maxSteps)` steps and computes `stepDelay = RevealDuration / N`, so a long recipe and a short one both take ~1.2 s (Apple-like; never drags). Granularity (advance by a few characters / to the next word boundary per step) is an internal detail, not a public knob.
+`RevealDuration` is a **target duration per round**, not a per-character delay. The reveal splits the patch into roughly `N = clamp(patchTextLength, minSteps, maxSteps)` steps and computes `stepDelay = RevealDuration / N`, so a long recipe and a short one both take ~1.2 s (never drags). Granularity (advance by a few characters / to the next word boundary per step) is an internal detail, not a public knob.
 
 ### Concurrency & cancellation
 

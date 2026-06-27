@@ -28,7 +28,7 @@ public sealed class DrylArtifactRun<T> : DrylRunBase
     /// <summary>
     /// Merge a partial-<typeparamref name="T"/> patch into the running artifact and return a short
     /// receipt for the model. When <paramref name="revealDuration"/> is positive, the patch's
-    /// new/changed fields materialize progressively (Apple "guided generation" feel) over that
+    /// new/changed fields materialize progressively (a guided, type-as-you-go reveal) over that
     /// span while previously-committed fields stay stable; otherwise the merge is atomic. The
     /// commit always uses the exact, full patch, so committed state can never be a repaired prefix.
     /// When <paramref name="maxRounds"/> is reached, returns a finalize nudge instead of the receipt.

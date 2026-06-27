@@ -3,30 +3,30 @@
 @implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
-    DrylLiquidGlass — a glass surface that warps in 3D toward the
+    DrylDepthGlass — a glass surface that warps in 3D toward the
     pointer (experimental).
 
     The pointer drives a perspective tilt of the whole pane, while the
     content and the gloss parallax in separate layers so the surface
-    reads like a sheet of glass floating above the page — a
-    visionOS / Apple-style depth warp. A travelling specular highlight
-    tracks the cursor and the card lifts on hover.
+    reads like a sheet of glass floating above the page. A travelling
+    specular highlight tracks the cursor and the card lifts on hover.
 
-    Pure CSS transforms (no SVG backdrop filters), so it is reliable
-    across browsers and composited. Stilled under
-    prefers-reduced-motion (rule 2.12).
+    Pure CSS transforms, so it is reliable across browsers and
+    composited. Stilled under prefers-reduced-motion (rule 2.12).
+
+    The same effect is available on DrylCard via its Depth parameter.
 
     Usage:
-      <DrylLiquidGlass Intensity="LiquidGlassIntensity.Strong">
-          <h3>Liquid glass</h3>
+      <DrylDepthGlass Intensity="DepthGlassIntensity.Strong">
+          <h3>Depth glass</h3>
           <p>Hover me — the surface tilts and the content floats.</p>
-      </DrylLiquidGlass>
+      </DrylDepthGlass>
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCss" @ref="_el" @attributes="AdditionalAttributes">
-    <div class="lg-sheen"></div>
-    <div class="lg-specular"></div>
-    <div class="lg-content">
+    <div class="dg-sheen"></div>
+    <div class="dg-specular"></div>
+    <div class="dg-content">
         @ChildContent
     </div>
 </div>
@@ -35,8 +35,8 @@
     /// <summary>The surface content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>How strong the tilt, parallax and frost are.</summary>
-    [Parameter] public LiquidGlassIntensity Intensity { get; set; } = LiquidGlassIntensity.Medium;
+    /// <summary>How strong the tilt and parallax are.</summary>
+    [Parameter] public DepthGlassIntensity Intensity { get; set; } = DepthGlassIntensity.Medium;
 
     /// <summary>If true (default), the surface warps toward the pointer and the highlight follows it.</summary>
     [Parameter] public bool Interactive { get; set; } = true;
@@ -57,15 +57,16 @@
         {
             var parts = new List<string>
             {
-                "lg",
+                "dg-surface",
+                "dg-warp",
                 Intensity switch
                 {
-                    LiquidGlassIntensity.Subtle => "lg--subtle",
-                    LiquidGlassIntensity.Strong => "lg--strong",
-                    _ => "lg--medium"
+                    DepthGlassIntensity.Subtle => "dg--subtle",
+                    DepthGlassIntensity.Strong => "dg--strong",
+                    _ => "dg--medium"
                 }
             };
-            if (!Interactive) parts.Add("lg--static");
+            if (!Interactive) parts.Add("dg--static");
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }
@@ -76,7 +77,7 @@
         if (!firstRender || !Interactive) return;
         try
         {
-            await JS.InvokeVoidAsync("dryl.liquidglass.track", _el);
+            await JS.InvokeVoidAsync("dryl.depthglass.track", _el);
             _attached = true;
         }
         catch (JSDisconnectedException) { /* circuit gone */ }
@@ -86,7 +87,7 @@
     {
         if (_attached)
         {
-            try { await JS.InvokeVoidAsync("dryl.liquidglass.untrack", _el); }
+            try { await JS.InvokeVoidAsync("dryl.depthglass.untrack", _el); }
             catch (JSDisconnectedException) { /* circuit gone */ }
             catch (InvalidOperationException) { /* prerender — no JS */ }
         }

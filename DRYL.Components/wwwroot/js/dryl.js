@@ -1135,16 +1135,17 @@ window.dryl.motion = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────
- * dryl.liquidglass — pointer-driven depth for DrylLiquidGlass.
- *   Tracks the pointer over the surface and exposes it as CSS custom
- *   properties the stylesheet turns into a 3D tilt (--tx/--ty) and a
- *   travelling specular highlight (--mx/--my). All motion is CSS; JS
- *   only writes the variables, so there is no per-frame Blazor cost.
- *   The CSS side is gated on prefers-reduced-motion.
+ * dryl.depthglass — pointer-driven depth for DrylDepthGlass and the
+ *   optional Depth warp on DrylCard. Tracks the pointer over the
+ *   surface and exposes it as CSS custom properties the stylesheet
+ *   turns into a 3D tilt (--tx/--ty) and a travelling specular
+ *   highlight (--mx/--my). All motion is CSS; JS only writes the
+ *   variables, so there is no per-frame Blazor cost. The CSS side is
+ *   gated on prefers-reduced-motion.
  * ────────────────────────────────────────────────────────── */
-window.dryl.liquidglass = {
+window.dryl.depthglass = {
     track(el) {
-        if (!el || el.__drylLg) return;
+        if (!el || el.__drylDg) return;
         const onMove = (e) => {
             const r = el.getBoundingClientRect();
             if (!r.width || !r.height) return;
@@ -1161,13 +1162,13 @@ window.dryl.liquidglass = {
         };
         el.addEventListener('pointermove', onMove);
         el.addEventListener('pointerleave', onLeave);
-        el.__drylLg = { onMove, onLeave };
+        el.__drylDg = { onMove, onLeave };
     },
     untrack(el) {
-        if (!el || !el.__drylLg) return;
-        el.removeEventListener('pointermove', el.__drylLg.onMove);
-        el.removeEventListener('pointerleave', el.__drylLg.onLeave);
-        delete el.__drylLg;
+        if (!el || !el.__drylDg) return;
+        el.removeEventListener('pointermove', el.__drylDg.onMove);
+        el.removeEventListener('pointerleave', el.__drylDg.onLeave);
+        delete el.__drylDg;
     }
 };
 

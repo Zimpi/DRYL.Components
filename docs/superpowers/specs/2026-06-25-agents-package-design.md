@@ -14,7 +14,7 @@ The package takes real work off the developer's hands across three subsystems:
    tool calls plug-and-play — the developer never sets `Ai="…"` by hand.
 2. **Structured streaming UI** — `DrylAiGenerate<T>` streams a typed object from the
    model and renders *partial snapshots* progressively, character-by-character, the
-   way Apple's Foundation Models guided generation feels.
+   way guided generation feels.
 3. **Ready-made UI tool functions** — four `AIFunction` tools the developer simply hands
    to the agent, backed by `DrylDialog` for human-in-the-loop questions: single choice,
    multi choice, permission, and free text.
@@ -187,7 +187,7 @@ chunk:
   set, not-yet-streamed fields `null`/default).
 - **Show partial values live:** the currently-open string is surfaced with its
   content-so-far (not only at the closing `"`), so titles and text grow character by
-  character — full streaming look & feel, like Apple.
+  character — full streaming look & feel.
 - This does not exist out of the box → we build it **test-first (TDD)**, because all the
   edge cases live here (truncated strings, half-written numbers, arrays with a half last
   element).

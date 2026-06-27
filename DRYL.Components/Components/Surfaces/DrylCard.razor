@@ -4,7 +4,8 @@
 @implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
-    DrylCard — glass surface with optional cursor spotlight.
+    DrylCard — glass surface with optional cursor spotlight or 3D
+    depth warp.
 
     Usage:
       <DrylCard>
@@ -16,7 +17,12 @@
         ...
       </DrylCard>
 
-    Requires wwwroot/js/dryl.js to be loaded for spotlight to track.
+      <DrylCard Depth="DepthGlassIntensity.Medium">
+        ... tilts in 3D toward the pointer ...
+      </DrylCard>
+
+    Requires wwwroot/js/dryl.js to be loaded for the spotlight / depth
+    warp to track the pointer.
     ───────────────────────────────────────────────────────── *@
 
 <div @ref="_el"
@@ -31,7 +37,15 @@
             <div class="ai-aura-wash" @key="_genTick"></div>
         }
     }
-    @if (Spotlight)
+    @if (Depth is not null)
+    {
+        <div class="dg-sheen"></div>
+        <div class="dg-specular"></div>
+        <div class="dg-content">
+            @ChildContent
+        </div>
+    }
+    else if (Spotlight)
     {
         <div class="spotlight-fx"></div>
         <div class="spotlight-content">
@@ -45,8 +59,15 @@
 </div>
 
 @code {
-    /// <summary>If true, an interactive cursor-following spotlight is rendered.</summary>
+    /// <summary>If true, an interactive cursor-following spotlight is rendered. Ignored when <see cref="Depth"/> is set.</summary>
     [Parameter] public bool Spotlight { get; set; } = true;
+
+    /// <summary>
+    /// When set, the card becomes a 3D depth-warp surface that tilts toward the
+    /// pointer (the same effect as <see cref="DrylDepthGlass"/>). Supersedes
+    /// <see cref="Spotlight"/>. Leave null for a flat card.
+    /// </summary>
+    [Parameter] public DepthGlassIntensity? Depth { get; set; }
 
     /// <summary>Padding preset for the card. Use <see cref="CardPadding.None"/> for custom layout.</summary>
     [Parameter] public CardPadding Padding { get; set; } = CardPadding.Default;
@@ -66,6 +87,7 @@
 
     private ElementReference _el;
     private bool _tracking;
+    private bool _depthTracked;
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
@@ -92,7 +114,20 @@
                 _ => "p-default"
             };
             var classes = new List<string> { "glass-card", pad };
-            if (Spotlight) classes.Add("spotlight-card");
+            if (Depth is { } depth)
+            {
+                classes.Add("dg-warp");
+                classes.Add(depth switch
+                {
+                    DepthGlassIntensity.Subtle => "dg--subtle",
+                    DepthGlassIntensity.Strong => "dg--strong",
+                    _ => "dg--medium"
+                });
+            }
+            else if (Spotlight)
+            {
+                classes.Add("spotlight-card");
+            }
             if (EffectiveAi != AiState.None) classes.Add("ai-aura");
             switch (EffectiveAi)
             {
@@ -107,7 +142,15 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && Spotlight)
+        if (!firstRender) return;
+
+        if (Depth is not null)
+        {
+            await JS.InvokeVoidAsync("dryl.depthglass.track", _el);
+            _tracking = true;
+            _depthTracked = true;
+        }
+        else if (Spotlight)
         {
             await JS.InvokeVoidAsync("dryl.spotlight.track", _el);
             _tracking = true;
@@ -116,12 +159,13 @@
 
     public async ValueTask DisposeAsync()
     {
-        // Only call into JS if the spotlight listener was actually attached
-        // (i.e. we ran past first render in the browser). Guards against the
-        // static prerender pass where no JS runtime / DOM element exists.
+        // Only call into JS if a listener was actually attached (i.e. we ran past
+        // first render in the browser). Guards against the static prerender pass
+        // where no JS runtime / DOM element exists.
         if (_tracking)
         {
-            try { await JS.InvokeVoidAsync("dryl.spotlight.untrack", _el); }
+            var fn = _depthTracked ? "dryl.depthglass.untrack" : "dryl.spotlight.untrack";
+            try { await JS.InvokeVoidAsync(fn, _el); }
             catch { /* circuit gone or element already removed */ }
         }
     }

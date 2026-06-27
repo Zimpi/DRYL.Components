@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make an `update_<T>` artifact round materialize progressively (Apple "guided generation" feel, ~1.2 s/round) by replaying the already-known merged patch JSON as a growing prefix, instead of merging it atomically.
+**Goal:** Make an `update_<T>` artifact round materialize progressively (a guided, type-as-you-go reveal, ~1.2 s/round) by replaying the already-known merged patch JSON as a growing prefix, instead of merging it atomically.
 
 **Architecture:** `DrylArtifactRun<T>.ApplyPatch` becomes `ApplyPatchAsync`, which reveals the patch as a sequence of growing JSON prefixes over `RevealDuration` (reusing the existing `JsonPartialRepair` + `JsonMerge` engines on a stable committed base), then commits the exact full patch. The auto-injected `update_<T>` tool becomes an async delegate, so the framework's function-invocation loop awaits the reveal and the model's pacing follows naturally. `DrylAiBuild<T>` is unchanged — it already re-renders on `OnChange` and shows the `Streaming` aura.
 
@@ -52,7 +52,7 @@ In `DRYL.Components.Agents/Agents/DrylBuildOptions.cs`, add after `UpdateToolNam
 ```csharp
     /// <summary>
     /// Target wall-clock duration for each <c>update_&lt;T&gt;</c> round's progressive reveal
-    /// (the round's new/changed fields type in over this span, Apple "guided generation" feel).
+    /// (the round's new/changed fields type in over this span, a guided, type-as-you-go reveal).
     /// This is a target per round, not a per-character delay — long and short patches both take
     /// roughly this long. <see cref="System.TimeSpan.Zero"/> (or a negative value) disables the
     /// reveal and merges the patch atomically (identical to a single merge). Default 1.2 s.
@@ -232,7 +232,7 @@ In `DRYL.Components.Agents/Agents/DrylArtifactRun.cs`, replace the entire `Apply
     /// <summary>
     /// Merge a partial-<typeparamref name="T"/> patch into the running artifact and return a short
     /// receipt for the model. When <paramref name="revealDuration"/> is positive, the patch's
-    /// new/changed fields materialize progressively (Apple "guided generation" feel) over that
+    /// new/changed fields materialize progressively (a guided, type-as-you-go reveal) over that
     /// span while previously-committed fields stay stable; otherwise the merge is atomic. The
     /// commit always uses the exact, full patch, so committed state can never be a repaired prefix.
     /// When <paramref name="maxRounds"/> is reached, returns a finalize nudge instead of the receipt.
@@ -592,7 +592,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 In `CHANGELOG.md`, under `[Unreleased] → Added` (create the `### Added` sub-heading only if it does not already exist under `[Unreleased]`), add:
 
 ```markdown
-- `DRYL.Components.Agents` — Collaborative artifact builds now reveal each `update_<T>` round progressively (Apple "guided generation" feel) instead of merging atomically; tunable via new `DrylBuildOptions.RevealDuration` (`TimeSpan`, default 1.2 s; `TimeSpan.Zero` = atomic)
+- `DRYL.Components.Agents` — Collaborative artifact builds now reveal each `update_<T>` round progressively (a guided, type-as-you-go reveal) instead of merging atomically; tunable via new `DrylBuildOptions.RevealDuration` (`TimeSpan`, default 1.2 s; `TimeSpan.Zero` = atomic)
 ```
 
 - [ ] **Step 2: Update the README note if user-visible**
