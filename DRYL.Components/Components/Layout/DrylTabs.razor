@@ -1,5 +1,6 @@
 @namespace DRYL.Components
-@implements IDisposable
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylTabs — classic horizontal tab strip with gliding
@@ -27,7 +28,11 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="tabs-root @Class" @attributes="AdditionalAttributes">
-    <div class="tabs" role="tablist" aria-label="@AriaLabel">
+    <div class="@TabsCss" role="tablist" aria-label="@AriaLabel" @ref="_tablist">
+        @if (AnimateIndicator)
+        {
+            <div class="tab-ink" data-dryl-ink aria-hidden="true"></div>
+        }
         @foreach (var tab in _tabs)
         {
             var isActive = ReferenceEquals(tab, ActiveTab);
@@ -39,6 +44,7 @@
                     aria-controls="@($"dryl-tabpanel-{tab.InternalId}")"
                     tabindex="@(isActive ? 0 : -1)"
                     disabled="@tab.Disabled"
+                    data-dryl-ink-active="@(isActive ? "true" : null)"
                     @key="tab.InternalId"
                     @onclick="() => ActivateAsync(tab)"
                     @onkeydown="(e) => OnTabKeyDown(e, tab)">
@@ -83,6 +89,12 @@
     /// <summary>Accessible label for the tablist (read by screen readers).</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
+    /// <summary>
+    /// When true (default), a single gradient underline glides between tabs.
+    /// Set false to fall back to a per-tab underline that fades in place.
+    /// </summary>
+    [Parameter] public bool AnimateIndicator { get; set; } = true;
+
     /// <summary>Tab declarations.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -95,6 +107,9 @@
 
     private readonly List<DrylTab> _tabs = new();
     private string? _activeId;
+    private ElementReference _tablist;
+    private string? _lastInkActiveId;
+    private bool _inkAttached;
 
     internal DrylTab? ActiveTab =>
         _tabs.FirstOrDefault(t => t.InternalId == _activeId && !t.Disabled)
@@ -105,6 +120,24 @@
         if (Active != _activeId)
         {
             _activeId = Active;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!AnimateIndicator) return;
+
+        // Re-measure the gliding underline whenever the active tab changes.
+        var activeId = ActiveTab?.InternalId;
+        if (firstRender || activeId != _lastInkActiveId)
+        {
+            _lastInkActiveId = activeId;
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.motion.moveIndicator", _tablist);
+                _inkAttached = true;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
         }
     }
 
@@ -167,6 +200,8 @@
         await ActivateAsync(target);
     }
 
+    private string TabsCss => AnimateIndicator ? "tabs tabs--glide" : "tabs";
+
     private static string TabCss(DrylTab tab, bool isActive)
     {
         var parts = new List<string> { "tab" };
@@ -182,5 +217,14 @@
         return string.Join(' ', parts);
     }
 
-    public void Dispose() => _tabs.Clear();
+    public async ValueTask DisposeAsync()
+    {
+        _tabs.Clear();
+        if (_inkAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.disposeIndicator", _tablist); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+    }
 }

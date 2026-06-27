@@ -29,9 +29,22 @@ Version bump guide:
 - `DrylAgentRunner.CreateUpdateTool<T>` — Internal factory that generates the typed `update_<T>` (or custom-named) `AIFunction` tool, embedding `T`'s JSON schema in the description so the model knows the artifact shape
 - `DrylArtifactRun<T>` — Observable handle for a collaborative build; live progressively-merged `Artifact` + `Round` counter atop the shared run surface
 - `DrylBuildOptions` — `MaxRounds` safety cap (default 12), overridable `Guidance` prompt, custom `UpdateToolName`, and `RevealDuration` (per-round progressive-reveal target, default 1.2 s; `TimeSpan.Zero` = atomic merge)
-- `DrylAiBuild<T>` / `ArtifactSnapshot<T>` — Renders the live artifact; each `update_<T>` round materializes progressively (Apple "guided generation" feel) over `DrylBuildOptions.RevealDuration` — the round's new/changed fields type in while earlier fields stay stable, with the `Streaming` aura shown during the reveal (parallel to `DrylAiGenerate<T>`)
+- `DrylAiBuild<T>` / `ArtifactSnapshot<T>` — Renders the live artifact; each `update_<T>` round materializes progressively (a guided, type-as-you-go reveal) over `DrylBuildOptions.RevealDuration` — the round's new/changed fields type in while earlier fields stay stable, with the `Streaming` aura shown during the reveal (parallel to `DrylAiGenerate<T>`)
 - `JsonMerge` — Deep-merge engine for partial artifact patches (objects merge recursively, arrays/scalars replace, null/absent leaves existing)
 - `DrylRunBase` — Shared run plumbing (text channel, completion, stable `TextStream`, `OnChange`) extracted from `DrylAgentRun`; base for `DrylAgentRun` and `DrylArtifactRun<T>` (public surface of `DrylAgentRun` unchanged)
+- `DrylPresence` — New motion primitive; defers a child's unmount until its exit animation finishes (motion.dev-style AnimatePresence). `Transition`: Fade / Scale / SlideUp / SlideDown / SlideLeft / SlideRight; `Appear`, `OnExited`
+- `DrylReveal` — New motion primitive; scroll-triggered staggered entrance via IntersectionObserver. `Transition`: Fade / Rise / ScaleIn; `Stagger`, `Once`, `Threshold`
+- `dryl.motion` — New JS module (`onExit`, `moveIndicator`, `observe`) powering the motion primitives; reduced-motion aware
+- `--reveal-step` — New motion token (60 ms) controlling `DrylReveal`'s per-child stagger step
+- `DrylTabs` — New `AnimateIndicator` parameter (default true) to opt out of the gliding underline
+- `DrylDepthGlass` — New experimental glass surface that warps in 3D toward the pointer; perspective tilt + layered content/gloss parallax + travelling specular highlight + hover lift (pure CSS transforms); `Intensity` (Subtle / Medium / Strong), `Interactive`; reduced-motion aware
+- `DrylCard` — New `Depth` parameter (`DepthGlassIntensity?`) turns a card into a 3D depth-warp surface (same effect as `DrylDepthGlass`); supersedes `Spotlight` when set
+
+### Changed
+- `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
+
+### Fixed
+- `DrylDialog` — Dialogs now animate out (scale + fade) on close instead of disappearing instantly; honours `prefers-reduced-motion`
 
 ## [1.0.0] — 2026-06-24
 

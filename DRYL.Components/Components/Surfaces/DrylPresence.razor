@@ -1,0 +1,155 @@
+@namespace DRYL.Components
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylPresence — animates a single child both in *and* out.
+
+    Blazor removes a node from the DOM the instant a render says it
+    is gone, so conditional content normally cannot animate away.
+    DrylPresence keeps the child mounted while its exit animation
+    plays and only then drops it — DRYL's answer to motion.dev's
+    AnimatePresence (rule 2.12).
+
+    Usage:
+      <DrylPresence Visible="_show" Transition="PresenceTransition.Scale">
+          <DrylCard>…</DrylCard>
+      </DrylPresence>
+
+    Renders a single wrapping element (animations don't apply to
+    display:contents). Honours prefers-reduced-motion: the child then
+    appears/disappears instantly.
+    ───────────────────────────────────────────────────────── *@
+
+@if (_mounted)
+{
+    <div class="@WrapperCss" @ref="_el">
+        @ChildContent
+    </div>
+}
+
+@code {
+    /// <summary>Whether the child is shown. Flipping to false plays the exit animation before unmount.</summary>
+    [Parameter] public bool Visible { get; set; }
+
+    /// <summary>The content whose mount/unmount is animated.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Which enter/exit animation to play.</summary>
+    [Parameter] public PresenceTransition Transition { get; set; } = PresenceTransition.Fade;
+
+    /// <summary>If true, the child also animates in on its very first mount. Off by default.</summary>
+    [Parameter] public bool Appear { get; set; }
+
+    /// <summary>Fires once the exit animation has finished and the child has been removed.</summary>
+    [Parameter] public EventCallback OnExited { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the wrapper element.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private ElementReference _el;
+    private DotNetObjectReference<DrylPresence>? _selfRef;
+
+    private bool _mounted;        // child is in the DOM
+    private bool _exiting;        // exit animation is playing
+    private bool _playEnter;      // apply the enter animation class
+    private bool _exitListening;  // a JS exit listener is attached for the current exit
+    private bool _firstParams = true;
+    private bool _attached;       // a DOM element has been wired up (prerender guard)
+
+    protected override void OnParametersSet()
+    {
+        if (_firstParams)
+        {
+            _firstParams = false;
+            if (Visible)
+            {
+                _mounted = true;
+                _playEnter = Appear;
+            }
+            return;
+        }
+
+        if (Visible)
+        {
+            // (Re)enter — cancel any in-flight exit and replay the enter.
+            if (!_mounted || _exiting)
+            {
+                _mounted = true;
+                _exiting = false;
+                _playEnter = true;
+            }
+        }
+        else if (_mounted && !_exiting)
+        {
+            // Begin exit — stay mounted; JS wires the animationend in OnAfterRender.
+            _exiting = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_exiting && !_exitListening)
+        {
+            _selfRef ??= DotNetObjectReference.Create(this);
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.motion.onExit", _el, _selfRef);
+                _exitListening = true;
+                _attached = true;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+        else if (!_exiting && _exitListening)
+        {
+            // Re-entered before the exit finished — drop the stale listener.
+            try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _el); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            _exitListening = false;
+        }
+    }
+
+    /// <summary>Invoked from JS when the exit animation ends.</summary>
+    [JSInvokable]
+    public async Task OnExitFinished()
+    {
+        if (!_exiting) return;
+        _mounted = false;
+        _exiting = false;
+        _exitListening = false;
+        await OnExited.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private string WrapperCss
+    {
+        get
+        {
+            var parts = new List<string> { "presence" };
+            parts.Add(Transition switch
+            {
+                PresenceTransition.Scale      => "presence--scale",
+                PresenceTransition.SlideUp    => "presence--slide-up",
+                PresenceTransition.SlideDown  => "presence--slide-down",
+                PresenceTransition.SlideLeft  => "presence--slide-left",
+                PresenceTransition.SlideRight => "presence--slide-right",
+                _ => "presence--fade"
+            });
+            if (_exiting) parts.Add("presence-exit");
+            else if (_playEnter) parts.Add("presence-enter");
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_attached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _el); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+        _selfRef?.Dispose();
+    }
+}

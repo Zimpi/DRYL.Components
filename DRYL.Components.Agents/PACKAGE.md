@@ -59,7 +59,7 @@ state anywhere. Tool calls surface through the core `DrylToolCall`.
 ## 2 — `DrylAiGenerate<T>` (structured streaming → UI)
 
 The model emits JSON for `T`; a tolerant `PartialJsonReader<T>` produces a *partial snapshot*
-on every chunk, so titles and text grow character by character (Apple-style guided
+on every chunk, so titles and text grow character by character (guided, type-as-you-go
 generation). On a parse failure it holds the last good snapshot — never a flicker.
 
 ```razor

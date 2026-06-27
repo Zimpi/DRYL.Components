@@ -996,3 +996,179 @@ window.dryl.table = {
     }
 };
 
+/* ──────────────────────────────────────────────────────────
+ * dryl.motion — the shared motion layer.
+ *
+ * Three concerns, all reduced-motion aware (a user who prefers
+ * reduced motion gets the end state with no animation):
+ *
+ *   Presence (exit) — onExit/clearExit defer a node's removal until
+ *     its CSS exit animation finishes, generalising the toast pattern
+ *     so DrylPresence can animate-out any single child.
+ *
+ *   Indicator glide — moveIndicator measures the active child in a
+ *     container and positions a shared [data-dryl-ink] element; CSS
+ *     transitions it on --ease-spring. Used by DrylTabs whose tabs are
+ *     variable-width (DrylSegmentedControl glides in pure CSS instead,
+ *     because its segments are equal-width).
+ *
+ *   Reveal — observe/unobserve drive an IntersectionObserver that adds
+ *     .is-revealed when an element scrolls into view, with optional
+ *     per-child stagger. Carries DrylReveal.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.motion = (() => {
+    const _exit   = new WeakMap(); // wrapper el -> animationend handler
+    const _ind    = new WeakMap(); // container  -> { ro }
+    const _reveal = new WeakMap(); // wrapper el -> { io }
+
+    const reduced = () =>
+        !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    /* ---- Presence: exit lifecycle ----------------------------------
+     * onExit(el, ref, opts) fires OnExitFinished when an exit animation ends.
+     *   opts.name — animationName prefix to match (default 'presence-out').
+     *   opts.self — if true (default) only el's own animation counts; set false
+     *               to also accept an animation that bubbles up from a child
+     *               (used by DrylDialog, whose dialogOut runs on the inner
+     *               .dialog and bubbles to the backdrop el we listen on).
+     * ---------------------------------------------------------------- */
+    function onExit(el, dotnetRef, opts) {
+        if (!el || _exit.has(el)) return;
+        opts = opts || {};
+        const name = opts.name || 'presence-out';
+        const self = opts.self !== false;
+
+        // Reduced motion (or no exit animation): resolve on the next frame so
+        // the C# side still gets a single, asynchronous OnExitFinished.
+        if (reduced()) {
+            requestAnimationFrame(() => {
+                try { dotnetRef.invokeMethodAsync('OnExitFinished'); } catch (_) { /* circuit gone */ }
+            });
+            return;
+        }
+
+        const handler = (e) => {
+            if (self && e.target !== el) return;
+            if (!String(e.animationName).startsWith(name)) return;
+            clearExit(el);
+            try { dotnetRef.invokeMethodAsync('OnExitFinished'); } catch (_) { /* circuit gone */ }
+        };
+        el.addEventListener('animationend', handler);
+        _exit.set(el, handler);
+    }
+
+    function clearExit(el) {
+        if (!el) return;
+        const h = _exit.get(el);
+        if (h) { el.removeEventListener('animationend', h); _exit.delete(el); }
+    }
+
+    /* ---- Indicator glide ------------------------------------------- */
+    function placeIndicator(container) {
+        const ink    = container.querySelector('[data-dryl-ink]');
+        if (!ink) return;
+        const active = container.querySelector('[data-dryl-ink-active="true"]');
+        if (!active) { ink.style.opacity = '0'; return; }
+        const cr = container.getBoundingClientRect();
+        const ar = active.getBoundingClientRect();
+        ink.style.opacity   = '1';
+        ink.style.width     = ar.width + 'px';
+        ink.style.transform = 'translateX(' + (ar.left - cr.left + container.scrollLeft) + 'px)';
+    }
+
+    function moveIndicator(container) {
+        if (!container) return;
+        const first = !_ind.has(container);
+        if (first) {
+            const ro = new ResizeObserver(() => placeIndicator(container));
+            ro.observe(container);
+            _ind.set(container, { ro });
+        }
+        placeIndicator(container);
+        // Enable the CSS transition only after the first placement so the ink
+        // does not slide in from x=0 on initial render.
+        if (first) requestAnimationFrame(() => container.classList.add('is-ink-ready'));
+    }
+
+    function disposeIndicator(container) {
+        const s = _ind.get(container);
+        if (s) { s.ro.disconnect(); _ind.delete(container); }
+    }
+
+    /* ---- Reveal ---------------------------------------------------- */
+    function observe(el, dotnetRef, opts) {
+        if (!el || _reveal.has(el)) return;
+        opts = opts || {};
+        const once      = opts.once !== false;
+        const threshold = typeof opts.threshold === 'number' ? opts.threshold : 0.15;
+
+        if (opts.stagger) {
+            Array.from(el.children).forEach((c, i) => c.style.setProperty('--reveal-i', i));
+        }
+
+        // No observer support or reduced motion → show immediately, no animation.
+        if (reduced() || !('IntersectionObserver' in window)) {
+            el.classList.add('is-revealed');
+            return;
+        }
+
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-revealed');
+                    if (once) io.unobserve(entry.target);
+                } else if (!once) {
+                    entry.target.classList.remove('is-revealed');
+                }
+            });
+        }, { threshold });
+        io.observe(el);
+        _reveal.set(el, { io });
+    }
+
+    function unobserve(el) {
+        const s = _reveal.get(el);
+        if (s) { s.io.disconnect(); _reveal.delete(el); }
+    }
+
+    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve };
+})();
+
+/* ──────────────────────────────────────────────────────────
+ * dryl.depthglass — pointer-driven depth for DrylDepthGlass and the
+ *   optional Depth warp on DrylCard. Tracks the pointer over the
+ *   surface and exposes it as CSS custom properties the stylesheet
+ *   turns into a 3D tilt (--tx/--ty) and a travelling specular
+ *   highlight (--mx/--my). All motion is CSS; JS only writes the
+ *   variables, so there is no per-frame Blazor cost. The CSS side is
+ *   gated on prefers-reduced-motion.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.depthglass = {
+    track(el) {
+        if (!el || el.__drylDg) return;
+        const onMove = (e) => {
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height) return;
+            const px = (e.clientX - r.left) / r.width;   // 0..1
+            const py = (e.clientY - r.top) / r.height;   // 0..1
+            el.style.setProperty('--mx', (px * 100) + '%');
+            el.style.setProperty('--my', (py * 100) + '%');
+            el.style.setProperty('--tx', (px - 0.5).toFixed(3)); // -0.5..0.5
+            el.style.setProperty('--ty', (py - 0.5).toFixed(3));
+        };
+        const onLeave = () => {
+            el.style.setProperty('--tx', '0');
+            el.style.setProperty('--ty', '0');
+        };
+        el.addEventListener('pointermove', onMove);
+        el.addEventListener('pointerleave', onLeave);
+        el.__drylDg = { onMove, onLeave };
+    },
+    untrack(el) {
+        if (!el || !el.__drylDg) return;
+        el.removeEventListener('pointermove', el.__drylDg.onMove);
+        el.removeEventListener('pointerleave', el.__drylDg.onLeave);
+        delete el.__drylDg;
+    }
+};
+

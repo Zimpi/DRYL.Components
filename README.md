@@ -355,7 +355,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 
 ## What's in the box
 
-**86 components across 8 categories** — actions, surfaces, navigation, data, inputs, layout, feedback, and a dedicated **Intelligence** category (`DrylAiScope`, `DrylAiStream`, `DrylToolCall`, `DrylChat`, `DrylCitation`, …) for building agent UIs: token streams, tool-call traces, RAG citations, human-in-the-middle review. Every component is token-driven, dark, and keyboard-accessible.
+**89 components across 8 categories** — actions, surfaces, navigation, data, inputs, layout, feedback, and a dedicated **Intelligence** category (`DrylAiScope`, `DrylAiStream`, `DrylToolCall`, `DrylChat`, `DrylCitation`, …) for building agent UIs: token streams, tool-call traces, RAG citations, human-in-the-middle review. Every component is token-driven, dark, and keyboard-accessible.
 
 | Component         | Category     | AI mode | Status     | Notes                                                              |
 | ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
@@ -367,7 +367,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylCommandPalette` | Actions   | ✅      | ✅ Done    | Command launcher overlay; Ctrl+K; static + async search; Navigate / Action / AiIntent items; category grouping; AI result panel |
 | `DrylBreadcrumbs` | Navigation   | —       | ✅ Done    | Hierarchical trail; custom separator; `MaxItems` ellipsis collapse; `aria-current` on last crumb |
 | `DrylBreadcrumbItem` | Navigation | —      | ✅ Done    | Single crumb inside `DrylBreadcrumbs`; `Href` link or current page; optional icon |
-| `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface, optional cursor spotlight, `Ai` state              |
+| `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface; optional cursor spotlight or 3D `Depth` warp, `Ai` state |
 | `DrylBadge`       | Data         | —       | ✅ Done    | Neutral / Accent / Success / Warning / Danger, optional dot       |
 | `DrylAvatar`      | Data         | —       | ✅ Done    | Image → initials → icon fallback; sizes, Circle / Square, presence status dot |
 | `DrylAvatarGroup` | Data         | —       | ✅ Done    | Overlapping stack; cascades size; `Max` collapses overflow to `+N` |
@@ -417,6 +417,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylStepper`     | Layout       | —       | ✅ Done    | Multi-step wizard container; Horizontal / Vertical orientation, `@bind-ActiveStep` |
 | `DrylStep`        | Layout       | ✅      | ✅ Done    | Single step inside `DrylStepper`; Pending / Active / Completed / Error states, AI ring |
 | `DrylScrollArea`  | Layout       | —       | ✅ Done    | Scrollable region with thin DRYL scrollbar; `MaxHeight` / `MaxWidth` / `Horizontal`; pure CSS |
+| `DrylReveal`      | Layout       | —       | ✅ Done    | Motion primitive; scroll-triggered staggered entrance (Fade / Rise / ScaleIn) via IntersectionObserver; reduced-motion aware |
 | `DrylTypo`        | Layout       | —       | ✅ Done    | Type scale primitive; `Variant` look + `As` tag, `Color`, `Align`, `Gradient` |
 | `DrylStack`       | Layout       | —       | ✅ Done    | Flex layout; `Direction` / `Gap` / `Align` / `Justify` / `Wrap`; replaces row/col markup |
 | `DrylList`        | Layout       | —       | ✅ Done    | Token-driven list; marker `Variant`, `Density`, `Dividers`, ordered; nesting |
@@ -428,6 +429,8 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylMessage`     | Surfaces     | ✅      | ✅ Done    | Chat bubble; User / Assistant / System roles; author, timestamp, avatar, typing dots; optional `Markdown`/`Text` for rich LLM output |
 | `DrylChatComposer`| Surfaces     | ✅      | ✅ Done    | Chat input; Enter sends, Shift+Enter newline, auto-grow textarea; `OnSend` callback |
 | `DrylPopover`     | Surfaces     | —       | ✅ Done    | Anchored floating-panel primitive; portals to `<body>` (never clipped); placement, click-outside / Escape, match-width |
+| `DrylPresence`    | Surfaces     | —       | ✅ Done    | Motion primitive; defers unmount until exit animation finishes (Fade / Scale / Slide); reduced-motion aware |
+| `DrylDepthGlass`  | Surfaces     | —       | ✅ Done    | Experimental glass that warps in 3D toward the pointer; tilt + parallax + specular + hover lift; reduced-motion aware |
 | `DrylEmptyState`  | Feedback     | ✅      | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes; AI-aware |
 | `DrylDescriptionList` | Data     | —       | ✅ Done    | Semantic `<dl>` key/value view; Stacked / Inline; columns |
 | `DrylDescriptionItem` | Data     | —       | ✅ Done    | Term/value pair inside `DrylDescriptionList` |
@@ -446,7 +449,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylErrorBoundary` | Feedback   | ✅      | ✅ Done    | Glass fallback around Blazor `ErrorBoundary`; retry / recover, dev-only detail toggle, custom fallback, AI-aware |
 | `DrylNotifications` | Feedback   | ✅      | ✅ Done    | Bell + badge + popover inbox; service-driven or controlled, mark-read, dismiss, AI-aware entries |
 | `DrylAgentToolCalls` | Intelligence | ✅   | ✅ Done    | (Agents package) Renders an agent run's tool calls via the core `DrylToolCall`; full trace or `ActiveOnly` |
-| `DrylAiGenerate<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Streams raw JSON tokens → progressive partial-snapshot UI (Apple-style guided generation) |
+| `DrylAiGenerate<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Streams raw JSON tokens → progressive partial-snapshot UI (guided, type-as-you-go generation) |
 | `DrylAiBuild<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Renders a live, iteratively-built structured artifact; each round reveals progressively (`DrylBuildOptions.RevealDuration`), refines `T` via `StartBuild<T>` |
 | `DrylAskChoiceDialog` | Surfaces  | —      | ✅ Done    | (Agents package) Single-choice agent question; radio list, recommended badge; HITL tool dialog |
 | `DrylAskMultiChoiceDialog` | Surfaces | —  | ✅ Done    | (Agents package) Multi-choice agent question; checkbox list, recommendations pre-checked; HITL tool dialog |
