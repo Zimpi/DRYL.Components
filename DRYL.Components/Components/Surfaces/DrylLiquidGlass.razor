@@ -3,50 +3,29 @@
 @implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
-    DrylLiquidGlass — an Apple-style "liquid glass" surface
-    (experimental).
+    DrylLiquidGlass — a glass surface that warps in 3D toward the
+    pointer (experimental).
 
-    Unlike a plain frosted card, this one actually REFRACTS the
-    backdrop: a backdrop-filter feeds the background through an SVG
-    feDisplacementMap whose map is neutral (0.5) in the centre and
-    ramps toward the edges, so the content behind bends most at the
-    rim — like looking through thick rounded glass. The pointer adds a
-    3D tilt and a travelling specular highlight.
+    The pointer drives a perspective tilt of the whole pane, while the
+    content and the gloss parallax in separate layers so the surface
+    reads like a sheet of glass floating above the page — a
+    visionOS / Apple-style depth warp. A travelling specular highlight
+    tracks the cursor and the card lifts on hover.
 
-    It is a progressive enhancement: backdrop url() filters are a
-    Chromium strength, so elsewhere it degrades to a plain frosted
-    glass surface. Fully stilled under prefers-reduced-motion (rule 2.12).
+    Pure CSS transforms (no SVG backdrop filters), so it is reliable
+    across browsers and composited. Stilled under
+    prefers-reduced-motion (rule 2.12).
 
     Usage:
       <DrylLiquidGlass Intensity="LiquidGlassIntensity.Strong">
           <h3>Liquid glass</h3>
-          <p>Hover me — the background refracts through the surface.</p>
+          <p>Hover me — the surface tilts and the content floats.</p>
       </DrylLiquidGlass>
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCss" @ref="_el" @attributes="AdditionalAttributes">
-
-    @* Per-instance refraction filter — a unique id so multiple surfaces never
-       collide. feTurbulence at a low frequency makes large, smooth warps (a
-       "thick glass" wobble rather than fine water noise); feDisplacementMap
-       then bends the backdrop by that map. feTurbulence is used over feImage
-       because procedural maps are reliably honoured inside backdrop-filter. *@
-    <svg class="lg-defs" aria-hidden="true" focusable="false">
-        <filter id="@_filterId" x="-20%" y="-20%" width="140%" height="140%"
-                color-interpolation-filters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="@BaseFrequency"
-                          numOctaves="2" seed="11" result="noise" />
-            <feGaussianBlur in="noise" stdDeviation="2" result="smooth" />
-            <feDisplacementMap in="SourceGraphic" in2="smooth"
-                               scale="@DisplacementScale"
-                               xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-    </svg>
-
-    <div class="lg-refract" style="@RefractStyle"></div>
     <div class="lg-sheen"></div>
     <div class="lg-specular"></div>
-
     <div class="lg-content">
         @ChildContent
     </div>
@@ -56,10 +35,10 @@
     /// <summary>The surface content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>How strongly the backdrop is refracted and frosted.</summary>
+    /// <summary>How strong the tilt, parallax and frost are.</summary>
     [Parameter] public LiquidGlassIntensity Intensity { get; set; } = LiquidGlassIntensity.Medium;
 
-    /// <summary>If true (default), the surface tilts and the highlight follows the pointer.</summary>
+    /// <summary>If true (default), the surface warps toward the pointer and the highlight follows it.</summary>
     [Parameter] public bool Interactive { get; set; } = true;
 
     /// <summary>Extra CSS class(es) merged onto the surface.</summary>
@@ -69,46 +48,8 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private readonly string _filterId = $"lg-{Guid.NewGuid():N}";
     private ElementReference _el;
     private bool _attached;
-
-    // Edge-bending strength (px). Higher = more pronounced lens at the rim.
-    private int DisplacementScale => Intensity switch
-    {
-        LiquidGlassIntensity.Subtle => 40,
-        LiquidGlassIntensity.Strong => 140,
-        _ => 80
-    };
-
-    private double Frost => Intensity switch
-    {
-        LiquidGlassIntensity.Subtle => 1,
-        LiquidGlassIntensity.Strong => 4,
-        _ => 2
-    };
-
-    // Refract layer: lens the backdrop through the displacement filter. If the
-    // browser lacks url() backdrop filters the whole declaration is dropped and
-    // the .lg-refract CSS fallback (a plain frost) applies instead.
-    private string RefractStyle
-    {
-        get
-        {
-            var f = FormattableString.Invariant(
-                $"url(#{_filterId}) blur({Frost}px) saturate(1.5)");
-            return $"backdrop-filter: {f}; -webkit-backdrop-filter: {f};";
-        }
-    }
-
-    // Lower frequency → larger, smoother warps (thick glass) rather than fine
-    // water ripples. Invariant so the German locale doesn't emit "0,008".
-    private string BaseFrequency => Intensity switch
-    {
-        LiquidGlassIntensity.Subtle => "0.006",
-        LiquidGlassIntensity.Strong => "0.013",
-        _ => "0.009"
-    };
 
     private string RootCss
     {
@@ -124,6 +65,7 @@
                     _ => "lg--medium"
                 }
             };
+            if (!Interactive) parts.Add("lg--static");
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }

@@ -854,36 +854,53 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 /* ──────────────────────────────────────────────────────────
  * Liquid Glass (experimental) — DrylLiquidGlass.
- * Apple-style refraction: the surface actually LENSES the backdrop
- * behind it via backdrop-filter + an SVG feDisplacementMap whose map
- * is 0.5 (neutral) in the centre and ramps to the edges, so the
- * background bends most at the rim — like thick rounded glass.
- *   • backdrop displacement url() filter set inline per instance
- *     (Chromium); graceful fallback to a plain frost elsewhere
- *   • clear (not frosted) body + bright directional edge highlights
- *   • pointer-driven 3D tilt (--tx/--ty) + travelling specular (--mx/--my)
- * Stilled under prefers-reduced-motion.
+ * A glass pane that WARPS in 3D toward the pointer: the surface tilts
+ * in perspective while the content and gloss parallax in separate
+ * layers, so it reads like a sheet of glass floating above the page
+ * (visionOS / Apple-style depth). Pure CSS transforms driven by the
+ * --tx/--ty/--mx/--my variables dryl.liquidglass writes — reliable,
+ * composited, no SVG backdrop filters. Stilled under reduced motion.
+ *   --lg-tilt — max tilt angle   --lg-par — max parallax shift
  * ────────────────────────────────────────────────────────── */
 .lg {
+  --lg-tilt: 8deg;
+  --lg-par: 10px;
   position: relative;
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px) saturate(1.5);
+  -webkit-backdrop-filter: blur(8px) saturate(1.5);
   border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
-    0 10px 34px rgba(0, 0, 0, 0.30),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
-    inset -1px -1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 0 20px rgba(255, 255, 255, 0.06);
+    0 12px 36px rgba(0, 0, 0, 0.32),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.5),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 20px rgba(255, 255, 255, 0.05);
   overflow: hidden;
   isolation: isolate;
   transform:
     perspective(900px)
-    rotateX(calc(var(--ty, 0) * -7deg))
-    rotateY(calc(var(--tx, 0) * 7deg));
-  transition: transform var(--dur-med) var(--ease-out);
+    rotateX(calc(var(--ty, 0) * var(--lg-tilt) * -1))
+    rotateY(calc(var(--tx, 0) * var(--lg-tilt)))
+    translateY(var(--lg-lift, 0px));
+  transition:
+    transform var(--dur-med) var(--ease-spring),
+    box-shadow var(--dur-med) var(--ease-out);
+  will-change: transform;
+}
+.lg:hover {
+  --lg-lift: -4px;
+  box-shadow:
+    0 22px 50px rgba(0, 0, 0, 0.42),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.6),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 26px rgba(255, 255, 255, 0.07);
 }
 
-.lg-refract,
+.lg--subtle { --lg-tilt: 4deg;  --lg-par: 6px;  }
+.lg--medium { --lg-tilt: 8deg;  --lg-par: 10px; }
+.lg--strong { --lg-tilt: 13deg; --lg-par: 16px; }
+
 .lg-sheen,
 .lg-specular {
   position: absolute;
@@ -892,21 +909,17 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   pointer-events: none;
 }
 
-/* The lens. The component sets backdrop-filter: url(#…) inline (the id is
-   per-instance). This rule is the FALLBACK for browsers without url() backdrop
-   filters — a plain frost so it still reads as glass. */
-.lg-refract {
-  z-index: 0;
-  backdrop-filter: blur(2px) saturate(1.4);
-  -webkit-backdrop-filter: blur(2px) saturate(1.4);
-}
-
-/* Static top gloss — the bright sheen along the upper edge. */
+/* Top gloss — parallaxes opposite the tilt so the sheen slides across the
+   glass as it warps (depth cue). */
 .lg-sheen {
   z-index: 1;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.22), transparent 42%);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.24), transparent 45%);
   mix-blend-mode: screen;
   opacity: 0.7;
+  transform: translate(
+    calc(var(--tx, 0) * var(--lg-par) * -1.4),
+    calc(var(--ty, 0) * var(--lg-par) * -1.4));
+  transition: transform var(--dur-med) var(--ease-out);
 }
 
 /* Travelling glossy highlight — follows the pointer (falls back to top-centre). */
@@ -914,22 +927,29 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   z-index: 2;
   background: radial-gradient(
     220px 220px at var(--mx, 50%) var(--my, 0%),
-    rgba(255, 255, 255, 0.38), transparent 60%);
+    rgba(255, 255, 255, 0.40), transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.6;
 }
 
+/* Content floats above the glass plane — parallaxes WITH the tilt and lifts
+   on hover so it reads as raised. */
 .lg-content {
   position: relative;
   z-index: 3;
   padding: var(--sp-5);
   color: var(--fg);
+  transform: translate(
+    calc(var(--tx, 0) * var(--lg-par)),
+    calc(var(--ty, 0) * var(--lg-par)));
+  transition: transform var(--dur-med) var(--ease-out);
 }
 
-.lg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
-
 @media (prefers-reduced-motion: reduce) {
-  .lg { transform: none; transition: none; }
+  .lg,
+  .lg-sheen,
+  .lg-content { transform: none; transition: none; }
+  .lg:hover { --lg-lift: 0px; }
 }
 
 /* Scrollbar */

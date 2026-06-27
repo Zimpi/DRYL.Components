@@ -4,47 +4,50 @@ using DRYL.Components;
 namespace DRYL.Components.Tests;
 
 /// <summary>
-/// Tests for <see cref="DrylLiquidGlass"/> — the experimental refractive glass
-/// surface. JSInterop is Loose because it wires dryl.liquidglass on render.
+/// Tests for <see cref="DrylLiquidGlass"/> — the glass surface that warps in 3D
+/// toward the pointer. JSInterop is Loose because it wires dryl.liquidglass on
+/// render.
 /// </summary>
 public class DrylLiquidGlassTests : BunitContext
 {
     public DrylLiquidGlassTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
     [Fact]
-    public void Renders_glass_layers_with_per_instance_filter()
+    public void Renders_glass_layers_and_content()
     {
         var cut = Render<DrylLiquidGlass>(ps => ps.AddChildContent("<span>body</span>"));
 
         Assert.Single(cut.FindAll(".lg"));
-        Assert.Single(cut.FindAll(".lg-refract"));
+        Assert.Single(cut.FindAll(".lg-sheen"));
         Assert.Single(cut.FindAll(".lg-specular"));
-
-        // The refract layer references the instance's own SVG filter.
-        var filterId = cut.Find(".lg-defs filter").GetAttribute("id");
-        Assert.StartsWith("lg-", filterId);
-        Assert.Contains($"url(#{filterId})", cut.Find(".lg-refract").GetAttribute("style"));
         Assert.Contains("body", cut.Find(".lg-content").InnerHtml);
     }
 
     [Theory]
-    [InlineData(LiquidGlassIntensity.Subtle, "lg--subtle", "40")]
-    [InlineData(LiquidGlassIntensity.Medium, "lg--medium", "80")]
-    [InlineData(LiquidGlassIntensity.Strong, "lg--strong", "140")]
-    public void Intensity_drives_class_and_displacement_scale(
-        LiquidGlassIntensity intensity, string cssClass, string scale)
+    [InlineData(LiquidGlassIntensity.Subtle, "lg--subtle")]
+    [InlineData(LiquidGlassIntensity.Medium, "lg--medium")]
+    [InlineData(LiquidGlassIntensity.Strong, "lg--strong")]
+    public void Intensity_maps_to_class(LiquidGlassIntensity intensity, string cssClass)
     {
         var cut = Render<DrylLiquidGlass>(ps => ps.Add(p => p.Intensity, intensity));
 
         Assert.Contains(cssClass, cut.Find(".lg").GetAttribute("class"));
-        Assert.Equal(scale, cut.Find("feDisplacementMap").GetAttribute("scale"));
     }
 
     [Fact]
-    public void Non_interactive_does_not_track_pointer()
+    public void Interactive_tracks_pointer()
     {
-        Render<DrylLiquidGlass>(ps => ps.Add(p => p.Interactive, false));
+        Render<DrylLiquidGlass>(ps => ps.Add(p => p.Interactive, true));
 
+        Assert.NotEmpty(JSInterop.Invocations["dryl.liquidglass.track"]);
+    }
+
+    [Fact]
+    public void Non_interactive_does_not_track_pointer_and_marks_static()
+    {
+        var cut = Render<DrylLiquidGlass>(ps => ps.Add(p => p.Interactive, false));
+
+        Assert.Contains("lg--static", cut.Find(".lg").GetAttribute("class"));
         Assert.Empty(JSInterop.Invocations["dryl.liquidglass.track"]);
     }
 }

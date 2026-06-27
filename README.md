@@ -430,7 +430,7 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylChatComposer`| Surfaces     | ✅      | ✅ Done    | Chat input; Enter sends, Shift+Enter newline, auto-grow textarea; `OnSend` callback |
 | `DrylPopover`     | Surfaces     | —       | ✅ Done    | Anchored floating-panel primitive; portals to `<body>` (never clipped); placement, click-outside / Escape, match-width |
 | `DrylPresence`    | Surfaces     | —       | ✅ Done    | Motion primitive; defers unmount until exit animation finishes (Fade / Scale / Slide); reduced-motion aware |
-| `DrylLiquidGlass` | Surfaces     | —       | ✅ Done    | Experimental Apple-style refractive glass; SVG warp + tilt + specular; Subtle / Medium / Strong; reduced-motion aware |
+| `DrylLiquidGlass` | Surfaces     | —       | ✅ Done    | Experimental glass that warps in 3D toward the pointer; tilt + parallax + specular + hover lift; reduced-motion aware |
 | `DrylEmptyState`  | Feedback     | ✅      | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes; AI-aware |
 | `DrylDescriptionList` | Data     | —       | ✅ Done    | Semantic `<dl>` key/value view; Stacked / Inline; columns |
 | `DrylDescriptionItem` | Data     | —       | ✅ Done    | Term/value pair inside `DrylDescriptionList` |

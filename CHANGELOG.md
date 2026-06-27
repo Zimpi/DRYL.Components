@@ -37,7 +37,7 @@ Version bump guide:
 - `dryl.motion` — New JS module (`onExit`, `moveIndicator`, `observe`) powering the motion primitives; reduced-motion aware
 - `--reveal-step` — New motion token (60 ms) controlling `DrylReveal`'s per-child stagger step
 - `DrylTabs` — New `AnimateIndicator` parameter (default true) to opt out of the gliding underline
-- `DrylLiquidGlass` — New experimental Apple-style refractive glass surface; SVG `feDisplacementMap` warp + ambient drift + pointer-driven 3D tilt and travelling specular highlight; `Intensity` (Subtle / Medium / Strong), `Interactive`; progressive enhancement over the glass base, reduced-motion aware
+- `DrylLiquidGlass` — New experimental glass surface that warps in 3D toward the pointer; perspective tilt + layered content/gloss parallax + travelling specular highlight + hover lift (visionOS-style depth, pure CSS transforms); `Intensity` (Subtle / Medium / Strong), `Interactive`; reduced-motion aware
 
 ### Changed
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
