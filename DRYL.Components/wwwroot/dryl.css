@@ -3,6 +3,13 @@
    Glassmorphism · Dark · Indirect Light · Motion
    ============================================================= */
 
+/* Registered so theme seeds interpolate — the derived color-mix chain glides
+   on a theme change. Initial values mirror the default Nebula accent. */
+@property --accent-a { syntax: "<color>"; inherits: true; initial-value: #7c5cff; }
+@property --accent-b { syntax: "<color>"; inherits: true; initial-value: #22d3ee; }
+@property --ai-a     { syntax: "<color>"; inherits: true; initial-value: #7c5cff; }
+@property --ai-b     { syntax: "<color>"; inherits: true; initial-value: #22d3ee; }
+
 :root {
   /* Tell the browser this surface is dark — applies to native UA controls (<select> dropdowns, scrollbars, form autofill) so they don't ship light-mode defaults onto our glass. */
   color-scheme: dark;
@@ -29,14 +36,18 @@
   --fg-dim:        rgba(244, 244, 247, 0.38);
   --fg-faint:      rgba(244, 244, 247, 0.22);
 
-  /* Accent — gradient violet → cyan */
+  /* Accent — gradient violet → cyan (themeable seeds) */
   --accent-a:      #7c5cff;
   --accent-b:      #22d3ee;
   --accent:        var(--accent-a);
-  --accent-soft:   rgba(124, 92, 255, 0.18);
-  --accent-line:   rgba(124, 92, 255, 0.45);
+  --accent-soft:   color-mix(in srgb, var(--accent-a) 18%, transparent);
+  --accent-line:   color-mix(in srgb, var(--accent-a) 45%, transparent);
   --accent-grad:   linear-gradient(135deg, var(--accent-a) 0%, var(--accent-b) 100%);
   --accent-grad-r: linear-gradient(135deg, var(--accent-b) 0%, var(--accent-a) 100%);
+
+  /* AI accent — defaults to the brand accent (opt-in divergence via DrylTheme.AiAccent) */
+  --ai-a:          var(--accent-a);
+  --ai-b:          var(--accent-b);
 
   /* Semantic */
   --success:       #34d399;
@@ -70,8 +81,11 @@
   --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
   --shadow-md:  0 8px 24px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.35);
   --shadow-lg:  0 24px 64px rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.35);
-  --glow-accent: 0 0 0 1px var(--accent-line), 0 8px 32px rgba(124, 92, 255, 0.35), 0 0 64px rgba(34, 211, 238, 0.18);
-  --glow-soft:   0 0 60px rgba(124, 92, 255, 0.18), 0 0 120px rgba(34, 211, 238, 0.08);
+  --glow-accent: 0 0 0 1px var(--accent-line),
+                 0 8px 32px color-mix(in srgb, var(--accent-a) 35%, transparent),
+                 0 0 64px color-mix(in srgb, var(--accent-b) 18%, transparent);
+  --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 18%, transparent),
+                 0 0 120px color-mix(in srgb, var(--accent-b) 8%, transparent);
 
   /* Motion */
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
@@ -96,6 +110,16 @@
   --sidebar-collapsed-w: 56px;
 }
 
+/* Theme seeds glide on change; instant for reduced-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    transition: --accent-a var(--dur-slow) var(--ease-in-out),
+                --accent-b var(--dur-slow) var(--ease-in-out),
+                --ai-a var(--dur-slow) var(--ease-in-out),
+                --ai-b var(--dur-slow) var(--ease-in-out);
+  }
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -115,9 +139,9 @@ html, body {
 
 body {
   background:
-    radial-gradient(1200px 800px at 15% -10%, rgba(124, 92, 255, 0.12), transparent 60%),
-    radial-gradient(1000px 700px at 100% 0%, rgba(34, 211, 238, 0.08), transparent 60%),
-    radial-gradient(900px 700px at 50% 110%, rgba(124, 92, 255, 0.06), transparent 60%),
+    radial-gradient(1200px 800px at 15% -10%, color-mix(in srgb, var(--accent-a) 12%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, color-mix(in srgb, var(--accent-b) 8%, transparent), transparent 60%),
+    radial-gradient(900px 700px at 50% 110%, color-mix(in srgb, var(--accent-a) 6%, transparent), transparent 60%),
     var(--ground);
   background-attachment: fixed;
 }
@@ -1690,8 +1714,8 @@ code, .code-inline {
 .tbl-root .ai-aura-glow {
   box-shadow:
     inset 0 0 0 1px var(--accent-line),
-    inset 0 0 48px rgba(124, 92, 255, 0.18),
-    inset 0 0 96px rgba(34, 211, 238, 0.08);
+    inset 0 0 48px color-mix(in srgb, var(--ai-a) 18%, transparent),
+    inset 0 0 96px color-mix(in srgb, var(--ai-b) 8%, transparent);
 }
 /* Suppress the Generated lift on the table — visually distracting on a tall
    surface. The wash + row entry animations carry the reveal moment. */
@@ -2942,8 +2966,8 @@ td.tbl-td-editing select {
 .toast.ai-aura .ai-aura-glow {
   box-shadow:
     inset 0 0 0 1px var(--accent-line),
-    inset 0 0 32px rgba(124, 92, 255, 0.18),
-    inset 0 0 64px rgba(34, 211, 238, 0.08);
+    inset 0 0 32px color-mix(in srgb, var(--ai-a) 18%, transparent),
+    inset 0 0 64px color-mix(in srgb, var(--ai-b) 8%, transparent);
 }
 .toast.ai-aura .toast-progress {
   background: var(--accent-grad);
@@ -3564,11 +3588,11 @@ body.dryl-scroll-locked { overflow: hidden; }
   padding: 1px;
   background: conic-gradient(
     from var(--ai-aura-angle, 0deg),
-    var(--accent-a),
-    var(--accent-b),
-    var(--accent-a),
-    var(--accent-b),
-    var(--accent-a)
+    var(--ai-a),
+    var(--ai-b),
+    var(--ai-a),
+    var(--ai-b),
+    var(--ai-a)
   );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -3590,8 +3614,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   z-index: -1;
   box-shadow:
     0 0 0 1px var(--accent-line),
-    0 0 24px rgba(124, 92, 255, 0.25),
-    0 0 56px rgba(34, 211, 238, 0.15);
+    0 0 24px color-mix(in srgb, var(--ai-a) 25%, transparent),
+    0 0 56px color-mix(in srgb, var(--ai-b) 15%, transparent);
   animation: ai-aura-breathe 4s var(--ease-in-out) infinite;
 }
 
@@ -3636,8 +3660,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(124, 92, 255, 0.18) 40%,
-    rgba(34, 211, 238, 0.18) 60%,
+    color-mix(in srgb, var(--ai-a) 18%, transparent) 40%,
+    color-mix(in srgb, var(--ai-b) 18%, transparent) 60%,
     transparent 100%
   );
   transform: translateX(-100%);
