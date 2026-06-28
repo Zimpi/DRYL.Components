@@ -9,7 +9,7 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2.svg?logo=github)](https://github.com/sponsors/Zimpi)
 
 **Dark. Glassy. Alive — and AI-native.**
-The open-source UI library for **Blazor Server** and **Blazor WebAssembly**, built for products that ship with a model in the loop.
+The open-source UI component library for **Blazor Server** and **Blazor WebAssembly**, built for products that ship with a model in the loop.
 
 ```bash
 dotnet add package DRYL.Components
@@ -25,22 +25,46 @@ dotnet add package DRYL.Components
 
 ## Why DRYL?
 
-Most Blazor component libraries are ports of Bootstrap or Material — safe, neutral, indistinguishable. They were designed for the apps of 2014. **Your app has a language model in it.**
+Most Blazor component libraries are ports of Bootstrap or Material — safe, neutral, indistinguishable. DRYL starts from a different premise: **your app has a language model in it**, and AI is a first-class state of the UI, not a spinner you bolt on at the end.
 
-DRYL starts from that reality. AI is not a spinner you bolt on at the end — it is a **first-class state of the UI**. Every AI-capable surface accepts a single `Ai` parameter, and that one parameter drives a shared visual vocabulary across the whole library: a rotating gradient border while the model thinks, an accelerated glow while tokens stream, a one-shot accent wash the moment the answer lands. Users learn the language once and *feel* where the AI is working — on a card, a table, a dialog, an input — without ever reading a label.
-
-And it looks the part:
-
+- **AI-native.** Every AI-capable surface accepts a single `Ai` parameter that drives a shared visual vocabulary — rotating gradient border, streaming glow, one-shot reveal — across the whole library.
 - **Dark only.** Translucent glass layers stacked on pure black. No light theme, no toggle — dark *is* the design.
-- **Accents glow, never scream.** A violet-to-cyan gradient lives in 1px borders, glow rings and tiny indicators — never in shouting background fills.
-- **Motion is intentional.** Three durations, three easings, system-wide. Nothing flickers, nothing crawls.
-- **One token file.** Every color, spacing, radius, shadow and duration is a CSS variable in [`dryl.css`](DRYL.Components/wwwroot/dryl.css). Re-tune the entire visual language in one place.
-- **86 components, zero JavaScript dependencies.** No npm, no JS framework underneath — just CSS, Razor, and minimal interop. One approved .NET dependency ([Markdig](https://github.com/xoofx/markdig)) for Markdown rendering.
-- **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings — and AI activity announced via `aria-live`, so the glow is never the only signal.
+- **Accents glow, never scream.** A violet-to-cyan gradient lives in 1px borders, glow rings and tiny indicators — never as a background fill.
+- **Motion is intentional.** Three durations, three easings, system-wide. Nothing flickers, nothing crawls. Every component animates its enter, exit and state changes.
+- **One token file.** Every color, spacing, radius, shadow and duration is a CSS variable in [`dryl.css`](DRYL.Components/wwwroot/dryl.css).
+- **~90 components, zero JavaScript dependencies.** No npm, no JS framework underneath — just CSS, Razor, and minimal interop.
+- **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings — and AI activity announced via `aria-live`.
 
 ---
 
-## Installation & getting started
+## Make it yours — theming
+
+Most libraries make you hand-tune dozens of colors and hope they stay coherent.
+DRYL flips that: you set a few **seeds** and the system **derives** the rest —
+gradient, soft fills, accent lines, glow rings and the AI aura all stay in sync.
+
+```razor
+@* One line in your root layout *@
+<DrylThemeProvider Theme="DrylThemes.Ember" />
+```
+
+Switch at runtime — the whole accent chain *glides* (and respects
+`prefers-reduced-motion`):
+
+```csharp
+@inject IDrylThemeService Theme
+
+await Theme.SetAccentAsync("#f59e0b", "#f43f5e"); // or Theme.SetThemeAsync(DrylThemes.Verdant)
+```
+
+Ships with curated presets — **Nebula** (default), **Ember**, **Verdant**,
+**Mono** — and a dedicated, opt-in **AI accent** so AI moments can glow in their
+own color. The dark glass core stays fixed by design, so a theme can't break the
+look. Full guide: [`THEMING.md`](THEMING.md).
+
+---
+
+## Quick start
 
 DRYL targets **.NET 8, 9 and 10**.
 
@@ -62,9 +86,10 @@ builder.Services.AddDrylComponents();
 <link rel="stylesheet" href="_content/DRYL.Components/dryl.css" />
 ```
 
-**4. Add the providers** once in your root layout (for service-driven dialogs, toasts and notifications)
+**4. Add the providers** once in your root layout
 
 ```razor
+<DrylThemeProvider />
 <DrylDialogProvider />
 <DrylToastProvider />
 ```
@@ -83,7 +108,7 @@ builder.Services.AddDrylComponents();
 
 ## AI Mode — first-class citizen
 
-Every surface in the library that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That one parameter drives a consistent, learnable visual vocabulary — users see the same rotating gradient border on a card that's streaming tokens as they do on an expansion panel being filled by a tool call.
+Every surface that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That parameter drives a consistent, learnable visual vocabulary across cards, tables, dialogs, inputs and more — users see the same rotating gradient border on a card that's streaming tokens as they do on a step being filled by a tool call.
 
 ### The five states
 
@@ -94,18 +119,6 @@ Every surface in the library that can carry AI-generated content accepts a singl
 | `Thinking`   | Faster pulse on border and glow.                                | A tool call is in flight.                                  |
 | `Streaming`  | Moderate pulse; content updates incrementally.                  | Tokens are arriving from the model.                        |
 | `Generated`  | One-shot accent wash sweep + soft lift.                         | Reveal moment immediately after generation completes.       |
-
-### AI-aware components
-
-All AI-aware components share the same `Ai="AiState.X"` API. The effects are implemented entirely in CSS (`dryl.css`) with no component-specific overrides, so the ring, glow and wash look identical across:
-
-- **`DrylCard`** — glass surface with cursor spotlight; ring draws around the card border
-- **`DrylButton`** — rotating ring sits outside the variant fill; useful for "Ask AI" CTA buttons
-- **`DrylInputText` / `DrylTextarea`** — ring wraps the input field; ideal for prompts bound to streaming completions
-- **`DrylTable`** — ring wraps the full table; rows animate in as they stream
-- **`DrylExpansion`** — ring wraps the panel header; the panel can open automatically when the model starts streaming its body
-- **`DrylAlert`** — ring wraps the feedback banner; ideal for surfacing AI-generated warnings, summaries or status updates with a dedicated `Ai` kind
-- **`DrylAiIndicator`** — companion status pill that adapts its label and pulse speed to the current state
 
 ### Wiring with `Microsoft.Extensions.AI`
 
@@ -135,337 +148,28 @@ private async Task AskAi()
     <DrylAiIndicator State="@_state" />
     @_text
 </DrylCard>
-
-<DrylExpansion Title="AI summary" Icon="Sparkle" Ai="@_state" @bind-Open="_open">
-    <ChildContent>@_text</ChildContent>
-</DrylExpansion>
 ```
 
-The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`) live in [`dryl.css`](DRYL.Components/wwwroot/dryl.css) and can be applied to any element that isn't yet a DRYL component.
+The CSS primitives behind this (`.ai-aura`, `.ai-aura-ring`, `.ai-aura-glow`, `.ai-aura-wash`) live in [`dryl.css`](DRYL.Components/wwwroot/dryl.css) and can be applied to any element that isn't yet a DRYL component. The full list of AI-aware components — including `DrylDialog` for Human-in-the-Middle flows and `DrylTable` for streaming rows — is at [components.dryl.dev](https://components.dryl.dev/).
 
 ---
 
-## Dialog & DialogService
+## Where to go deeper
 
-DRYL ships a service-driven dialog system inspired by the patterns popularised by MudBlazor's `IDialogService`, but built on the DRYL glass aesthetic and **AI-native from day one**. The dialog is the natural place to host a **"human in the middle"** flow: the model proposes, the user reviews, the user approves or edits.
+DRYL ships **~90 components across 8 categories** — actions, surfaces,
+navigation, data, inputs, layout, feedback, and a dedicated **Intelligence**
+set for agent UIs (token streams, tool-call traces, RAG citations,
+human-in-the-middle review).
 
-### Setup
+The complete, interactive reference — every component, variant and AI state —
+lives at **[components.dryl.dev](https://components.dryl.dev/)**.
 
-```csharp
-// Program.cs
-builder.Services.AddDrylComponents();
-```
+For the design language and customization model:
+[`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) ·
+[`THEMING.md`](THEMING.md) ·
+[`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
 
-```razor
-@* App.razor or MainLayout.razor — once, at the root *@
-<DrylDialogProvider />
-```
-
-### Showing a dialog
-
-```csharp
-@inject IDrylDialogService Dialogs
-
-var reference = await Dialogs.ShowAsync<MyDialog>(
-    title: "Edit profile",
-    parameters: new DialogParameters { ["UserId"] = id },
-    options: new DialogOptions { Size = DialogSize.Large });
-
-var result = await reference.Result;
-if (!result.Canceled)
-{
-    var payload = result.DataAs<MyPayload>();
-}
-```
-
-### Convenience helpers
-
-```csharp
-var ok = await Dialogs.ShowConfirmAsync("Delete project?", "This cannot be undone.");
-await Dialogs.ShowAlertAsync("Deployment failed", "See logs for details.");
-```
-
-### Authoring a dialog
-
-```razor
-@* MyDialog.razor — shown via IDrylDialogService *@
-<DrylDialog Title="Edit profile" Ai="@_ai">
-    <ChildContent>
-        <DrylInputText @bind-Value="_name" Label="Name" />
-    </ChildContent>
-    <ActionContent>
-        <DrylButton Variant="DrylButton.ButtonVariant.Ghost" @onclick="Cancel">Cancel</DrylButton>
-        <DrylButton Variant="DrylButton.ButtonVariant.Primary" @onclick="Save">Save</DrylButton>
-    </ActionContent>
-</DrylDialog>
-
-@code {
-    [CascadingParameter] IDrylDialogInstance Instance { get; set; } = default!;
-    [Parameter] public Guid UserId { get; set; }
-    private string _name = "";
-    private AiState _ai = AiState.None;
-
-    void Save()   => Instance.Close(DialogResult.Ok(_name));
-    void Cancel() => Instance.Cancel();
-}
-```
-
-### Human in the Middle
-
-The `Ai` parameter on `DrylDialog` walks the standard `AiState` lifecycle and the existing AI primitives carry the visual story — there is no per-component AI vocabulary. A typical wiring with `Microsoft.Extensions.AI`:
-
-```csharp
-_ai = AiState.Thinking;
-await foreach (var chunk in chatClient.GetStreamingResponseAsync(prompt))
-{
-    if (_ai != AiState.Streaming) _ai = AiState.Streaming;
-    _generated += chunk.Text;
-    StateHasChanged();
-}
-_ai = AiState.Generated;   // one-shot reveal
-// User can now edit `_generated` in a DrylTextarea and Approve / Cancel.
-```
-
-Every step is visible to the user through the dialog's border and glow — the model is at work, the model is streaming, the model is done, the user is in control.
-
----
-
-## DrylTable — declarative data grid
-
-`DrylTable<TItem>` is the workhorse for displaying tabular data. Columns are declared with `DrylColumn<TItem>` child components — each column knows whether it is sortable, filterable, or searchable, which removes the need to wire up headers and row templates separately.
-
-### Minimal
-
-```razor
-<DrylTable TItem="Service" Items="@services" AriaLabel="Services">
-    <Columns>
-        <DrylColumn TItem="Service" Field="@(s => s.Name)"   Title="Service" Sortable Searchable Primary />
-        <DrylColumn TItem="Service" Field="@(s => s.Status)" Title="Status" Sortable />
-    </Columns>
-</DrylTable>
-```
-
-### Full enterprise setup
-
-```razor
-<DrylTable TItem="Service"
-           Items="@services"
-           ShowToolbar Searchable
-           PageSize="20"
-           Selectable
-           AriaLabel="Services">
-    <Columns>
-        <DrylColumn TItem="Service" Field="@(s => s.Name)"
-                    Title="Service" Sortable Searchable Filterable Primary />
-        <DrylColumn TItem="Service" Field="@(s => s.Environment)"
-                    Title="Env" Sortable Filterable
-                    FilterType="ColumnFilterType.Select" />
-        <DrylColumn TItem="Service" Field="@(s => s.LatencyMs)"
-                    Title="Latency" Sortable Align="ColumnAlign.End" Width="120px">
-            <CellTemplate Context="s">@(s.LatencyMs is { } n ? $"{n} ms" : "—")</CellTemplate>
-        </DrylColumn>
-    </Columns>
-</DrylTable>
-```
-
-The pipeline runs **search → filter → sort → page** entirely client-side. Toolbar shows the global search input plus active-filter chips with one-click removal. Headers cycle `none → asc → desc → none` on click; Shift-click adds to a multi-sort. Filter popovers open inline at the header — text input for free-form columns, multi-select for enums / bools / explicit `Select` filters.
-
-### Grouping, detail rows, row actions and bulk actions
-
-```razor
-<DrylTable TItem="Service" Items="@services"
-           ShowToolbar Searchable Selectable
-           GroupBy="@(s => s.Environment)"
-           PageSize="20">
-    <Columns> ... </Columns>
-
-    <DetailTemplate Context="s">
-        <div class="p-default">Full diagnostics for @s.Name…</div>
-    </DetailTemplate>
-
-    <RowActions Context="s">
-        <DrylButton Variant="ButtonVariant.Ghost" Size="ButtonSize.Small"
-                    LeadingIcon="Settings" AriaLabel="Edit" OnClick="() => Edit(s)" />
-    </RowActions>
-
-    <BulkActions Context="selected">
-        <DrylButton Variant="ButtonVariant.Danger" Size="ButtonSize.Small"
-                    OnClick="() => DeleteAll(selected)">
-            Delete @selected.Count
-        </DrylButton>
-    </BulkActions>
-</DrylTable>
-```
-
-`GroupBy` clusters rows under collapsible mono-styled headers. `DetailTemplate` adds an expand chevron column and reveals a glass panel under the row. `RowActions` appends a trailing actions column. `BulkActions` floats a glass action bar above the toolbar while any row is selected.
-
-### Virtualization, sticky header, column visibility and state persistence
-
-```razor
-<DrylTable TItem="Service" Items="@manyServices"
-           ShowToolbar Searchable
-           Virtualize Height="480px"
-           AllowColumnVisibility
-           PersistStateKey="services-table">
-    <Columns>
-        <DrylColumn TItem="Service" Field="@(s => s.Name)" Title="Service" Sortable Primary />
-        <DrylColumn TItem="Service" Field="@(s => s.LatencyMs)" Title="Latency" Sortable Hidden />
-        ...
-    </Columns>
-</DrylTable>
-```
-
-`Virtualize` renders only the rows in view via the framework's `Virtualize` component — pair it with a fixed `Height`. `StickyHeader` (on by default) anchors the header to the top of the scroll area. `AllowColumnVisibility` shows a Settings-icon menu in the toolbar to toggle columns. `PersistStateKey` snapshots sort / filters / page / page-size / hidden-columns to `localStorage` on every change and restores on first render. `Hidden` on a `DrylColumn` sets the initial collapsed state.
-
-### Server-side via `DataProvider`
-
-For large datasets, hand the table a `DataProvider` callback. It receives a `DataRequest` snapshot (`Skip`, `Take`, `SearchText`, `Sort`, `Filters`) and returns a `DataResult<TItem>` with the page and total count. When `DataProvider` is set, `Items` is ignored.
-
-```csharp
-async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToken ct)
-{
-    var query = repo.Services
-        .ApplySearch(req.SearchText)
-        .ApplyFilters(req.Filters)
-        .ApplySort(req.Sort);
-
-    var total = await query.CountAsync(ct);
-    var page  = await query.Skip(req.Skip).Take(req.Take).ToListAsync(ct);
-    return new DataResult<Service>(page, total);
-}
-```
-
-```razor
-<DrylTable TItem="Service" DataProvider="LoadAsync" Searchable ShowToolbar PageSize="20">
-    <Columns> ... </Columns>
-</DrylTable>
-```
-
-### Standalone pagination
-
-`DrylPagination` is also usable on its own — drop it under any list, gallery or feed.
-
-```razor
-<DrylPagination @bind-CurrentPage="page"
-                @bind-PageSize="size"
-                TotalCount="@total" />
-```
-
----
-
-## What's in the box
-
-**89 components across 8 categories** — actions, surfaces, navigation, data, inputs, layout, feedback, and a dedicated **Intelligence** category (`DrylAiScope`, `DrylAiStream`, `DrylToolCall`, `DrylChat`, `DrylCitation`, …) for building agent UIs: token streams, tool-call traces, RAG citations, human-in-the-middle review. Every component is token-driven, dark, and keyboard-accessible.
-
-| Component         | Category     | AI mode | Status     | Notes                                                              |
-| ----------------- | ------------ | ------- | ---------- | ------------------------------------------------------------------ |
-| `DrylButton`      | Actions      | ✅      | ✅ Done    | Primary / Secondary / Ghost / Danger, sizes, loading, icon slots, sheen + spring hover |
-| `DrylButtonGroup` | Actions      | —       | ✅ Done    | Segments related buttons into one outline; clustered actions or `Pressed` toggle group |
-| `DrylSplitButton` | Actions      | ✅      | ✅ Done    | Primary action + caret `DrylMenu` of variants ("Save ▾"); shared variant/size, AI-aware |
-| `DrylMenu`        | Actions      | —       | ✅ Done    | Dropdown menu; 4 placements, icons, shortcuts, Danger items, separators |
-| `DrylMenuItem`    | Actions      | —       | ✅ Done    | Menu item used inside `DrylMenu`; Default / Danger variant, separator, header |
-| `DrylCommandPalette` | Actions   | ✅      | ✅ Done    | Command launcher overlay; Ctrl+K; static + async search; Navigate / Action / AiIntent items; category grouping; AI result panel |
-| `DrylBreadcrumbs` | Navigation   | —       | ✅ Done    | Hierarchical trail; custom separator; `MaxItems` ellipsis collapse; `aria-current` on last crumb |
-| `DrylBreadcrumbItem` | Navigation | —      | ✅ Done    | Single crumb inside `DrylBreadcrumbs`; `Href` link or current page; optional icon |
-| `DrylCard`        | Surfaces     | ✅      | ✅ Done    | Glass surface; optional cursor spotlight or 3D `Depth` warp, `Ai` state |
-| `DrylBadge`       | Data         | —       | ✅ Done    | Neutral / Accent / Success / Warning / Danger, optional dot       |
-| `DrylAvatar`      | Data         | —       | ✅ Done    | Image → initials → icon fallback; sizes, Circle / Square, presence status dot |
-| `DrylAvatarGroup` | Data         | —       | ✅ Done    | Overlapping stack; cascades size; `Max` collapses overflow to `+N` |
-| `DrylSparkline`   | Data         | —       | ✅ Done    | Inline-SVG trend chart (zero JS); Line / Area / Bar; accent gradient |
-| `DrylStat`        | Data         | ✅      | ✅ Done    | KPI card; value + delta chip + sparkline slot; glass surface |
-| `DrylTimeline`    | Data         | —       | ✅ Done    | Vertical event rail; hosts `DrylTimelineItem`s |
-| `DrylTimelineItem`| Data         | ✅      | ✅ Done    | Event marker (5 variants), title, timestamp, body; AI agent step traces |
-| `DrylTreeView`    | Data         | —       | ✅ Done    | Hierarchical tree; `@bind-SelectedValue`; WAI-ARIA keyboard nav, roving tabindex |
-| `DrylTreeNode`    | Data         | —       | ✅ Done    | Tree node; `Text` / `Icon` / `Value` / `@bind-Expanded`; chevron, nesting |
-| `DrylIcon`        | Data         | —       | ✅ Done    | Lucide-based icon set, used by Button, Badge and others           |
-| `DrylImage`       | Data         | ✅      | ✅ Done    | Responsive image; auto aspect-ratio, skeleton, fallback; AI blur-to-sharp reveal |
-| `DrylAiIndicator` | Intelligence | ✅      | ✅ Done    | Pulsing status pill that adapts label and speed to `AiState`      |
-| `DrylAiScope`     | Intelligence | ✅      | ✅ Done    | Coordinates `AiState` across descendants by operation key; service- or `State`-driven; child `Ai` wins |
-| `DrylAiStream`    | Intelligence | ✅      | ✅ Done    | Binds an `IAsyncEnumerable<string>` token stream to the UI; auto Thinking→Streaming→Generated; lights up a `DrylAiScope` |
-| `DrylToolCall`    | Intelligence | ✅      | ✅ Done    | Agent tool/function call: name, live status pill, collapsible JSON args/result; `Error` alert; stack in `DrylTimeline` |
-| `DrylInputText`   | Inputs       | ✅      | ✅ Done    | Form-bound text input with leading / trailing icon slots          |
-| `DrylInputPassword` | Inputs     | ✅      | ✅ Done    | Password input with show/hide eye toggle; inherits `InputBase<string>` |
-| `DrylInputNumber<TValue>` | Inputs | ✅   | ✅ Done    | Generic numeric input; optional ± stepper; int / long / decimal / double / float |
-| `DrylCheckbox`    | Inputs       | —       | ✅ Done    | Accessible checkbox with label                                    |
-| `DrylSelect`      | Inputs       | ✅      | ✅ Done    | Custom dropdown; `Items: SelectItem[]`; glass panel, AI-aware     |
-| `DrylMultiSelect` | Inputs       | ✅      | ✅ Done    | Multi-selection dropdown; removable chips; `@bind-SelectedValues` |
-| `DrylRadioGroup<TValue>` | Inputs | ✅     | ✅ Done    | Radio group inheriting `InputBase<TValue>`; Vertical / Horizontal |
-| `DrylRadio<TValue>` | Inputs     | —       | ✅ Done    | Single radio option inside `DrylRadioGroup`; cascading context    |
-| `DrylSegmentedControl<TValue>` | Inputs | — | ✅ Done | iOS-style mode switch; gliding indicator; `@bind-Value`; arrow-key nav |
-| `DrylSegment<TValue>` | Inputs   | —       | ✅ Done    | Single segment inside `DrylSegmentedControl`; cascading context   |
-| `DrylTextarea`    | Inputs       | ✅      | ✅ Done    | Auto-resizable textarea                                           |
-| `DrylToggle`      | Inputs       | —       | ✅ Done    | On/off toggle switch                                              |
-| `DrylSlider`      | Inputs       | ✅      | ✅ Done    | Range slider bound to `double`; accent gradient fill, AI-aware    |
-| `DrylFileUpload`  | Inputs       | ✅      | ✅ Done    | Drag-and-drop / click-to-browse; multiple files; `FilesChanged` callback |
-| `DrylAutocomplete<TItem>` | Inputs | ✅   | ✅ Done    | Generic combobox; client-side `SearchFunc`, async `ItemsProvider`, custom `ItemTemplate`, ARIA combobox |
-| `DrylDatePicker`  | Inputs       | ✅      | ✅ Done    | Calendar panel; ARIA grid keyboard nav, Min/Max, date range mode  |
-| `DrylTimePicker`  | Inputs       | ✅      | ✅ Done    | Time-only picker; scrollable hour/minute panel; Min/Max; MinuteStep |
-| `DrylChipInput`   | Inputs       | ✅      | ✅ Done    | Free-text tag field; Enter/comma to commit; @bind-Tags; MaxTags   |
-| `DrylInputOtp`    | Inputs       | ✅      | ✅ Done    | Fixed-box OTP entry; auto-advance; paste-to-fill; configurable Digits |
-| `DrylInputMask`   | Inputs       | ✅      | ✅ Done    | Masked input; Phone/IBAN/PostalCode/CreditCard/Custom patterns    |
-| `DrylRating`      | Inputs       | ✅      | ✅ Done    | Star rating; hover preview; AllowClear; ReadOnly; keyboard nav    |
-| `DrylTable`       | Data         | ✅      | ✅ Done    | Declarative columns, search, multi-sort, filters, pagination, grouping, row detail, inline editing (row/cell), row reorder, column resize / reorder / pin, row + bulk actions, virtualization, column visibility, CSV export, `PersistStateKey`, optional `DataProvider` |
-| `DrylColumn`      | Data         | —       | ✅ Done    | Declarative column for `DrylTable` — `Sortable`, `Searchable`, `Filterable`, `Pinned`, `Resizable`, `Hidden`, custom `CellTemplate` / `EditTemplate` / `HeaderTemplate`, alignment |
-| `DrylPagination`  | Data         | —       | ✅ Done    | Standalone page navigator: First / Prev / numbers (smart-ellipsis) / Next / Last + page-size selector + "Showing X–Y of Z" |
-| `DrylExpansion`   | Layout       | ✅      | ✅ Done    | Collapsible glass panel; stacked panels share borders and detach on open |
-| `DrylLayout`      | Layout       | —       | ✅ Done    | Root shell — CSS grid; `SidebarWidth`, app-bar-driven collapse coordination |
-| `DrylAppBar`      | Layout       | —       | ✅ Done    | Sticky top bar; `Elevation`, `Start`/`Center`/`End` slots, drawer + sidebar toggles |
-| `DrylDrawer`      | Layout       | —       | ✅ Done    | Sidebar; `Mode` Auto/Static/Collapsible/Pinnable/Flyout, `@bind-Collapsed`, slots |
-| `DrylMainContent` | Layout       | —       | ✅ Done    | Main content slot inside `DrylLayout`; handles scroll and padding |
-| `DrylNavGroup`    | Layout       | —       | ✅ Done    | Labelled group; `Collapsible` + `DefaultExpanded` for accordion sub-menus; optional `Href` makes the header a NavLink |
-| `DrylNavLink`     | Layout       | —       | ✅ Done    | Single nav row; `Sub` renders indented child item inside a collapsible group; supports external links |
-| `DrylStepper`     | Layout       | —       | ✅ Done    | Multi-step wizard container; Horizontal / Vertical orientation, `@bind-ActiveStep` |
-| `DrylStep`        | Layout       | ✅      | ✅ Done    | Single step inside `DrylStepper`; Pending / Active / Completed / Error states, AI ring |
-| `DrylScrollArea`  | Layout       | —       | ✅ Done    | Scrollable region with thin DRYL scrollbar; `MaxHeight` / `MaxWidth` / `Horizontal`; pure CSS |
-| `DrylReveal`      | Layout       | —       | ✅ Done    | Motion primitive; scroll-triggered staggered entrance (Fade / Rise / ScaleIn) via IntersectionObserver; reduced-motion aware |
-| `DrylTypo`        | Layout       | —       | ✅ Done    | Type scale primitive; `Variant` look + `As` tag, `Color`, `Align`, `Gradient` |
-| `DrylStack`       | Layout       | —       | ✅ Done    | Flex layout; `Direction` / `Gap` / `Align` / `Justify` / `Wrap`; replaces row/col markup |
-| `DrylList`        | Layout       | —       | ✅ Done    | Token-driven list; marker `Variant`, `Density`, `Dividers`, ordered; nesting |
-| `DrylListItem`    | Layout       | —       | ✅ Done    | List row; `Icon`, `Start` / `End` slots, `Selected` / `Disabled`, `OnClick` |
-| `DrylDivider`     | Layout       | —       | ✅ Done    | Thin rule; horizontal / vertical, optional centred label ("— or —") |
-| `DrylDialog`      | Surfaces     | ✅      | ✅ Done    | Service-driven glass dialog, focus trap, sizes, AI-aware (Human in the Middle) |
-| `DrylToast`       | Surfaces     | ✅      | ✅ Done    | Service-driven toast stack; auto-dismiss, progress bar, hover-pause, 6 positions |
-| `DrylChat`        | Surfaces     | ✅      | ✅ Done    | Conversation surface; scrollable log + pinned composer slot; auto-scroll; `role="log"` aria-live |
-| `DrylMessage`     | Surfaces     | ✅      | ✅ Done    | Chat bubble; User / Assistant / System roles; author, timestamp, avatar, typing dots; optional `Markdown`/`Text` for rich LLM output |
-| `DrylChatComposer`| Surfaces     | ✅      | ✅ Done    | Chat input; Enter sends, Shift+Enter newline, auto-grow textarea; `OnSend` callback |
-| `DrylPopover`     | Surfaces     | —       | ✅ Done    | Anchored floating-panel primitive; portals to `<body>` (never clipped); placement, click-outside / Escape, match-width |
-| `DrylPresence`    | Surfaces     | —       | ✅ Done    | Motion primitive; defers unmount until exit animation finishes (Fade / Scale / Slide); reduced-motion aware |
-| `DrylDepthGlass`  | Surfaces     | —       | ✅ Done    | Experimental glass that warps in 3D toward the pointer; tilt + parallax + specular + hover lift; reduced-motion aware |
-| `DrylEmptyState`  | Feedback     | ✅      | ✅ Done    | "No data" placeholder; icon, title, description, action slot; sizes; AI-aware |
-| `DrylDescriptionList` | Data     | —       | ✅ Done    | Semantic `<dl>` key/value view; Stacked / Inline; columns |
-| `DrylDescriptionItem` | Data     | —       | ✅ Done    | Term/value pair inside `DrylDescriptionList` |
-| `DrylKbd`         | Data         | —       | ✅ Done    | Keyboard-shortcut `<kbd>` chips; single key or `Keys` chord with `Separator`; pure CSS |
-| `DrylCodeBlock`   | Data         | ✅      | ✅ Done    | Glass code surface; server-side syntax highlighting (8 langs, zero-JS); copy button; line numbers; HTML-encoded; AI-aware |
-| `DrylMarkdown`    | Surfaces     | ✅      | ✅ Done    | Renders Markdown (CommonMark + GFM via Markdig); fenced code → `DrylCodeBlock`; raw HTML disabled (XSS-safe); streaming |
-| `DrylCitation`    | Data         | —       | ✅ Done    | Inline `[n]` source-attribution chip; popover with title / URL / snippet for RAG answers |
-| `DrylCitationList`| Data         | —       | ✅ Done    | Numbered source list (`<ol>`) for `DrylCitationListItem`s; complements inline chips |
-| `DrylFormField`   | Inputs       | —       | ✅ Done    | Generic label + required + hint + inline validation wrapper (`For` expression) |
-| `DrylValidationSummary` | Inputs | —       | ✅ Done    | Glass summary of all EditForm validation errors |
-| `DrylTooltip`     | Feedback     | —       | ✅ Done    | CSS-only hover tooltip; 4 placements (Top / Bottom / Left / Right), wraps any trigger |
-| `DrylAlert`       | Feedback     | ✅      | ✅ Done    | Feedback-Banner; 5 Varianten (Info / Success / Warning / Danger / Ai), optionaler Titel, Dismissible, AI-aware |
-| `DrylSpinner`     | Feedback     | ✅      | ✅ Done    | Ring / Dots / Pulse variants; Small / Medium / Large; animation rate adapts to AI state |
-| `DrylProgress`    | Feedback     | ✅      | ✅ Done    | Linear bar; determinate / indeterminate; Accent / Success / Warning / Danger; sizes; percentage label |
-| `DrylSkeleton`    | Feedback     | ✅      | ✅ Done    | Line / Text / Avatar / Card / Image / Custom; Streaming shifts shimmer to violet-cyan gradient |
-| `DrylErrorBoundary` | Feedback   | ✅      | ✅ Done    | Glass fallback around Blazor `ErrorBoundary`; retry / recover, dev-only detail toggle, custom fallback, AI-aware |
-| `DrylNotifications` | Feedback   | ✅      | ✅ Done    | Bell + badge + popover inbox; service-driven or controlled, mark-read, dismiss, AI-aware entries |
-| `DrylAgentToolCalls` | Intelligence | ✅   | ✅ Done    | (Agents package) Renders an agent run's tool calls via the core `DrylToolCall`; full trace or `ActiveOnly` |
-| `DrylAiGenerate<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Streams raw JSON tokens → progressive partial-snapshot UI (guided, type-as-you-go generation) |
-| `DrylAiBuild<T>` | Intelligence | ✅    | ✅ Done    | (Agents package) Renders a live, iteratively-built structured artifact; each round reveals progressively (`DrylBuildOptions.RevealDuration`), refines `T` via `StartBuild<T>` |
-| `DrylAskChoiceDialog` | Surfaces  | —      | ✅ Done    | (Agents package) Single-choice agent question; radio list, recommended badge; HITL tool dialog |
-| `DrylAskMultiChoiceDialog` | Surfaces | —  | ✅ Done    | (Agents package) Multi-choice agent question; checkbox list, recommendations pre-checked; HITL tool dialog |
-| `DrylAskTextDialog` | Surfaces   | —      | ✅ Done    | (Agents package) Free-text agent question; `DrylInputText`; HITL tool dialog |
-| `DrylThemeProvider` | Surfaces   | —       | ✅ Done    | Root provider; no-flash `:root` style on prerender; runtime glide via `dryl.theme.apply` JS interop; `Theme` param |
-| `DrylTheme`       | Theming      | —       | ✅ Done    | Seed-only theme record: `required Accent`, optional `AiAccent` + `Semantic`; drives `DrylThemeProvider` |
-| `DrylAccent`      | Theming      | —       | ✅ Done    | Two-stop gradient struct (`A` / `B`) mapping to `--accent-a` / `--accent-b` CSS variables |
-| `DrylSemantic`    | Theming      | —       | ✅ Done    | Optional semantic overrides (`Success` / `Warning` / `Danger` / `Info`); null members fall back to DRYL defaults |
-
-For the full design language, see [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md) and [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
-
----
-
-## Documentation & live demo
-
-The live documentation site is available at **[components.dryl.dev](https://components.dryl.dev/)** — every component, every variant, every AI state, interactive.
+> Customization is just getting started — theming is step one toward a fully tunable DRYL.
 
 ---
 
