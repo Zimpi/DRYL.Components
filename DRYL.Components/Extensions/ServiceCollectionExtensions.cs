@@ -1,5 +1,6 @@
 using DRYL.Components.Ai;
 using DRYL.Components.Dialogs;
+using DRYL.Components.Theming;
 using DRYL.Components.Toasts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,12 +13,13 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Register DRYL component services — <see cref="IDrylDialogService"/>,
-    /// <see cref="IDrylToastService"/>, <see cref="IDrylNotificationService"/> and
-    /// <see cref="IDrylAiActivityService"/>.
+    /// <see cref="IDrylToastService"/>, <see cref="IDrylNotificationService"/>,
+    /// <see cref="IDrylAiActivityService"/> and <see cref="IDrylThemeService"/>.
     /// Call this in <c>Program.cs</c>:
     /// <code>builder.Services.AddDrylComponents();</code>
-    /// Then place a single <c>&lt;DrylDialogProvider/&gt;</c> and (if you want
-    /// service-driven toasts) a <c>&lt;DrylToastProvider/&gt;</c> in your root layout.
+    /// Then place a single <c>&lt;DrylDialogProvider/&gt;</c>, (if you want
+    /// service-driven toasts) a <c>&lt;DrylToastProvider/&gt;</c>, and a
+    /// <c>&lt;DrylThemeProvider/&gt;</c> in your root layout.
     /// </summary>
     public static IServiceCollection AddDrylComponents(this IServiceCollection services)
     {
@@ -25,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDrylToastService, DrylToastService>();
         services.AddScoped<IDrylNotificationService, DrylNotificationService>();
         services.AddScoped<IDrylAiActivityService, DrylAiActivityService>();
+        services.AddScoped<IDrylThemeService, DrylThemeService>();
         return services;
     }
 }
