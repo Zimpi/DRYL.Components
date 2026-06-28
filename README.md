@@ -454,7 +454,8 @@ async ValueTask<DataResult<Service>> LoadAsync(DataRequest req, CancellationToke
 | `DrylAskChoiceDialog` | Surfaces  | —      | ✅ Done    | (Agents package) Single-choice agent question; radio list, recommended badge; HITL tool dialog |
 | `DrylAskMultiChoiceDialog` | Surfaces | —  | ✅ Done    | (Agents package) Multi-choice agent question; checkbox list, recommendations pre-checked; HITL tool dialog |
 | `DrylAskTextDialog` | Surfaces   | —      | ✅ Done    | (Agents package) Free-text agent question; `DrylInputText`; HITL tool dialog |
-| `DrylTheme`       | Theming      | —       | ✅ Done    | Seed-only theme record: `required Accent`, optional `AiAccent` + `Semantic`; foundation for `DrylThemeProvider` |
+| `DrylThemeProvider` | Surfaces   | —       | ✅ Done    | Root provider; no-flash `:root` style on prerender; runtime glide via `dryl.theme.apply` JS interop; `Theme` param |
+| `DrylTheme`       | Theming      | —       | ✅ Done    | Seed-only theme record: `required Accent`, optional `AiAccent` + `Semantic`; drives `DrylThemeProvider` |
 | `DrylAccent`      | Theming      | —       | ✅ Done    | Two-stop gradient struct (`A` / `B`) mapping to `--accent-a` / `--accent-b` CSS variables |
 | `DrylSemantic`    | Theming      | —       | ✅ Done    | Optional semantic overrides (`Success` / `Warning` / `Danger` / `Info`); null members fall back to DRYL defaults |
 

@@ -15,6 +15,8 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylThemeProvider` — New root provider component; renders `:root { <seeds> }` inline `<style>` for no-flash first paint (incl. Blazor Server prerender); runtime theme changes applied via `dryl.theme.apply` JS interop with `@property` transition glide; `_attached` flag guards against static-prerender JS invocation; `Theme` parameter overrides startup theme; subscribes to `IDrylThemeService.OnThemeChanged`
+- `window.dryl.theme.apply` — New JS interop method appended to `dryl.js`; splits `"--k:v;"` seed strings and sets each property on `document.documentElement.style`
 - `DrylAccent` / `DrylSemantic` / `DrylTheme` — New theme model in `DRYL.Components.Theming`; seed-only records (`required Accent`, optional `AiAccent`, optional `Semantic`) with internal `ToCssVariables()` emitting only the set properties as `--key:value;` pairs; foundation for the upcoming `DrylThemeProvider` service
 - `DRYL.Components.Agents` — New companion package integrating the Microsoft Agent Framework (`Microsoft.Agents.AI`). Experimental, independently versioned (0.1.0), decoupled from core. The core stays dependency-free
 - `AddDrylAgents()` — DI extension registering `DrylAgentRunner` (scoped); call alongside `AddDrylComponents()`

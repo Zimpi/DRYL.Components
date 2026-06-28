@@ -1,0 +1,69 @@
+@namespace DRYL.Components
+@using DRYL.Components.Theming
+@inject IDrylThemeService ThemeService
+@inject IJSRuntime JS
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylThemeProvider — applies the active DrylTheme's seed
+    custom properties to :root.
+
+    Place once in your root layout, above the other providers:
+        <DrylThemeProvider Theme="DrylThemes.Nebula" />
+
+    On render it writes the seeds into an inline <style> for
+    :root, so first paint (incl. Blazor Server prerender) is
+    correct with no JS. Runtime theme changes are pushed to
+    document.documentElement via dryl.theme.apply, where the
+    registered @property color seeds + :root transition make
+    the derived color-mix chain glide.
+    ───────────────────────────────────────────────────────── *@
+
+<style>@($":root {{ {_vars} }}")</style>
+
+@code {
+    /// <summary>
+    /// The theme to apply on startup. When omitted, <see cref="DrylThemes.Default"/>
+    /// (the signature DRYL look) is used. After startup, switch themes at runtime
+    /// via <see cref="IDrylThemeService"/>.
+    /// </summary>
+    [Parameter] public DrylTheme? Theme { get; set; }
+
+    private string _vars = "";
+    private bool _attached;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ThemeService.OnThemeChanged += HandleChangedAsync;
+
+        if (Theme is not null && !ReferenceEquals(Theme, ThemeService.Current))
+        {
+            // Updates _vars through the handler; JS is skipped because we are not
+            // attached yet, so the inline <style> below carries the initial paint.
+            await ThemeService.SetThemeAsync(Theme);
+        }
+
+        _vars = ThemeService.Current.ToCssVariables();
+    }
+
+    private async Task HandleChangedAsync()
+    {
+        _vars = ThemeService.Current.ToCssVariables();
+        await InvokeAsync(StateHasChanged);
+
+        if (_attached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.theme.apply", _vars); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // After the first render the inline <style> has painted; subsequent
+        // changes go through JS so the @property transition can interpolate.
+        if (firstRender) _attached = true;
+    }
+
+    public void Dispose() => ThemeService.OnThemeChanged -= HandleChangedAsync;
+}
