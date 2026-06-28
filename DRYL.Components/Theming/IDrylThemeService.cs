@@ -18,5 +18,11 @@ public interface IDrylThemeService
     Task SetAccentAsync(string a, string b);
 
     /// <summary>Raised after <see cref="Current"/> changes. The provider subscribes to apply it.</summary>
+    /// <remarks>
+    /// This event is designed for a <strong>single subscriber</strong> — normally one
+    /// <c>DrylThemeProvider</c> per Blazor scope. Multicast use (multiple subscribers
+    /// registered at the same time) is unsupported and may cause duplicate style
+    /// injections or race conditions.
+    /// </remarks>
     event Func<Task>? OnThemeChanged;
 }

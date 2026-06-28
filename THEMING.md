@@ -43,17 +43,20 @@ Inject `IDrylThemeService` (registered by `AddDrylComponents()`) and call `SetTh
 await ThemeService.SetThemeAsync(DrylThemes.Ember);
 
 // Or change only the accent, keeping everything else
-await ThemeService.SetAccentAsync(new DrylAccent(AccentA: "#a855f7", AccentB: "#06b6d4"));
+await ThemeService.SetAccentAsync("#a855f7", "#06b6d4");
 ```
 
 You can also pass an `AiAccent` to diverge the AI surfaces from the UI accent (see "What's themeable" below):
 
 ```csharp
-await ThemeService.SetThemeAsync(new DrylTheme(
-    Accent:   new DrylAccent("#a855f7", "#06b6d4"),
-    AiAccent: new DrylAccent("#3b82f6", "#8b5cf6")
-));
+await ThemeService.SetThemeAsync(new DrylTheme
+{
+    Accent   = new DrylAccent("#a855f7", "#06b6d4"),
+    AiAccent = new DrylAccent("#3b82f6", "#8b5cf6"),
+});
 ```
+
+> **Security note — user-supplied colors.** Theme seed values are injected into a `<style>` block as-authored (e.g. `--accent-a:#a855f7`). The strings must be **developer-controlled** CSS color values (hex, `rgb()`, named colors, etc.). If you ever source an accent from end-user input — a settings panel, a query parameter, a database field — **validate it as a CSS color on the server before passing it to `SetAccentAsync` or `DrylTheme`**. An unvalidated string could be used to inject arbitrary CSS. DRYL does not perform this validation for you.
 
 ---
 
@@ -62,26 +65,30 @@ await ThemeService.SetThemeAsync(new DrylTheme(
 Construct a `DrylTheme` record with as few or as many seeds as you need. DRYL derives all other values automatically.
 
 ```csharp
-var myTheme = new DrylTheme(
+var myTheme = new DrylTheme
+{
     // Required: the two raw accent hues
-    Accent: new DrylAccent(AccentA: "#a855f7", AccentB: "#06b6d4"),
+    Accent = new DrylAccent("#a855f7", "#06b6d4"),
 
     // Optional: give AI surfaces a different hue family
-    AiAccent: new DrylAccent(AccentA: "#3b82f6", AccentB: "#8b5cf6"),
+    AiAccent = new DrylAccent("#3b82f6", "#8b5cf6"),
 
     // Optional: override semantic status colors
-    Semantic: new DrylSemantic(
-        Success: "#22c55e",
-        Warning: "#eab308",
-        Danger:  "#ef4444"
-    )
-);
-
-// Apply at startup
-<DrylThemeProvider Theme="myTheme" />
+    Semantic = new DrylSemantic
+    {
+        Success = "#22c55e",
+        Warning = "#eab308",
+        Danger  = "#ef4444",
+    },
+};
 
 // Or switch later
 await ThemeService.SetThemeAsync(myTheme);
+```
+
+```razor
+@* Apply at startup — place once in your root layout *@
+<DrylThemeProvider Theme="myTheme" />
 ```
 
 `DrylTheme` is a plain C# record — store it in a config file, load it from a database, or let users build it in a settings panel.

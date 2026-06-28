@@ -48,8 +48,8 @@ The source of truth is `dryl.css`. This file is the readable index.
 | `--accent`       | alias of `--accent-a`                                   | Use when you need "the accent" in singular form.   |
 | `--accent-grad`  | `linear-gradient(135deg, var(--accent-a), var(--accent-b))` | Primary buttons, active indicators, brand mark. |
 | `--accent-grad-r`| same, reversed                                          | Used sparingly for contrast against `--accent-grad`. |
-| `--accent-soft`  | `rgba(124,92,255,0.18)`                                 | Soft accent fill (badges, alert icons).            |
-| `--accent-line`  | `rgba(124,92,255,0.45)`                                 | Accent border, focus ring.                         |
+| `--accent-soft`  | `color-mix(in srgb, var(--accent-a) 18%, transparent)` | Soft accent fill (badges, alert icons). Derived.   |
+| `--accent-line`  | `color-mix(in srgb, var(--accent-a) 45%, transparent)` | Accent border, focus ring. Derived.                |
 
 ### Semantic
 | Token         | Value      | Use                          |
@@ -111,7 +111,7 @@ Always set seeds via `DrylTheme` / `DrylThemeProvider` or `IDrylThemeService` at
 ```csharp
 // Or switch at runtime from any component or service
 await ThemeService.SetThemeAsync(DrylThemes.Verdant);
-await ThemeService.SetAccentAsync(new DrylAccent("#a855f7", "#06b6d4"));
+await ThemeService.SetAccentAsync("#a855f7", "#06b6d4");
 ```
 
 ---

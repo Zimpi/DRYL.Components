@@ -3845,7 +3845,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 .ai-indicator .ai-indicator-ico {
   flex: 0 0 12px;
-  color: var(--accent-b);
+  color: var(--ai-b);
   animation: ai-indicator-pulse 2.4s var(--ease-in-out) infinite;
 }
 .ai-indicator.is-thinking .ai-indicator-ico  { animation-duration: 1s; }

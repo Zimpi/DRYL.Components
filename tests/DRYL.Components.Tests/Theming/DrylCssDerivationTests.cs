@@ -65,4 +65,20 @@ public class DrylCssDerivationTests
         Assert.DoesNotContain("124, 92, 255", glowAccentLine);
         Assert.DoesNotContain("124, 92, 255", glowSoftLine);
     }
+
+    [Fact]
+    public void Ai_indicator_icon_color_uses_ai_seed_not_brand_accent()
+    {
+        var css = ReadDrylCss();
+
+        // Locate the .ai-indicator rule block (from ".ai-indicator {" up to the
+        // next blank line after ".ai-indicator .ai-indicator-ico {").
+        var indicatorIcoStart = css.IndexOf(".ai-indicator .ai-indicator-ico", StringComparison.Ordinal);
+        Assert.True(indicatorIcoStart >= 0, ".ai-indicator .ai-indicator-ico rule not found in dryl.css");
+
+        // Extract a reasonable window (200 chars) covering the ico rule body.
+        var window = css.Substring(indicatorIcoStart, Math.Min(200, css.Length - indicatorIcoStart));
+
+        Assert.Contains("var(--ai-b)", window);
+    }
 }
