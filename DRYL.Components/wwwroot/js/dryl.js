@@ -1172,3 +1172,21 @@ window.dryl.depthglass = {
     }
 };
 
+/* --------------------------------------------------------------
+ * Theme — apply DRYL theme seed variables to the document root.
+ * Called by DrylThemeProvider on runtime theme changes; the
+ * registered @property color seeds + :root transition make the
+ * derived color-mix chain glide. `vars` is "--k:v;--k:v;".
+ * -------------------------------------------------------------- */
+window.dryl.theme = {
+    apply(vars) {
+        const root = document.documentElement;
+        (vars || '').split(';').forEach(pair => {
+            const i = pair.indexOf(':');
+            if (i > 0) {
+                root.style.setProperty(pair.slice(0, i).trim(), pair.slice(i + 1).trim());
+            }
+        });
+    }
+};
+

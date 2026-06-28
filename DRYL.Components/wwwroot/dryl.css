@@ -3,6 +3,13 @@
    Glassmorphism · Dark · Indirect Light · Motion
    ============================================================= */
 
+/* Registered so theme seeds interpolate — the derived color-mix chain glides
+   on a theme change. Initial values mirror the default Nebula accent. */
+@property --accent-a { syntax: "<color>"; inherits: true; initial-value: #7c5cff; }
+@property --accent-b { syntax: "<color>"; inherits: true; initial-value: #22d3ee; }
+@property --ai-a     { syntax: "<color>"; inherits: true; initial-value: #7c5cff; }
+@property --ai-b     { syntax: "<color>"; inherits: true; initial-value: #22d3ee; }
+
 :root {
   /* Tell the browser this surface is dark — applies to native UA controls (<select> dropdowns, scrollbars, form autofill) so they don't ship light-mode defaults onto our glass. */
   color-scheme: dark;
@@ -29,14 +36,18 @@
   --fg-dim:        rgba(244, 244, 247, 0.38);
   --fg-faint:      rgba(244, 244, 247, 0.22);
 
-  /* Accent — gradient violet → cyan */
+  /* Accent — gradient violet → cyan (themeable seeds) */
   --accent-a:      #7c5cff;
   --accent-b:      #22d3ee;
   --accent:        var(--accent-a);
-  --accent-soft:   rgba(124, 92, 255, 0.18);
-  --accent-line:   rgba(124, 92, 255, 0.45);
+  --accent-soft:   color-mix(in srgb, var(--accent-a) 18%, transparent);
+  --accent-line:   color-mix(in srgb, var(--accent-a) 45%, transparent);
   --accent-grad:   linear-gradient(135deg, var(--accent-a) 0%, var(--accent-b) 100%);
   --accent-grad-r: linear-gradient(135deg, var(--accent-b) 0%, var(--accent-a) 100%);
+
+  /* AI accent — defaults to the brand accent (opt-in divergence via DrylTheme.AiAccent) */
+  --ai-a:          var(--accent-a);
+  --ai-b:          var(--accent-b);
 
   /* Semantic */
   --success:       #34d399;
@@ -70,8 +81,11 @@
   --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
   --shadow-md:  0 8px 24px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.35);
   --shadow-lg:  0 24px 64px rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.35);
-  --glow-accent: 0 0 0 1px var(--accent-line), 0 8px 32px rgba(124, 92, 255, 0.35), 0 0 64px rgba(34, 211, 238, 0.18);
-  --glow-soft:   0 0 60px rgba(124, 92, 255, 0.18), 0 0 120px rgba(34, 211, 238, 0.08);
+  --glow-accent: 0 0 0 1px var(--accent-line),
+                 0 8px 32px color-mix(in srgb, var(--accent-a) 35%, transparent),
+                 0 0 64px color-mix(in srgb, var(--accent-b) 18%, transparent);
+  --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 18%, transparent),
+                 0 0 120px color-mix(in srgb, var(--accent-b) 8%, transparent);
 
   /* Motion */
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
@@ -96,6 +110,16 @@
   --sidebar-collapsed-w: 56px;
 }
 
+/* Theme seeds glide on change; instant for reduced-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    transition: --accent-a var(--dur-slow) var(--ease-in-out),
+                --accent-b var(--dur-slow) var(--ease-in-out),
+                --ai-a var(--dur-slow) var(--ease-in-out),
+                --ai-b var(--dur-slow) var(--ease-in-out);
+  }
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -115,9 +139,9 @@ html, body {
 
 body {
   background:
-    radial-gradient(1200px 800px at 15% -10%, rgba(124, 92, 255, 0.12), transparent 60%),
-    radial-gradient(1000px 700px at 100% 0%, rgba(34, 211, 238, 0.08), transparent 60%),
-    radial-gradient(900px 700px at 50% 110%, rgba(124, 92, 255, 0.06), transparent 60%),
+    radial-gradient(1200px 800px at 15% -10%, color-mix(in srgb, var(--accent-a) 12%, transparent), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, color-mix(in srgb, var(--accent-b) 8%, transparent), transparent 60%),
+    radial-gradient(900px 700px at 50% 110%, color-mix(in srgb, var(--accent-a) 6%, transparent), transparent 60%),
     var(--ground);
   background-attachment: fixed;
 }
@@ -157,7 +181,7 @@ body::before {
   height: 50vw;
   left: -10vw;
   top: 10vh;
-  background: radial-gradient(circle, rgba(124, 92, 255, 0.55), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-a) 55%, transparent), transparent 60%);
   animation: drift-a 22s ease-in-out infinite alternate;
 }
 .aurora::after {
@@ -165,7 +189,7 @@ body::before {
   height: 45vw;
   right: -5vw;
   top: -10vh;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.38), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-b) 38%, transparent), transparent 60%);
   animation: drift-b 28s ease-in-out infinite alternate;
 }
 .aurora .orb {
@@ -173,7 +197,7 @@ body::before {
   height: 40vw;
   left: 40%;
   bottom: -20vh;
-  background: radial-gradient(circle, rgba(124, 92, 255, 0.3), transparent 60%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-a) 30%, transparent), transparent 60%);
   animation: drift-c 34s ease-in-out infinite alternate;
 }
 
@@ -255,13 +279,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: radial-gradient(80% 60% at 50% 0%, rgba(124,92,255,0.0), transparent 70%);
+  background: radial-gradient(80% 60% at 50% 0%, transparent, transparent 70%);
   pointer-events: none;
   transition: background var(--dur-med) var(--ease-out);
   z-index: -1;
 }
 .glass-card:hover::after {
-  background: radial-gradient(80% 60% at 50% 0%, rgba(124,92,255,0.18), transparent 70%);
+  background: radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--accent-a) 18%, transparent), transparent 70%);
 }
 .glass-card:hover {
   border-color: var(--line-strong);
@@ -344,16 +368,16 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-color: rgba(255,255,255,0.12);
   box-shadow:
     0 1px 0 rgba(255,255,255,0.18) inset,
-    0 0 0 1px rgba(124,92,255,0.25),
-    0 6px 24px rgba(124,92,255,0.35),
-    0 0 48px rgba(34,211,238,0.18);
+    0 0 0 1px color-mix(in srgb, var(--accent-a) 25%, transparent),
+    0 6px 24px color-mix(in srgb, var(--accent-a) 35%, transparent),
+    0 0 48px color-mix(in srgb, var(--accent-b) 18%, transparent);
 }
 .btn-primary:hover {
   box-shadow:
     0 1px 0 rgba(255,255,255,0.22) inset,
-    0 0 0 1px rgba(124,92,255,0.4),
-    0 10px 36px rgba(124,92,255,0.5),
-    0 0 64px rgba(34,211,238,0.28);
+    0 0 0 1px color-mix(in srgb, var(--accent-a) 40%, transparent),
+    0 10px 36px color-mix(in srgb, var(--accent-a) 50%, transparent),
+    0 0 64px color-mix(in srgb, var(--accent-b) 28%, transparent);
   transform: translateY(-1px);
 }
 
@@ -365,7 +389,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .btn-secondary:hover {
   background: var(--glass-3);
   border-color: var(--accent-line);
-  box-shadow: 0 0 0 1px var(--accent-line), 0 0 24px rgba(124,92,255,0.18);
+  box-shadow: 0 0 0 1px var(--accent-line), 0 0 24px color-mix(in srgb, var(--accent-a) 18%, transparent);
 }
 
 .btn-ghost {
@@ -396,7 +420,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    (aria-pressed="true"). Accent border + glow, like a secondary on. */
 .btn--active {
   border-color: var(--accent-line);
-  box-shadow: 0 0 0 1px var(--accent-line), 0 0 20px rgba(124, 92, 255, 0.18);
+  box-shadow: 0 0 0 1px var(--accent-line), 0 0 20px color-mix(in srgb, var(--accent-a) 18%, transparent);
   color: var(--fg);
 }
 
@@ -486,8 +510,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
      halo, then ambient glow — reads as a single confident corner, not a thin line
      with a detached block around it. */
   box-shadow: 0 0 0 1px var(--accent-line),
-              0 0 0 4px rgba(124, 92, 255, 0.12),
-              0 0 24px rgba(124, 92, 255, 0.18);
+              0 0 0 4px color-mix(in srgb, var(--accent-a) 12%, transparent),
+              0 0 24px color-mix(in srgb, var(--accent-a) 18%, transparent);
 }
 /* The global :focus-visible rule adds a bright cyan outline that clashes with the
    violet glow above. Suppress it here — the glow already satisfies WCAG focus visibility. */
@@ -676,7 +700,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .checkbox:checked {
   background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 16px rgba(124,92,255,0.5);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-a) 50%, transparent);
 }
 .checkbox::after {
   content: '';
@@ -721,7 +745,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .toggle:checked {
   background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 18px rgba(124,92,255,0.45);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent);
 }
 .toggle:checked::after {
   background: white;
@@ -1200,7 +1224,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   font-size: 14px;
   color: white;
   letter-spacing: -0.02em;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset, 0 8px 24px rgba(124,92,255,0.4), 0 0 32px rgba(34,211,238,0.2);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -1259,9 +1283,9 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 .nav-item:hover { background: var(--glass-2); color: var(--fg); }
 .nav-item.active {
-  background: linear-gradient(90deg, rgba(124,92,255,0.18), rgba(34,211,238,0.04));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-a) 18%, transparent), color-mix(in srgb, var(--accent-b) 4%, transparent));
   color: var(--fg);
-  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px rgba(124,92,255,0.15);
+  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px color-mix(in srgb, var(--accent-a) 15%, transparent);
 }
 .nav-item.active::before {
   content: '';
@@ -1358,9 +1382,9 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 .nav-section-link:hover { background: var(--glass-2); color: var(--fg); }
 .nav-section-link.active {
-  background: linear-gradient(90deg, rgba(124,92,255,0.18), rgba(34,211,238,0.04));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-a) 18%, transparent), color-mix(in srgb, var(--accent-b) 4%, transparent));
   color: var(--fg);
-  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px rgba(124,92,255,0.15);
+  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px color-mix(in srgb, var(--accent-a) 15%, transparent);
 }
 .nav-section-link.active::before {
   content: '';
@@ -1515,7 +1539,7 @@ code, .code-inline {
   padding: 16px 18px;
   color: var(--fg-muted);
   overflow: auto;
-  box-shadow: inset 0 0 60px rgba(124,92,255,0.05);
+  box-shadow: inset 0 0 60px color-mix(in srgb, var(--accent-a) 5%, transparent);
 }
 .code-block .tok-keyword { color: #c4b5fd; }
 .code-block .tok-tag     { color: #67e8f9; }
@@ -1642,10 +1666,10 @@ code, .code-inline {
 
 /* Selected row */
 .tbl-root .tbl tbody tr.tbl-row--selected td {
-  background: rgba(124, 92, 255, 0.07);
+  background: color-mix(in srgb, var(--accent-a) 7%, transparent);
 }
 .tbl-root .tbl tbody tr.tbl-row--selected:hover td {
-  background: rgba(124, 92, 255, 0.12);
+  background: color-mix(in srgb, var(--accent-a) 12%, transparent);
 }
 
 /* Checkbox column */
@@ -1690,8 +1714,8 @@ code, .code-inline {
 .tbl-root .ai-aura-glow {
   box-shadow:
     inset 0 0 0 1px var(--accent-line),
-    inset 0 0 48px rgba(124, 92, 255, 0.18),
-    inset 0 0 96px rgba(34, 211, 238, 0.08);
+    inset 0 0 48px color-mix(in srgb, var(--ai-a) 18%, transparent),
+    inset 0 0 96px color-mix(in srgb, var(--ai-b) 8%, transparent);
 }
 /* Suppress the Generated lift on the table — visually distracting on a tall
    surface. The wash + row entry animations carry the reveal moment. */
@@ -1702,8 +1726,8 @@ code, .code-inline {
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes tbl-row-ai-flash {
-  0%   { background-color: rgba(124, 92, 255, 0.16); }
-  60%  { background-color: rgba(124, 92, 255, 0.06); }
+  0%   { background-color: color-mix(in srgb, var(--ai-a) 16%, transparent); }
+  60%  { background-color: color-mix(in srgb, var(--ai-a) 6%, transparent); }
   100% { background-color: transparent; }
 }
 
@@ -2569,7 +2593,7 @@ td.tbl-td-editing select {
   font-weight: 600;
   color: white;
   flex: 0 0 28px;
-  box-shadow: 0 0 0 2px var(--bg-0), 0 0 12px rgba(124,92,255,0.4);
+  box-shadow: 0 0 0 2px var(--bg-0), 0 0 12px color-mix(in srgb, var(--accent-a) 40%, transparent);
   overflow: hidden;
   user-select: none;
 }
@@ -2904,17 +2928,17 @@ td.tbl-td-editing select {
 }
 
 .toast.toast-info {
-  border-color: rgba(34, 211, 238, 0.28);
+  border-color: color-mix(in srgb, var(--info) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--info),
     inset 0 1px 0 rgba(255,255,255,0.06),
     var(--shadow-md),
-    0 0 32px rgba(34, 211, 238, 0.18);
+    0 0 32px color-mix(in srgb, var(--info) 18%, transparent);
 }
 .toast.toast-info .toast-icon-chip {
-  background: rgba(34, 211, 238, 0.15);
+  background: color-mix(in srgb, var(--info) 15%, transparent);
   color: var(--info);
-  border-color: rgba(34, 211, 238, 0.35);
+  border-color: color-mix(in srgb, var(--info) 35%, transparent);
 }
 .toast.toast-info .toast-progress {
   background: linear-gradient(90deg, var(--info), #67e8f9);
@@ -2942,8 +2966,8 @@ td.tbl-td-editing select {
 .toast.ai-aura .ai-aura-glow {
   box-shadow:
     inset 0 0 0 1px var(--accent-line),
-    inset 0 0 32px rgba(124, 92, 255, 0.18),
-    inset 0 0 64px rgba(34, 211, 238, 0.08);
+    inset 0 0 32px color-mix(in srgb, var(--ai-a) 18%, transparent),
+    inset 0 0 64px color-mix(in srgb, var(--ai-b) 8%, transparent);
 }
 .toast.ai-aura .toast-progress {
   background: var(--accent-grad);
@@ -3007,7 +3031,7 @@ td.tbl-td-editing select {
   height: 100%;
   background: var(--accent-grad);
   border-radius: var(--r-pill);
-  box-shadow: 0 0 12px rgba(124,92,255,0.5);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-a) 50%, transparent);
   transition: width 600ms var(--ease-out);
 }
 
@@ -3269,7 +3293,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   border-radius: var(--r-lg);
   background: linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
   border: 1px solid var(--line-strong);
-  box-shadow: var(--shadow-lg), 0 0 80px rgba(124, 92, 255, 0.25);
+  box-shadow: var(--shadow-lg), 0 0 80px color-mix(in srgb, var(--accent-a) 25%, transparent);
   animation: dialogIn var(--dur-med) var(--ease-spring);
   color: var(--fg);
 }
@@ -3489,8 +3513,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%),
-              rgba(124, 92, 255, 0.18),
-              rgba(34, 211, 238, 0.06) 30%,
+              color-mix(in srgb, var(--accent-a) 18%, transparent),
+              color-mix(in srgb, var(--accent-b) 6%, transparent) 30%,
               transparent 60%);
   transition: opacity var(--dur-med) var(--ease-out);
   z-index: 1;
@@ -3507,7 +3531,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   border-radius: inherit;
   padding: 1px;
   background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%),
-              rgba(124,92,255,0.6), transparent 50%);
+              color-mix(in srgb, var(--accent-a) 60%, transparent), transparent 50%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -3564,11 +3588,11 @@ body.dryl-scroll-locked { overflow: hidden; }
   padding: 1px;
   background: conic-gradient(
     from var(--ai-aura-angle, 0deg),
-    var(--accent-a),
-    var(--accent-b),
-    var(--accent-a),
-    var(--accent-b),
-    var(--accent-a)
+    var(--ai-a),
+    var(--ai-b),
+    var(--ai-a),
+    var(--ai-b),
+    var(--ai-a)
   );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -3590,8 +3614,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   z-index: -1;
   box-shadow:
     0 0 0 1px var(--accent-line),
-    0 0 24px rgba(124, 92, 255, 0.25),
-    0 0 56px rgba(34, 211, 238, 0.15);
+    0 0 24px color-mix(in srgb, var(--ai-a) 25%, transparent),
+    0 0 56px color-mix(in srgb, var(--ai-b) 15%, transparent);
   animation: ai-aura-breathe 4s var(--ease-in-out) infinite;
 }
 
@@ -3636,8 +3660,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(124, 92, 255, 0.18) 40%,
-    rgba(34, 211, 238, 0.18) 60%,
+    color-mix(in srgb, var(--ai-a) 18%, transparent) 40%,
+    color-mix(in srgb, var(--ai-b) 18%, transparent) 60%,
     transparent 100%
   );
   transform: translateX(-100%);
@@ -3821,7 +3845,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 .ai-indicator .ai-indicator-ico {
   flex: 0 0 12px;
-  color: var(--accent-b);
+  color: var(--ai-b);
   animation: ai-indicator-pulse 2.4s var(--ease-in-out) infinite;
 }
 .ai-indicator.is-thinking .ai-indicator-ico  { animation-duration: 1s; }
@@ -4020,7 +4044,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .num-step-btn:focus-visible {
   position: relative;
   z-index: 1;
-  outline: 2px solid rgba(124, 92, 255, 0.5);
+  outline: 2px solid color-mix(in srgb, var(--accent-a) 50%, transparent);
   outline-offset: -2px;
 }
 
@@ -4080,13 +4104,13 @@ input[type=number] { -moz-appearance: textfield; }
 .radio-input:checked + .radio-control {
   background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 14px rgba(124, 92, 255, 0.45);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent);
 }
 .radio-input:checked + .radio-control::after {
   transform: scale(1);
 }
 .radio:focus-within .radio-control {
-  outline: 2px solid rgba(124, 92, 255, 0.5);
+  outline: 2px solid color-mix(in srgb, var(--accent-a) 50%, transparent);
   outline-offset: 2px;
 }
 .radio-label {
@@ -4182,7 +4206,7 @@ input[type=number] { -moz-appearance: textfield; }
 .file-drop--active {
   border-color: var(--accent-line);
   background: var(--glass-2);
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.08), 0 0 28px rgba(124, 92, 255, 0.14);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-a) 8%, transparent), 0 0 28px color-mix(in srgb, var(--accent-a) 14%, transparent);
 }
 .file-drop--disabled {
   opacity: 0.4;

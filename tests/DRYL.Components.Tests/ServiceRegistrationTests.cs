@@ -1,6 +1,7 @@
 using DRYL.Components;
 using DRYL.Components.Ai;
 using DRYL.Components.Dialogs;
+using DRYL.Components.Theming;
 using DRYL.Components.Toasts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,6 +19,7 @@ public class ServiceRegistrationTests
     [InlineData(typeof(IDrylToastService))]
     [InlineData(typeof(IDrylNotificationService))]
     [InlineData(typeof(IDrylAiActivityService))]
+    [InlineData(typeof(IDrylThemeService))]
     public void AddDrylComponents_registers_service(Type serviceType)
     {
         var services = new ServiceCollection();

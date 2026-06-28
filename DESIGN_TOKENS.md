@@ -48,8 +48,8 @@ The source of truth is `dryl.css`. This file is the readable index.
 | `--accent`       | alias of `--accent-a`                                   | Use when you need "the accent" in singular form.   |
 | `--accent-grad`  | `linear-gradient(135deg, var(--accent-a), var(--accent-b))` | Primary buttons, active indicators, brand mark. |
 | `--accent-grad-r`| same, reversed                                          | Used sparingly for contrast against `--accent-grad`. |
-| `--accent-soft`  | `rgba(124,92,255,0.18)`                                 | Soft accent fill (badges, alert icons).            |
-| `--accent-line`  | `rgba(124,92,255,0.45)`                                 | Accent border, focus ring.                         |
+| `--accent-soft`  | `color-mix(in srgb, var(--accent-a) 18%, transparent)` | Soft accent fill (badges, alert icons). Derived.   |
+| `--accent-line`  | `color-mix(in srgb, var(--accent-a) 45%, transparent)` | Accent border, focus ring. Derived.                |
 
 ### Semantic
 | Token         | Value      | Use                          |
@@ -58,6 +58,61 @@ The source of truth is `dryl.css`. This file is the readable index.
 | `--warning`   | `#fbbf24`  | Throttled, pending, near-limit. |
 | `--danger`    | `#f87171`  | Failed, destructive action.  |
 | `--info`      | `#22d3ee`  | Informational, neutral status. (alias of `--accent-b`) |
+
+---
+
+## Theming & Seed Derivation
+
+DRYL's theming system is built on a small set of **seed variables**. You only set a few values; `dryl.css` derives everything else automatically via `color-mix()`.
+
+### Seeds (what you set)
+
+| Token        | Default          | What it represents                                              |
+| ------------ | ---------------- | --------------------------------------------------------------- |
+| `--accent-a` | `#7c5cff`        | Primary accent seed (violet by default).                        |
+| `--accent-b` | `#22d3ee`        | Secondary accent seed (cyan by default).                        |
+| `--ai-a`     | (= `--accent-a`) | AI accent primary seed. Defaults to the brand accent; set it to diverge AI surfaces from the UI accent. |
+| `--ai-b`     | (= `--accent-b`) | AI accent secondary seed. Same opt-in divergence rule as `--ai-a`. |
+| `--success`  | `#34d399`        | Semantic seed — success.                                        |
+| `--warning`  | `#fbbf24`        | Semantic seed — warning.                                        |
+| `--danger`   | `#f87171`        | Semantic seed — danger / destructive.                           |
+
+### Derived (what `dryl.css` computes)
+
+You never write these directly. They are generated from the seeds inside `dryl.css` using `color-mix()` so every derived value stays in harmony with whatever seeds the consumer provides:
+
+| Derived token       | Derived from              | How it is used                                         |
+| ------------------- | ------------------------- | ------------------------------------------------------ |
+| `--accent-soft`     | `--accent-a` + alpha mix  | Soft accent fill (badges, focus ring background).      |
+| `--accent-line`     | `--accent-a` + alpha mix  | Accent border and focus ring stroke.                   |
+| `--glow-accent`     | `--accent-a` / `--accent-b` | Primary button hover glow, hero emphasis.            |
+| `--glow-soft`       | `--accent-a` / `--accent-b` | Ambient lighting behind a section.                   |
+| Body ambient glow   | `--accent-a` / `--accent-b` | The subtle background halo on the page root.         |
+| `.ai-aura-ring`     | `--ai-a` / `--ai-b`       | Rotating gradient border on AI-active surfaces.        |
+| `.ai-aura-glow`     | `--ai-a` / `--ai-b`       | Breathing box-shadow behind AI-active surfaces.        |
+
+### How seed changes transition
+
+All seed tokens are registered as `@property` values with `syntax: "<color>"` in `dryl.css`. This makes them animatable: when the active theme changes (e.g. via `IDrylThemeService.SetThemeAsync`), every derived value transitions smoothly over `--dur-slow` (420 ms). Users with `prefers-reduced-motion: reduce` get an instant swap instead — the transition is gated by the same media query as every other DRYL animation.
+
+### The AI accent opt-in
+
+By default `--ai-a` and `--ai-b` resolve to the brand accent (`--accent-a` / `--accent-b`), so AI surfaces match the UI accent with no extra configuration. Setting `--ai-a` / `--ai-b` to different hues (e.g. a cooler blue-purple) lets an application give AI activity a visually distinct identity while keeping the rest of the accent palette untouched.
+
+### How to set seeds
+
+Always set seeds via `DrylTheme` / `DrylThemeProvider` or `IDrylThemeService` at runtime. Never edit `dryl.css` to hardcode a custom palette — the file is shared across all consumers and would be overwritten on the next package update.
+
+```razor
+@* Place once in your root layout *@
+<DrylThemeProvider Theme="DrylThemes.Ember" />
+```
+
+```csharp
+// Or switch at runtime from any component or service
+await ThemeService.SetThemeAsync(DrylThemes.Verdant);
+await ThemeService.SetAccentAsync("#a855f7", "#06b6d4");
+```
 
 ---
 
