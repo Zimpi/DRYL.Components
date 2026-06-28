@@ -49,6 +49,7 @@ Version bump guide:
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed
+- `DrylThemeProvider` — Custom themes now also recolor element glows, focus rings, the aurora background, selection states and the dialog glow (previously only buttons/borders followed the theme)
 - `DrylDialog` — Dialogs now animate out (scale + fade) on close instead of disappearing instantly; honours `prefers-reduced-motion`
 
 ## [1.0.0] — 2026-06-24

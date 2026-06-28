@@ -81,4 +81,19 @@ public class DrylCssDerivationTests
 
         Assert.Contains("var(--ai-b)", window);
     }
+
+    [Fact]
+    public void No_raw_accent_color_literals_remain_outside_seed_definitions()
+    {
+        var css = ReadDrylCss();
+        // After full seed propagation, the default accent RGB must not appear as a
+        // raw rgba(...) literal anywhere — every accent color must derive from a seed
+        // (var(--accent-a/-b), var(--ai-a/-b) or var(--info)) so a custom theme propagates.
+        // The only legitimate occurrences of the hex seeds are the @property initial-value
+        // declarations and the :root seed assignments (those use hex, not rgba()).
+        var violet = System.Text.RegularExpressions.Regex.Matches(css, @"rgba\(\s*124\s*,\s*92\s*,\s*255").Count;
+        var cyan   = System.Text.RegularExpressions.Regex.Matches(css, @"rgba\(\s*34\s*,\s*211\s*,\s*238").Count;
+        Assert.Equal(0, violet);
+        Assert.Equal(0, cyan);
+    }
 }
