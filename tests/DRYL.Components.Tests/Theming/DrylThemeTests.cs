@@ -53,3 +53,39 @@ public class DrylThemeTests
         Assert.DoesNotContain("--warning", css);
     }
 }
+
+public class DrylThemesTests
+{
+    [Fact]
+    public void Nebula_matches_current_default_accent_and_has_no_overrides()
+    {
+        Assert.Equal(new DrylAccent("#7c5cff", "#22d3ee"), DrylThemes.Nebula.Accent);
+        Assert.Null(DrylThemes.Nebula.AiAccent);
+        Assert.Null(DrylThemes.Nebula.Semantic);
+    }
+
+    [Fact]
+    public void Default_is_Nebula()
+    {
+        Assert.Equal(DrylThemes.Nebula, DrylThemes.Default);
+    }
+
+    [Fact]
+    public void Nebula_emits_only_accent_seeds()
+    {
+        // Byte-identical to the default :root — no extra seeds to override.
+        Assert.Equal("--accent-a:#7c5cff;--accent-b:#22d3ee;", DrylThemes.Nebula.ToCssVariables());
+    }
+
+    [Theory]
+    [InlineData("Ember")]
+    [InlineData("Verdant")]
+    [InlineData("Mono")]
+    public void Alternative_presets_change_the_accent(string _)
+    {
+        // Each alternative differs from Nebula's accent.
+        Assert.NotEqual(DrylThemes.Nebula.Accent, DrylThemes.Ember.Accent);
+        Assert.NotEqual(DrylThemes.Nebula.Accent, DrylThemes.Verdant.Accent);
+        Assert.NotEqual(DrylThemes.Nebula.Accent, DrylThemes.Mono.Accent);
+    }
+}
