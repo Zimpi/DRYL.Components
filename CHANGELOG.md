@@ -15,6 +15,7 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylAccent` / `DrylSemantic` / `DrylTheme` — New theme model in `DRYL.Components.Theming`; seed-only records (`required Accent`, optional `AiAccent`, optional `Semantic`) with internal `ToCssVariables()` emitting only the set properties as `--key:value;` pairs; foundation for the upcoming `DrylThemeProvider` service
 - `DRYL.Components.Agents` — New companion package integrating the Microsoft Agent Framework (`Microsoft.Agents.AI`). Experimental, independently versioned (0.1.0), decoupled from core. The core stays dependency-free
 - `AddDrylAgents()` — DI extension registering `DrylAgentRunner` (scoped); call alongside `AddDrylComponents()`
 - `DrylAgentRunner` — Starts agent runs and bridges them to DRYL's AI vocabulary; `Start(...)` returns an observable run, `GenerateStreamingAsync<T>(...)` streams typed structured output, `Replay(...)` drives a run from a pre-built update sequence (recorded runs / demos / tests)

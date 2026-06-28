@@ -39,6 +39,10 @@
     <PackageReference Include="Markdig" Version="1.3.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DRYL.Components.Tests" />
+  </ItemGroup>
+
   <!-- The Components.Web metapackage version must track the target framework. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.0" />
