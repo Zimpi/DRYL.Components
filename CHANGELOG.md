@@ -15,9 +15,10 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
-- `DrylThemeProvider` — New root provider component; renders `:root { <seeds> }` inline `<style>` for no-flash first paint (incl. Blazor Server prerender); runtime theme changes applied via `dryl.theme.apply` JS interop with `@property` transition glide; `_attached` flag guards against static-prerender JS invocation; `Theme` parameter overrides startup theme; subscribes to `IDrylThemeService.OnThemeChanged`
-- `window.dryl.theme.apply` — New JS interop method appended to `dryl.js`; splits `"--k:v;"` seed strings and sets each property on `document.documentElement.style`
-- `DrylAccent` / `DrylSemantic` / `DrylTheme` — New theme model in `DRYL.Components.Theming`; seed-only records (`required Accent`, optional `AiAccent`, optional `Semantic`) with internal `ToCssVariables()` emitting only the set properties as `--key:value;` pairs; foundation for the upcoming `DrylThemeProvider` service
+- `DrylThemeProvider` — Root provider that applies a customizable color theme; place once in the root layout; renders `:root { <seeds> }` inline `<style>` for no-flash first paint (incl. Blazor Server prerender); subscribes to `IDrylThemeService.OnThemeChanged` for animated runtime switches
+- `IDrylThemeService` — Runtime theme switching (`SetThemeAsync` / `SetAccentAsync`) with an animated transition; change glides over `--dur-slow` (instant under `prefers-reduced-motion`)
+- `DrylTheme` / `DrylThemes` — Strongly-typed themes and curated presets (Nebula default, Ember, Verdant, Mono); set a few seed hues, DRYL derives the rest via `color-mix()`; `DrylTheme` is a composable record (`Accent`, optional `AiAccent`, optional `Semantic`)
+- `--ai-a` / `--ai-b` CSS tokens — Optional separate AI accent seeds; default to the brand accent (`--accent-a` / `--accent-b`) for a unified look; set them to diverge AI surfaces from the UI accent (opt-in)
 - `DRYL.Components.Agents` — New companion package integrating the Microsoft Agent Framework (`Microsoft.Agents.AI`). Experimental, independently versioned (0.1.0), decoupled from core. The core stays dependency-free
 - `AddDrylAgents()` — DI extension registering `DrylAgentRunner` (scoped); call alongside `AddDrylComponents()`
 - `DrylAgentRunner` — Starts agent runs and bridges them to DRYL's AI vocabulary; `Start(...)` returns an observable run, `GenerateStreamingAsync<T>(...)` streams typed structured output, `Replay(...)` drives a run from a pre-built update sequence (recorded runs / demos / tests)
@@ -44,6 +45,7 @@ Version bump guide:
 - `DrylCard` — New `Depth` parameter (`DepthGlassIntensity?`) turns a card into a 3D depth-warp surface (same effect as `DrylDepthGlass`); supersedes `Spotlight` when set
 
 ### Changed
+- `dryl.css` — Accent-derived tokens (`--accent-soft`, `--accent-line`, `--glow-accent`, `--glow-soft`, body ambient glow, AI aura) now derive from seed variables via `color-mix()`; the default theme is visually unchanged
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed

@@ -220,15 +220,16 @@ Pick the right sub-heading for each change:
 | Bug fix / visual tweak   | PATCH       |
 | Breaking API change      | MAJOR       |
 
-### 7.2 README.md — component table
+### 7.2 Canonical component list
 
-The table in the **"What's in the box (today)"** section of `README.md` must reflect every component in the library. When you add or change a component:
+The canonical, browsable component list lives at **components.dryl.dev**, driven by the website's `ComponentCatalog` (in `DRYL.Website`). There is no component table in `README.md` — do not add one.
 
-1. **New component** → add a row with: name, category, AI mode (✅ or —), status (✅ Done), short notes (≤ 12 words describing the key features).
-2. **Changed component** → update the notes column if the change is user-visible.
-3. **Removed component** → remove the row.
+When you add a new component or make a user-visible change to an existing one:
 
-**Do not** rewrite or reformat unrelated rows.
+1. **Register it in `ComponentCatalog`** in the website project — this is what powers the nav, search and overview page on the docs site.
+2. **Add a changelog entry** under `[Unreleased]` in `CHANGELOG.md` (§7.1 above).
+
+That is all. Do not maintain a duplicate list in `README.md` or any other markdown file.
 
 ### 7.3 What does NOT need a changelog entry
 
@@ -242,5 +243,5 @@ The table in the **"What's in the box (today)"** section of `README.md` must ref
 Before considering any component work done, verify:
 
 - [ ] `CHANGELOG.md` — entry added under `[Unreleased]` with the correct sub-heading
-- [ ] `README.md` — component table row added / updated if component is new or its public API changed
+- [ ] `ComponentCatalog` in `DRYL.Website` — new component registered (or existing entry updated) so it appears on components.dryl.dev
 - [ ] `DRYL.Components.csproj` — `<Version>` is still consistent with the changelog (maintainer sets this; don't bump without being asked)
