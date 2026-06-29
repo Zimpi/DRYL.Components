@@ -1007,7 +1007,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   grid-template-areas:
     "drawer topbar"
     "drawer main";
-  min-height: 100vh;
+  height: 100vh;
+  /* The shell fills the viewport and never scrolls itself, so the sidebar and
+     top bar stay fixed in place; only .main scrolls (see its rule below). */
+  overflow: hidden;
   transition: grid-template-columns var(--dur-med) var(--ease-in-out);
 }
 /* Collapsed sidebar: the grid column shrinks to icon width. DrylLayout sets
@@ -1506,6 +1509,11 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .main {
   padding: 40px 48px 80px;
   max-width: 1400px;
+  /* The only scroll region inside the app shell: the sidebar and top bar are
+     fixed, page content scrolls here. min-height:0 lets this grid row shrink
+     below its content so overflow-y can actually take effect. */
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ============== KBD / CODE ============== */
