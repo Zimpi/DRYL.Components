@@ -43,6 +43,14 @@ Version bump guide:
 - `DrylTabs` — New `AnimateIndicator` parameter (default true) to opt out of the gliding underline
 - `DrylDepthGlass` — New experimental glass surface that warps in 3D toward the pointer; perspective tilt + layered content/gloss parallax + travelling specular highlight + hover lift (pure CSS transforms); `Intensity` (Subtle / Medium / Strong), `Interactive`; reduced-motion aware
 - `DrylCard` — New `Depth` parameter (`DepthGlassIntensity?`) turns a card into a 3D depth-warp surface (same effect as `DrylDepthGlass`); supersedes `Spotlight` when set
+- `DrylCommand` / `DrylCommandArgument` — Declarative command + typed arguments hosted in `DrylCommandPalette`; one `OnRun(CommandContext)` serves click, keyboard and AI. Self-register into `ICommandRegistry`
+- `ICommandRegistry` / `CommandRegistry` — Scoped registry (registered by `AddDrylComponents()`) feeding the palette from both declarative `DrylCommand`s and consumer code; de-duplicated by `Id`
+- `CommandContext` / `CommandArgType` — Execution payload (typed `GetArgument<T>`, cancellation) and argument input/schema types (`Text` / `Number` / `Boolean` / `Choice`)
+- `ICommandResolver` / `CommandResolution` — Narrow, AI-free seam: a resolver turns a natural-language query into one command + filled arguments, surfaced as a confirmable top suggestion (human-in-the-loop, never auto-fired)
+- `DrylCommandPalette` — New `Resolver`, `HotKey`, `EmptyText`, `MaxResults` and `ChildContent` parameters; hosts `DrylCommand`s, fuzzy-matches the registry alongside the existing `Items`/`SearchProvider`, fills arguments inline, and wears the shared AI aura while a resolver thinks. Existing `Items`/`SearchProvider`/`Ai` API unchanged
+- `DrylAiCommandResolver` — (Agents) `ICommandResolver` that exposes each registered command to an agent as an `AIFunction` and resolves one structured tool call with filled arguments — execution deferred to confirmation; destructive commands gated by `DrylConfirmDialog`
+- `DrylAiCommandPalette` — (Agents) Convenience wrapper pre-wired with the DI-registered `ICommandResolver`
+- `AddDrylCommandResolver(...)` — (Agents) DI helper registering a `DrylAiCommandResolver` from a consumer-supplied `AIAgent`
 
 ### Changed
 - `dryl.css` — Accent-derived tokens (`--accent-soft`, `--accent-line`, `--glow-accent`, `--glow-soft`, body ambient glow, AI aura) now derive from seed variables via `color-mix()`; the default theme is visually unchanged
