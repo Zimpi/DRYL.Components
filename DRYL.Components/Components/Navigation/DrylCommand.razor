@@ -1,0 +1,9 @@
+@namespace DRYL.Components
+
+@*  DrylCommand — a declarative unit of functionality hosted in a DrylCommandPalette.
+    Renders no visible DOM of its own: it self-registers into the ambient
+    ICommandRegistry and cascades itself so DrylCommandArgument children can attach. *@
+
+<CascadingValue Value="this" IsFixed="true">
+    @ChildContent
+</CascadingValue>

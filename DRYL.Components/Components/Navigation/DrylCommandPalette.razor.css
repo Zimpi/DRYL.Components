@@ -278,6 +278,81 @@
     }
 }
 
+/* ── Command/registry/AI layer (additive) ──────────────────────────────────── */
+
+/* AI "thinking" pill in the search row while a resolver is working. */
+.cmd-ai-pill {
+    flex: 0 0 auto;
+    margin-left: var(--sp-2);
+}
+
+/* Per-row shortcut hint (registry commands). */
+.cmd-item-shortcut {
+    flex: 0 0 auto;
+    margin-left: var(--sp-2);
+    padding: 2px var(--sp-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    color: var(--fg-dim);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
+    background: var(--glass-1);
+    white-space: nowrap;
+}
+
+/* Destructive command row — accent the label only, never fill the surface (rule 2.4). */
+.cmd-item--danger .cmd-item-label {
+    color: var(--danger, var(--fg));
+}
+
+/* Disabled command row. */
+.cmd-item.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* ── Argument-fill sub-view ─────────────────────────────────────────────────── */
+
+.cmd-args {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4) var(--sp-4);
+    overflow-y: auto;
+    min-height: 0;
+    animation: cmd-args-in var(--dur-fast) var(--ease-out);
+}
+
+.cmd-args-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.cmd-args-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.cmd-args-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.cmd-args-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--sp-1);
+}
+
+@keyframes cmd-args-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+}
+
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -286,6 +361,10 @@
     }
 
     .cmd-ai-panel.ai-generated {
+        animation: none;
+    }
+
+    .cmd-args {
         animation: none;
     }
 }

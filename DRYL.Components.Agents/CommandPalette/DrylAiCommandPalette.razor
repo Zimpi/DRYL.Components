@@ -1,0 +1,46 @@
+@namespace DRYL.Components.Agents
+@using DRYL.Components
+@inject ICommandResolver Resolver
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAiCommandPalette — a DrylCommandPalette pre-wired with the
+    DI-registered ICommandResolver, so natural-language queries resolve
+    to command tool calls. Register the resolver once:
+
+      builder.Services.AddDrylCommandResolver(sp => yourAgent);
+
+    Then host declarative <DrylCommand>s as usual.
+    ───────────────────────────────────────────────────────── *@
+
+<DrylCommandPalette Open="Open" OpenChanged="OpenChanged"
+                    Placeholder="@Placeholder" EmptyText="@EmptyText"
+                    MaxResults="MaxResults" HotKey="HotKey"
+                    Resolver="Resolver" Class="@Class">
+    @ChildContent
+</DrylCommandPalette>
+
+@code {
+    /// <summary>Two-way visibility. Supports @bind-Open.</summary>
+    [Parameter] public bool Open { get; set; }
+
+    /// <summary>Fires when <see cref="Open"/> changes — enables two-way @bind-Open binding.</summary>
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+    /// <summary>Search input placeholder.</summary>
+    [Parameter] public string Placeholder { get; set; } = "Befehl suchen…";
+
+    /// <summary>Empty-state text.</summary>
+    [Parameter] public string EmptyText { get; set; } = "Keine Treffer";
+
+    /// <summary>Maximum number of registry commands shown for a query.</summary>
+    [Parameter] public int MaxResults { get; set; } = 8;
+
+    /// <summary>Enables the global ⌘K / Ctrl+K toggle.</summary>
+    [Parameter] public bool HotKey { get; set; } = true;
+
+    /// <summary>Additional CSS classes applied to the palette panel.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Hosts declarative <c>DrylCommand</c> children.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

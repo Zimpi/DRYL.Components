@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDrylNotificationService, DrylNotificationService>();
         services.AddScoped<IDrylAiActivityService, DrylAiActivityService>();
         services.AddScoped<IDrylThemeService, DrylThemeService>();
+        services.AddScoped<ICommandRegistry, CommandRegistry>();
         return services;
     }
 }
