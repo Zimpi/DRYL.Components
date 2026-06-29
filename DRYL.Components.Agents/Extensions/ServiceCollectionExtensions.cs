@@ -15,4 +15,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DrylAgentRunner>();
         return services;
     }
+
+    /// <summary>
+    /// Register a <see cref="DRYL.Components.ICommandResolver"/> backed by an agent, so a
+    /// <c>DrylAiCommandPalette</c> (or <c>DrylCommandPalette Resolver=</c>) resolves natural-language
+    /// queries into command tool calls. Supply the agent from your own DI:
+    /// <code>builder.Services.AddDrylCommandResolver(sp => sp.GetRequiredService&lt;MyAgent&gt;());</code>
+    /// </summary>
+    public static IServiceCollection AddDrylCommandResolver(
+        this IServiceCollection services,
+        Func<IServiceProvider, Microsoft.Agents.AI.AIAgent> agentFactory)
+    {
+        services.AddScoped<DRYL.Components.ICommandResolver>(
+            sp => new DrylAiCommandResolver(agentFactory(sp)));
+        return services;
+    }
 }
