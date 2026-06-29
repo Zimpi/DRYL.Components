@@ -2,32 +2,35 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject IServiceProvider Services
+@using DRYL.Components.Dialogs
 
 @*  ─────────────────────────────────────────────────────────
     DrylCommandPalette — full-screen command launcher overlay.
 
     Opens via @bind-Open or the global Ctrl+K (Cmd+K) hotkey.
-    Accepts a static Items array or an async SearchProvider.
-    Supports three item types: Navigate, Action, AiIntent.
 
-    Usage (static list):
-      <DrylCommandPalette @bind-Open="_open" Items="@_cmds" />
+    Two ways to feed it, freely combined:
+      • Legacy: a static Items array or an async SearchProvider
+        (CommandItem — Navigate / Action / AiIntent), unchanged.
+      • Declarative: <DrylCommand> children (with optional
+        <DrylCommandArgument>s) that self-register into the shared
+        ICommandRegistry; consumer code may add dynamic commands to
+        the same registry. The palette fuzzy-matches and renders them
+        alongside the legacy items, with one OnRun(CommandContext) path.
 
-    Usage (async search):
-      <DrylCommandPalette @bind-Open="_open"
-                          SearchProvider="@SearchAsync"
-                          Placeholder="Search…" />
+    Supply a Resolver (ICommandResolver) to turn a natural-language
+    query into one confirmable command suggestion (the AI seam — the
+    core ships no implementation and references no AI package).
 
-    Usage (AI intent with result panel):
-      <DrylCommandPalette @bind-Open="_open"
-                          Items="@_cmds"
-                          Ai="@_aiState">
-          <AiContent>AI response text here…</AiContent>
-      </DrylCommandPalette>
-
-    Keyboard: Arrow Up/Down navigate, Enter executes,
-    Escape closes (via dryl.modal). Ctrl+K opens from anywhere.
+    Keyboard: Arrow Up/Down navigate, Enter executes, Escape closes,
+    Ctrl+K opens from anywhere (unless HotKey="false").
     ───────────────────────────────────────────────────────── *@
+
+@* Always-mounted host: declarative DrylCommands register even while closed. *@
+<CascadingValue Value="_registry" IsFixed="true">
+    @ChildContent
+</CascadingValue>
 
 @if (Open)
 {
@@ -52,7 +55,12 @@
                 }
             }
 
-            <div class="cmd-search-row">
+            <div class="@SearchRowCss">
+                @if (_resolving)
+                {
+                    <div class="ai-aura-ring"></div>
+                    <div class="ai-aura-glow"></div>
+                }
                 <DrylIcon Name="Search" Size="16" Class="cmd-search-icon" />
                 <input class="cmd-search-input"
                        type="text"
@@ -69,7 +77,11 @@
                        @ref="_searchInput"
                        @oninput="HandleInput"
                        @onkeydown="HandleKeyDown" />
-                @if (_isLoading)
+                @if (_resolving)
+                {
+                    <DrylAiIndicator State="AiState.Thinking" Class="cmd-ai-pill">Denkt…</DrylAiIndicator>
+                }
+                else if (_isLoading)
                 {
                     <DrylSpinner Size="DrylSpinner.SpinnerSize.Small"
                                  Class="cmd-search-spinner" />
@@ -79,68 +91,155 @@
 
             <div class="cmd-divider" role="separator"></div>
 
-            <div class="cmd-results"
-                 id="@_listId"
-                 role="listbox"
-                 @ref="_list">
+            @if (_fillingCommand is not null)
+            {
+                <div class="cmd-args">
+                    <div class="cmd-args-head">
+                        <DrylTooltip Text="Zurück">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                        Size="DrylButton.ButtonSize.Small"
+                                        LeadingIcon="ChevronLeft"
+                                        AriaLabel="Zurück"
+                                        OnClick="CancelArgFill" />
+                        </DrylTooltip>
+                        <span class="cmd-args-title">@_fillingCommand.Title</span>
+                    </div>
 
-                @if (!_isLoading && !_grouped.Any())
-                {
-                    <div class="cmd-empty" aria-live="polite">No results</div>
-                }
-                else
-                {
-                    var flatIndex = 0;
-                    foreach (var group in _grouped)
+                    @foreach (var arg in _fillingCommand.Arguments)
                     {
-                        if (!string.IsNullOrEmpty(group.Key))
-                        {
-                            <div class="cmd-category" role="presentation" aria-hidden="true">
-                                @group.Key
-                            </div>
-                        }
+                        var name = arg.Name;
+                        <div class="cmd-args-field" @key="name">
+                            @switch (arg.Type)
+                            {
+                                case CommandArgType.Boolean:
+                                    <DrylToggle Value="@AsBool(name)"
+                                                ValueChanged="@(v => _fillValues[name] = v)"
+                                                Label="@(arg.Description ?? name)" />
+                                    break;
+                                case CommandArgType.Choice:
+                                    <DrylSelect Value="@AsString(name)"
+                                                ValueChanged="@(v => _fillValues[name] = v)"
+                                                Items="@ToItems(arg.Options)"
+                                                Label="@(arg.Description ?? name)" />
+                                    break;
+                                default:
+                                    <DrylInputText Value="@AsString(name)"
+                                                   ValueChanged="@(v => _fillValues[name] = v)"
+                                                   Label="@(arg.Description ?? name)"
+                                                   Placeholder="@name" />
+                                    break;
+                            }
+                        </div>
+                    }
 
-                        foreach (var item in group.Value)
-                        {
-                            var idx = flatIndex++;
-                            var isFocused = idx == _focusedIndex;
+                    <div class="cmd-args-actions">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                                    Class="cmd-args-confirm"
+                                    OnClick="ConfirmArgFill">
+                            Ausführen
+                        </DrylButton>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="cmd-results"
+                     id="@_listId"
+                     role="listbox"
+                     @ref="_list">
 
-                            <div id="@ItemId(idx)"
+                    @{
+                        var flat = Flat();
+                    }
+                    @if (!_isLoading && flat.Count == 0)
+                    {
+                        <div class="cmd-empty" aria-live="polite">@EmptyText</div>
+                    }
+                    else
+                    {
+                        var idx = 0;
+
+                        @if (_suggestion is not null)
+                        {
+                            var sIdx = idx++;
+                            var sFocused = sIdx == _focusedIndex;
+                            <div id="@ItemId(sIdx)"
                                  role="option"
-                                 class="@ItemCss(item, isFocused)"
-                                 aria-selected="@(isFocused ? "true" : "false")"
-                                 @onclick="() => ExecuteItemAsync(item)"
-                                 @onmouseenter="() => _focusedIndex = idx"
-                                 @key="idx">
-
-                                @if (!string.IsNullOrEmpty(item.Icon))
-                                {
-                                    <span class="cmd-item-icon">
-                                        <DrylIcon Name="@item.Icon" Size="14" />
-                                    </span>
-                                }
-
+                                 class="@RowCss(_suggestion, sFocused)"
+                                 aria-selected="@(sFocused ? "true" : "false")"
+                                 @onclick="() => RunRowAsync(_suggestion)"
+                                 @onmouseenter="@(() => _focusedIndex = sIdx)"
+                                 @key="@("suggestion")">
+                                <span class="cmd-item-icon">
+                                    <DrylIcon Name="Sparkle" Size="14" />
+                                </span>
                                 <span class="cmd-item-body">
-                                    <span class="cmd-item-label">@item.Label</span>
-                                    @if (!string.IsNullOrEmpty(item.Description))
+                                    <span class="cmd-item-label">@_suggestion.Label</span>
+                                    @if (!string.IsNullOrEmpty(_suggestion.Description))
                                     {
-                                        <span class="cmd-item-desc">@item.Description</span>
+                                        <span class="cmd-item-desc">@_suggestion.Description</span>
                                     }
                                 </span>
-
-                                @if (item.Type == CommandItemType.Navigate)
-                                {
-                                    <DrylIcon Name="ArrowUpRight" Size="12" Class="cmd-item-trailing" />
-                                }
-                                else if (item.Type == CommandItemType.AiIntent)
-                                {
-                                    <DrylIcon Name="Sparkles" Size="12" Class="cmd-item-trailing cmd-item-trailing--ai" />
-                                }
+                                <DrylIcon Name="ArrowRight" Size="12" Class="cmd-item-trailing cmd-item-trailing--ai" />
                             </div>
                         }
+
+                        @foreach (var group in OrderedGroups())
+                        {
+                            if (group.key.Length > 0)
+                            {
+                                <div class="cmd-category" role="presentation" aria-hidden="true">
+                                    @group.key
+                                </div>
+                            }
+
+                            foreach (var row in group.rows)
+                            {
+                                var rIdx = idx++;
+                                var isFocused = rIdx == _focusedIndex;
+                                var current = row;
+                                <div id="@ItemId(rIdx)"
+                                     role="option"
+                                     class="@RowCss(current, isFocused)"
+                                     aria-selected="@(isFocused ? "true" : "false")"
+                                     aria-disabled="@(current.Disabled ? "true" : null)"
+                                     @onclick="() => RunRowAsync(current)"
+                                     @onmouseenter="@(() => _focusedIndex = rIdx)"
+                                     @key="rIdx">
+
+                                    @if (!string.IsNullOrEmpty(current.Icon))
+                                    {
+                                        <span class="cmd-item-icon">
+                                            <DrylIcon Name="@current.Icon" Size="14" />
+                                        </span>
+                                    }
+
+                                    <span class="cmd-item-body">
+                                        <span class="cmd-item-label">@current.Label</span>
+                                        @if (!string.IsNullOrEmpty(current.Description))
+                                        {
+                                            <span class="cmd-item-desc">@current.Description</span>
+                                        }
+                                    </span>
+
+                                    @if (!string.IsNullOrEmpty(current.Shortcut))
+                                    {
+                                        <kbd class="cmd-item-shortcut" aria-hidden="true">@current.Shortcut</kbd>
+                                    }
+                                    else if (current.Trailing == RowTrailing.Navigate)
+                                    {
+                                        <DrylIcon Name="ArrowRight" Size="12" Class="cmd-item-trailing" />
+                                    }
+                                    else if (current.Trailing == RowTrailing.Ai)
+                                    {
+                                        <DrylIcon Name="Sparkle" Size="12" Class="cmd-item-trailing cmd-item-trailing--ai" />
+                                    }
+                                </div>
+                            }
+                        }
                     }
-                }
-            </div>
+                </div>
+            }
 
             @if (Ai != AiState.None)
             {
@@ -168,6 +267,15 @@
     /// <summary>Placeholder text for the search input.</summary>
     [Parameter] public string Placeholder { get; set; } = "Search commands…";
 
+    /// <summary>Empty-state text shown when no command matches.</summary>
+    [Parameter] public string EmptyText { get; set; } = "Keine Treffer";
+
+    /// <summary>Maximum number of registry commands shown for a query. Legacy items are not capped.</summary>
+    [Parameter] public int MaxResults { get; set; } = 8;
+
+    /// <summary>Enables the global ⌘K / Ctrl+K toggle. Defaults to true.</summary>
+    [Parameter] public bool HotKey { get; set; } = true;
+
     /// <summary>Static item list used when <see cref="SearchProvider"/> is not set.</summary>
     [Parameter] public CommandItem[]? Items { get; set; }
 
@@ -179,6 +287,13 @@
     [Parameter] public Func<string, Task<CommandItem[]>>? SearchProvider { get; set; }
 
     /// <summary>
+    /// Optional AI seam. When set, a natural-language query is resolved into a single confirmable
+    /// command suggestion shown at the top of the list. The core references no AI package; supply an
+    /// implementation (e.g. <c>DRYL.Components.Agents.DrylAiCommandResolver</c>).
+    /// </summary>
+    [Parameter] public ICommandResolver? Resolver { get; set; }
+
+    /// <summary>
     /// AI result panel state. When non-None the palette shell shows the shared AI aura
     /// and an AI result panel appears below the results list.
     /// Defaults to <see cref="AiState.None"/> — AI styling is opt-in.
@@ -188,11 +303,23 @@
     /// <summary>Content rendered inside the AI result panel when <see cref="Ai"/> is non-None.</summary>
     [Parameter] public RenderFragment? AiContent { get; set; }
 
+    /// <summary>Hosts declarative <see cref="DrylCommand"/> children.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
     /// <summary>ARIA label for the palette dialog element. Defaults to "Command palette".</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
     /// <summary>Additional CSS classes applied to the palette panel element.</summary>
     [Parameter] public string? Class { get; set; }
+
+    // ── Result row model ───────────────────────────────────────
+
+    private enum RowTrailing { None, Navigate, Ai }
+
+    private sealed record PaletteRow(
+        string Label, string? Description, string? Icon, string? Group,
+        string? Shortcut, bool Disabled, bool Destructive, bool IsSuggestion,
+        RowTrailing Trailing, Func<Task> Run);
 
     // ── State ──────────────────────────────────────────────────
 
@@ -210,9 +337,18 @@
     private AiState _prevAi  = AiState.None;
     private int     _genTick;
 
+    private bool _resolving;
+    private PaletteRow? _suggestion;
+
+    private DrylCommand? _fillingCommand;
+    private Dictionary<string, object?> _fillValues = new();
+
+    private ICommandRegistry _registry = default!;
+    private IDrylDialogService? _dialogs;
+
     private CancellationTokenSource?                    _searchCts;
     private DotNetObjectReference<DrylCommandPalette>?  _dotnetRef;
-    private Dictionary<string, List<CommandItem>>       _grouped = new();
+    private List<PaletteRow>                            _displayRows = new();
 
     private ElementReference _backdrop;
     private ElementReference _palette;
@@ -220,6 +356,20 @@
     private ElementReference _list;
 
     // ── Lifecycle ──────────────────────────────────────────────
+
+    protected override void OnInitialized()
+    {
+        _registry = Services.GetService(typeof(ICommandRegistry)) as ICommandRegistry
+                    ?? new CommandRegistry();
+        _dialogs  = Services.GetService(typeof(IDrylDialogService)) as IDrylDialogService;
+        _registry.OnChanged += OnRegistryChanged;
+    }
+
+    private void OnRegistryChanged()
+    {
+        if (Open)
+            _ = InvokeAsync(() => { RunSearch(_query); });
+    }
 
     protected override void OnParametersSet()
     {
@@ -232,6 +382,9 @@
         {
             _query             = string.Empty;
             _focusedIndex      = 0;
+            _suggestion        = null;
+            _resolving         = false;
+            _fillingCommand    = null;
             _shouldAttachModal = true;
             RunSearch(string.Empty);
         }
@@ -243,7 +396,8 @@
         if (firstRender)
         {
             _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.commandpalette.attachGlobal", _dotnetRef);
+            if (HotKey)
+                await JS.InvokeVoidAsync("dryl.commandpalette.attachGlobal", _dotnetRef);
             _jsReady = true;
         }
 
@@ -288,6 +442,7 @@
             await JS.InvokeVoidAsync("dryl.modal.detach", _backdrop);
             _modalAttached = false;
         }
+        _fillingCommand = null;
         Open = false;
         await OpenChanged.InvokeAsync(false);
         StateHasChanged();
@@ -301,6 +456,7 @@
     {
         _query        = e.Value?.ToString() ?? string.Empty;
         _focusedIndex = 0;
+        _suggestion   = null;
         RunSearch(_query);
     }
 
@@ -315,27 +471,32 @@
         {
             try
             {
-                CommandItem[] results;
+                CommandItem[] legacy;
 
                 if (SearchProvider != null)
                 {
                     _isLoading = true;
                     await InvokeAsync(StateHasChanged);
                     await Task.Delay(250, cts.Token);
-                    results    = await SearchProvider(query);
+                    legacy     = await SearchProvider(query);
                     _isLoading = false;
                 }
                 else
                 {
-                    results = ClientFilter(Items ?? [], query);
+                    legacy = ClientFilter(Items ?? [], query);
                 }
 
-                if (!cts.IsCancellationRequested)
-                {
-                    _grouped      = BuildGrouped(results);
-                    _focusedIndex = 0;
-                    await InvokeAsync(StateHasChanged);
-                }
+                if (cts.IsCancellationRequested) return;
+
+                var rows = new List<PaletteRow>();
+                foreach (var item in legacy)
+                    rows.Add(LegacyRow(item));
+                foreach (var cmd in CommandFuzzyMatcher.Match(_registry.Commands, query, MaxResults))
+                    rows.Add(CommandRow(cmd));
+
+                _displayRows  = rows;
+                _focusedIndex = 0;
+                await InvokeAsync(StateHasChanged);
             }
             catch (OperationCanceledException) { /* fast typing — expected */ }
             catch
@@ -343,7 +504,43 @@
                 _isLoading = false;
                 await InvokeAsync(StateHasChanged);
             }
+
+            if (!cts.IsCancellationRequested)
+                await ResolveAsync(query, cts.Token);
         }, cts.Token);
+    }
+
+    private async Task ResolveAsync(string query, CancellationToken token)
+    {
+        if (Resolver is null || string.IsNullOrWhiteSpace(query))
+        {
+            _suggestion = null;
+            return;
+        }
+
+        try
+        {
+            _resolving = true;
+            await InvokeAsync(StateHasChanged);
+
+            var commands = _registry.Commands.Where(c => !c.Disabled).ToList();
+            if (commands.Count == 0) return;
+
+            var resolution = await Resolver.ResolveAsync(query, commands, token);
+            if (token.IsCancellationRequested) return;
+
+            _suggestion = resolution is null ? null : BuildSuggestionRow(resolution);
+        }
+        catch (OperationCanceledException) { /* superseded query — expected */ }
+        catch { /* a resolver failure must never break manual search */ }
+        finally
+        {
+            if (!token.IsCancellationRequested)
+            {
+                _resolving = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
     }
 
     private static CommandItem[] ClientFilter(CommandItem[] src, string query)
@@ -356,38 +553,73 @@
         ).ToArray();
     }
 
-    private static Dictionary<string, List<CommandItem>> BuildGrouped(IEnumerable<CommandItem> items)
+    // ── Row projection ─────────────────────────────────────────
+
+    private PaletteRow LegacyRow(CommandItem item) => new(
+        item.Label, item.Description, item.Icon, item.Category,
+        Shortcut: null, Disabled: false, Destructive: false, IsSuggestion: false,
+        Trailing: item.Type switch
+        {
+            CommandItemType.Navigate => RowTrailing.Navigate,
+            CommandItemType.AiIntent => RowTrailing.Ai,
+            _                        => RowTrailing.None,
+        },
+        Run: () => ExecuteLegacyAsync(item));
+
+    private PaletteRow CommandRow(DrylCommand cmd) => new(
+        cmd.Title, cmd.Description, cmd.Icon, cmd.Group,
+        cmd.Shortcut, cmd.Disabled, cmd.Destructive, IsSuggestion: false,
+        Trailing: RowTrailing.None,
+        Run: () => SelectCommandAsync(cmd));
+
+    private PaletteRow BuildSuggestionRow(CommandResolution res) => new(
+        res.Command.Title, res.Command.Description, res.Command.Icon, Group: null,
+        Shortcut: null, Disabled: false, Destructive: res.Command.Destructive, IsSuggestion: true,
+        Trailing: RowTrailing.Ai,
+        Run: () => RunResolvedAsync(res));
+
+    // ── Grouping / flattening ──────────────────────────────────
+
+    private List<(string key, List<PaletteRow> rows)> OrderedGroups()
     {
-        var dict  = new Dictionary<string, List<CommandItem>>(StringComparer.OrdinalIgnoreCase);
+        var dict  = new Dictionary<string, List<PaletteRow>>(StringComparer.OrdinalIgnoreCase);
         var order = new List<string>();
 
-        foreach (var item in items)
+        foreach (var row in _displayRows)
         {
-            var key = item.Category ?? string.Empty;
-            if (!dict.ContainsKey(key))
+            var key = row.Group ?? string.Empty;
+            if (!dict.TryGetValue(key, out var list))
             {
-                dict[key] = [];
+                list = new List<PaletteRow>();
+                dict[key] = list;
                 order.Add(key);
             }
-            dict[key].Add(item);
+            list.Add(row);
         }
 
-        var result = new Dictionary<string, List<CommandItem>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var key in order.Where(k => !string.IsNullOrEmpty(k)).OrderBy(k => k))
-            result[key] = dict[key];
+        var result = new List<(string, List<PaletteRow>)>();
+        foreach (var key in order.Where(k => k.Length > 0).OrderBy(k => k, StringComparer.OrdinalIgnoreCase))
+            result.Add((key, dict[key]));
         if (dict.TryGetValue(string.Empty, out var ungrouped))
-            result[string.Empty] = ungrouped;
-
+            result.Add((string.Empty, ungrouped));
         return result;
+    }
+
+    private List<PaletteRow> Flat()
+    {
+        var list = new List<PaletteRow>();
+        if (_suggestion is not null) list.Add(_suggestion);
+        foreach (var group in OrderedGroups())
+            list.AddRange(group.rows);
+        return list;
     }
 
     // ── Keyboard navigation ────────────────────────────────────
 
-    private int FlatItemCount => _grouped.Values.Sum(g => g.Count);
-
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        var count = FlatItemCount;
+        var flat  = Flat();
+        var count = flat.Count;
         if (count == 0 && e.Key is not "Escape") return;
 
         switch (e.Key)
@@ -405,8 +637,8 @@
                 break;
 
             case "Enter":
-                var item = FlatItemAt(_focusedIndex);
-                if (item is not null) await ExecuteItemAsync(item);
+                if (_focusedIndex >= 0 && _focusedIndex < count)
+                    await RunRowAsync(flat[_focusedIndex]);
                 break;
 
             case "Escape":
@@ -415,9 +647,11 @@
         }
     }
 
-    // ── Item execution ─────────────────────────────────────────
+    // ── Execution ──────────────────────────────────────────────
 
-    private async Task ExecuteItemAsync(CommandItem item)
+    private Task RunRowAsync(PaletteRow row) => row.Disabled ? Task.CompletedTask : row.Run();
+
+    private async Task ExecuteLegacyAsync(CommandItem item)
     {
         switch (item.Type)
         {
@@ -441,6 +675,97 @@
         }
     }
 
+    private async Task SelectCommandAsync(DrylCommand cmd)
+    {
+        if (cmd.Disabled) return;
+        if (cmd.Arguments.Count > 0)
+        {
+            OpenArgFill(cmd, seed: null);
+            return;
+        }
+        await RunCommandAsync(cmd, new CommandContext(
+            new Dictionary<string, object?>(), _searchCts?.Token ?? default));
+    }
+
+    private async Task RunResolvedAsync(CommandResolution res)
+    {
+        var cmd = res.Command;
+        var missingRequired = cmd.Arguments.Any(a =>
+            a.Required && (!res.Arguments.TryGetValue(a.Name, out var v) || v is null));
+
+        if (cmd.Arguments.Count > 0 && missingRequired)
+        {
+            OpenArgFill(cmd, res.Arguments);
+            return;
+        }
+        await RunCommandAsync(cmd, new CommandContext(res.Arguments, _searchCts?.Token ?? default));
+    }
+
+    private async Task RunCommandAsync(DrylCommand cmd, CommandContext ctx)
+    {
+        if (cmd.Destructive && _dialogs is not null)
+        {
+            var result = await _dialogs.ShowConfirmAsync(
+                "Aktion bestätigen", cmd.Title, "Ausführen", "Abbrechen");
+            if (result.Canceled) return;
+        }
+        await CloseAsync();
+        await cmd.RunAsync(ctx);
+    }
+
+    // ── Argument fill ──────────────────────────────────────────
+
+    private void OpenArgFill(DrylCommand cmd, IReadOnlyDictionary<string, object?>? seed)
+    {
+        _fillingCommand = cmd;
+        _fillValues     = new Dictionary<string, object?>();
+        if (seed is not null)
+            foreach (var kv in seed)
+                _fillValues[kv.Key] = kv.Value;
+        StateHasChanged();
+    }
+
+    private void CancelArgFill()
+    {
+        _fillingCommand = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmArgFill()
+    {
+        var cmd = _fillingCommand;
+        if (cmd is null) return;
+        await RunCommandAsync(cmd, BuildContext(cmd));
+    }
+
+    private CommandContext BuildContext(DrylCommand cmd)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var arg in cmd.Arguments)
+        {
+            _fillValues.TryGetValue(arg.Name, out var raw);
+            dict[arg.Name] = arg.Type switch
+            {
+                CommandArgType.Number  => double.TryParse(raw?.ToString(),
+                                              System.Globalization.NumberStyles.Any,
+                                              System.Globalization.CultureInfo.InvariantCulture,
+                                              out var d) ? d : null,
+                CommandArgType.Boolean => raw is bool b ? b : bool.TryParse(raw?.ToString(), out var bb) && bb,
+                _                      => raw?.ToString(),
+            };
+        }
+        return new CommandContext(dict, _searchCts?.Token ?? default);
+    }
+
+    private string AsString(string name) =>
+        _fillValues.TryGetValue(name, out var v) ? v?.ToString() ?? string.Empty : string.Empty;
+
+    private bool AsBool(string name) =>
+        _fillValues.TryGetValue(name, out var v) && v is bool b && b;
+
+    private static SelectItem[] ToItems(string[]? options) =>
+        (options ?? Array.Empty<string>()).Select(o => new SelectItem(o, o)).ToArray();
+
     // ── CSS helpers ────────────────────────────────────────────
 
     private string PaletteCssClass
@@ -460,6 +785,16 @@
         }
     }
 
+    private string SearchRowCss
+    {
+        get
+        {
+            var parts = new List<string> { "cmd-search-row" };
+            if (_resolving) { parts.Add("ai-aura"); parts.Add("ai-thinking"); }
+            return string.Join(' ', parts);
+        }
+    }
+
     private string AiPanelCssClass
     {
         get
@@ -475,32 +810,28 @@
         }
     }
 
-    private static string ItemCss(CommandItem item, bool isFocused)
+    private static string RowCss(PaletteRow row, bool isFocused)
     {
         var parts = new List<string> { "cmd-item" };
         if (isFocused) parts.Add("is-focused");
-        if (item.Type == CommandItemType.AiIntent) parts.Add("cmd-item--ai");
+        if (row.Disabled) parts.Add("is-disabled");
+        if (row.Destructive) parts.Add("cmd-item--danger");
+        if (row.IsSuggestion) parts.Add("cmd-item--ai");
         return string.Join(' ', parts);
     }
 
-    private string ItemId(int index)  => $"{_itemPrefix}-{index}";
+    private string ItemId(int index) => $"{_itemPrefix}-{index}";
 
     private string? ActiveDescendant =>
-        FlatItemCount > 0 ? ItemId(_focusedIndex) : null;
-
-    private CommandItem? FlatItemAt(int index)
-    {
-        var i = 0;
-        foreach (var group in _grouped.Values)
-            foreach (var item in group)
-                if (i++ == index) return item;
-        return null;
-    }
+        Flat().Count > 0 ? ItemId(_focusedIndex) : null;
 
     // ── Disposal ───────────────────────────────────────────────
 
     public async ValueTask DisposeAsync()
     {
+        if (_registry is not null)
+            _registry.OnChanged -= OnRegistryChanged;
+
         _searchCts?.Cancel();
         _searchCts?.Dispose();
 
