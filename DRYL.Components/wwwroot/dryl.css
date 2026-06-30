@@ -1506,6 +1506,15 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .search input { background: transparent; border: 0; outline: 0; color: var(--fg); width: 100%; font: 400 13px var(--font-sans); }
 .search input::placeholder { color: var(--fg-dim); }
 
+/* Topbar hardening — page-level chrome, so a viewport media query (consistent
+   with the existing app-shell breakpoints). On small screens the bar tightens
+   its padding and the fixed-width search becomes flexible so nothing clips off
+   the right edge. */
+@media (max-width: 768px) {
+  .topbar { padding: 0 var(--sp-4); gap: var(--sp-3); }
+  .search { width: auto; min-width: 0; flex: 1 1 auto; }
+}
+
 .main {
   padding: 40px 48px 80px;
   max-width: 1400px;
