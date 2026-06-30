@@ -63,6 +63,7 @@ Version bump guide:
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed
+- `DrylPopover` / `DrylMenu` — Dropdown panels are now capped to the viewport width (`calc(100vw - …)`) so they can't push off the right edge of a phone screen (`DrylDialog` and `DrylToast` were already constrained)
 - `DrylStepper` — A horizontal stepper now scrolls its step track on a narrow slot (each step keeps a readable min width) instead of crushing every label to an ellipsis
 - `DrylTabs` — Tabs keep their size while the strip scrolls on a narrow slot (no longer squeezed)
 - `DrylDescriptionList` — Multi-column lists collapse to a single column on a narrow slot (container-query driven) so values no longer squeeze on phones

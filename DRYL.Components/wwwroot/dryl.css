@@ -3930,7 +3930,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   left: 0;
   z-index: var(--z-drawer);
   min-width: 180px;
-  max-width: 320px;
+  /* Cap to the viewport on a phone so a right-anchored menu can't push off-screen. */
+  max-width: min(320px, calc(100vw - var(--sp-4)));
   display: flex;
   flex-direction: column;
   background: var(--bg-2);
