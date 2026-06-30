@@ -4650,3 +4650,43 @@ button.list-item-row:focus-visible {
   opacity: 0.5;
   pointer-events: none;
 }
+
+/* ─────────────────────────────────────────────────────────
+   Responsive foundation
+   Breakpoint scale (px values intentionally literal — var() is
+   illegal inside @container / @media conditions):
+     Sm 480  ·  Md 768  ·  Lg 1024  ·  Xl 1280
+   ───────────────────────────────────────────────────────── */
+
+/* Make an element a container-query context so descendants can
+   adapt to this element's inline size instead of the viewport. */
+.cq { container-type: inline-size; }
+
+/* Global safety layer — defensive + additive. Kills the
+   "nothing shrinks / clips" bug class without an opinionated reset. */
+img, svg, video, canvas { max-width: 100%; height: auto; }
+.stack, .row, .col, .between, .glass-card { min-width: 0; }
+.glass-card { overflow-wrap: anywhere; }
+pre, .code-block, code { overflow-wrap: anywhere; }
+pre { overflow-x: auto; }
+
+/* DrylStack CollapseBelow — horizontal stack flips to vertical
+   below the chosen container width. Default row; query overrides. */
+.stack-collapse-sm, .stack-collapse-md,
+.stack-collapse-lg, .stack-collapse-xl { flex-direction: row; }
+@container (max-width: 480px)  { .stack-collapse-sm { flex-direction: column; } }
+@container (max-width: 768px)  { .stack-collapse-md { flex-direction: column; } }
+@container (max-width: 1024px) { .stack-collapse-lg { flex-direction: column; } }
+@container (max-width: 1280px) { .stack-collapse-xl { flex-direction: column; } }
+
+/* DrylGrid fixed-column modes that step down on narrow slots. */
+.grid-cols-2, .grid-cols-3, .grid-cols-4 { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container (max-width: 768px) {
+  .grid-cols-3, .grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 480px) {
+  .grid-cols-2, .grid-cols-3, .grid-cols-4 { grid-template-columns: 1fr; }
+}
