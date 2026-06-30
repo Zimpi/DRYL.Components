@@ -1,0 +1,35 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylSpacer — layout spacer.
+
+    With no Size it grows to fill (flex: 1), pushing siblings apart
+    (e.g. in a toolbar). With Size it is a fixed block from the --sp
+    scale. Decorative, so aria-hidden.
+
+    Usage:
+      <DrylStack Direction="DrylStack.StackDirection.Horizontal">
+          <DrylBadge>Left</DrylBadge>
+          <DrylSpacer />
+          <DrylButton>Right</DrylButton>
+      </DrylStack>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="spacer @Class" style="@Style" aria-hidden="true" @attributes="AdditionalAttributes"></div>
+
+@code {
+    /// <summary>Fixed spacer size from the <c>--sp-*</c> scale. When null, the
+    /// spacer grows to fill available space (<c>flex: 1</c>).</summary>
+    [Parameter] public DrylStack.StackGap? Size { get; set; }
+
+    /// <summary>Pass-through HTML attributes.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the spacer's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string Style => Size is { } s
+        ? $"flex: 0 0 auto; width: {DrylGrid.GapToken(s)}; height: {DrylGrid.GapToken(s)};"
+        : "flex: 1 1 auto;";
+}
