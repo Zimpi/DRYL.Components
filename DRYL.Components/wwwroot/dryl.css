@@ -2102,6 +2102,16 @@ code, .code-inline {
   gap: 2px;
   margin-left: auto;
 }
+.tbl-pagination-numbers {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+/* On a narrow slot the numbered page buttons collapse, leaving the
+   first/prev/next/last controls and the "Showing x–y of z" summary. */
+@container (max-width: 480px) {
+  .tbl-pagination-numbers { display: none; }
+}
 .tbl-pagination-gap {
   color: var(--fg-dim);
   font-family: var(--font-mono);

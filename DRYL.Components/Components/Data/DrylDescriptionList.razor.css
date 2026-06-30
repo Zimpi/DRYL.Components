@@ -1,6 +1,14 @@
+.cq { container-type: inline-size; }
+
 .desc-list {
     display: grid;
     grid-template-columns: repeat(var(--desc-cols, 1), minmax(0, 1fr));
     gap: var(--sp-4) var(--sp-6);
     margin: 0;
+}
+
+/* Multi-column lists collapse to a single column once their slot gets
+   narrow (phone, or a tight column on desktop) so values never squeeze. */
+@container (max-width: 480px) {
+    .desc-list { grid-template-columns: 1fr; }
 }

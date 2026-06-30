@@ -12,6 +12,7 @@
     component handles the conversion to 1-based labels in the UI.
     ───────────────────────────────────────────────────────── *@
 
+<div class="cq">
 <div class="tbl-pagination @Class" @attributes="AdditionalAttributes">
 
     @if (TotalCount > 0)
@@ -60,6 +61,7 @@
                     OnClick="@(() => Go(CurrentPage - 1))"
  />
 
+        <span class="tbl-pagination-numbers">
         @foreach (var p in BuildPageList())
         {
             if (p is null)
@@ -79,6 +81,7 @@
                 </DrylButton>
             }
         }
+        </span>
 
         <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                     Size="DrylButton.ButtonSize.Small"
@@ -96,6 +99,7 @@
  />
     </div>
 
+</div>
 </div>
 
 @code {

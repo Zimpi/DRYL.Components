@@ -63,6 +63,8 @@ Version bump guide:
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed
+- `DrylDescriptionList` — Multi-column lists collapse to a single column on a narrow slot (container-query driven) so values no longer squeeze on phones
+- `DrylPagination` — The numbered page buttons collapse on a narrow slot, leaving first/prev/next/last and the result summary, so the bar no longer overflows on phones
 - `DrylAppBar` — The top bar no longer overflows on phones: it tightens its padding and the fixed-width search shrinks to fit instead of clipping off the right edge
 - `DrylCard` — Card content now wraps instead of clipping on narrow screens (rows inside a card wrap; children may shrink via the responsive safety layer)
 - `DrylLayout` — The app shell now pins the sidebar and top bar in place and scrolls only the main content area. Previously the whole document scrolled, so on pages taller than the viewport the `DrylDrawer` sidebar and `DrylAppBar` scrolled away with the content instead of staying fixed
