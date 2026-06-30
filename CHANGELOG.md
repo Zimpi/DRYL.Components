@@ -63,6 +63,8 @@ Version bump guide:
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed
+- `DrylStepper` — A horizontal stepper now scrolls its step track on a narrow slot (each step keeps a readable min width) instead of crushing every label to an ellipsis
+- `DrylTabs` — Tabs keep their size while the strip scrolls on a narrow slot (no longer squeezed)
 - `DrylDescriptionList` — Multi-column lists collapse to a single column on a narrow slot (container-query driven) so values no longer squeeze on phones
 - `DrylPagination` — The numbered page buttons collapse on a narrow slot, leaving first/prev/next/last and the result summary, so the bar no longer overflows on phones
 - `DrylAppBar` — The top bar no longer overflows on phones: it tightens its padding and the fixed-width search shrinks to fit instead of clipping off the right edge

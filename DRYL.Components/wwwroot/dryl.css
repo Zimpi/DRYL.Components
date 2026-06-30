@@ -3143,6 +3143,7 @@ td.tbl-td-editing select {
   letter-spacing: -0.005em;
   color: var(--fg-muted);
   white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   user-select: none;
   border-radius: var(--r-sm) var(--r-sm) 0 0;
