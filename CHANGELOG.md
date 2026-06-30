@@ -20,6 +20,7 @@ Version bump guide:
 - `DrylContainer` — Centers content at a readable max width (`Size`) with responsive side padding so pages are never edge-to-edge on mobile
 - `DrylStack` — New `CollapseBelow` (`Breakpoint?`) flips a horizontal stack to vertical below the chosen container width; off by default, no change to existing usage
 - `DrylSpacer` — Layout spacer; grows to fill by default or a fixed `Size` from the spacing scale
+- `DrylAspectRatio` — Holds a fixed ratio (Square / Video / Photo / Wide / Custom) for media and embeds; never exceeds its slot
 - `DrylThemeProvider` — Root provider that applies a customizable color theme; place once in the root layout; renders `:root { <seeds> }` inline `<style>` for no-flash first paint (incl. Blazor Server prerender); subscribes to `IDrylThemeService.OnThemeChanged` for animated runtime switches
 - `IDrylThemeService` — Runtime theme switching (`SetThemeAsync` / `SetAccentAsync`) with an animated transition; change glides over `--dur-slow` (instant under `prefers-reduced-motion`)
 - `DrylTheme` / `DrylThemes` — Strongly-typed themes and curated presets (Nebula default, Ember, Verdant, Mono); set a few seed hues, DRYL derives the rest via `color-mix()`; `DrylTheme` is a composable record (`Accent`, optional `AiAccent`, optional `Semantic`)

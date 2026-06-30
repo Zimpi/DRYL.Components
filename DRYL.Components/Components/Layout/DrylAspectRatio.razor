@@ -1,0 +1,53 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAspectRatio — holds a fixed aspect ratio for media / embeds
+    and never exceeds its slot. The child fills via object-fit: cover.
+
+    Usage:
+      <DrylAspectRatio Ratio="DrylAspectRatio.AspectRatio.Video">
+          <img src="…" alt="…" />
+      </DrylAspectRatio>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="aspect @Class" style="@Style" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>Aspect ratio preset. Defaults to <see cref="AspectRatio.Video"/> (16/9).</summary>
+    [Parameter] public AspectRatio Ratio { get; set; } = AspectRatio.Video;
+
+    /// <summary>Custom <c>aspect-ratio</c> value (e.g. "3 / 2"); used only when
+    /// <see cref="Ratio"/> is <see cref="AspectRatio.Custom"/>.</summary>
+    [Parameter] public string? RatioValue { get; set; }
+
+    /// <summary>Boxed content (image, iframe, video …).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the box's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string Style
+    {
+        get
+        {
+            var ratio = Ratio switch
+            {
+                AspectRatio.Square => "1 / 1",
+                AspectRatio.Photo  => "4 / 3",
+                AspectRatio.Wide   => "21 / 9",
+                AspectRatio.Custom => string.IsNullOrWhiteSpace(RatioValue) ? "16 / 9" : RatioValue!,
+                _ => "16 / 9"
+            };
+            return $"aspect-ratio: {ratio}; max-width: 100%; overflow: hidden;";
+        }
+    }
+
+    /// <summary>Aspect-ratio presets for <see cref="DrylAspectRatio"/>.</summary>
+    public enum AspectRatio { Square, Video, Photo, Wide, Custom }
+}
