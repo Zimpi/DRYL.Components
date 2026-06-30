@@ -14,11 +14,13 @@
       </DrylDescriptionList>
     ───────────────────────────────────────────────────────── *@
 
-<dl class="desc-list @Class" style="--desc-cols: @Columns" @attributes="AdditionalAttributes">
-    <CascadingValue Value="this" IsFixed="true">
-        @ChildContent
-    </CascadingValue>
-</dl>
+<div class="cq">
+    <dl class="desc-list @Class" style="--desc-cols: @Columns" @attributes="AdditionalAttributes">
+        <CascadingValue Value="this" IsFixed="true">
+            @ChildContent
+        </CascadingValue>
+    </dl>
+</div>
 
 @code {
     /// <summary>Term/value arrangement applied to every item.</summary>

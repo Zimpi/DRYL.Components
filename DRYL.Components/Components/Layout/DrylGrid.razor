@@ -1,0 +1,98 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylGrid — responsive column grid.
+
+    Default mode is auto-fit (needs no breakpoints): items wrap once
+    they fall below MinItemWidth. Set Columns for a fixed count that
+    steps down automatically on narrow slots.
+
+    Usage:
+      <DrylGrid MinItemWidth="DrylGrid.ItemWidth.Sm" Gap="DrylStack.StackGap.Lg">
+          <DrylCard>One</DrylCard>
+          <DrylCard>Two</DrylCard>
+      </DrylGrid>
+
+      <DrylGrid Columns="3">…</DrylGrid>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@CssClass" style="@Style" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>Minimum width an item may occupy before the grid wraps to fewer
+    /// columns. Used only in auto-fit mode (when <see cref="Columns"/> is null).
+    /// Defaults to <see cref="ItemWidth.Md"/> (20rem).</summary>
+    [Parameter] public ItemWidth MinItemWidth { get; set; } = ItemWidth.Md;
+
+    /// <summary>Fixed column count. When set, overrides auto-fit; counts 2–4 get
+    /// automatic responsive step-down on narrow slots. Leave null for auto-fit.</summary>
+    [Parameter] public int? Columns { get; set; }
+
+    /// <summary>Gap between cells, mapped to the <c>--sp-*</c> scale. Defaults to
+    /// <see cref="DrylStack.StackGap.Md"/>.</summary>
+    [Parameter] public DrylStack.StackGap Gap { get; set; } = DrylStack.StackGap.Md;
+
+    /// <summary>Grid content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the grid container.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the grid's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private bool UsesFixedColumns => Columns is >= 2 and <= 4;
+
+    private string CssClass
+    {
+        get
+        {
+            var classes = new List<string> { "grid" };
+            if (UsesFixedColumns) { classes.Add("cq"); classes.Add($"grid-cols-{Columns}"); }
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string Style
+    {
+        get
+        {
+            var gap = GapToken(Gap);
+            if (UsesFixedColumns)
+                return $"gap: {gap};";
+            // auto-fit (default) or an out-of-range fixed count → inline template
+            var min = MinItemWidth switch
+            {
+                ItemWidth.Xs => "12rem",
+                ItemWidth.Sm => "16rem",
+                ItemWidth.Lg => "28rem",
+                _ => "20rem"
+            };
+            var template = Columns is int n
+                ? $"repeat({n}, minmax(0, 1fr))"
+                : $"repeat(auto-fit, minmax(min({min}, 100%), 1fr))";
+            return $"display: grid; grid-template-columns: {template}; gap: {gap};";
+        }
+    }
+
+    /// <summary>Maps a <see cref="DrylStack.StackGap"/> onto its <c>--sp-*</c> token.
+    /// Shared by the layout primitives so the spacing scale stays single-sourced.</summary>
+    internal static string GapToken(DrylStack.StackGap gap) => gap switch
+    {
+        DrylStack.StackGap.None => "0",
+        DrylStack.StackGap.Xs   => "var(--sp-1)",
+        DrylStack.StackGap.Sm   => "var(--sp-2)",
+        DrylStack.StackGap.Md   => "var(--sp-3)",
+        DrylStack.StackGap.Lg   => "var(--sp-4)",
+        DrylStack.StackGap.Xl   => "var(--sp-5)",
+        DrylStack.StackGap.Xxl  => "var(--sp-6)",
+        _ => "var(--sp-3)"
+    };
+
+    /// <summary>Minimum item width presets for <see cref="DrylGrid"/> auto-fit mode.</summary>
+    public enum ItemWidth { Xs, Sm, Md, Lg }
+}

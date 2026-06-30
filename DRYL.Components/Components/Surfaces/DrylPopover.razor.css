@@ -31,6 +31,8 @@
     position: fixed;
     z-index: var(--z-popover);
     visibility: hidden;
+    /* Never exceed the viewport on a phone (the panel is fixed-positioned). */
+    max-width: calc(100vw - var(--sp-4));
 }
 .popover-panel.is-open.is-positioned {
     visibility: visible;

@@ -154,6 +154,32 @@ await ThemeService.SetAccentAsync("#a855f7", "#06b6d4");
 
 ---
 
+## Breakpoints (responsive scale)
+
+DRYL is **container-query-first**: components react to the width of their own
+slot, not the viewport. The breakpoint pixel values are intentionally **literal
+and live only in `dryl.css`** — `var()` cannot be used inside `@container` /
+`@media` query conditions. Consumers never write px; they pass the `Breakpoint`
+enum (e.g. `DrylStack.CollapseBelow="Breakpoint.Md"`).
+
+| Name | Width  | Intended for                                  |
+| ---- | ------ | --------------------------------------------- |
+| `Sm` | 480px  | phone landscape / small slots                 |
+| `Md` | 768px  | tablet                                        |
+| `Lg` | 1024px | desktop (matches the sidebar query)           |
+| `Xl` | 1280px | large                                         |
+
+**Mechanics & safety layer:**
+
+- `.cq` → `container-type: inline-size`. Put it on a wrapper to make its inline
+  size the query context for descendants. The layout primitives (`DrylGrid`,
+  `DrylContainer`, responsive `DrylStack`) set this internally.
+- A defensive **global safety layer** ships in `dryl.css`: `img/svg/video/canvas
+  { max-width:100% }`, `min-width:0` on the flex primitives, and `overflow-wrap`
+  on text surfaces — so content shrinks/wraps instead of clipping the page.
+
+---
+
 ## Radii
 
 | Token        | Value | Use                                            |

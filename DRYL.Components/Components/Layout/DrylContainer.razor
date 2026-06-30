@@ -1,0 +1,52 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylContainer — centers content at a readable max width with
+    responsive side padding, so a page is never edge-to-edge on a
+    phone.
+
+    Usage:
+      <DrylContainer Size="DrylContainer.ContainerSize.Lg">
+          … page content …
+      </DrylContainer>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="container @Class" style="@Style" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>Maximum content width preset. Defaults to <see cref="ContainerSize.Lg"/>.</summary>
+    [Parameter] public ContainerSize Size { get; set; } = ContainerSize.Lg;
+
+    /// <summary>Container content.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the container.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the container's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private string Style
+    {
+        get
+        {
+            const string pad = "padding-inline: clamp(var(--sp-4), 4vw, var(--sp-6));";
+            if (Size == ContainerSize.Full)
+                return $"width: 100%; {pad}";
+            var max = Size switch
+            {
+                ContainerSize.Sm => "40rem",
+                ContainerSize.Md => "52rem",
+                ContainerSize.Xl => "80rem",
+                _ => "64rem"
+            };
+            return $"max-width: {max}; margin-inline: auto; {pad}";
+        }
+    }
+
+    /// <summary>Max-width presets for <see cref="DrylContainer"/>.</summary>
+    public enum ContainerSize { Sm, Md, Lg, Xl, Full }
+}

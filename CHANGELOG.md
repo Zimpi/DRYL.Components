@@ -15,6 +15,12 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- Responsive foundation — `Breakpoint` scale (Sm/Md/Lg/Xl), `.cq` container-query utility, and a global safety layer (media `max-width:100%`, flex `min-width:0`, word-wrap) so DRYL UIs resist horizontal overflow on small screens
+- `DrylGrid` — Responsive column grid; auto-fit by default (`MinItemWidth`) or fixed `Columns` with automatic step-down; token-driven `Gap`
+- `DrylContainer` — Centers content at a readable max width (`Size`) with responsive side padding so pages are never edge-to-edge on mobile
+- `DrylStack` — New `CollapseBelow` (`Breakpoint?`) flips a horizontal stack to vertical below the chosen container width; off by default, no change to existing usage
+- `DrylSpacer` — Layout spacer; grows to fill by default or a fixed `Size` from the spacing scale
+- `DrylAspectRatio` — Holds a fixed ratio (Square / Video / Photo / Wide / Custom) for media and embeds; never exceeds its slot
 - `DrylThemeProvider` — Root provider that applies a customizable color theme; place once in the root layout; renders `:root { <seeds> }` inline `<style>` for no-flash first paint (incl. Blazor Server prerender); subscribes to `IDrylThemeService.OnThemeChanged` for animated runtime switches
 - `IDrylThemeService` — Runtime theme switching (`SetThemeAsync` / `SetAccentAsync`) with an animated transition; change glides over `--dur-slow` (instant under `prefers-reduced-motion`)
 - `DrylTheme` / `DrylThemes` — Strongly-typed themes and curated presets (Nebula default, Ember, Verdant, Mono); set a few seed hues, DRYL derives the rest via `color-mix()`; `DrylTheme` is a composable record (`Accent`, optional `AiAccent`, optional `Semantic`)
@@ -57,6 +63,13 @@ Version bump guide:
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed
+- `DrylPopover` / `DrylMenu` — Dropdown panels are now capped to the viewport width (`calc(100vw - …)`) so they can't push off the right edge of a phone screen (`DrylDialog` and `DrylToast` were already constrained)
+- `DrylStepper` — A horizontal stepper now scrolls its step track on a narrow slot (each step keeps a readable min width) instead of crushing every label to an ellipsis
+- `DrylTabs` — Tabs keep their size while the strip scrolls on a narrow slot (no longer squeezed)
+- `DrylDescriptionList` — Multi-column lists collapse to a single column on a narrow slot (container-query driven) so values no longer squeeze on phones
+- `DrylPagination` — The numbered page buttons collapse on a narrow slot, leaving first/prev/next/last and the result summary, so the bar no longer overflows on phones
+- `DrylAppBar` — The top bar no longer overflows on phones: it tightens its padding and the fixed-width search shrinks to fit instead of clipping off the right edge
+- `DrylCard` — Card content now wraps instead of clipping on narrow screens (rows inside a card wrap; children may shrink via the responsive safety layer)
 - `DrylLayout` — The app shell now pins the sidebar and top bar in place and scrolls only the main content area. Previously the whole document scrolled, so on pages taller than the viewport the `DrylDrawer` sidebar and `DrylAppBar` scrolled away with the content instead of staying fixed
 - `DrylThemeProvider` — Custom themes now also recolor element glows, focus rings, the aurora background, selection states and the dialog glow (previously only buttons/borders followed the theme)
 - `DrylDialog` — Dialogs now animate out (scale + fade) on close instead of disappearing instantly; honours `prefers-reduced-motion`

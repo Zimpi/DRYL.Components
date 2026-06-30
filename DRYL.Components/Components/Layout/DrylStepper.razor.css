@@ -12,7 +12,13 @@
     display: flex;
     flex-direction: row;
     align-items: flex-start;
+    /* On a narrow slot the steps would crush their labels to an ellipsis;
+       give each a min width and let the track scroll horizontally instead. */
+    overflow-x: auto;
+    scrollbar-width: none;
 }
+
+.stepper--horizontal .stepper-track::-webkit-scrollbar { display: none; }
 
 .stepper--vertical .stepper-track {
     display: flex;
@@ -71,9 +77,11 @@
     border: 0;
 }
 
-/* Horizontal: each header takes equal space, centers content vertically */
+/* Horizontal: each header takes equal space, centers content vertically.
+   A min width keeps labels readable on narrow slots; when the steps no longer
+   fit, the track scrolls (above) instead of crushing every label. */
 .stepper--horizontal .step-header {
-    flex: 1;
+    flex: 1 0 6rem;
     flex-direction: column;
     align-items: center;
     text-align: center;
