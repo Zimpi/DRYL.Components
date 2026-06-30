@@ -21,9 +21,20 @@
       </DrylStack>
     ───────────────────────────────────────────────────────── *@
 
-<div class="stack @Class" style="@Style" @attributes="AdditionalAttributes">
-    @ChildContent
-</div>
+@if (Collapses)
+{
+    <div class="cq">
+        <div class="stack stack-collapse-@BreakpointSlug @Class" style="@Style" @attributes="AdditionalAttributes">
+            @ChildContent
+        </div>
+    </div>
+}
+else
+{
+    <div class="stack @Class" style="@Style" @attributes="AdditionalAttributes">
+        @ChildContent
+    </div>
+}
 
 @code {
     /// <summary>Main-axis direction. Defaults to <see cref="StackDirection.Vertical"/>.</summary>
@@ -40,6 +51,11 @@
 
     /// <summary>When true, children wrap onto multiple lines once they overflow.</summary>
     [Parameter] public bool Wrap { get; set; }
+
+    /// <summary>When set on a <see cref="StackDirection.Horizontal"/> stack, the
+    /// stack flips to vertical below this container width (container-query driven).
+    /// No effect on a vertical stack. Defaults to null (never collapses).</summary>
+    [Parameter] public Breakpoint? CollapseBelow { get; set; }
 
     /// <summary>Stack content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -86,10 +102,23 @@
             };
             var wrap = Wrap ? "wrap" : "nowrap";
 
-            return $"display: flex; flex-direction: {direction}; gap: {gap}; " +
+            // When collapsing, the direction is owned by the .stack-collapse-* CSS
+            // class (so a container query can flip it); keep it out of inline style.
+            var directionDecl = Collapses ? "" : $"flex-direction: {direction}; ";
+            return $"display: flex; {directionDecl}gap: {gap}; " +
                    $"align-items: {align}; justify-content: {justify}; flex-wrap: {wrap};";
         }
     }
+
+    private bool Collapses => CollapseBelow is not null && Direction == StackDirection.Horizontal;
+
+    private string BreakpointSlug => CollapseBelow switch
+    {
+        Breakpoint.Sm => "sm",
+        Breakpoint.Lg => "lg",
+        Breakpoint.Xl => "xl",
+        _ => "md"
+    };
 
     /// <summary>Main-axis direction of a <see cref="DrylStack"/>.</summary>
     public enum StackDirection { Vertical, Horizontal }
