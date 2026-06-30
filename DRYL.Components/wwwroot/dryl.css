@@ -4670,6 +4670,10 @@ img, svg, video, canvas { max-width: 100%; height: auto; }
 pre, .code-block, code { overflow-wrap: anywhere; }
 pre { overflow-x: auto; }
 
+/* Rows inside a card wrap instead of clipping on a narrow slot. A row that
+   fits on one line is unaffected; it only wraps when it would overflow. */
+.glass-card .row { flex-wrap: wrap; }
+
 /* DrylStack CollapseBelow — horizontal stack flips to vertical
    below the chosen container width. Default row; query overrides. */
 .stack-collapse-sm, .stack-collapse-md,

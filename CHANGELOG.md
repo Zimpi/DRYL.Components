@@ -63,6 +63,7 @@ Version bump guide:
 - `DrylTabs` — The active underline now glides between tabs on a spring instead of fading in per-tab (set `AnimateIndicator="false"` for the old behaviour)
 
 ### Fixed
+- `DrylCard` — Card content now wraps instead of clipping on narrow screens (rows inside a card wrap; children may shrink via the responsive safety layer)
 - `DrylLayout` — The app shell now pins the sidebar and top bar in place and scrolls only the main content area. Previously the whole document scrolled, so on pages taller than the viewport the `DrylDrawer` sidebar and `DrylAppBar` scrolled away with the content instead of staying fixed
 - `DrylThemeProvider` — Custom themes now also recolor element glows, focus rings, the aurora background, selection states and the dialog glow (previously only buttons/borders followed the theme)
 - `DrylDialog` — Dialogs now animate out (scale + fade) on close instead of disappearing instantly; honours `prefers-reduced-motion`
