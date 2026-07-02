@@ -1,10 +1,21 @@
-/* Media children fill the ratio box edge to edge. */
+/* Grid/flex parents default to "stretch", which forces the box to the row's/line's
+   content height and silently overrides the aspect-ratio above. Opting out of stretch
+   lets the browser size the box purely from aspect-ratio + the (stretched) width. */
+.aspect {
+    align-self: start;
+}
+
+/* Any direct child fills the ratio box edge to edge. */
+.aspect > ::deep * {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Media elements additionally crop to cover instead of stretching/distorting. */
 .aspect > ::deep img,
 .aspect > ::deep video,
 .aspect > ::deep iframe {
-    width: 100%;
-    height: 100%;
     object-fit: cover;
     border: 0;
-    display: block;
 }
