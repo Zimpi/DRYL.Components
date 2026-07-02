@@ -33,6 +33,18 @@ public abstract class DrylRunBase : IAsyncDisposable
     /// <summary>The accumulated answer text so far.</summary>
     public string Text { get; internal set; } = string.Empty;
 
+    /// <summary>
+    /// The terminal error of the run, or null while running / after success. When set, the run
+    /// has settled at <see cref="AiState.None"/> — render via <c>DrylAgentError</c>.
+    /// </summary>
+    public DrylRunError? Error { get; internal set; }
+
+    /// <summary>
+    /// Accumulated token usage, or null if the provider never reported any. Grows as
+    /// <c>UsageContent</c> updates arrive — render via <c>DrylAgentUsage</c>.
+    /// </summary>
+    public DrylRunUsage? Usage { get; private set; }
+
     /// <summary>The tool calls observed in this run, in arrival order.</summary>
     public IReadOnlyList<DrylToolInvocation> ToolCalls => _toolCalls;
 
@@ -46,6 +58,8 @@ public abstract class DrylRunBase : IAsyncDisposable
     internal CancellationToken DisposalToken => _cts.Token;
 
     internal void AddToolCall(DrylToolInvocation t) { _toolCalls.Add(t); Raise(); }
+    internal void AddUsage(Microsoft.Extensions.AI.UsageDetails details) { (Usage ??= new DrylRunUsage()).Add(details); Raise(); }
+    internal void AddUsage(DrylRunUsage usage) { (Usage ??= new DrylRunUsage()).Add(usage); Raise(); }
     internal void Raise() => OnChange?.Invoke();
     internal void PushText(string delta) => _textChannel.Writer.TryWrite(delta);
     internal void CompleteText() => _textChannel.Writer.TryComplete();
@@ -55,7 +69,7 @@ public abstract class DrylRunBase : IAsyncDisposable
     public Task WaitForCompletionAsync() => _completed.Task;
 
     /// <summary>Cancels the run and releases its resources.</summary>
-    public ValueTask DisposeAsync()
+    public virtual ValueTask DisposeAsync()
     {
         if (!_disposed)
         {

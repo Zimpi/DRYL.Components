@@ -1,0 +1,83 @@
+@namespace DRYL.Components.Agents
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAgentError — renders a run's terminal error as a danger
+    alert, with an optional retry action.
+
+    A run that faults settles at AiState.None with Run.Error set
+    (see DrylRunError). This component watches the run and slides
+    the alert in the moment that happens; it renders nothing while
+    the run is healthy.
+
+    Usage:
+      <DrylAgentError Run="_run" OnRetry="StartRun" />
+
+    OnRetry is optional — without it no retry button is shown.
+    ───────────────────────────────────────────────────────── *@
+
+<DrylPresence Visible="@(Run?.Error is not null)" Transition="PresenceTransition.SlideUp" Appear>
+    @if (Run?.Error is { } error)
+    {
+        <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="@Title">
+            <div class="agent-error">
+                <span class="agent-error-message">@error.Message</span>
+                @if (MetaLine(error) is { } meta)
+                {
+                    <span class="agent-error-meta">@meta</span>
+                }
+                @if (OnRetry.HasDelegate)
+                {
+                    <div class="agent-error-actions">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    Icon="Refresh"
+                                    OnClick="OnRetry">
+                            @RetryLabel
+                        </DrylButton>
+                    </div>
+                }
+            </div>
+        </DrylAlert>
+    }
+</DrylPresence>
+
+@code {
+    /// <summary>The agent run whose error to surface. Renders nothing while <c>Run.Error</c> is null.</summary>
+    [Parameter] public DrylRunBase? Run { get; set; }
+
+    /// <summary>Optional retry action; when set, a retry button is shown inside the alert.</summary>
+    [Parameter] public EventCallback OnRetry { get; set; }
+
+    /// <summary>Title of the danger alert.</summary>
+    [Parameter] public string Title { get; set; } = "Agent run failed";
+
+    /// <summary>Label of the retry button.</summary>
+    [Parameter] public string RetryLabel { get; set; } = "Retry";
+
+    private DrylRunBase? _subscribed;
+
+    private static string? MetaLine(DrylRunError error) =>
+        (error.Source, error.ExceptionType) switch
+        {
+            ({ } source, { } type) => $"{source} — {type}",
+            ({ } source, null)     => source,
+            (null, { } type)       => type,
+            _                      => null,
+        };
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+    }
+}

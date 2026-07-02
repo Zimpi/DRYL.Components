@@ -98,6 +98,39 @@ var agent = new ChatClientAgent(chatClient, instructions: prompt, tools: uiTools
 | `RequestPermission`   | core `DrylConfirmDialog`                     | allowed (bool)   |
 | `AskText`             | `DrylAskTextDialog` (`DrylInputText`)        | entered text     |
 
+## 4 — Run health: errors + token usage
+
+A faulted run settles at `AiState.None` with `Run.Error` set (message, exception type);
+`UsageContent` updates are summed into `Run.Usage` as they stream. Two small components
+render both without any manual wiring:
+
+```razor
+<DrylAgentError Run="@_run" OnRetry="Ask" />   @* danger alert + optional retry *@
+<DrylAgentUsage Run="@_run" />                 @* prompt / completion / total badges *@
+```
+
+## 5 — Multi-agent flows → `DrylHandoffTrace`
+
+`StartSequential` chains agents (each receives the previous answer; the flow's `TextStream`
+carries the final one), `StartConcurrent` fans the same prompt out. Both return one
+observable `DrylMultiAgentRun`; `DrylHandoffTrace` renders it as a living timeline — the
+active lane wears the shared aura, the connector fills on handoff, failed lanes show their
+error in place.
+
+```razor
+<DrylHandoffTrace Run="@_flow" />
+
+@code {
+    private DrylMultiAgentRun _flow = default!;
+
+    private void Start() => _flow = Runner.StartSequential(new[]
+    {
+        new DrylAgentStep { Name = "Researcher", Agent = _researcher },
+        new DrylAgentStep { Name = "Writer",     Agent = _writer },
+    }, "Write about glass surfaces.");
+}
+```
+
 ## Versioning & publishing
 
 This package carries its own `Version` (starting at `0.1.0`) and is published independently

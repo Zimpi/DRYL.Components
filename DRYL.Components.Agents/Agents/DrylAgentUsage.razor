@@ -1,0 +1,65 @@
+@namespace DRYL.Components.Agents
+@using System.Globalization
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAgentUsage — compact badge row showing a run's token usage.
+
+    Reads Run.Usage (accumulated from the stream's UsageContent
+    updates) and fades in once the first numbers arrive; providers
+    that never report usage keep it invisible. Values are announced
+    politely and formatted compactly (1.2k / 3.4M).
+
+    Usage:
+      <DrylAgentUsage Run="_run" />
+    ───────────────────────────────────────────────────────── *@
+
+<DrylPresence Visible="@(Run?.Usage is not null)" Transition="PresenceTransition.Fade" Appear>
+    @if (Run?.Usage is { } usage)
+    {
+        <div class="agent-usage" role="status" aria-live="polite" aria-label="Token usage">
+            @if (usage.InputTokens is { } input)
+            {
+                <DrylBadge><span class="agent-usage-label">Prompt</span>@Fmt(input)</DrylBadge>
+            }
+            @if (usage.OutputTokens is { } output)
+            {
+                <DrylBadge><span class="agent-usage-label">Completion</span>@Fmt(output)</DrylBadge>
+            }
+            @if (usage.TotalTokens is { } total)
+            {
+                <DrylBadge Kind="DrylBadge.BadgeKind.Accent"><span class="agent-usage-label">Total</span>@Fmt(total)</DrylBadge>
+            }
+        </div>
+    }
+</DrylPresence>
+
+@code {
+    /// <summary>The agent run whose token usage to display. Renders nothing while <c>Run.Usage</c> is null.</summary>
+    [Parameter] public DrylRunBase? Run { get; set; }
+
+    private DrylRunBase? _subscribed;
+
+    // Invariant formatting: a German locale would turn "1.2k" into "1,2k".
+    private static string Fmt(long n) => n switch
+    {
+        >= 1_000_000 => FormattableString.Invariant($"{n / 1_000_000.0:0.#}M"),
+        >= 1_000     => FormattableString.Invariant($"{n / 1_000.0:0.#}k"),
+        _            => n.ToString(CultureInfo.InvariantCulture),
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+    }
+}

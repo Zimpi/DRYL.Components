@@ -57,6 +57,13 @@ Version bump guide:
 - `DrylAiCommandResolver` — (Agents) `ICommandResolver` that exposes each registered command to an agent as an `AIFunction` and resolves one structured tool call with filled arguments — execution deferred to confirmation; destructive commands gated by `DrylConfirmDialog`
 - `DrylAiCommandPalette` — (Agents) Convenience wrapper pre-wired with the DI-registered `ICommandResolver`
 - `AddDrylCommandResolver(...)` — (Agents) DI helper registering a `DrylAiCommandResolver` from a consumer-supplied `AIAgent`
+- `DrylRunBase.Error` / `DrylRunError` — (Agents) A faulted run now surfaces its terminal error (message, exception type, failing step as `Source`) instead of swallowing it; the run settles at `AiState.None` with `Error` set — the same failed-state convention `DrylToolInvocation` uses — and `OnChange` fires with the error in place
+- `DrylAgentError` — (Agents) Danger alert for a run's terminal error with an optional `OnRetry` callback; slides in via `DrylPresence` the moment `Run.Error` is set and renders nothing while the run is healthy
+- `DrylRunBase.Usage` / `DrylRunUsage` — (Agents) Token usage (prompt / completion / total) accumulated from every `UsageContent` update on the stream; stays null when a provider never reports numbers
+- `DrylAgentUsage` — (Agents) Compact badge row showing a run's token usage; fades in on the first report, culture-invariant compact formatting (`1.2k` / `3.4M`)
+- `DrylAgentRunner.StartSequential` / `StartConcurrent` — (Agents) Multi-agent flows bundled into one observable run: a sequential handoff chain feeds each agent the previous answer (the flow's `TextStream` carries the final agent's answer) while a concurrent fan-out runs every agent on the same input; per-step usage aggregates onto the flow, and a failing step settles it with the step name as `Error.Source`
+- `DrylMultiAgentRun` / `DrylAgentHandoff` / `DrylAgentStep` / `DrylAgentFlow` — (Agents) Observable multi-agent flow handle atop `DrylRunBase`: named steps, each with its own child `DrylAgentRun` (text, tool calls, usage, error) plus `ActiveIndex` for the running step
+- `DrylHandoffTrace` — (Agents) Living timeline of a multi-agent run: one lane per agent speaking the shared AI vocabulary (the active lane wears the ai-aura, status via `DrylAiIndicator`, the connector fills as the baton is handed on), per-lane usage badges and error alerts, and an optional `StepContent` slot for each lane's answer
 
 ### Changed
 - `dryl.css` — Accent-derived tokens (`--accent-soft`, `--accent-line`, `--glow-accent`, `--glow-soft`, body ambient glow, AI aura) now derive from seed variables via `color-mix()`; the default theme is visually unchanged

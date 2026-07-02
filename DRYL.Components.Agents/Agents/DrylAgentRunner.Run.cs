@@ -87,6 +87,10 @@ public sealed partial class DrylAgentRunner
                             run.PushText(tc.Text);
                             SetState(run, AiState.Streaming, aiKey);
                             break;
+
+                        case UsageContent uc:
+                            run.AddUsage(uc.Details);
+                            break;
                     }
                 }
             }
@@ -97,9 +101,11 @@ public sealed partial class DrylAgentRunner
         {
             SetStateRaw(run, AiState.None, aiKey);   // clear the scope on cancel
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            SetStateRaw(run, AiState.None, aiKey);    // surface via consumer; keep UI consistent
+            // Failed = Error set + AiState.None (mirrors DrylToolInvocation's convention).
+            run.Error = new DrylRunError(ex.Message, ex);
+            SetStateRaw(run, AiState.None, aiKey);
         }
         finally
         {

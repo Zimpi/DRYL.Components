@@ -1,0 +1,146 @@
+.handoff-trace {
+    display: flex;
+    flex-direction: column;
+}
+
+/* One lane per agent: rail (connector + node) beside the glass body. */
+.handoff-step {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--sp-3);
+    animation: handoff-enter var(--dur-med) var(--ease-out) backwards;
+}
+
+@keyframes handoff-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ── Rail: connector line + numbered node ─────────────────── */
+
+.handoff-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.handoff-connector {
+    width: 1px;
+    flex: 0 0 var(--sp-5);
+    background: var(--line-strong);
+    transition: background var(--dur-slow) var(--ease-in-out);
+}
+
+/* The baton has been handed on — the line picks up the accent. */
+.handoff-connector--done {
+    background: var(--accent-line);
+}
+
+.handoff-node {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--sp-6);
+    height: var(--sp-6);
+    flex: 0 0 auto;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line-strong);
+    background: var(--glass-1);
+    color: var(--fg-dim);
+    font-size: 11px;
+    font-weight: 600;
+    transition:
+        border-color var(--dur-med) var(--ease-out),
+        color var(--dur-med) var(--ease-out),
+        box-shadow var(--dur-med) var(--ease-out),
+        transform var(--dur-med) var(--ease-spring);
+}
+
+.handoff-node--active {
+    border-color: var(--accent-line);
+    color: var(--fg);
+    box-shadow: 0 0 12px var(--accent-soft);
+    transform: scale(1.08);
+}
+
+.handoff-node--done {
+    border-color: var(--accent-line);
+    color: var(--accent-b);
+}
+
+.handoff-node--failed {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* ── Body: glass lane carrying head, usage, error, content ──── */
+
+.handoff-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    margin-bottom: var(--sp-2);
+    border-radius: var(--r-md);
+    border: 1px solid var(--line);
+    background: var(--glass-1);
+    transition: border-color var(--dur-med) var(--ease-out);
+}
+
+.handoff-step--failed .handoff-body {
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.handoff-step:last-child .handoff-body {
+    margin-bottom: 0;
+}
+
+.handoff-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+}
+
+.handoff-name {
+    color: var(--fg);
+    font-weight: 600;
+}
+
+/* Status swaps (Pending → Running → Done/Failed) fade in, never snap. */
+.handoff-status ::deep .badge,
+.handoff-status ::deep .ai-indicator {
+    animation: handoff-status-in var(--dur-fast) var(--ease-out) both;
+}
+
+@keyframes handoff-status-in {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.handoff-content {
+    color: var(--fg-muted);
+}
+
+/* Concurrent fan-out: lanes stand alone, separated instead of connected. */
+.handoff-trace--concurrent .handoff-step + .handoff-step {
+    margin-top: var(--sp-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .handoff-step,
+    .handoff-status ::deep .badge,
+    .handoff-status ::deep .ai-indicator {
+        animation: none;
+    }
+
+    .handoff-node,
+    .handoff-connector,
+    .handoff-body {
+        transition: none;
+    }
+
+    .handoff-node--active {
+        transform: none;
+    }
+}

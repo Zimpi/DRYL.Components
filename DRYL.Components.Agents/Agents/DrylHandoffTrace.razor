@@ -1,0 +1,189 @@
+@namespace DRYL.Components.Agents
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylHandoffTrace — timeline of a multi-agent run.
+
+    Renders one lane per step of a DrylMultiAgentRun (sequential
+    handoff chain or concurrent fan-out) and speaks the shared AI
+    vocabulary throughout: the active lane wears the ai-aura, the
+    status pill is a DrylAiIndicator, a failed lane shows the step's
+    DrylAgentError and completed lanes settle with a check. Sequential
+    flows draw a connector that fills as the baton is handed on.
+
+    Usage:
+      _flow = Runner.StartSequential(steps, prompt);
+      <DrylHandoffTrace Run="_flow" />
+
+      // Optional per-lane content (e.g. each agent's answer):
+      <DrylHandoffTrace Run="_flow">
+          <StepContent>
+              <DrylMarkdown Content="@context.Run?.Text" />
+          </StepContent>
+      </DrylHandoffTrace>
+    ───────────────────────────────────────────────────────── *@
+
+@if (Run is not null)
+{
+    <div class="@RootCss" role="list" aria-label="Agent flow" @attributes="AdditionalAttributes">
+        @foreach (var step in Run.Steps)
+        {
+            <div class="@StepCss(step)" role="listitem" @key="step.Index"
+                 style="animation-delay: calc(var(--reveal-step) * @step.Index)">
+
+                <div class="handoff-rail" aria-hidden="true">
+                    @if (step.Index > 0 && Run.Flow == DrylAgentFlow.Sequential)
+                    {
+                        <div class="handoff-connector @(IsHandedOver(step) ? "handoff-connector--done" : null)"></div>
+                    }
+                    <div class="@NodeCss(step)">
+                        @if (step.Error is not null)
+                        {
+                            <DrylIcon Name="Alert" Size="11" />
+                        }
+                        else if (step.State == AiState.Generated)
+                        {
+                            <DrylIcon Name="Check" Size="11" />
+                        }
+                        else
+                        {
+                            @(step.Index + 1)
+                        }
+                    </div>
+                </div>
+
+                <div class="@BodyCss(step)">
+                    @if (IsActive(step))
+                    {
+                        <div class="ai-aura-ring"></div>
+                        <div class="ai-aura-glow"></div>
+                    }
+                    <div class="handoff-head">
+                        <span class="handoff-name">@step.Name</span>
+                        <span class="handoff-status" @key="StatusKey(step)">
+                            @if (step.Error is not null)
+                            {
+                                <DrylBadge Kind="DrylBadge.BadgeKind.Danger" Dot>Failed</DrylBadge>
+                            }
+                            else if (!step.HasStarted)
+                            {
+                                <DrylBadge Dot>Pending</DrylBadge>
+                            }
+                            else
+                            {
+                                <DrylAiIndicator State="@step.State">@StatusLabel(step)</DrylAiIndicator>
+                            }
+                        </span>
+                    </div>
+
+                    @if (ShowUsage)
+                    {
+                        <DrylAgentUsage Run="step.Run" />
+                    }
+                    @if (ShowErrors)
+                    {
+                        <DrylAgentError Run="step.Run" Title="Step failed" />
+                    }
+                    @if (StepContent is not null)
+                    {
+                        <div class="handoff-content">@StepContent(step)</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The multi-agent run to visualise (from <c>StartSequential</c> / <c>StartConcurrent</c>).</summary>
+    [Parameter] public DrylMultiAgentRun? Run { get; set; }
+
+    /// <summary>Show each step's token-usage badges once the provider reports them. Default true.</summary>
+    [Parameter] public bool ShowUsage { get; set; } = true;
+
+    /// <summary>Show a failed step's error alert inside its lane. Default true.</summary>
+    [Parameter] public bool ShowErrors { get; set; } = true;
+
+    /// <summary>Optional per-lane content, e.g. the step's streamed answer.</summary>
+    [Parameter] public RenderFragment<DrylAgentHandoff>? StepContent { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the trace's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private DrylMultiAgentRun? _subscribed;
+
+    private static bool IsActive(DrylAgentHandoff step) =>
+        step.State is AiState.Thinking or AiState.Streaming;
+
+    // The connector into this step fills once the previous agent has handed over.
+    private bool IsHandedOver(DrylAgentHandoff step) =>
+        Run is not null && step.Index > 0 && Run.Steps[step.Index - 1].State == AiState.Generated;
+
+    private static string StatusLabel(DrylAgentHandoff step) => step.State switch
+    {
+        AiState.Thinking  => "Running",
+        AiState.Streaming => "Streaming…",
+        AiState.Generated => "Done",
+        AiState.Active    => "Active",
+        _                 => "Stopped",
+    };
+
+    // Re-key the status element per lifecycle phase so the swap fades in instead of snapping.
+    private static string StatusKey(DrylAgentHandoff step) =>
+        step.Error is not null ? "failed" : !step.HasStarted ? "pending" : step.State.ToString();
+
+    private string RootCss => string.Join(' ', new[]
+    {
+        "handoff-trace",
+        Run?.Flow == DrylAgentFlow.Concurrent ? "handoff-trace--concurrent" : null,
+        Class,
+    }.Where(s => !string.IsNullOrWhiteSpace(s))!);
+
+    private static string StepCss(DrylAgentHandoff step)
+    {
+        var parts = new List<string> { "handoff-step" };
+        if (step.Error is not null) parts.Add("handoff-step--failed");
+        else if (IsActive(step)) parts.Add("handoff-step--active");
+        else if (step.State == AiState.Generated) parts.Add("handoff-step--done");
+        return string.Join(' ', parts);
+    }
+
+    private static string BodyCss(DrylAgentHandoff step)
+    {
+        var parts = new List<string> { "handoff-body" };
+        if (IsActive(step))
+        {
+            parts.Add("ai-aura");
+            parts.Add(step.State == AiState.Streaming ? "ai-streaming" : "ai-thinking");
+        }
+        return string.Join(' ', parts);
+    }
+
+    private static string NodeCss(DrylAgentHandoff step)
+    {
+        var parts = new List<string> { "handoff-node" };
+        if (step.Error is not null) parts.Add("handoff-node--failed");
+        else if (IsActive(step)) parts.Add("handoff-node--active");
+        else if (step.State == AiState.Generated) parts.Add("handoff-node--done");
+        return string.Join(' ', parts);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+    }
+}

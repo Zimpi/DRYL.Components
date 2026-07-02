@@ -1,0 +1,16 @@
+.agent-error {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.agent-error-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-dim);
+}
+
+.agent-error-actions {
+    display: flex;
+    margin-top: var(--sp-1);
+}
