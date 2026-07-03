@@ -55,6 +55,16 @@
   --danger:        #f87171;
   --info:          var(--accent-b);
 
+  /* Charts — categorical series palette (dark-validated: lightness band,
+     chroma floor, CVD adjacent ΔE ≥ 12, contrast ≥ 3:1 on black).
+     Fixed order, assigned in sequence, never cycled; series 7+ → --fg-dim. */
+  --chart-1:       #8b7cf8;
+  --chart-2:       #0aa2b5;
+  --chart-3:       #bd7a12;
+  --chart-4:       #26a058;
+  --chart-5:       #d6428e;
+  --chart-6:       #5583e3;
+
   /* Type */
   --font-sans:     'Inter', 'Inter Placeholder', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:     'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -4714,4 +4724,317 @@ pre { overflow-x: auto; }
 }
 @container (max-width: 480px) {
   .grid-cols-2, .grid-cols-3, .grid-cols-4 { grid-template-columns: 1fr; }
+}
+
+/* ============== CHARTS (DrylLineChart / DrylBarChart / DrylAreaChart / DrylDonutChart) ==============
+   Hybrid rendering: marks are SVG (stretched viewBox, non-scaling strokes) or
+   percent-positioned HTML; all text (axes, legend, tooltip) is HTML so it never
+   distorts. One shared vocabulary for all four chart components. */
+
+.chart {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.chart-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto;
+  height: var(--chart-h, 260px);
+}
+
+/* ── Y axis ── */
+.chart-yaxis {
+  position: relative;
+  grid-row: 1;
+  grid-column: 1;
+  width: 3.4em;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.chart-yaxis span {
+  position: absolute;
+  right: var(--sp-2);
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Plot area ── */
+.chart-plot {
+  position: relative;
+  grid-row: 1;
+  grid-column: 2;
+  min-width: 0;
+}
+.chart-gridline {
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
+}
+.chart-zeroline { background: var(--line-strong); }
+
+.chart-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ── X axis ── */
+.chart-xaxis {
+  position: relative;
+  grid-row: 2;
+  grid-column: 2;
+  height: 1.9em;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.chart-xaxis span {
+  position: absolute;
+  top: var(--sp-2);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* ── Legend ── */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.chart-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-xs);
+  flex: none;
+}
+
+/* ── Hover columns, crosshair, tooltip (pure CSS — zero JS, zero roundtrips) ── */
+.chart-col {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: var(--r-xs);
+}
+.chart-col:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent-line);
+}
+.chart-crosshair {
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 1px;
+  background: var(--line-strong);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+}
+.chart-col:hover .chart-crosshair,
+.chart-col:focus-visible .chart-crosshair { opacity: 1; }
+
+.chart-tip {
+  position: absolute;
+  top: var(--sp-2);
+  left: calc(50% + var(--sp-3));
+  min-width: 120px;
+  max-width: 240px;
+  padding: var(--sp-3);
+  background: rgba(20, 20, 28, 0.95);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  color: var(--fg);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+  pointer-events: none;
+  z-index: 3;
+}
+.chart-tip-flip {
+  left: auto;
+  right: calc(50% + var(--sp-3));
+}
+.chart-col:hover .chart-tip,
+.chart-col:focus-visible .chart-tip {
+  opacity: 1;
+  transform: translateY(0);
+}
+.chart-tip-title {
+  color: var(--fg-dim);
+  font-size: 11px;
+  margin-bottom: var(--sp-2);
+  white-space: nowrap;
+}
+.chart-tip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+.chart-tip-row + .chart-tip-row { margin-top: var(--sp-1); }
+.chart-tip-row .chart-swatch { width: 8px; height: 8px; }
+.chart-tip-name { color: var(--fg-muted); margin-right: auto; }
+.chart-tip-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--sp-4);
+}
+
+/* ── Line / area marks ── */
+.chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: chart-draw var(--dur-slow) var(--ease-out) both;
+}
+.chart-area {
+  stroke: none;
+  animation: chart-fade var(--dur-slow) var(--ease-out) both;
+}
+.chart-marker {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 2px var(--bg);   /* surface ring — legibility over lines */
+  pointer-events: none;
+  animation: chart-fade var(--dur-med) var(--ease-out) both;
+}
+
+/* ── Bars ── */
+.chart-bars { position: absolute; inset: 0; }
+.chart-band {
+  position: absolute;
+  top: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 2px;                 /* surface gap between adjacent bars */
+  padding: 0 var(--sp-1);
+}
+.chart-bar-slot {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 24px;          /* bars never fill the slot */
+  min-width: 2px;
+}
+.chart-bar {
+  position: absolute;
+  left: 0; right: 0;
+  border-radius: 4px 4px 0 0;   /* rounded data-end, square baseline */
+  transform-origin: bottom;
+  animation: chart-grow var(--dur-slow) var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+  transition: filter var(--dur-fast) var(--ease-out);
+}
+.chart-bar-neg {
+  border-radius: 0 0 4px 4px;
+  transform-origin: top;
+  animation-name: chart-grow-neg;
+}
+.chart-band:hover .chart-bar { filter: brightness(1.15); }
+
+/* Stacked segments — 2px surface gap between segments, cap segment rounded */
+.chart-seg {
+  position: absolute;
+  left: 0; right: 0;
+  transform-origin: bottom;
+  animation: chart-grow var(--dur-slow) var(--ease-spring) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+.chart-seg-cap { border-radius: 4px 4px 0 0; }
+
+/* ── Donut ── */
+.donut-box {
+  position: relative;
+  height: var(--chart-h, 260px);
+  display: flex;
+  justify-content: center;
+}
+.donut-slice {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.donut-slice svg {
+  height: 100%;
+  aspect-ratio: 1;
+  overflow: visible;
+  pointer-events: none;
+}
+.donut-slice path {
+  pointer-events: auto;
+  cursor: default;
+  transition: transform var(--dur-fast) var(--ease-spring);
+  animation: donut-in var(--dur-med) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+  outline: none;
+}
+.donut-slice:hover path,
+.donut-slice:focus-within path {
+  transform: translate(var(--dx, 0), var(--dy, 0));
+}
+.donut-slice:focus-within path {
+  stroke: var(--accent-line);
+  stroke-width: 1;
+}
+.donut-tip {
+  top: var(--tip-top, var(--sp-2));
+  left: var(--tip-left, auto);
+}
+.donut-slice:hover .donut-tip,
+.donut-slice:focus-within .donut-tip {
+  opacity: 1;
+  transform: translateY(0);
+}
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.donut-center > * { pointer-events: auto; }
+
+/* ── Motion ── */
+@keyframes chart-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes chart-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes chart-grow-neg { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes chart-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes donut-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-line, .chart-area, .chart-marker,
+  .chart-bar, .chart-seg, .donut-slice path {
+    animation: none;
+  }
+  .chart-tip, .chart-crosshair, .chart-bar, .donut-slice path { transition: none; }
 }
