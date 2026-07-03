@@ -1,0 +1,86 @@
+@namespace DRYL.Components
+@inherits DrylCartesianChartBase
+@using DRYL.Components.Internal
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAreaChart — line chart with a soft same-hue fill down to the
+    zero baseline. Pure SVG/HTML, zero JS. The fill is a vertical fade
+    of the series color (identity beats decoration — no cross-hue
+    gradients on multi-series marks).
+
+    Usage:
+      <DrylAreaChart Labels="@months" Series="@series" Smooth />
+    ───────────────────────────────────────────────────────── *@
+
+@if (HasData)
+{
+    <ChartFrame Layout="@BuildLayout()"
+                RootClass="@RootCss("chart chart-kind-area")"
+                AriaLabel="@SummaryLabel"
+                AdditionalAttributes="@AdditionalAttributes">
+        <Aura>
+            @if (EffectiveAi != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (EffectiveAi == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="GenTick"></div>
+                }
+            }
+        </Aura>
+        <Marks>
+            <svg class="chart-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <defs>
+                    @for (var s = 0; s < Series!.Count; s++)
+                    {
+                        <linearGradient id="@GradId(s)" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="@SeriesColor(s)" stop-opacity="0.12" />
+                            <stop offset="1" stop-color="@SeriesColor(s)" stop-opacity="0.02" />
+                        </linearGradient>
+                    }
+                </defs>
+                @for (var s = 0; s < Series!.Count; s++)
+                {
+                    <path class="chart-area" fill="url(#@GradId(s))" d="@AreaPathFor(s)" />
+                    <path class="chart-line"
+                          d="@LinePathFor(s)"
+                          pathLength="1"
+                          vector-effect="non-scaling-stroke"
+                          style="stroke:@SeriesColor(s)" />
+                }
+            </svg>
+        </Marks>
+    </ChartFrame>
+}
+
+@code {
+    /// <summary>Smooth the line with a Catmull-Rom spline instead of straight segments.</summary>
+    [Parameter] public bool Smooth { get; set; }
+
+    private readonly string _gid = $"chart-area-{Guid.NewGuid():N}";
+    private string GradId(int s) => $"{_gid}-{s}";
+
+    private List<(double X, double Y)> Points(int s)
+    {
+        var data = Series![s].Data;
+        var pts = new List<(double X, double Y)>(data.Count);
+        for (var i = 0; i < data.Count; i++)
+            pts.Add((XPct(i), YPct(data[i])));
+        return pts;
+    }
+
+    private string LinePathFor(int s)
+    {
+        var pts = Points(s);
+        return Smooth ? ChartMath.SmoothPath(pts) : ChartMath.LinePath(pts);
+    }
+
+    private string AreaPathFor(int s)
+    {
+        var pts = Points(s);
+        var baseline = YPct(Math.Clamp(0, Min, Max));
+        var d = Smooth ? ChartMath.SmoothPath(pts) : ChartMath.LinePath(pts);
+        return $"{d} L{Inv(pts[^1].X)},{Inv(baseline)} L{Inv(pts[0].X)},{Inv(baseline)} Z";
+    }
+}
