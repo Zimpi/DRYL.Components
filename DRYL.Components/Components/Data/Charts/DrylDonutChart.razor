@@ -71,7 +71,7 @@
             }
             @if (CenterContent is not null && InnerRadius > 0)
             {
-                <div class="donut-center">@CenterContent</div>
+                <div class="donut-center" style="--donut-hole:@(Inv(RInner * 2))%">@CenterContent</div>
             }
         </div>
         @if (ShowLegend ?? true)

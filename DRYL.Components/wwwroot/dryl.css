@@ -4739,23 +4739,41 @@ pre { overflow-x: auto; }
   gap: var(--sp-3);
 }
 
+/* AI mode on charts — like .radio-group-wrapper.ai-aura: give the bare chart
+   a surface + radius so the rotating ring traces rounded corners and the
+   chart reads as a contained AI panel. */
+.chart.ai-aura {
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  background: var(--glass-1);
+}
+
 .chart-body {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto;
   height: var(--chart-h, 260px);
+  padding-top: var(--sp-2);   /* headroom so the top tick label isn't clipped */
 }
 
-/* ── Y axis ── */
+/* ── Y axis ──
+   Width is established by the invisible .chart-ysizer (the longest tick label)
+   so wide values ("12.000") never clip; the visible ticks are absolute. */
 .chart-yaxis {
   position: relative;
   grid-row: 1;
   grid-column: 1;
-  width: 3.4em;
+  min-width: 2.6em;
+  padding-right: var(--sp-2);
   font-size: 11px;
   color: var(--fg-dim);
 }
-.chart-yaxis span {
+.chart-ysizer {
+  visibility: hidden;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chart-yaxis > span:not(.chart-ysizer) {
   position: absolute;
   right: var(--sp-2);
   transform: translateY(-50%);
@@ -4896,15 +4914,16 @@ pre { overflow-x: auto; }
   margin-left: var(--sp-4);
 }
 
-/* ── Line / area marks ── */
+/* ── Line / area marks ──
+   Note: no stroke-dasharray draw-in here — Chromium ignores pathLength for
+   dash computation under vector-effect:non-scaling-stroke, which would leave
+   the line permanently dashed. Lines fade in instead. */
 .chart-line {
   fill: none;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  animation: chart-draw var(--dur-slow) var(--ease-out) both;
+  animation: chart-fade var(--dur-slow) var(--ease-out) both;
 }
 .chart-area {
   stroke: none;
@@ -5011,7 +5030,11 @@ pre { overflow-x: auto; }
 }
 .donut-center {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: var(--donut-hole, 60%);   /* sized to the hole so content never covers the ring */
+  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5022,7 +5045,6 @@ pre { overflow-x: auto; }
 .donut-center > * { pointer-events: auto; }
 
 /* ── Motion ── */
-@keyframes chart-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes chart-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes chart-grow-neg { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes chart-fade { from { opacity: 0; } to { opacity: 1; } }

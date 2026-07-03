@@ -15,6 +15,7 @@
         @if (Layout.ShowYAxis)
         {
             <div class="chart-yaxis" aria-hidden="true">
+                <span class="chart-ysizer">@WidestTick</span>
                 @foreach (var t in Layout.Ticks)
                 {
                     <span style="top:@(ChartMath.F(t.Pct))%">@t.Label</span>
@@ -85,4 +86,15 @@
     [Parameter] public RenderFragment? Marks { get; set; }
     [Parameter] public RenderFragment? Aura { get; set; }
     [Parameter] public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string WidestTick
+    {
+        get
+        {
+            var widest = "";
+            foreach (var t in Layout.Ticks)
+                if (t.Label.Length > widest.Length) widest = t.Label;
+            return widest;
+        }
+    }
 }
