@@ -1,0 +1,88 @@
+@namespace DRYL.Components.Internal
+@using DRYL.Components
+
+@*  Internal — the shared cartesian chart skeleton. Renders axes, gridlines,
+    hover columns with pure-CSS tooltips, x labels and the legend around the
+    chart-specific Marks fragment. Not part of the public API. *@
+
+<div class="@RootClass"
+     style="--chart-h:@(Layout.Height)px"
+     role="group"
+     aria-label="@AriaLabel"
+     @attributes="AdditionalAttributes">
+    @Aura
+    <div class="chart-body">
+        @if (Layout.ShowYAxis)
+        {
+            <div class="chart-yaxis" aria-hidden="true">
+                @foreach (var t in Layout.Ticks)
+                {
+                    <span style="top:@(ChartMath.F(t.Pct))%">@t.Label</span>
+                }
+            </div>
+        }
+        <div class="chart-plot">
+            @if (Layout.ShowGrid)
+            {
+                @foreach (var t in Layout.Ticks)
+                {
+                    <div class="chart-gridline" style="top:@(ChartMath.F(t.Pct))%"></div>
+                }
+            }
+            @if (Layout.ZeroPct is { } zero)
+            {
+                <div class="chart-gridline chart-zeroline" style="top:@(ChartMath.F(zero))%"></div>
+            }
+            @Marks
+            @foreach (var col in Layout.Columns)
+            {
+                <div class="chart-col"
+                     tabindex="0"
+                     aria-label="@col.Aria"
+                     style="left:@(ChartMath.F(col.LeftPct))%;width:@(ChartMath.F(col.WidthPct))%">
+                    <div class="chart-crosshair" aria-hidden="true"></div>
+                    <div class="chart-tip @(col.Flip ? "chart-tip-flip" : null)" aria-hidden="true">
+                        <div class="chart-tip-title">@col.Title</div>
+                        @foreach (var row in col.Rows)
+                        {
+                            <div class="chart-tip-row">
+                                <span class="chart-swatch" style="background:@row.Color"></span>
+                                <span class="chart-tip-name">@row.Name</span>
+                                <span class="chart-tip-value">@row.Value</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+        @if (Layout.ShowXAxis)
+        {
+            <div class="chart-xaxis" aria-hidden="true">
+                @foreach (var l in Layout.XLabels)
+                {
+                    <span style="left:@(ChartMath.F(l.Pct))%">@l.Label</span>
+                }
+            </div>
+        }
+    </div>
+    @if (Layout.ShowLegend)
+    {
+        <div class="chart-legend">
+            @foreach (var item in Layout.Legend)
+            {
+                <span class="chart-legend-item">
+                    <span class="chart-swatch" style="background:@item.Color"></span>@item.Name
+                </span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CartesianLayout Layout { get; set; } = default!;
+    [Parameter, EditorRequired] public string RootClass { get; set; } = "chart";
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public RenderFragment? Marks { get; set; }
+    [Parameter] public RenderFragment? Aura { get; set; }
+    [Parameter] public IDictionary<string, object>? AdditionalAttributes { get; set; }
+}

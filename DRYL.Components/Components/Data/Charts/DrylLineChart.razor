@@ -1,0 +1,76 @@
+@namespace DRYL.Components
+@inherits DrylCartesianChartBase
+@using DRYL.Components.Internal
+
+@*  ─────────────────────────────────────────────────────────
+    DrylLineChart — multi-series line chart. Pure SVG/HTML, zero JS.
+    Axes, gridlines, legend and hover tooltips come from the shared
+    chart frame; series colors from the validated --chart-1..6 palette.
+
+    Usage:
+      <DrylLineChart Labels="@months"
+                     Series="@(new[]{ new ChartSeries("Umsatz", rev),
+                                      new ChartSeries("Kosten", cost) })"
+                     ValueFormat="C0" Smooth ShowMarkers />
+    ───────────────────────────────────────────────────────── *@
+
+@if (HasData)
+{
+    <ChartFrame Layout="@BuildLayout()"
+                RootClass="@RootCss("chart chart-kind-line")"
+                AriaLabel="@SummaryLabel"
+                AdditionalAttributes="@AdditionalAttributes">
+        <Aura>
+            @if (EffectiveAi != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (EffectiveAi == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="GenTick"></div>
+                }
+            }
+        </Aura>
+        <Marks>
+            <svg class="chart-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                @for (var s = 0; s < Series!.Count; s++)
+                {
+                    <path class="chart-line"
+                          d="@PathFor(s)"
+                          pathLength="1"
+                          vector-effect="non-scaling-stroke"
+                          style="stroke:@SeriesColor(s)" />
+                }
+            </svg>
+            @if (ShowMarkers)
+            {
+                @for (var s = 0; s < Series!.Count; s++)
+                {
+                    var color = SeriesColor(s);
+                    for (var i = 0; i < Series[s].Data.Count; i++)
+                    {
+                        <span class="chart-marker" aria-hidden="true"
+                              style="left:@(Inv(XPct(i)))%;top:@(Inv(YPct(Series[s].Data[i])))%;background:@color"></span>
+                    }
+                }
+            }
+        </Marks>
+    </ChartFrame>
+}
+
+@code {
+    /// <summary>Smooth the line with a Catmull-Rom spline instead of straight segments.</summary>
+    [Parameter] public bool Smooth { get; set; }
+
+    /// <summary>Mark every data point with a dot (8px, surface ring).</summary>
+    [Parameter] public bool ShowMarkers { get; set; }
+
+    private string PathFor(int s)
+    {
+        var data = Series![s].Data;
+        var pts = new List<(double X, double Y)>(data.Count);
+        for (var i = 0; i < data.Count; i++)
+            pts.Add((XPct(i), YPct(data[i])));
+        return Smooth ? ChartMath.SmoothPath(pts) : ChartMath.LinePath(pts);
+    }
+}
