@@ -41,6 +41,14 @@ DRYL.Components/Components/Data/Charts/
 Namespace stays `DRYL.Components`. Shared CSS primitives go into `dryl.css`
 (new "Charts" section) because four components share them — not 4× scoped CSS.
 
+**Rendering model (refined during planning):** hybrid SVG/HTML. Line and area
+paths are SVG (`viewBox="0 0 100 100"`, `preserveAspectRatio="none"`,
+`vector-effect="non-scaling-stroke"`); bars, markers, grid, axes, legend and
+tooltips are percent-positioned HTML. Reason: stretched SVG would distort text
+at narrow container widths; HTML text never distorts and the tooltip gets real
+glass tokens. The donut is aspect-preserved per-segment SVG (no distortion),
+with HTML tooltips driven by CSS `:hover`/`:focus-within` on slice wrappers.
+
 ## Data model
 
 ```csharp
@@ -115,19 +123,17 @@ always include 0 in the auto range).
 
 ```css
 --chart-1: #8b7cf8;  /* violet — accent-a family */
---chart-2: #2fd3e8;  /* cyan   — accent-b family */
---chart-3: #f0a63a;  /* amber  */
---chart-4: #4ade80;  /* green  */
---chart-5: #f472b6;  /* magenta */
---chart-6: #93b3f5;  /* light blue */
+--chart-2: #0aa2b5;  /* cyan   — accent-b family */
+--chart-3: #bd7a12;  /* amber  */
+--chart-4: #26a058;  /* green  */
+--chart-5: #d6428e;  /* magenta */
+--chart-6: #5583e3;  /* blue   */
 ```
 
-These hexes are **starting points**. Before merge they MUST pass the dataviz
-palette validator (`validate_palette.js --mode dark --surface "#000000"`):
-lightness band, chroma floor, adjacent-pair CVD ΔE ≥ 12, contrast ≥ 3:1 on
-black. Anything failing gets snap-to-passing (hold hue, move lightness) and the
-final values land in this spec + `DESIGN_TOKENS.md`. DRYL is dark-only, so one
-validation run suffices.
+These values are **final** — validated with the dataviz palette validator
+(`validate_palette.js --mode dark --surface "#000000"`): lightness band,
+chroma floor, adjacent-pair CVD ΔE ≥ 12 (worst pair 24.1), contrast ≥ 3:1 on
+black — all six checks PASS. DRYL is dark-only, so one validation run suffices.
 
 Rules:
 
@@ -178,7 +184,8 @@ Rules:
   containing the full values ("Jan: Umsatz 1.200 €, Kosten 830 €");
   `:focus-visible` shows the same tooltip. Data is reachable without a mouse
   (Rule 2.9).
-- **Screen readers:** the SVG has `role="img"` + a generated summary label.
+- **Screen readers:** the chart root has `role="group"` + a generated summary
+  label (`role="img"` would make the focusable hover zones presentational).
   Docs recommend pairing with `DrylTable` for a full table view (deliberately
   not built in — YAGNI).
 - Legend is always present for ≥ 2 series; a single series gets no legend box
