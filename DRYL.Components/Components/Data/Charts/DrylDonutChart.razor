@@ -1,0 +1,110 @@
+@namespace DRYL.Components
+@inherits DrylChartBase
+@using DRYL.Components.Internal
+
+@*  ─────────────────────────────────────────────────────────
+    DrylDonutChart — proportional donut / pie. Each segment is its own
+    stacked SVG inside a .donut-slice wrapper; only the path takes pointer
+    events, so :hover / :focus-within on the wrapper drives the pure-CSS
+    tooltip and the outward lift. Zero JS.
+
+    Usage:
+      <DrylDonutChart Segments="@segs">
+          <CenterContent><DrylStat Value="73" Label="Kunden" /></CenterContent>
+      </DrylDonutChart>
+      <DrylDonutChart Segments="@segs" InnerRadius="0" />   (pie)
+    ───────────────────────────────────────────────────────── *@
+
+@if (HasSegments)
+{
+    <div class="@RootCss("chart chart-kind-donut")"
+         style="--chart-h:@(Height)px"
+         role="group"
+         aria-label="@(AriaLabel ?? SummaryLabel)"
+         @attributes="AdditionalAttributes">
+        @if (EffectiveAi != AiState.None)
+        {
+            <div class="ai-aura-ring"></div>
+            <div class="ai-aura-glow"></div>
+            @if (EffectiveAi == AiState.Generated)
+            {
+                <div class="ai-aura-wash" @key="GenTick"></div>
+            }
+        }
+        <div class="donut-box">
+            @{
+                var total = Visible.Sum(v => v.Seg.Value);
+                var angle = 0.0;
+                var n = 0;
+            }
+            @foreach (var (seg, pos) in Visible)
+            {
+                var span = seg.Value / total * 360;
+                var pad = Math.Min(1.6, span / 4);
+                var start = angle + pad;
+                var end = angle + span - pad;
+                var mid = (start + end) / 2;
+                var (lx, ly) = ChartMath.Polar(50, 50, ROuter * 0.75, mid);
+                var (dx, dy) = ChartMath.Polar(0, 0, 2, mid);
+                var pct = seg.Value / total * 100;
+                var idx = n++;
+                angle += span;
+                <div class="donut-slice">
+                    <svg viewBox="0 0 100 100">
+                        <path d="@ChartMath.DonutSegmentPath(50, 50, ROuter, RInner, start, end)"
+                              fill="@SlotColor(seg.ColorSlot, pos)"
+                              tabindex="0"
+                              role="img"
+                              aria-label="@($"{seg.Label}: {FormatValue(seg.Value)} ({FormatValue(Math.Round(pct))} %)")"
+                              style="--dx:@(Inv(dx))px;--dy:@(Inv(dy))px;--i:@idx" />
+                    </svg>
+                    <div class="chart-tip donut-tip @(dx > 0 ? null : "chart-tip-flip")"
+                         style="--tip-top:@(Inv(Math.Max(4, ly - 10)))%;--tip-left:@(Inv(lx))%"
+                         aria-hidden="true">
+                        <div class="chart-tip-row">
+                            <span class="chart-swatch" style="background:@SlotColor(seg.ColorSlot, pos)"></span>
+                            <span class="chart-tip-name">@seg.Label</span>
+                            <span class="chart-tip-value">@FormatValue(seg.Value) · @FormatValue(Math.Round(pct)) %</span>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (CenterContent is not null && InnerRadius > 0)
+            {
+                <div class="donut-center">@CenterContent</div>
+            }
+        </div>
+        @if (ShowLegend ?? true)
+        {
+            <div class="chart-legend">
+                @foreach (var (seg, pos) in Visible)
+                {
+                    <span class="chart-legend-item">
+                        <span class="chart-swatch" style="background:@SlotColor(seg.ColorSlot, pos)"></span>@seg.Label
+                    </span>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    /// <summary>The segments to plot. Zero and negative values are skipped.</summary>
+    [Parameter] public IReadOnlyList<ChartSegment>? Segments { get; set; }
+
+    /// <summary>Hole radius as a fraction of the outer radius (0–0.9). 0 renders a pie.</summary>
+    [Parameter] public double InnerRadius { get; set; } = 0.65;
+
+    /// <summary>Content rendered inside the hole (e.g. a KPI). Ignored when InnerRadius is 0.</summary>
+    [Parameter] public RenderFragment? CenterContent { get; set; }
+
+    private const double ROuter = 46;
+    private double RInner => ROuter * Math.Clamp(InnerRadius, 0, 0.9);
+
+    private bool HasSegments => Segments is { Count: > 0 } && Segments.Any(s => s.Value > 0);
+
+    private IReadOnlyList<(ChartSegment Seg, int Pos)> Visible =>
+        Segments!.Select((s, i) => (Seg: s, Pos: i)).Where(t => t.Seg.Value > 0).ToList();
+
+    private string SummaryLabel => string.Join(", ", Visible.Select(v => v.Seg.Label));
+}
