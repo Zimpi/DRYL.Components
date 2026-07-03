@@ -3327,7 +3327,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   flex-direction: column;
   width: 640px;
   max-width: 100%;
-  max-height: 90vh;
+  max-height: 90vh; /* Fallback für Browser ohne dvh */
+  max-height: 90dvh;
   border-radius: var(--r-lg);
   background: linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
   border: 1px solid var(--line-strong);
@@ -3341,8 +3342,10 @@ body.dryl-scroll-locked { overflow: hidden; }
 .dialog-lg         { width: 960px; }
 .dialog-fullscreen {
   width: 100vw;
-  height: 100vh;
+  height: 100vh; /* Fallback für Browser ohne dvh */
+  height: 100dvh;
   max-height: 100vh;
+  max-height: 100dvh;
   border-radius: 0;
   border: none;
 }
@@ -3422,6 +3425,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .dialog-footer {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--sp-3);
   padding: var(--sp-4) var(--sp-5);
@@ -3430,6 +3434,34 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 .dialog-fullscreen .dialog-body { max-height: none; }
+
+/* Fullscreen-Dialoge respektieren die Safe-Area (iOS Home-Indicator). */
+.dialog-fullscreen .dialog-footer {
+  padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+}
+
+/* Mobile: nicht-Fullscreen-Dialoge docken als Bottom-Sheet an der
+   Unterkante an — volle Breite, obere Rundung, dvh-begrenzte Höhe.
+   Fullscreen-Dialoge sind davon unberührt (füllen ohnehin alles). */
+@media (max-width: 640px) {
+  .dialog-backdrop:not(:has(.dialog-fullscreen)) {
+    place-items: end center;
+    padding: var(--sp-6) 0 0;
+  }
+
+  .dialog:not(.dialog-fullscreen) {
+    width: 100%;
+    max-height: calc(100dvh - var(--sp-8));
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .dialog:not(.dialog-fullscreen) .dialog-footer {
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+  }
+}
 
 @keyframes dialogIn {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
