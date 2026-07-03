@@ -1,0 +1,97 @@
+@namespace DRYL.Components
+@inherits DrylCartesianChartBase
+@using DRYL.Components.Internal
+
+@*  ─────────────────────────────────────────────────────────
+    DrylBarChart — grouped or stacked column chart. Bars are percent-
+    positioned HTML (≤ 24px wide, rounded data-end, 2px surface gaps),
+    so they animate and hover with plain CSS. Zero JS.
+
+    Usage:
+      <DrylBarChart Labels="@months" Series="@series" />
+      <DrylBarChart Labels="@months" Series="@series" Stacked />
+
+    Stacked mode clamps negative values to 0 (unsupported in v1).
+    ───────────────────────────────────────────────────────── *@
+
+@if (HasData)
+{
+    <ChartFrame Layout="@BuildLayout()"
+                RootClass="@RootCss("chart chart-kind-bar")"
+                AriaLabel="@SummaryLabel"
+                AdditionalAttributes="@AdditionalAttributes">
+        <Aura>
+            @if (EffectiveAi != AiState.None)
+            {
+                <div class="ai-aura-ring"></div>
+                <div class="ai-aura-glow"></div>
+                @if (EffectiveAi == AiState.Generated)
+                {
+                    <div class="ai-aura-wash" @key="GenTick"></div>
+                }
+            }
+        </Aura>
+        <Marks>
+            <div class="chart-bars" aria-hidden="true">
+                @{ var n = PointCount; var bandW = 100.0 / n; }
+                @for (var i = 0; i < n; i++)
+                {
+                    var idx = i;
+                    <div class="chart-band" style="left:@(Inv(idx * bandW))%;width:@(Inv(bandW))%">
+                        @if (Stacked)
+                        {
+                            <div class="chart-bar-slot">
+                                @{ var capDone = false; }
+                                @for (var s = Series!.Count - 1; s >= 0; s--)
+                                {
+                                    var top = _stackTops![s][idx];
+                                    var bottom = top - StackValue(s, idx);
+                                    if (top <= bottom) { continue; }
+                                    var cap = !capDone;
+                                    capDone = true;
+                                    <div class="chart-seg @(cap ? "chart-seg-cap" : null)"
+                                         style="top:@(Inv(YPct(top)))%;height:calc(@(Inv(YPct(bottom) - YPct(top)))% - 2px);background:@SeriesColor(s);--i:@idx"></div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            for (var s = 0; s < Series!.Count; s++)
+                            {
+                                var v = idx < Series[s].Data.Count ? Series[s].Data[idx] : 0;
+                                var zero = YPct(Math.Clamp(0, Min, Max));
+                                var y = YPct(v);
+                                var neg = v < 0;
+                                var top = neg ? zero : y;
+                                var h = Math.Abs(zero - y);
+                                <div class="chart-bar-slot">
+                                    <div class="chart-bar @(neg ? "chart-bar-neg" : null)"
+                                         style="top:@(Inv(top))%;height:@(Inv(h))%;background:@SeriesColor(s);--i:@idx"></div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        </Marks>
+    </ChartFrame>
+}
+
+@code {
+    /// <summary>Stack the series on top of each other instead of grouping side by side.</summary>
+    [Parameter] public bool Stacked { get; set; }
+
+    protected override bool Banded => true;
+
+    private double[][]? _stackTops;
+
+    private double StackValue(int s, int i) =>
+        i < Series![s].Data.Count ? Math.Max(0, Series[s].Data[i]) : 0;
+
+    protected override IEnumerable<double> RangeValues()
+    {
+        if (!Stacked) return base.RangeValues();
+        _stackTops = ChartMath.StackTops(Series!.Select(s => s.Data).ToList(), PointCount);
+        return _stackTops[^1];
+    }
+}
