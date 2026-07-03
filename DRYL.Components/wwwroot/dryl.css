@@ -4836,6 +4836,12 @@ pre { overflow-x: auto; }
   height: 100%;
   overflow: visible;
   pointer-events: none;
+  /* Left→right wipe reveal — the line/area "draws in". clip-path is in the
+     element's own box space, so it survives preserveAspectRatio=none and the
+     non-scaling-stroke pathLength quirk (see .chart-line note). Vertical slack
+     keeps stroke overflow at peaks from clipping; backwards fill reverts to
+     no clip after, so nothing stays masked. */
+  animation: chart-draw var(--dur-slow) var(--ease-out) backwards;
 }
 
 /* ── X axis ── */
@@ -4949,17 +4955,16 @@ pre { overflow-x: auto; }
 /* ── Line / area marks ──
    Note: no stroke-dasharray draw-in here — Chromium ignores pathLength for
    dash computation under vector-effect:non-scaling-stroke, which would leave
-   the line permanently dashed. Lines fade in instead. */
+   the line permanently dashed. The "draw-in" is a clip-path wipe on the whole
+   .chart-svg instead (see there); the paths themselves stay fully opaque. */
 .chart-line {
   fill: none;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  animation: chart-fade var(--dur-slow) var(--ease-out) both;
 }
 .chart-area {
   stroke: none;
-  animation: chart-fade var(--dur-slow) var(--ease-out) both;
 }
 .chart-marker {
   position: absolute;
@@ -4969,7 +4974,9 @@ pre { overflow-x: auto; }
   border-radius: var(--r-pill);
   box-shadow: 0 0 0 2px var(--bg);   /* surface ring — legibility over lines */
   pointer-events: none;
+  /* Pop in left→right, roughly tracking the line wipe above it. */
   animation: chart-fade var(--dur-med) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
 }
 
 /* ── Bars ── */
@@ -5038,6 +5045,11 @@ pre { overflow-x: auto; }
 .donut-slice path {
   pointer-events: auto;
   cursor: default;
+  /* Uniform separator: a bg-colored stroke gives a constant-width gap at every
+     radius (angular padding wedges out to a point at the centre — ugly on pies).
+     Same --bg "surface" token the markers ring with. */
+  stroke: var(--bg);
+  stroke-width: 1.5;
   transition: transform var(--dur-fast) var(--ease-spring);
   animation: donut-in var(--dur-med) var(--ease-out) both;
   animation-delay: calc(var(--i, 0) * 40ms);
@@ -5049,7 +5061,7 @@ pre { overflow-x: auto; }
 }
 .donut-slice:focus-within path {
   stroke: var(--accent-line);
-  stroke-width: 1;
+  stroke-width: 1.5;
 }
 .donut-tip {
   top: var(--tip-top, var(--sp-2));
@@ -5080,12 +5092,19 @@ pre { overflow-x: auto; }
 @keyframes chart-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes chart-grow-neg { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes chart-fade { from { opacity: 0; } to { opacity: 1; } }
+/* Horizontal wipe; -10% top/bottom + -2% right slack so non-scaling strokes at
+   peaks/last point never clip during the reveal. */
+@keyframes chart-draw {
+  from { clip-path: inset(-10% 102% -10% 0); }
+  to   { clip-path: inset(-10% -2% -10% 0); }
+}
 @keyframes donut-in {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chart-svg,
   .chart-line, .chart-area, .chart-marker,
   .chart-bar, .chart-seg, .donut-slice path {
     animation: none;

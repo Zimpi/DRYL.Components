@@ -40,10 +40,12 @@
             @foreach (var (seg, pos) in Visible)
             {
                 var span = seg.Value / total * 360;
-                var pad = Math.Min(1.6, span / 4);
-                var start = angle + pad;
-                var end = angle + span - pad;
-                var mid = (start + end) / 2;
+                var start = angle;
+                // Gaps come from the segment stroke (uniform width), not angular
+                // padding. A lone full-circle segment must not close on itself —
+                // 0° == 360° would draw an empty arc.
+                var end = Visible.Count == 1 ? angle + 359.999 : angle + span;
+                var mid = angle + span / 2;
                 var (lx, ly) = ChartMath.Polar(50, 50, ROuter * 0.75, mid);
                 var (dx, dy) = ChartMath.Polar(0, 0, 2, mid);
                 var pct = seg.Value / total * 100;

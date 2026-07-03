@@ -49,7 +49,7 @@
                     for (var i = 0; i < Series[s].Data.Count; i++)
                     {
                         <span class="chart-marker" aria-hidden="true"
-                              style="left:@(Inv(XPct(i)))%;top:@(Inv(YPct(Series[s].Data[i])))%;background:@color"></span>
+                              style="left:@(Inv(XPct(i)))%;top:@(Inv(YPct(Series[s].Data[i])))%;background:@color;--i:@i"></span>
                     }
                 }
             }
