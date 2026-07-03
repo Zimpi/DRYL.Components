@@ -15,6 +15,12 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylLineChart` — Multi-series line chart; axes, gridlines, legend, pure-CSS hover tooltips, `Smooth` splines, `ShowMarkers`; AI-Mode
+- `DrylBarChart` — Grouped or `Stacked` column chart; ≤ 24px bars, rounded data-ends, surface gaps; AI-Mode
+- `DrylAreaChart` — Line chart with same-hue gradient fill to the zero baseline; `Smooth`; AI-Mode
+- `DrylDonutChart` — Donut/pie with `InnerRadius`, `CenterContent` slot, per-segment CSS hover; AI-Mode
+- `ChartSeries` / `ChartSegment` — Typed data records for the chart family; optional `ColorSlot` pins a series to a palette slot so filters never repaint survivors
+- CSS tokens `--chart-1` … `--chart-6` — Categorical series palette, CVD-validated for the dark surface (adjacent ΔE ≥ 12, contrast ≥ 3:1)
 - Responsive foundation — `Breakpoint` scale (Sm/Md/Lg/Xl), `.cq` container-query utility, and a global safety layer (media `max-width:100%`, flex `min-width:0`, word-wrap) so DRYL UIs resist horizontal overflow on small screens
 - `DrylGrid` — Responsive column grid; auto-fit by default (`MinItemWidth`) or fixed `Columns` with automatic step-down; token-driven `Gap`
 - `DrylContainer` — Centers content at a readable max width (`Size`) with responsive side padding so pages are never edge-to-edge on mobile

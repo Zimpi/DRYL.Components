@@ -59,6 +59,21 @@ The source of truth is `dryl.css`. This file is the readable index.
 | `--danger`    | `#f87171`  | Failed, destructive action.  |
 | `--info`      | `#22d3ee`  | Informational, neutral status. (alias of `--accent-b`) |
 
+### Chart series palette
+| Token       | Value      | Use                                    |
+| ----------- | ---------- | -------------------------------------- |
+| `--chart-1` | `#8b7cf8`  | Series 1 (violet — accent-a family).   |
+| `--chart-2` | `#0aa2b5`  | Series 2 (cyan).                       |
+| `--chart-3` | `#bd7a12`  | Series 3 (amber).                      |
+| `--chart-4` | `#26a058`  | Series 4 (green).                      |
+| `--chart-5` | `#d6428e`  | Series 5 (magenta).                    |
+| `--chart-6` | `#5583e3`  | Series 6 (blue).                       |
+
+Fixed order, assigned in sequence, **never cycled** — series 7+ renders `--fg-dim`
+(reads as "other"). Validated against the dark surface (`#000000`): lightness band,
+chroma floor, adjacent-pair CVD ΔE ≥ 12 (worst 24.1), contrast ≥ 3:1. Never use
+`--success` / `--warning` / `--danger` as series colors — status is reserved.
+
 ---
 
 ## Theming & Seed Derivation
