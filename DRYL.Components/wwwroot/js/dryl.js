@@ -182,7 +182,12 @@ window.dryl.modal = (() => {
         el.removeEventListener('keydown', onKeyDown);
         delete el.__drylModal;
         unlockScroll();
-        if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        // Only hand focus back if it is still inside this dialog (or was lost
+        // to the body) — a follow-up dialog may already own it, and stealing
+        // it back would break that dialog's focus trap.
+        const active = document.activeElement;
+        const focusIsOurs = !active || active === document.body || el.contains(active);
+        if (focusIsOurs && previouslyFocused && typeof previouslyFocused.focus === 'function') {
             try { previouslyFocused.focus(); } catch (_) { /* element gone */ }
         }
     }

@@ -882,8 +882,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .reveal--rise > *,
   .reveal--scale-in > * { transform: none; }
   .tabs.is-ink-ready .tab-ink { transition: none; }
-  .dialog-backdrop.is-exiting { animation: none; }
-  .dialog-backdrop.is-exiting .dialog { animation: none; }
+  .dialog-backdrop { animation: none; transition: none; }
+  .dialog { animation: none; }
+  .dialog-layer.is-exiting .dialog { animation: none; }
+  .dialog-layer.is-handoff:not(.is-exiting) .dialog { animation-delay: 0ms; }
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -3303,6 +3305,10 @@ body.dryl-scroll-locked { overflow: hidden; }
   padding: var(--sp-5);
   z-index: var(--z-modal);
   animation: fadeIn var(--dur-med) var(--ease-out);
+  /* Exit via transition (not animation) so an interrupted fade — a new dialog
+     arriving while the last one leaves — reverses smoothly from the current
+     opacity instead of restarting. */
+  transition: opacity var(--dur-med) var(--ease-out);
 }
 
 /* Fullscreen dialogs fill the viewport — kill the backdrop padding so they
@@ -3311,11 +3317,36 @@ body.dryl-scroll-locked { overflow: hidden; }
   padding: 0;
 }
 
-/* Exit — DrylDialogProvider adds .is-exiting and keeps the entry mounted until
-   dialogOut's animationend (caught by dryl.motion.onExit on the backdrop). */
-.dialog-backdrop.is-exiting { animation: fadeOut var(--dur-med) var(--ease-out) both; }
-.dialog-backdrop.is-exiting .dialog { animation: dialogOut var(--dur-med) var(--ease-in-out) both; }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+/* Exit — DrylDialogProvider adds .is-exiting once every remaining dialog is
+   exiting; entries are removed on dialogOut's animationend (dryl.motion.onExit
+   on the layer) with a C#-side watchdog as fallback. pointer-events: none is
+   the safety net: a fading (or somehow stuck) overlay must never eat clicks. */
+.dialog-backdrop.is-exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Each service dialog lives in its own full-viewport layer above the shared
+   backdrop, so stacked or hand-off dialogs never double the dark/blur wash. */
+.dialog-layer {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+}
+.dialog-layer:has(.dialog-fullscreen) { padding: 0; }
+.dialog-layer.is-exiting { pointer-events: none; }
+.dialog-layer.is-exiting .dialog { animation: dialogOut var(--dur-med) var(--ease-in-out) both; }
+
+/* Handoff — this dialog was opened while its predecessor is still animating
+   out: hold the enter for a beat so the swap reads as a sequenced cross-fade
+   instead of a collision. */
+.dialog-layer.is-handoff:not(.is-exiting) .dialog {
+  animation-delay: var(--dur-fast);
+  animation-fill-mode: backwards;
+}
+
 @keyframes dialogOut {
   from { opacity: 1; transform: scale(1) translateY(0); }
   to   { opacity: 0; transform: scale(0.96) translateY(8px); }
@@ -3444,7 +3475,8 @@ body.dryl-scroll-locked { overflow: hidden; }
    Unterkante an — volle Breite, obere Rundung, dvh-begrenzte Höhe.
    Fullscreen-Dialoge sind davon unberührt (füllen ohnehin alles). */
 @media (max-width: 640px) {
-  .dialog-backdrop:not(:has(.dialog-fullscreen)) {
+  .dialog-backdrop:not(:has(.dialog-fullscreen)),
+  .dialog-layer:not(:has(.dialog-fullscreen)) {
     place-items: end center;
     padding: var(--sp-6) 0 0;
   }

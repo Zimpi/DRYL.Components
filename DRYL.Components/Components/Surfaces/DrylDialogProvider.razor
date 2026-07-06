@@ -11,24 +11,36 @@
     Place once in your root layout (e.g. MainLayout.razor):
         <DrylDialogProvider />
 
-    It subscribes to IDrylDialogService, renders the active
-    dialog inside a glass backdrop, cascades IDrylDialogInstance
-    to the rendered component, and installs the JS-side scroll
-    lock + focus trap + ESC handler.
+    It subscribes to IDrylDialogService, renders every active
+    dialog in its own .dialog-layer above ONE shared backdrop,
+    cascades IDrylDialogInstance to the rendered component, and
+    installs the JS-side scroll lock + focus trap + ESC handler.
+
+    Choreography for sequential dialogs (the AI-agent pattern of
+    "close A, immediately open B"): the backdrop persists and only
+    transitions its opacity, the outgoing dialog plays dialogOut
+    while the incoming one enters slightly delayed (.is-handoff) —
+    a cross-fade handoff instead of two full backdrop fades.
     ───────────────────────────────────────────────────────── *@
 
-@foreach (var entry in _entries)
+@if (_entries.Count > 0)
 {
-    <div class="@(entry.IsExiting ? "dialog-backdrop is-exiting" : "dialog-backdrop")"
-         @ref="entry.BackdropRef"
-         tabindex="-1"
-         @onclick="@(() => OnBackdropClick(entry))">
-        <CascadingValue Value="@((IDrylDialogInstance)entry.Reference)" IsFixed="false">
-            <div class="dialog-shell" @onclick:stopPropagation="true">
-                <DynamicComponent Type="@entry.Reference.DialogType"
-                                  Parameters="@entry.Reference.Parameters" />
+    <div class="@(AllExiting ? "dialog-backdrop is-exiting" : "dialog-backdrop")">
+        @foreach (var entry in _entries)
+        {
+            <div @key="entry.Reference.Id"
+                 class="@LayerClass(entry)"
+                 @ref="entry.LayerRef"
+                 tabindex="-1"
+                 @onclick="@(() => OnBackdropClick(entry))">
+                <CascadingValue Value="@((IDrylDialogInstance)entry.Reference)" IsFixed="false">
+                    <div class="dialog-shell" @onclick:stopPropagation="true">
+                        <DynamicComponent Type="@entry.Reference.DialogType"
+                                          Parameters="@entry.Reference.Parameters" />
+                    </div>
+                </CascadingValue>
             </div>
-        </CascadingValue>
+        }
     </div>
 }
 
@@ -36,18 +48,40 @@
     private sealed class Entry
     {
         public DrylDialogReference Reference { get; init; } = default!;
-        public ElementReference BackdropRef;
+        public ElementReference LayerRef;
         public DotNetObjectReference<DialogCallbacks>? DotNetRef;
         public bool Attached;
 
         // Exit animation lifecycle: the entry stays mounted with .is-exiting
-        // until dialogOut's animationend, then it is removed.
+        // until dialogOut's animationend, then it is removed. A watchdog
+        // finalizes it regardless if that event never arrives.
         public bool IsExiting;
         public bool ExitAttached;
+        public bool Finalized;
         public DotNetObjectReference<ExitCallback>? ExitRef;
+        public CancellationTokenSource? ExitWatchdog;
+
+        // Opened while a sibling was exiting → delayed enter (handoff).
+        public bool IsHandoff;
     }
 
     private readonly List<Entry> _entries = new();
+
+    // dialogOut runs var(--dur-med) (240ms). If its animationend is lost
+    // (interop race, reduced-motion edge, DOM churn) the entry would stay
+    // mounted forever as an invisible click-eating overlay — finalize it
+    // after this grace period no matter what.
+    private static readonly TimeSpan ExitWatchdogTimeout = TimeSpan.FromMilliseconds(600);
+
+    private bool AllExiting => _entries.Count > 0 && _entries.All(e => e.IsExiting);
+
+    private static string LayerClass(Entry entry)
+    {
+        var cls = "dialog-layer";
+        if (entry.IsExiting) cls += " is-exiting";
+        if (entry.IsHandoff) cls += " is-handoff";
+        return cls;
+    }
 
     protected override void OnInitialized()
     {
@@ -60,7 +94,11 @@
     {
         if (reference is DrylDialogReference impl)
         {
-            _entries.Add(new Entry { Reference = impl });
+            _entries.Add(new Entry
+            {
+                Reference = impl,
+                IsHandoff = _entries.Any(e => e.IsExiting)
+            });
             InvokeAsync(StateHasChanged);
         }
     }
@@ -70,15 +108,30 @@
         var entry = _entries.FirstOrDefault(e => e.Reference.Id == reference.Id);
         if (entry is null || entry.IsExiting) return;
         // Begin the exit animation; the entry is removed once it finishes
-        // (FinalizeExit, driven by dryl.motion.onExit on the backdrop).
+        // (FinalizeExit, driven by dryl.motion.onExit on the layer) — or by
+        // the watchdog, if the animationend event gets lost.
         entry.IsExiting = true;
+        entry.ExitWatchdog = new CancellationTokenSource();
+        _ = RunExitWatchdogAsync(entry, entry.ExitWatchdog.Token);
         InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunExitWatchdogAsync(Entry entry, CancellationToken token)
+    {
+        try { await Task.Delay(ExitWatchdogTimeout, token); }
+        catch (TaskCanceledException) { return; }
+        FinalizeExit(entry);
     }
 
     private void FinalizeExit(Entry entry)
     {
         InvokeAsync(async () =>
         {
+            if (entry.Finalized) return;
+            entry.Finalized = true;
+            entry.ExitWatchdog?.Cancel();
+            entry.ExitWatchdog?.Dispose();
+            entry.ExitWatchdog = null;
             await DetachInterop(entry);
             entry.ExitRef?.Dispose();
             entry.ExitRef = null;
@@ -105,14 +158,14 @@
             try
             {
                 await JS.InvokeVoidAsync("dryl.modal.attach",
-                    entry.BackdropRef, entry.DotNetRef, opts);
+                    entry.LayerRef, entry.DotNetRef, opts);
                 entry.Attached = true;
             }
             catch (JSDisconnectedException) { /* circuit gone */ }
         }
 
         // Wire the exit animationend (dialogOut bubbles from .dialog up to the
-        // backdrop) so the entry is removed only after the animation plays.
+        // layer) so the entry is removed as soon as the animation finishes.
         foreach (var entry in _entries.Where(e => e.IsExiting && !e.ExitAttached).ToList())
         {
             entry.ExitAttached = true;
@@ -120,7 +173,7 @@
             try
             {
                 await JS.InvokeVoidAsync("dryl.motion.onExit",
-                    entry.BackdropRef, entry.ExitRef, new { name = "dialogOut", self = false });
+                    entry.LayerRef, entry.ExitRef, new { name = "dialogOut", self = false });
             }
             catch (JSDisconnectedException) { /* circuit gone */ }
         }
@@ -136,10 +189,13 @@
 
     private async Task DetachInterop(Entry entry)
     {
-        if (!entry.Attached) return;
         try
         {
-            await JS.InvokeVoidAsync("dryl.modal.detach", entry.BackdropRef);
+            await JS.InvokeVoidAsync("dryl.motion.clearExit", entry.LayerRef);
+            if (entry.Attached)
+            {
+                await JS.InvokeVoidAsync("dryl.modal.detach", entry.LayerRef);
+            }
         }
         catch (JSDisconnectedException) { /* circuit gone */ }
         entry.DotNetRef?.Dispose();
@@ -155,6 +211,9 @@
 
         foreach (var entry in _entries.ToList())
         {
+            entry.ExitWatchdog?.Cancel();
+            entry.ExitWatchdog?.Dispose();
+            entry.ExitWatchdog = null;
             await DetachInterop(entry);
             entry.ExitRef?.Dispose();
             entry.ExitRef = null;
