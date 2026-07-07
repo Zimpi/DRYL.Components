@@ -188,11 +188,22 @@ If any of these are unclear, **ask** before writing code.
 
 Every commit that touches library code **must** also update `CHANGELOG.md` and, where relevant, `README.md`. These two files are the public face of the library.
 
+### 7.0 Versioning & release — you own the version
+
+DRYL ships continuously. **You are the version owner**, not the maintainer. Every push to `main` is a potential release: the `Publish` workflow (`.github/workflows/publish.yml`) reads `<Version>` from `DRYL.Components/DRYL.Components.csproj`, and if no `v<Version>` tag exists yet, it builds, tests, packs and publishes that version to nuget.org, then tags it and cuts a GitHub Release.
+
+The `<Version>` in the `.csproj` is the **single source of truth** that drives publishing. Therefore:
+
+- **Whenever you touch library code, bump `<Version>` in the same commit.** Bug fix → **PATCH**, new component/parameter/feature → **MINOR**, breaking API change → **MAJOR**.
+- If a change does **not** touch shippable library code (docs, samples, CI, tests only — see §7.3), leave the version alone. A push with an unchanged version finds the tag already present and is a clean no-op — nothing is published.
+- Never publish by hand or push a `v*` tag yourself — the workflow owns tagging. Just bump the number and commit; the push does the rest.
+- Keep `<Version>` and `CHANGELOG.md` in lockstep (see §7.1).
+
 ### 7.1 CHANGELOG.md
 
 The file lives at the repository root and follows [Keep a Changelog](https://keepachangelog.com/) (v1.1.0) format with [Semantic Versioning](https://semver.org/).
 
-**Always write into `[Unreleased]`** — never create a new version section; that is the maintainer's job at release time.
+Accumulate entries under `[Unreleased]` as you work. **When you bump `<Version>` (§7.0), cut a release in the changelog in the same commit:** rename the `[Unreleased]` block to `## [X.Y.Z] - YYYY-MM-DD` (the version you just set, today's date) and start a fresh, empty `[Unreleased]` above it. That keeps every published version traceable to its entries.
 
 Pick the right sub-heading for each change:
 
@@ -212,7 +223,7 @@ Pick the right sub-heading for each change:
 - `DrylCard` — New `Elevation` parameter (`Low / Mid / High`) controls shadow depth
 ```
 
-**Versioning rules** (for maintainer, but good to know):
+**Versioning rules** — you apply these yourself by bumping `<Version>` (§7.0):
 
 | Change type              | Bump        |
 | ------------------------ | ----------- |
@@ -244,4 +255,4 @@ Before considering any component work done, verify:
 
 - [ ] `CHANGELOG.md` — entry added under `[Unreleased]` with the correct sub-heading
 - [ ] `ComponentCatalog` in `DRYL.Website` — new component registered (or existing entry updated) so it appears on components.dryl.dev
-- [ ] `DRYL.Components.csproj` — `<Version>` is still consistent with the changelog (maintainer sets this; don't bump without being asked)
+- [ ] `DRYL.Components.csproj` — `<Version>` bumped for this change (PATCH/MINOR/MAJOR per §7.0) and in lockstep with the changelog release you cut
