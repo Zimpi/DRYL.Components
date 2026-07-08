@@ -29,4 +29,19 @@ public class DrylAiGenerateTests : BunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Pancakes", cut.Markup));
     }
+
+    [Fact]
+    public void Exposes_raw_buffer_on_snapshot()
+    {
+        var src = Stream(new[] { "{\"title\":\"Pan", "cakes\"}" });
+
+        GenerationSnapshot<Recipe>? seen = null;
+        var cut = Render<DrylAiGenerate<Recipe>>(p => p
+            .Add(x => x.Source, src)
+            .Add(x => x.ChildContent, (RenderFragment<GenerationSnapshot<Recipe>>)(snap =>
+                builder => { seen = snap; })));
+
+        // The snapshot instance is reused; at completion Raw holds the full accumulated buffer.
+        cut.WaitForAssertion(() => Assert.Equal("{\"title\":\"Pancakes\"}", seen!.Raw));
+    }
 }

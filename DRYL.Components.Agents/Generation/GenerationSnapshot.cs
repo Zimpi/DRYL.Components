@@ -11,4 +11,7 @@ public sealed class GenerationSnapshot<T>
 
     /// <summary>True once the stream has completed.</summary>
     public bool IsComplete { get; internal set; }
+
+    /// <summary>The raw model output streamed so far (the accumulated JSON buffer, before repair/parsing).</summary>
+    public string Raw { get; internal set; } = "";
 }

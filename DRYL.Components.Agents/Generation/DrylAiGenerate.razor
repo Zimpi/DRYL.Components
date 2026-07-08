@@ -56,34 +56,35 @@
         var ct = _cts.Token;
 
         var reader = new PartialJsonReader<T>();
-        Apply(AiState.Thinking, default, complete: false);
+        Apply(AiState.Thinking, default, complete: false, raw: "");
 
-        if (Source is null) { Apply(AiState.None, default, complete: false); return; }
+        if (Source is null) { Apply(AiState.None, default, complete: false, raw: ""); return; }
 
         try
         {
             await foreach (var token in Source.WithCancellation(ct))
             {
                 var value = reader.Append(token);
-                Apply(AiState.Streaming, value, complete: false);
+                Apply(AiState.Streaming, value, complete: false, raw: reader.Buffer);
             }
         }
         catch (OperationCanceledException) { return; }
-        catch { Apply(AiState.None, _snapshot.Value, complete: false); return; }
+        catch { Apply(AiState.None, _snapshot.Value, complete: false, raw: _snapshot.Raw); return; }
 
-        Apply(AiState.Generated, reader.Current, complete: true);
+        Apply(AiState.Generated, reader.Current, complete: true, raw: reader.Buffer);
 
         try { await Task.Delay(SettleDelayMs, ct); }
         catch (OperationCanceledException) { return; }
 
-        Apply(SettleTo, _snapshot.Value, complete: true);
+        Apply(SettleTo, _snapshot.Value, complete: true, raw: _snapshot.Raw);
     }
 
-    private void Apply(AiState state, T? value, bool complete)
+    private void Apply(AiState state, T? value, bool complete, string raw)
     {
         _snapshot.State = state;
         _snapshot.Value = value;
         _snapshot.IsComplete = complete;
+        _snapshot.Raw = raw;
 
         if (_service is not null && Key is not null)
         {

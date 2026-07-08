@@ -14,6 +14,9 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `GenerationSnapshot<T>.Raw` — (Agents) Every snapshot now carries the raw accumulated model output (the JSON buffer so far), so UIs can show the live token stream that drives the typed value
+
 ## [1.1.0] — 2026-07-07
 
 ### Added
