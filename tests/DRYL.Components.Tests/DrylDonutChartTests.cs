@@ -57,6 +57,22 @@ public class DrylDonutChartTests : BunitContext
     }
 
     [Fact]
+    public void Tooltips_anchor_at_the_slice_midpoint_without_flip()
+    {
+        var cut = Render<DrylDonutChart>(ps => ps.Add(p => p.Segments, Segs));
+        foreach (var tip in cut.FindAll(".donut-tip"))
+        {
+            // Centre-anchored via --tip-top/--tip-left percentages of the square
+            // slice wrapper; the flip class would override the anchor and push
+            // left-side tips out of the chart.
+            var style = tip.GetAttribute("style")!;
+            Assert.Contains("--tip-top:", style);
+            Assert.Contains("--tip-left:", style);
+            Assert.DoesNotContain("chart-tip-flip", tip.ClassName);
+        }
+    }
+
+    [Fact]
     public void Pie_mode_uses_zero_inner_radius()
     {
         var cut = Render<DrylDonutChart>(ps => ps

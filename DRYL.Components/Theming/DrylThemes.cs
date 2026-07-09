@@ -20,18 +20,36 @@ public static class DrylThemes
     public static DrylTheme Ember { get; } = new()
     {
         Accent = new DrylAccent("#f59e0b", "#f43f5e"),
+        // The derived series 1 is amber and would shadow the fixed amber
+        // anchor in slot 3 — swap that slot to the default cyan.
+        Charts = new DrylChartPalette { Series3 = "#0aa2b5" },
     };
 
     /// <summary>Green → teal. Calm, "systems healthy" feel.</summary>
     public static DrylTheme Verdant { get; } = new()
     {
         Accent = new DrylAccent("#34d399", "#22d3ee"),
+        // The derived series 1 is green and would shadow the fixed green
+        // anchor in slot 4 — swap that slot to the default violet.
+        Charts = new DrylChartPalette { Series4 = "#8b7cf8" },
     };
 
     /// <summary>Desaturated, near-monochrome — accent recedes to a cool slate.</summary>
     public static DrylTheme Mono { get; } = new()
     {
         Accent = new DrylAccent("#9aa4b2", "#cbd5e1"),
+        // Both slate seeds land on the same near-gray hue — derived series
+        // would be indistinguishable. Charts keep the full validated default
+        // palette: the chrome recedes, the data stays readable.
+        Charts = new DrylChartPalette
+        {
+            Series1 = "#8b7cf8",
+            Series2 = "#0aa2b5",
+            Series3 = "#bd7a12",
+            Series4 = "#26a058",
+            Series5 = "#d6428e",
+            Series6 = "#5583e3",
+        },
     };
 
     /// <summary>The default theme when none is supplied. Equal to <see cref="Nebula"/>.</summary>

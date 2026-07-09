@@ -60,8 +60,8 @@
                               aria-label="@($"{seg.Label}: {FormatValue(seg.Value)} ({FormatValue(Math.Round(pct))} %)")"
                               style="--dx:@(Inv(dx))px;--dy:@(Inv(dy))px;--i:@idx" />
                     </svg>
-                    <div class="chart-tip donut-tip @(dx > 0 ? null : "chart-tip-flip")"
-                         style="--tip-top:@(Inv(Math.Max(4, ly - 10)))%;--tip-left:@(Inv(lx))%"
+                    <div class="chart-tip donut-tip"
+                         style="--tip-top:@(Inv(ly))%;--tip-left:@(Inv(lx))%"
                          aria-hidden="true">
                         <div class="chart-tip-row">
                             <span class="chart-swatch" style="background:@SlotColor(seg.ColorSlot, pos)"></span>

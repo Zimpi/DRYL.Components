@@ -14,6 +14,19 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-07-09
+
+### Added
+- `DrylTheme` — New optional `Charts` override (`DrylChartPalette`, `Series1`–`Series6`): themes can pin individual chart series tokens (`--chart-1`…`--chart-6`); unset slots keep the derived/default colors
+- `DrylThemes` — Presets now ship curated chart palettes where their accent hue collides with a fixed series anchor: Ember swaps the amber anchor (slot 3) for cyan, Verdant swaps the green anchor (slot 4) for violet, Mono pins the full validated default palette (its slate seeds carry no usable hue)
+
+### Changed
+- Charts — `--chart-1` / `--chart-2` now follow the active theme: hue from the accent seeds, lightness/chroma normalized into the dark-validated band via relative color syntax. All six chart tokens are registered `@property` colors, so theme changes glide and engines without relative color syntax fall back to the previous fixed palette
+- `DrylThemeProvider` — Runtime theme application now clears all theme-managed variables before applying the new theme, so optional overrides (AI accent, semantics, chart slots) from the previous theme no longer linger after a switch
+
+### Fixed
+- `DrylDonutChart` — Hover/focus tooltip is now anchored at the hovered slice's mid-point; previously its percentage anchors were resolved against the full-width wrapper instead of the square donut area, flinging tooltips far off the chart in wide containers and out of it in small ones (the flip-side variant was additionally dead CSS)
+
 ## [1.4.0] — 2026-07-09
 
 ### Added

@@ -52,6 +52,31 @@ public class DrylThemeTests
         Assert.DoesNotContain("--success", css);
         Assert.DoesNotContain("--warning", css);
     }
+
+    [Fact]
+    public void ToCssVariables_includes_only_specified_chart_slots()
+    {
+        var theme = new DrylTheme
+        {
+            Accent = new DrylAccent("#7c5cff", "#22d3ee"),
+            Charts = new DrylChartPalette { Series3 = "#0aa2b5" },
+        };
+
+        var css = theme.ToCssVariables();
+
+        Assert.Contains("--chart-3:#0aa2b5;", css);
+        Assert.DoesNotContain("--chart-1", css);
+        Assert.DoesNotContain("--chart-2", css);
+        Assert.DoesNotContain("--chart-4", css);
+    }
+
+    [Fact]
+    public void ToCssVariables_omits_chart_slots_when_charts_null()
+    {
+        var theme = new DrylTheme { Accent = new DrylAccent("#7c5cff", "#22d3ee") };
+
+        Assert.DoesNotContain("--chart", theme.ToCssVariables());
+    }
 }
 
 public class DrylThemesTests
@@ -62,6 +87,19 @@ public class DrylThemesTests
         Assert.Equal(new DrylAccent("#7c5cff", "#22d3ee"), DrylThemes.Nebula.Accent);
         Assert.Null(DrylThemes.Nebula.AiAccent);
         Assert.Null(DrylThemes.Nebula.Semantic);
+        Assert.Null(DrylThemes.Nebula.Charts);
+    }
+
+    [Fact]
+    public void Presets_with_colliding_accent_hues_curate_chart_slots()
+    {
+        // Ember's derived series 1 is amber → the fixed amber anchor moves out.
+        Assert.Equal("#0aa2b5", DrylThemes.Ember.Charts?.Series3);
+        // Verdant's derived series 1 is green → the fixed green anchor moves out.
+        Assert.Equal("#8b7cf8", DrylThemes.Verdant.Charts?.Series4);
+        // Mono's slate seeds carry no usable hue → full validated palette pinned.
+        Assert.Equal("#8b7cf8", DrylThemes.Mono.Charts?.Series1);
+        Assert.Equal("#5583e3", DrylThemes.Mono.Charts?.Series6);
     }
 
     [Fact]

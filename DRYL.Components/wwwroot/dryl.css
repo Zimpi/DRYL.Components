@@ -10,6 +10,16 @@
 @property --ai-a     { syntax: "<color>"; inherits: true; initial-value: #7c5cff; }
 @property --ai-b     { syntax: "<color>"; inherits: true; initial-value: #22d3ee; }
 
+/* Chart series tokens are registered too: explicit theme overrides
+   (DrylTheme.Charts) glide like the seeds, and the initial-value doubles as
+   the fallback palette in engines without relative color syntax. */
+@property --chart-1 { syntax: "<color>"; inherits: true; initial-value: #8b7cf8; }
+@property --chart-2 { syntax: "<color>"; inherits: true; initial-value: #0aa2b5; }
+@property --chart-3 { syntax: "<color>"; inherits: true; initial-value: #bd7a12; }
+@property --chart-4 { syntax: "<color>"; inherits: true; initial-value: #26a058; }
+@property --chart-5 { syntax: "<color>"; inherits: true; initial-value: #d6428e; }
+@property --chart-6 { syntax: "<color>"; inherits: true; initial-value: #5583e3; }
+
 :root {
   /* Tell the browser this surface is dark — applies to native UA controls (<select> dropdowns, scrollbars, form autofill) so they don't ship light-mode defaults onto our glass. */
   color-scheme: dark;
@@ -57,9 +67,13 @@
 
   /* Charts — categorical series palette (dark-validated: lightness band,
      chroma floor, CVD adjacent ΔE ≥ 12, contrast ≥ 3:1 on black).
-     Fixed order, assigned in sequence, never cycled; series 7+ → --fg-dim. */
-  --chart-1:       #8b7cf8;
-  --chart-2:       #0aa2b5;
+     Fixed order, assigned in sequence, never cycled; series 7+ → --fg-dim.
+     Series 1/2 follow the theme seeds: hue from the accent, lightness snapped
+     to the validated band (L 0.65) and chroma clamped, so any DrylTheme stays
+     chart-legible without per-theme tuning. Slots 3–6 are fixed anchors;
+     themes whose hues collide with them override via DrylTheme.Charts. */
+  --chart-1:       oklch(from var(--accent-a) 0.65 clamp(0.1, c, 0.19) h);
+  --chart-2:       oklch(from var(--accent-b) 0.65 clamp(0.1, c, 0.19) h);
   --chart-3:       #bd7a12;
   --chart-4:       #26a058;
   --chart-5:       #d6428e;
@@ -126,7 +140,13 @@
     transition: --accent-a var(--dur-slow) var(--ease-in-out),
                 --accent-b var(--dur-slow) var(--ease-in-out),
                 --ai-a var(--dur-slow) var(--ease-in-out),
-                --ai-b var(--dur-slow) var(--ease-in-out);
+                --ai-b var(--dur-slow) var(--ease-in-out),
+                --chart-1 var(--dur-slow) var(--ease-in-out),
+                --chart-2 var(--dur-slow) var(--ease-in-out),
+                --chart-3 var(--dur-slow) var(--ease-in-out),
+                --chart-4 var(--dur-slow) var(--ease-in-out),
+                --chart-5 var(--dur-slow) var(--ease-in-out),
+                --chart-6 var(--dur-slow) var(--ease-in-out);
   }
 }
 
@@ -5065,16 +5085,22 @@ pre { overflow-x: auto; }
   display: flex;
   justify-content: center;
 }
+/* Each slice wrapper is a centred square matching the SVG's viewBox, so the
+   tooltip's percentage anchors map 1:1 onto donut coordinates (a full-width
+   wrapper would stretch the anchor space and fling tips sideways). */
 .donut-slice {
   position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: center;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  translate: -50%;
+  aspect-ratio: 1;
   pointer-events: none;
 }
 .donut-slice svg {
+  display: block;
+  width: 100%;
   height: 100%;
-  aspect-ratio: 1;
   overflow: visible;
   pointer-events: none;
 }
@@ -5099,9 +5125,12 @@ pre { overflow-x: auto; }
   stroke: var(--accent-line);
   stroke-width: 1.5;
 }
+/* Centred on the slice's mid-angle anchor; translate composes with the
+   .chart-tip enter transform, so the fade/slide-in is untouched. */
 .donut-tip {
-  top: var(--tip-top, var(--sp-2));
-  left: var(--tip-left, auto);
+  top: var(--tip-top, 50%);
+  left: var(--tip-left, 50%);
+  translate: -50% -50%;
 }
 .donut-slice:hover .donut-tip,
 .donut-slice:focus-within .donut-tip {
