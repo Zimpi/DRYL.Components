@@ -5,7 +5,7 @@ that bridges the [Microsoft Agent Framework](https://www.nuget.org/packages/Micr
 (`Microsoft.Agents.AI`) to DRYL's AI vocabulary. It takes real work off your hands across
 four subsystems — without you ever setting `Ai="…"` by hand.
 
-> **Experimental — 0.3.0.** Independently versioned and deliberately decoupled from the
+> **Experimental — 0.4.0.** Independently versioned and deliberately decoupled from the
 > stable core so the agent integration can mature without breaking core SemVer.
 
 The core stays dependency-free (Markdig only); the LLM SDK lives **exclusively** in this
@@ -114,7 +114,10 @@ var agent = new ChatClientAgent(chatClient, instructions: prompt, tools: display
 ```
 
 ```razor
-<DrylAiStream Source="@_run.TextStream">
+@* Smooth: some providers (e.g. Ollama) buffer a generation while parsing tool-call
+   syntax and deliver it in one burst — the paced reveal keeps it reading as a stream.
+   Burst-delivered attachments cascade in one by one automatically. *@
+<DrylAiStream Source="@_run.TextStream" Smooth>
   <DrylMarkdown Content="@context.Text" Ai="@context.State" />
 </DrylAiStream>
 <DrylAgentAttachments Run="@_run" />   @* charts / stats / timeline glide in here *@

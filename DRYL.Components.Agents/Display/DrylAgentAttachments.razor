@@ -49,7 +49,17 @@
     /// <summary>Extra CSS class(es) merged onto the container's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
+    // A provider can deliver several tool calls in one burst (e.g. Ollama parses a whole
+    // tool-call block at the end of a generation). Newly parsed attachments therefore go
+    // through a reveal queue: the first shows immediately, the rest cascade one by one so
+    // each card gets its own entrance instead of all popping in a single frame.
+    private const int StaggerDelayMs = 260;
+
     private readonly Dictionary<string, Attachment?> _cache = new();
+    private readonly HashSet<string> _revealed = new();
+    private readonly Queue<string> _pendingReveal = new();
+    private CancellationTokenSource? _revealCts;
+    private bool _revealing;
     private DrylRunBase? _subscribed;
 
     private sealed record Attachment(string CallId, string? Title, RenderFragment Body);
@@ -61,14 +71,58 @@
             if (Run is null) yield break;
             foreach (var call in Run.ToolCalls)
             {
-                if (!DisplayToolNames.IsDisplayTool(call.ToolName)) continue;
-                if (!_cache.TryGetValue(call.CallId, out var attachment))
+                if (_revealed.Contains(call.CallId) &&
+                    _cache.TryGetValue(call.CallId, out var attachment) &&
+                    attachment is not null)
                 {
-                    attachment = BuildAttachment(call);
-                    _cache[call.CallId] = attachment;
+                    yield return attachment;
                 }
-                if (attachment is not null) yield return attachment;
             }
+        }
+    }
+
+    // Parse any tool calls we haven't seen yet and queue the valid ones for reveal.
+    private void SyncFromRun()
+    {
+        if (Run is null) return;
+        foreach (var call in Run.ToolCalls)
+        {
+            if (!DisplayToolNames.IsDisplayTool(call.ToolName)) continue;
+            if (_cache.ContainsKey(call.CallId)) continue;
+            var attachment = BuildAttachment(call);
+            _cache[call.CallId] = attachment;
+            if (attachment is not null) _pendingReveal.Enqueue(call.CallId);
+        }
+        if (_pendingReveal.Count > 0 && !_revealing) _ = RevealAsync();
+    }
+
+    private long? _lastRevealAt;
+
+    private async Task RevealAsync()
+    {
+        _revealing = true;
+        try
+        {
+            var ct = (_revealCts ??= new CancellationTokenSource()).Token;
+            while (_pendingReveal.Count > 0)
+            {
+                // A burst often arrives as several OnChange events a few ms apart, so the
+                // queue rarely holds more than one entry at a time. Enforce the cadence
+                // against the time of the previous reveal, not the queue length.
+                var wait = _lastRevealAt is null
+                    ? 0
+                    : StaggerDelayMs - (Environment.TickCount64 - _lastRevealAt.Value);
+                if (wait > 0) await Task.Delay((int)Math.Min(wait, StaggerDelayMs), ct);
+
+                _revealed.Add(_pendingReveal.Dequeue());
+                _lastRevealAt = Environment.TickCount64;
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException) { /* run replaced or component disposed */ }
+        finally
+        {
+            _revealing = false;
         }
     }
 
@@ -173,17 +227,32 @@
 
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_subscribed, Run)) return;
-        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
-        _subscribed = Run;
-        _cache.Clear();
-        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        if (!ReferenceEquals(_subscribed, Run))
+        {
+            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            _subscribed = Run;
+            _cache.Clear();
+            _revealed.Clear();
+            _pendingReveal.Clear();
+            _lastRevealAt = null;
+            _revealCts?.Cancel();
+            _revealCts?.Dispose();
+            _revealCts = null;
+            if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        }
+        SyncFromRun();
     }
 
-    private void HandleChange() => InvokeAsync(StateHasChanged);
+    private void HandleChange() => InvokeAsync(() =>
+    {
+        SyncFromRun();
+        StateHasChanged();
+    });
 
     public void Dispose()
     {
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _revealCts?.Cancel();
+        _revealCts?.Dispose();
     }
 }

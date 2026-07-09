@@ -70,6 +70,25 @@ public class DrylAgentAttachmentsTests : BunitContext
         cut.InvokeAsync(() => run.AddToolCall(Call("1", "show_donut_chart",
             """{"segments":[{"label":"EU","value":9},{"label":"US","value":6}]}""")));
 
-        Assert.Single(cut.FindAll(".chart-kind-donut"));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".chart-kind-donut")));
+    }
+
+    [Fact]
+    public void Burst_of_calls_reveals_staggered_first_immediately_rest_over_time()
+    {
+        var run = new DrylAgentRun();
+        run.AddToolCall(Call("1", "show_stats", """{"stats":[{"label":"A","value":"1"}]}"""));
+        run.AddToolCall(Call("2", "show_stats", """{"stats":[{"label":"B","value":"2"}]}"""));
+        run.AddToolCall(Call("3", "show_stats", """{"stats":[{"label":"C","value":"3"}]}"""));
+
+        var cut = Render<DrylAgentAttachments>(p => p.Add(x => x.Run, run));
+
+        // The first attachment of the burst shows immediately, not delayed.
+        Assert.Single(cut.FindAll(".agent-attachment"));
+
+        // The rest cascade in via the reveal queue.
+        cut.WaitForAssertion(
+            () => Assert.Equal(3, cut.FindAll(".agent-attachment").Count),
+            timeout: TimeSpan.FromSeconds(5));
     }
 }

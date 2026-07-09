@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-09
+
+### Added
+- `DrylAiStream` — New `Smooth` parameter: reveals incoming text at a steady, backlog-adaptive pace instead of rendering each chunk as it arrives. Providers that buffer parts of a response (e.g. Ollama withholds a generation while parsing tool-call syntax and then delivers it in one burst) still read as a live stream; genuinely live token streams are not slowed. Off by default
+
+### Changed
+- `DrylAgentAttachments` — (Agents) When several display-tool calls arrive in one burst, the attachments now reveal staggered (first immediately, the rest cascading) so each chart/card gets its own entrance instead of all popping in a single frame
+
 ## [1.3.0] — 2026-07-09
 
 ### Added

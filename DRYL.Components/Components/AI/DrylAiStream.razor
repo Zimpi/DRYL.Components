@@ -47,14 +47,28 @@ else
     /// <summary>State to settle to after the <see cref="AiState.Generated"/> reveal. Default <see cref="AiState.None"/>.</summary>
     [Parameter] public AiState SettleTo { get; set; } = AiState.None;
 
+    /// <summary>
+    /// Reveal incoming text at a steady pace instead of rendering each chunk as it arrives.
+    /// Providers that buffer parts of a response (e.g. Ollama while it parses tool-call syntax)
+    /// deliver large bursts at once; Smooth spreads them into a type-out so the answer still
+    /// reads as streaming. The pace adapts to the backlog, so live token streams are not slowed.
+    /// </summary>
+    [Parameter] public bool Smooth { get; set; }
+
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
     // Dwell time on the Generated reveal before relaxing to SettleTo. Not a CSS duration —
     // a logical pause so the one-shot reveal is perceivable.
     private const int SettleDelayMs = 1200;
 
+    // Smooth pacing: reveal cadence and adaptive chunk size. Base rate ≈ a typical live token
+    // stream (~250 chars/s); the backlog term drains a burst of any size in roughly 1.5–2.5 s.
+    private const int RevealTickMs = 16;
+    private static int RevealTake(int backlog) => Math.Max(4, backlog / 100);
+
     private readonly AiStreamContext _context = new();
     private readonly StringBuilder _sb = new();
+    private readonly StringBuilder _backlog = new();
     private IDrylAiActivityService? _service;
     private IAsyncEnumerable<string>? _current;
     private CancellationTokenSource? _cts;
@@ -79,6 +93,7 @@ else
         var ct = _cts.Token;
 
         _sb.Clear();
+        _backlog.Clear();
         Apply(AiState.Thinking, string.Empty);
 
         if (Source is null)
@@ -90,15 +105,45 @@ else
         var sawToken = false;
         try
         {
-            await foreach (var token in Source.WithCancellation(ct))
+            if (Smooth)
             {
-                if (!sawToken)
+                // Producer fills the backlog as fast as the source delivers; this loop reveals
+                // it at a steady, backlog-adaptive pace so bursts read as streaming.
+                var producer = ProduceAsync(ct);
+                while (true)
                 {
-                    sawToken = true;
+                    if (_backlog.Length > 0)
+                    {
+                        if (!sawToken)
+                        {
+                            sawToken = true;
+                            Apply(AiState.Streaming, _sb.ToString());
+                        }
+                        var take = Math.Min(RevealTake(_backlog.Length), _backlog.Length);
+                        _sb.Append(_backlog.ToString(0, take));
+                        _backlog.Remove(0, take);
+                        Apply(AiState.Streaming, _sb.ToString());
+                    }
+                    else if (producer.IsCompleted)
+                    {
+                        break;
+                    }
+                    await Task.Delay(RevealTickMs, ct);
+                }
+                await producer; // surface a faulted source like the direct path does
+            }
+            else
+            {
+                await foreach (var token in Source.WithCancellation(ct))
+                {
+                    if (!sawToken)
+                    {
+                        sawToken = true;
+                        Apply(AiState.Streaming, _sb.ToString());
+                    }
+                    _sb.Append(token);
                     Apply(AiState.Streaming, _sb.ToString());
                 }
-                _sb.Append(token);
-                Apply(AiState.Streaming, _sb.ToString());
             }
         }
         catch (OperationCanceledException)
@@ -118,6 +163,20 @@ else
         catch (OperationCanceledException) { return; }
 
         Apply(SettleTo, _context.Text);
+    }
+
+    // Runs on the renderer's sync context, like the reveal loop — no locking needed.
+    private async Task ProduceAsync(CancellationToken ct)
+    {
+        try
+        {
+            await foreach (var token in Source!.WithCancellation(ct))
+                _backlog.Append(token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded/disposed while the reveal loop was mid-tick; never fault unobserved.
+        }
     }
 
     private void Apply(AiState state, string text)
