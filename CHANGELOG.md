@@ -14,6 +14,13 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-09
+
+### Added
+- `DrylPresence` — New `Speed` parameter (`PresenceSpeed`: Medium / Fast / Slow) remaps the enter/exit animation onto the fixed duration tokens; default Medium is pixel-identical to before
+- `DrylDisplayTools` — (Agents) Factory for six ready-made display `AIFunction` tools (`show_line_chart`, `show_area_chart`, `show_bar_chart`, `show_donut_chart`, `show_stats`, `show_timeline`); tools validate against small typed schemas and return corrective, model-facing errors so the model can retry
+- `DrylAgentAttachments` — (Agents) Renders a run's display-tool calls as live DRYL components (charts, KPI stat row, timeline) inline in the chat; each validated attachment glides in via `DrylPresence` (Slow) with the shared Generated reveal
+
 ## [1.2.0] — 2026-07-08
 
 ### Added

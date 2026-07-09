@@ -5,7 +5,7 @@
 
     <!-- ===== NuGet package identity ===== -->
     <PackageId>DRYL.Components</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <Title>DRYL — Blazor Component Library</Title>
     <Description>DRYL is a dark, glassy, AI-native UI component library for Blazor Server and Blazor WebAssembly. Token-driven, accessible by default, with a shared AI-state visual vocabulary (Active / Thinking / Streaming / Generated) across every surface — and zero JavaScript framework dependencies.</Description>
     <PackageTags>blazor;blazor-components;ui;components;razor;dark;glassmorphism;ai;design-system;blazor-server;blazor-webassembly</PackageTags>
