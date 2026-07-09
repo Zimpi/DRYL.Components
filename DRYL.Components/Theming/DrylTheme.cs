@@ -4,7 +4,8 @@ namespace DRYL.Components.Theming;
 
 /// <summary>
 /// A complete DRYL theme. A theme only carries <em>seed</em> values — the brand
-/// accent, an optional separate AI accent, and optional semantic overrides.
+/// accent, an optional separate AI accent, and optional semantic and
+/// chart-palette overrides.
 /// Everything else (soft fills, accent lines, glows, the AI aura) is
 /// <em>derived</em> from these seeds in <c>dryl.css</c> via <c>color-mix()</c>,
 /// so a theme can never drift out of visual coherence.
@@ -23,6 +24,14 @@ public sealed record DrylTheme
 
     /// <summary>Optional semantic status-color overrides.</summary>
     public DrylSemantic? Semantic { get; init; }
+
+    /// <summary>
+    /// Optional chart series-palette overrides. When <c>null</c> (the default),
+    /// chart series 1/2 are derived from <see cref="Accent"/> in <c>dryl.css</c>
+    /// and series 3–6 keep the validated fixed anchors, so charts follow the
+    /// theme automatically.
+    /// </summary>
+    public DrylChartPalette? Charts { get; init; }
 
     /// <summary>
     /// Emits the theme's seed custom properties as a <c>";"</c>-separated
@@ -48,6 +57,16 @@ public sealed record DrylTheme
             Append(sb, "--warning", s.Warning);
             Append(sb, "--danger", s.Danger);
             Append(sb, "--info", s.Info);
+        }
+
+        if (Charts is { } c)
+        {
+            Append(sb, "--chart-1", c.Series1);
+            Append(sb, "--chart-2", c.Series2);
+            Append(sb, "--chart-3", c.Series3);
+            Append(sb, "--chart-4", c.Series4);
+            Append(sb, "--chart-5", c.Series5);
+            Append(sb, "--chart-6", c.Series6);
         }
 
         return sb.ToString();

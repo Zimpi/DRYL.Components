@@ -1184,8 +1184,15 @@ window.dryl.depthglass = {
  * derived color-mix chain glide. `vars` is "--k:v;--k:v;".
  * -------------------------------------------------------------- */
 window.dryl.theme = {
+    // Every var a DrylTheme may emit. Cleared before each apply so optional
+    // overrides from the previous theme (AI accent, semantics, chart slots)
+    // fall back to their dryl.css defaults instead of lingering.
+    managed: ['--accent-a', '--accent-b', '--ai-a', '--ai-b',
+              '--success', '--warning', '--danger', '--info',
+              '--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6'],
     apply(vars) {
         const root = document.documentElement;
+        this.managed.forEach(k => root.style.removeProperty(k));
         (vars || '').split(';').forEach(pair => {
             const i = pair.indexOf(':');
             if (i > 0) {

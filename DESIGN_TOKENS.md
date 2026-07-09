@@ -60,19 +60,30 @@ The source of truth is `dryl.css`. This file is the readable index.
 | `--info`      | `#22d3ee`  | Informational, neutral status. (alias of `--accent-b`) |
 
 ### Chart series palette
-| Token       | Value      | Use                                    |
-| ----------- | ---------- | -------------------------------------- |
-| `--chart-1` | `#8b7cf8`  | Series 1 (violet — accent-a family).   |
-| `--chart-2` | `#0aa2b5`  | Series 2 (cyan).                       |
-| `--chart-3` | `#bd7a12`  | Series 3 (amber).                      |
-| `--chart-4` | `#26a058`  | Series 4 (green).                      |
-| `--chart-5` | `#d6428e`  | Series 5 (magenta).                    |
-| `--chart-6` | `#5583e3`  | Series 6 (blue).                       |
+| Token       | Value (default theme)                                | Use                                    |
+| ----------- | ---------------------------------------------------- | -------------------------------------- |
+| `--chart-1` | `oklch(from var(--accent-a) 0.65 clamp(0.1, c, 0.19) h)` ≈ `#8977fb` | Series 1 — follows the theme's A seed. |
+| `--chart-2` | `oklch(from var(--accent-b) 0.65 clamp(0.1, c, 0.19) h)` ≈ `#00a3be` | Series 2 — follows the theme's B seed. |
+| `--chart-3` | `#bd7a12`                                            | Series 3 (amber, fixed anchor).        |
+| `--chart-4` | `#26a058`                                            | Series 4 (green, fixed anchor).        |
+| `--chart-5` | `#d6428e`                                            | Series 5 (magenta, fixed anchor).      |
+| `--chart-6` | `#5583e3`                                            | Series 6 (blue, fixed anchor).         |
+
+Series 1/2 are **theme-following**: hue from the accent seeds, lightness snapped to
+the validated band (oklch L 0.65) and chroma clamped to 0.1–0.19, so any theme stays
+chart-legible without per-theme tuning. Slots 3–6 are fixed hue anchors. Themes whose
+accent hue collides with an anchor (or brands needing an exact palette) override
+individual slots via `DrylTheme.Charts` (`DrylChartPalette`) — the presets Ember,
+Verdant and Mono already ship curated overrides. All six tokens are registered
+`@property <color>` values: overrides glide on theme change, and the registered
+initial values (`#8b7cf8` / `#0aa2b5` / …) double as the fallback palette in engines
+without relative color syntax.
 
 Fixed order, assigned in sequence, **never cycled** — series 7+ renders `--fg-dim`
-(reads as "other"). Validated against the dark surface (`#000000`): lightness band,
-chroma floor, adjacent-pair CVD ΔE ≥ 12 (worst 24.1), contrast ≥ 3:1. Never use
-`--success` / `--warning` / `--danger` as series colors — status is reserved.
+(reads as "other"). Default and preset palettes are validated against the dark
+surface (`#000000`): lightness band, chroma floor, adjacent-pair CVD ΔE ≥ 12,
+contrast ≥ 3:1. Never use `--success` / `--warning` / `--danger` as series colors —
+status is reserved.
 
 ---
 

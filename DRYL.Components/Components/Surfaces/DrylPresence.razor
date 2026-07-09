@@ -38,6 +38,9 @@
     /// <summary>Which enter/exit animation to play.</summary>
     [Parameter] public PresenceTransition Transition { get; set; } = PresenceTransition.Fade;
 
+    /// <summary>Playback speed of the enter/exit animation, mapped to the fixed duration tokens.</summary>
+    [Parameter] public PresenceSpeed Speed { get; set; } = PresenceSpeed.Medium;
+
     /// <summary>If true, the child also animates in on its very first mount. Off by default.</summary>
     [Parameter] public bool Appear { get; set; }
 
@@ -135,6 +138,8 @@
                 PresenceTransition.SlideRight => "presence--slide-right",
                 _ => "presence--fade"
             });
+            if (Speed == PresenceSpeed.Fast) parts.Add("presence--fast");
+            else if (Speed == PresenceSpeed.Slow) parts.Add("presence--slow");
             if (_exiting) parts.Add("presence-exit");
             else if (_playEnter) parts.Add("presence-enter");
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);

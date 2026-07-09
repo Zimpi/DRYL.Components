@@ -5,14 +5,14 @@
 
     <!-- ===== NuGet package identity (independent, experimental) ===== -->
     <PackageId>DRYL.Components.Agents</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.4.0</Version>
     <Title>DRYL.Components.Agents — Microsoft Agent Framework integration for DRYL</Title>
-    <Description>Companion package for DRYL.Components: bridges the Microsoft Agent Framework to DRYL's AI vocabulary — automatic AiState from an agent run, structured streaming UI (DrylAiGenerate&lt;T&gt;), and ready-made DrylDialog-backed human-in-the-loop tool functions.</Description>
+    <Description>Companion package for DRYL.Components: bridges the Microsoft Agent Framework to DRYL's AI vocabulary — automatic AiState from an agent run, structured streaming UI (DrylAiGenerate&lt;T&gt;), ready-made DrylDialog-backed human-in-the-loop tool functions, and display tools that let the model answer with live DRYL components inline in the chat (DrylDisplayTools + DrylAgentAttachments).</Description>
     <PackageTags>blazor;ai;agents;microsoft-agent-framework;dryl;streaming;structured-output</PackageTags>
 
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
-    <PackageReleaseNotes>Experimental 0.2.0. See CHANGELOG.md.</PackageReleaseNotes>
+    <PackageReleaseNotes>Experimental 0.4.0. See CHANGELOG.md.</PackageReleaseNotes>
 
     <IsPackable>true</IsPackable>
     <IncludeSymbols>true</IncludeSymbols>

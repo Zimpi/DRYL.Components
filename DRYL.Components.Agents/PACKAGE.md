@@ -3,10 +3,10 @@
 Companion package for [**DRYL.Components**](https://www.nuget.org/packages/DRYL.Components)
 that bridges the [Microsoft Agent Framework](https://www.nuget.org/packages/Microsoft.Agents.AI)
 (`Microsoft.Agents.AI`) to DRYL's AI vocabulary. It takes real work off your hands across
-three subsystems — without you ever setting `Ai="…"` by hand.
+four subsystems — without you ever setting `Ai="…"` by hand.
 
-> **Experimental — 0.1.0.** Independently versioned and deliberately decoupled from the
-> stable core (`1.0.0`) so the agent integration can mature without breaking core SemVer.
+> **Experimental — 0.4.0.** Independently versioned and deliberately decoupled from the
+> stable core so the agent integration can mature without breaking core SemVer.
 
 The core stays dependency-free (Markdig only); the LLM SDK lives **exclusively** in this
 package. You bring your own `AIAgent` (provider + credentials); DRYL wires it to the UI.
@@ -26,7 +26,7 @@ Place a single `<DrylDialogProvider />` in your root layout (required by the too
 
 ## Platform requirement
 
-All three subsystems run in **interactive Blazor (Server or WASM) with a live circuit**.
+All subsystems run in **interactive Blazor (Server or WASM) with a live circuit**.
 The human-in-the-loop tools show a dialog and *await* its result while the agent run is in
 flight, so **the agent run must execute in the same DI scope (circuit) as the UI**
 (`IDrylDialogService` is scoped per circuit). An agent run started outside the circuit
@@ -98,7 +98,32 @@ var agent = new ChatClientAgent(chatClient, instructions: prompt, tools: uiTools
 | `RequestPermission`   | core `DrylConfirmDialog`                     | allowed (bool)   |
 | `AskText`             | `DrylAskTextDialog` (`DrylInputText`)        | entered text     |
 
-## 4 — Run health: errors + token usage
+## 4 — Display tools (the model answers with components)
+
+The mirror image of the human-in-the-loop tools: six ready-made display `AIFunction`s
+(`show_line_chart`, `show_area_chart`, `show_bar_chart`, `show_donut_chart`, `show_stats`,
+`show_timeline`). Hand them to the agent; the model can answer with live DRYL components
+inline in the conversation. The tools only validate and acknowledge — rendering is driven
+from the run's tool-call trace by `DrylAgentAttachments`, so they work with `Start`,
+`Replay` and the orchestrations alike. Invalid arguments never render; the model receives
+a corrective error string and retries.
+
+```csharp
+var display = DrylDisplayTools.Create();          // no dependencies
+var agent = new ChatClientAgent(chatClient, instructions: prompt, tools: display.All);
+```
+
+```razor
+@* Smooth: some providers (e.g. Ollama) buffer a generation while parsing tool-call
+   syntax and deliver it in one burst — the paced reveal keeps it reading as a stream.
+   Burst-delivered attachments cascade in one by one automatically. *@
+<DrylAiStream Source="@_run.TextStream" Smooth>
+  <DrylMarkdown Content="@context.Text" Ai="@context.State" />
+</DrylAiStream>
+<DrylAgentAttachments Run="@_run" />   @* charts / stats / timeline glide in here *@
+```
+
+## 5 — Run health: errors + token usage
 
 A faulted run settles at `AiState.None` with `Run.Error` set (message, exception type);
 `UsageContent` updates are summed into `Run.Usage` as they stream. Two small components
@@ -109,7 +134,7 @@ render both without any manual wiring:
 <DrylAgentUsage Run="@_run" />                 @* prompt / completion / total badges *@
 ```
 
-## 5 — Multi-agent flows → `DrylHandoffTrace`
+## 6 — Multi-agent flows → `DrylHandoffTrace`
 
 `StartSequential` chains agents (each receives the previous answer; the flow's `TextStream`
 carries the final one), `StartConcurrent` fans the same prompt out. Both return one
