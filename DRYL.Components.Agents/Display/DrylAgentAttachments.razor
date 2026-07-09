@@ -1,0 +1,189 @@
+@namespace DRYL.Components.Agents
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAgentAttachments — renders a run's display-tool calls
+    (DrylDisplayTools) as live DRYL components inline in the chat.
+
+    Each successfully validated call becomes an "attachment" that
+    glides in via DrylPresence; invalid calls render nothing (the
+    model already received a corrective tool result).
+
+    Usage — under the streaming answer text:
+      <DrylMessage Role="MessageRole.Assistant" Ai="@_run.State">
+          <DrylAiStream Source="_run.TextStream">
+              <DrylMarkdown Content="@context.Text" Ai="@context.State" />
+          </DrylAiStream>
+          <DrylAgentAttachments Run="_run" />
+      </DrylMessage>
+    ───────────────────────────────────────────────────────── *@
+
+@if (Run is not null)
+{
+    var attachments = Visible.ToList();
+    if (attachments.Count > 0)
+    {
+        <div class="@RootCssClass">
+            @foreach (var a in attachments)
+            {
+                <DrylPresence @key="a.CallId" Visible="true" Appear
+                              Transition="PresenceTransition.SlideUp"
+                              Speed="PresenceSpeed.Slow">
+                    <div class="agent-attachment">
+                        @if (!string.IsNullOrWhiteSpace(a.Title))
+                        {
+                            <div class="agent-attachment-title">@a.Title</div>
+                        }
+                        @a.Body
+                    </div>
+                </DrylPresence>
+            }
+        </div>
+    }
+}
+
+@code {
+    /// <summary>The agent run whose display-tool calls to render.</summary>
+    [Parameter] public DrylRunBase? Run { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the container's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private readonly Dictionary<string, Attachment?> _cache = new();
+    private DrylRunBase? _subscribed;
+
+    private sealed record Attachment(string CallId, string? Title, RenderFragment Body);
+
+    private IEnumerable<Attachment> Visible
+    {
+        get
+        {
+            if (Run is null) yield break;
+            foreach (var call in Run.ToolCalls)
+            {
+                if (!DisplayToolNames.IsDisplayTool(call.ToolName)) continue;
+                if (!_cache.TryGetValue(call.CallId, out var attachment))
+                {
+                    attachment = BuildAttachment(call);
+                    _cache[call.CallId] = attachment;
+                }
+                if (attachment is not null) yield return attachment;
+            }
+        }
+    }
+
+    // Parses + validates the call's arguments with the same code path the tool used,
+    // so an attachment renders exactly when the model was told "shown to the user".
+    private Attachment? BuildAttachment(DrylToolInvocation call)
+    {
+        switch (call.ToolName)
+        {
+            case DisplayToolNames.LineChart:
+            case DisplayToolNames.AreaChart:
+            case DisplayToolNames.BarChart:
+                if (!DisplayJson.TryParse<CartesianChartArgs>(call.Arguments, out var c) || c!.Validate() is not null)
+                    return null;
+                var chart = call.ToolName switch
+                {
+                    DisplayToolNames.LineChart => Line(c),
+                    DisplayToolNames.AreaChart => Area(c),
+                    _ => Bar(c),
+                };
+                return new Attachment(call.CallId, c.Title, chart);
+
+            case DisplayToolNames.DonutChart:
+                if (!DisplayJson.TryParse<DonutChartArgs>(call.Arguments, out var d) || d!.Validate() is not null)
+                    return null;
+                return new Attachment(call.CallId, d.Title, Donut(d));
+
+            case DisplayToolNames.Stats:
+                if (!DisplayJson.TryParse<StatsArgs>(call.Arguments, out var s) || s!.Validate() is not null)
+                    return null;
+                return new Attachment(call.CallId, null, StatRow(s));
+
+            case DisplayToolNames.Timeline:
+                if (!DisplayJson.TryParse<TimelineArgs>(call.Arguments, out var t) || t!.Validate() is not null)
+                    return null;
+                return new Attachment(call.CallId, t.Title, Timeline(t));
+
+            default:
+                return null;
+        }
+    }
+
+    private static IReadOnlyList<ChartSeries> ToSeries(CartesianChartArgs args) =>
+        args.Series!.Select(s => new ChartSeries(s.Name, s.Data!)).ToList();
+
+    private RenderFragment Line(CartesianChartArgs a) => __builder =>
+    {
+        <DrylLineChart Labels="@a.Labels" Series="@ToSeries(a)" ValueFormat="@a.ValueFormat"
+                       Smooth ShowMarkers Ai="AiState.Generated" />
+    };
+
+    private RenderFragment Area(CartesianChartArgs a) => __builder =>
+    {
+        <DrylAreaChart Labels="@a.Labels" Series="@ToSeries(a)" ValueFormat="@a.ValueFormat"
+                       Smooth Ai="AiState.Generated" />
+    };
+
+    private RenderFragment Bar(CartesianChartArgs a) => __builder =>
+    {
+        <DrylBarChart Labels="@a.Labels" Series="@ToSeries(a)" ValueFormat="@a.ValueFormat"
+                      Stacked="@a.Stacked" Ai="AiState.Generated" />
+    };
+
+    private RenderFragment Donut(DonutChartArgs a) => __builder =>
+    {
+        var segments = a.Segments!.Select(s => new ChartSegment(s.Label, s.Value)).ToList();
+        <DrylDonutChart Segments="@segments" ValueFormat="@a.ValueFormat" Ai="AiState.Generated" />
+    };
+
+    private RenderFragment StatRow(StatsArgs a) => __builder =>
+    {
+        <div class="agent-attachment-stats">
+            @foreach (var s in a.Stats!)
+            {
+                <DrylStat Label="@s.Label" Value="@s.Value" Delta="@s.Delta"
+                          Direction="@s.ParsedDirection" Ai="AiState.Generated" />
+            }
+        </div>
+    };
+
+    private RenderFragment Timeline(TimelineArgs a) => __builder =>
+    {
+        <DrylTimeline>
+            @foreach (var e in a.Events!)
+            {
+                @if (string.IsNullOrWhiteSpace(e.Text))
+                {
+                    <DrylTimelineItem Title="@e.Title" Timestamp="@e.Timestamp" Variant="@e.ParsedVariant" />
+                }
+                else
+                {
+                    <DrylTimelineItem Title="@e.Title" Timestamp="@e.Timestamp" Variant="@e.ParsedVariant">
+                        @e.Text
+                    </DrylTimelineItem>
+                }
+            }
+        </DrylTimeline>
+    };
+
+    private string RootCssClass =>
+        string.IsNullOrWhiteSpace(Class) ? "agent-attachments" : $"agent-attachments {Class}";
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        _cache.Clear();
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+    }
+}
