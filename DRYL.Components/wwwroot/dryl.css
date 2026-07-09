@@ -843,6 +843,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .presence--slide-right.presence-enter{ animation-name: presence-in-right; }
 .presence--slide-right.presence-exit { animation-name: presence-out-right; }
 
+/* Speed modifiers — remap the animation onto the other fixed duration tokens. */
+.presence--fast.presence-enter, .presence--fast.presence-exit { animation-duration: var(--dur-fast); }
+.presence--slow.presence-enter, .presence--slow.presence-exit { animation-duration: var(--dur-slow); }
+
 @keyframes presence-in-fade   { from { opacity: 0; } to { opacity: 1; } }
 @keyframes presence-out-fade  { from { opacity: 1; } to { opacity: 0; } }
 @keyframes presence-in-scale  { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
