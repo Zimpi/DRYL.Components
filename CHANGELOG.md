@@ -14,6 +14,23 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-07-10
+
+### Added
+- `DrylColorMode` — `System / Dark / Light`; `IDrylThemeService.SetModeAsync`, `CurrentMode` and the multicast `OnModeChanged` event
+- `DrylThemeProvider` — New `Mode` parameter (startup value); persists explicit choices in localStorage (`dryl-color-mode`) and restores them before first paint (prerender-safe inline script, no flash)
+- `DrylColorModeToggle` — Animated System / Light / Dark switcher (sun–moon morph, auto badge); reflects mode changes it didn't trigger
+- Light color rendition of the full token system ("Aurora Light"): tinted near-white ground, white-glass surfaces, light-validated semantic and chart palettes (contrast-checked ≥ 3:1, scripted)
+- New effect tokens for every per-mode optical detail: `--edge-hi(-strong)`, `--sheen-grad(-soft)`, `--shimmer(-strong)`, `--hover-wash`, `--press-wash`, `--line-hover`, `--backdrop(-soft)`, `--scrollbar-thumb(-hover)`, `--on-accent(-line/-hi)`, `--knob`, `--accent-fg`, `--accent-ico`, `--danger-fg`, `--success/warning/danger/info-hi`, `--depth-edge(-strong)`, `--depth-shadow`, `--panel-*`, `--code-bg`, `--code-fg`, `--grain-opacity`, `--aurora-opacity`
+- `scripts/check-light-sync.mjs` and `scripts/validate-light-contrast.mjs` — dev-time guards for the light token set
+
+### Changed
+- **BREAKING:** the default color mode now follows the operating system (`prefers-color-scheme`). Apps that must stay dark regardless of the OS pin `<DrylThemeProvider Mode="DrylColorMode.Dark" />`
+- All remaining hardcoded color literals in `dryl.css` and scoped styles lifted onto semantic tokens; danger alpha washes now derive from the `--danger` seed via `color-mix`
+- `DrylTooltip` — The bubble is now a body-level fixed portal driven by one delegated listener in `dryl.js`: it can no longer be clipped by card overflow/backdrop-filter, and it flips to the opposite side when the preferred placement has no viewport room (app-bar tooltips open downward). The `.tt`/`.tt-bottom/left/right` CSS classes are replaced by `.tt-portal`
+- App shell — `.main` centers its capped column inside the grid track instead of piling leftover space onto the right edge
+- Markdown/chat code fences keep a dark surface in both modes (`--code-bg`/`--code-fg`); `DrylCodeBlock` follows the mode via its token-mapped syntax colors
+
 ## [1.5.0] — 2026-07-09
 
 ### Added
@@ -429,7 +446,8 @@ First documented state of the library. All components are in early-development s
 
 ---
 
-[Unreleased]: https://github.com/Zimpi/DRYL.Components/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Zimpi/DRYL.Components/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Zimpi/DRYL.Components/compare/v1.5.0...v2.0.0
 [1.1.0]: https://github.com/Zimpi/DRYL.Components/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Zimpi/DRYL.Components/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/Zimpi/DRYL.Components/releases/tag/v0.1.0
