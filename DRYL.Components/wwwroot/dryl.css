@@ -20,6 +20,24 @@
 @property --chart-5 { syntax: "<color>"; inherits: true; initial-value: #d6428e; }
 @property --chart-6 { syntax: "<color>"; inherits: true; initial-value: #5583e3; }
 
+/* Neutral tokens are registered so a color-mode switch glides exactly like
+   an accent-theme switch. Initial values mirror the built-in dark set. */
+@property --ground   { syntax: "<color>"; inherits: true; initial-value: #000000; }
+@property --bg-0     { syntax: "<color>"; inherits: true; initial-value: #000000; }
+@property --bg-1     { syntax: "<color>"; inherits: true; initial-value: #07070a; }
+@property --bg-2     { syntax: "<color>"; inherits: true; initial-value: #0c0c12; }
+@property --bg-3     { syntax: "<color>"; inherits: true; initial-value: #14141c; }
+@property --line        { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.06); }
+@property --line-strong { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.12); }
+@property --line-soft   { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.04); }
+@property --glass-1  { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.03); }
+@property --glass-2  { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.05); }
+@property --glass-3  { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.08); }
+@property --fg       { syntax: "<color>"; inherits: true; initial-value: #f4f4f7; }
+@property --fg-muted { syntax: "<color>"; inherits: true; initial-value: rgba(244,244,247,0.62); }
+@property --fg-dim   { syntax: "<color>"; inherits: true; initial-value: rgba(244,244,247,0.38); }
+@property --fg-faint { syntax: "<color>"; inherits: true; initial-value: rgba(244,244,247,0.22); }
+
 :root {
   /* Tell the browser this surface is dark — applies to native UA controls (<select> dropdowns, scrollbars, form autofill) so they don't ship light-mode defaults onto our glass. */
   color-scheme: dark;
@@ -111,6 +129,10 @@
   --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 18%, transparent),
                  0 0 120px color-mix(in srgb, var(--accent-b) 8%, transparent);
 
+  /* Background texture opacity (tokenized so light mode can dial it down) */
+  --grain-opacity: 0.4;
+  --aurora-opacity: 0.85;
+
   /* Motion */
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
@@ -146,8 +168,110 @@
                 --chart-3 var(--dur-slow) var(--ease-in-out),
                 --chart-4 var(--dur-slow) var(--ease-in-out),
                 --chart-5 var(--dur-slow) var(--ease-in-out),
-                --chart-6 var(--dur-slow) var(--ease-in-out);
+                --chart-6 var(--dur-slow) var(--ease-in-out),
+                --ground var(--dur-slow) var(--ease-in-out),
+                --bg-0 var(--dur-slow) var(--ease-in-out),
+                --bg-1 var(--dur-slow) var(--ease-in-out),
+                --bg-2 var(--dur-slow) var(--ease-in-out),
+                --bg-3 var(--dur-slow) var(--ease-in-out),
+                --line var(--dur-slow) var(--ease-in-out),
+                --line-strong var(--dur-slow) var(--ease-in-out),
+                --line-soft var(--dur-slow) var(--ease-in-out),
+                --glass-1 var(--dur-slow) var(--ease-in-out),
+                --glass-2 var(--dur-slow) var(--ease-in-out),
+                --glass-3 var(--dur-slow) var(--ease-in-out),
+                --fg var(--dur-slow) var(--ease-in-out),
+                --fg-muted var(--dur-slow) var(--ease-in-out),
+                --fg-dim var(--dur-slow) var(--ease-in-out),
+                --fg-faint var(--dur-slow) var(--ease-in-out);
   }
+}
+
+/* =============================================================
+   LIGHT MODE — token overrides ("Aurora Light").
+   ⚠ THE BLOCK BELOW EXISTS TWICE (system media query + explicit
+   attribute). Keep both copies IDENTICAL — checked by
+   scripts/check-light-sync.mjs.
+   ============================================================= */
+@media (prefers-color-scheme: light) {
+  :root:not([data-dryl-mode="dark"]) {
+    /* LIGHT-TOKEN-SET — copy 1/2 */
+    color-scheme: light;
+    --ground:        #f2f2f9;
+    --bg-0:          #f2f2f9;
+    --bg-1:          #f5f5fa;
+    --bg-2:          #f8f8fc;
+    --bg-3:          #fbfbfe;
+    --line:          rgba(18, 22, 40, 0.08);
+    --line-strong:   rgba(18, 22, 40, 0.14);
+    --line-soft:     rgba(18, 22, 40, 0.05);
+    --glass-1:       rgba(255, 255, 255, 0.55);
+    --glass-2:       rgba(255, 255, 255, 0.62);
+    --glass-3:       rgba(255, 255, 255, 0.72);
+    --fg:            #15151c;
+    --fg-muted:      rgba(21, 21, 28, 0.62);
+    --fg-dim:        rgba(21, 21, 28, 0.38);
+    --fg-faint:      rgba(21, 21, 28, 0.22);
+    --success:       #0e8a4d;
+    --warning:       #b45309;
+    --danger:        #dc2626;
+    --info:          #0e7490;
+    --chart-1:       oklch(from var(--accent-a) 0.52 clamp(0.1, c, 0.17) h);
+    --chart-2:       oklch(from var(--accent-b) 0.52 clamp(0.1, c, 0.17) h);
+    --chart-3:       #96610e;
+    --chart-4:       #1d7f46;
+    --chart-5:       #b0316f;
+    --chart-6:       #3a63c4;
+    --shadow-sm:  0 1px 2px rgba(28, 24, 70, 0.08);
+    --shadow-md:  0 8px 24px rgba(28, 24, 70, 0.10), 0 2px 6px rgba(28, 24, 70, 0.06);
+    --shadow-lg:  0 24px 64px rgba(28, 24, 70, 0.15), 0 8px 16px rgba(28, 24, 70, 0.08);
+    --glow-accent: 0 0 0 1px var(--accent-line),
+                   0 8px 32px color-mix(in srgb, var(--accent-a) 22%, transparent),
+                   0 0 64px color-mix(in srgb, var(--accent-b) 12%, transparent);
+    --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                   0 0 120px color-mix(in srgb, var(--accent-b) 6%, transparent);
+    --grain-opacity: 0.25;
+    --aurora-opacity: 0.5;
+  }
+}
+:root[data-dryl-mode="light"] {
+  /* LIGHT-TOKEN-SET — copy 2/2 */
+  color-scheme: light;
+  --ground:        #f2f2f9;
+  --bg-0:          #f2f2f9;
+  --bg-1:          #f5f5fa;
+  --bg-2:          #f8f8fc;
+  --bg-3:          #fbfbfe;
+  --line:          rgba(18, 22, 40, 0.08);
+  --line-strong:   rgba(18, 22, 40, 0.14);
+  --line-soft:     rgba(18, 22, 40, 0.05);
+  --glass-1:       rgba(255, 255, 255, 0.55);
+  --glass-2:       rgba(255, 255, 255, 0.62);
+  --glass-3:       rgba(255, 255, 255, 0.72);
+  --fg:            #15151c;
+  --fg-muted:      rgba(21, 21, 28, 0.62);
+  --fg-dim:        rgba(21, 21, 28, 0.38);
+  --fg-faint:      rgba(21, 21, 28, 0.22);
+  --success:       #0e8a4d;
+  --warning:       #b45309;
+  --danger:        #dc2626;
+  --info:          #0e7490;
+  --chart-1:       oklch(from var(--accent-a) 0.52 clamp(0.1, c, 0.17) h);
+  --chart-2:       oklch(from var(--accent-b) 0.52 clamp(0.1, c, 0.17) h);
+  --chart-3:       #96610e;
+  --chart-4:       #1d7f46;
+  --chart-5:       #b0316f;
+  --chart-6:       #3a63c4;
+  --shadow-sm:  0 1px 2px rgba(28, 24, 70, 0.08);
+  --shadow-md:  0 8px 24px rgba(28, 24, 70, 0.10), 0 2px 6px rgba(28, 24, 70, 0.06);
+  --shadow-lg:  0 24px 64px rgba(28, 24, 70, 0.15), 0 8px 16px rgba(28, 24, 70, 0.08);
+  --glow-accent: 0 0 0 1px var(--accent-line),
+                 0 8px 32px color-mix(in srgb, var(--accent-a) 22%, transparent),
+                 0 0 64px color-mix(in srgb, var(--accent-b) 12%, transparent);
+  --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                 0 0 120px color-mix(in srgb, var(--accent-b) 6%, transparent);
+  --grain-opacity: 0.25;
+  --aurora-opacity: 0.5;
 }
 
 * { box-sizing: border-box; }
@@ -183,7 +307,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: var(--grain-opacity, 0.4);
+  opacity: var(--grain-opacity);
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
@@ -196,7 +320,7 @@ body::before {
   pointer-events: none;
   overflow: hidden;
   filter: blur(70px) saturate(140%);
-  opacity: 0.85;
+  opacity: var(--aurora-opacity);
 }
 .aurora::before,
 .aurora::after,
