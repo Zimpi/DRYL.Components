@@ -124,6 +124,7 @@ These carry the small optical details that must read differently per mode. Defin
 | `--press-wash`           | `rgba(0,0,0,0.25)`                  | `rgba(18,22,40,0.08)`        | Pressed/close-chip fill.                        |
 | `--backdrop`             | `rgba(0,0,0,0.6)`                   | `rgba(26,28,48,0.35)`        | Modal/drawer scrim.                             |
 | `--backdrop-soft`        | `rgba(0,0,0,0.4)`                   | `rgba(26,28,48,0.22)`        | Lighter scrim / translucent bars.               |
+| `--bar-bg`               | `rgba(0,0,0,0.4)`                   | `rgba(252,252,255,0.72)`     | `DrylAppBar` (flat) surface — override for a custom bar tint. |
 | `--scrollbar-thumb`      | `rgba(255,255,255,0.08)`            | `rgba(18,22,40,0.18)`        | Scrollbar thumb.                                |
 | `--scrollbar-thumb-hover`| `rgba(255,255,255,0.16)`            | `rgba(18,22,40,0.3)`         | Scrollbar thumb hover.                          |
 | `--on-accent`            | `#ffffff`                           | (same)                       | Text/icons on accent-gradient fills.            |

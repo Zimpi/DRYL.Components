@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-07-10
+
+### Added
+- `--bar-bg` — Dedicated token for the `DrylAppBar` (flat) surface, themeable independently of the modal scrim (`--backdrop-soft`)
+
+### Changed
+- `DrylAppBar` — Flat bar now reads from `--bar-bg` instead of `--backdrop-soft`; the light-mode default is a cleaner, cool frosted-white glass (was a murky dark tint). Dark mode is unchanged
+
 ## [2.0.0] — 2026-07-10
 
 ### Added
