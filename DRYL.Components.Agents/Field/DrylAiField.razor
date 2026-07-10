@@ -175,9 +175,151 @@
         </DrylTooltip>
     };
 
-    // ── Flow methods — implemented in Tasks 4-7 ─────────────────────────────
+    // ── Flow methods ─────────────────────────────────────────────────────────
 
-    private Task HandleTriggerClickAsync() => Task.CompletedTask;
+    private async Task HandleTriggerClickAsync()
+    {
+        switch (_phase)
+        {
+            case FieldPhase.Running:
+                CancelRun();
+                break;
+            case FieldPhase.Idle when UsesPrompt:
+                _promptText = ShowPrompt ? (Instruction ?? string.Empty) : string.Empty;
+                _promptOpen = true;
+                break;
+            case FieldPhase.Idle:
+                await StartAsync(Instruction!);
+                break;
+            // Review: the chips are the affordance — the trigger is inert.
+        }
+    }
+
+    private void CancelRun() => _cts?.Cancel();
+
+    private async Task StartAsync(string instruction)
+    {
+        if (_phase == FieldPhase.Running) return;
+        _errorText = null;
+
+        var module = await GetModuleAsync();
+        var snap = await module.InvokeAsync<AiFieldSnapshot>("snapshot", _root);
+        if (!snap.Found) return;   // nothing text-like inside — the affordance is a no-op
+
+        _snapshotValue = snap.Value;
+        string? selection = null;
+        _prefix = _suffix = string.Empty;
+        if (snap.HasSelection)
+        {
+            selection = snap.Value[snap.SelStart..snap.SelEnd];
+            _prefix = snap.Value[..snap.SelStart];
+            _suffix = snap.Value[snap.SelEnd..];
+        }
+
+        var prompt = AiFieldPrompt.Build(instruction, Context, snap.Value, selection);
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
+        _phase = FieldPhase.Running;
+        SetAura(AiState.Thinking);
+        Announce("Die AI schreibt …");
+        await module.InvokeVoidAsync("setBusy", _root, true);
+
+        try
+        {
+            var session = SessionFactory is not null
+                ? await SessionFactory(ct)
+                : await Agent.CreateSessionAsync(ct);
+
+            _run = Runner.Start(Agent, session, prompt, aiKey: null, ct);
+            await ConsumeAsync(_run, module, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            await RestoreAsync("Vorschlag verworfen.");
+            await OnRejected.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            await FailAsync(new DrylRunError(ex.Message, ex));
+        }
+    }
+
+    private async Task ConsumeAsync(DrylAgentRun run, IJSObjectReference module, CancellationToken ct)
+    {
+        var sb = new StringBuilder();
+        var lastFlush = Environment.TickCount64 - FlushMs;   // first delta flushes immediately
+
+        await foreach (var delta in run.TextStream.WithCancellation(ct))
+        {
+            sb.Append(delta);
+            if (_aura != AiState.Streaming) SetAura(AiState.Streaming);
+            if (Environment.TickCount64 - lastFlush >= FlushMs)
+            {
+                lastFlush = Environment.TickCount64;
+                await module.InvokeVoidAsync("write", ct, _root, Compose(sb.ToString()));
+            }
+        }
+
+        await run.WaitForCompletionAsync();
+        ct.ThrowIfCancellationRequested();
+
+        if (run.Error is not null)
+        {
+            await FailAsync(run.Error);
+            return;
+        }
+
+        _finalText = Compose(AiFieldPrompt.Clean(sb.ToString()));
+        await module.InvokeVoidAsync("write", ct, _root, _finalText);
+        await module.InvokeVoidAsync("setBusy", ct, _root, false);
+
+        _phase = FieldPhase.Review;
+        SetAura(AiState.Generated);
+        Announce("AI-Vorschlag bereit — übernehmen oder verwerfen.");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string Compose(string core) => _prefix + core + _suffix;
+
+    private async Task RestoreAsync(string announcement)
+    {
+        _phase = FieldPhase.Idle;
+        SetAura(AiState.None);
+        Announce(announcement);
+        try
+        {
+            var module = await GetModuleAsync();
+            await module.InvokeVoidAsync("write", _root, _snapshotValue);
+            await module.InvokeVoidAsync("setBusy", _root, false);
+            await module.InvokeVoidAsync("focusField", _root);
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FailAsync(DrylRunError error)
+    {
+        _errorText = error.Message;
+        await RestoreAsync("Die AI-Anfrage ist fehlgeschlagen.");
+        await OnError.InvokeAsync(error);
+    }
+
+    private void SetAura(AiState state)
+    {
+        _aura = state;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Announce(string message)
+    {
+        _live = message;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     private Task SubmitPromptAsync() => Task.CompletedTask;
     private Task HandlePromptKeyDown(KeyboardEventArgs e) => Task.CompletedTask;
     private Task HandleRootKeyDown(KeyboardEventArgs e) => Task.CompletedTask;

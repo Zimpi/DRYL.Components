@@ -124,4 +124,105 @@ public class DrylAiFieldTests : BunitContext
         Assert.Empty(cut.FindAll(".ai-field-review"));
         Assert.Empty(cut.FindAll(".ai-field-prompt"));
     }
+
+    // ── Task 4: direct-run streaming ────────────────────────────────────────
+
+    private IRenderedComponent<DrylAiField> RenderField(
+        AIAgent agent, string? instruction = "Rewrite professionally",
+        Action<ComponentParameterCollectionBuilder<DrylAiField>>? extra = null)
+        => Render<DrylAiField>(ps =>
+        {
+            ps.Add(p => p.Agent, agent)
+              .AddChildContent("<textarea></textarea>");
+            if (instruction is not null) ps.Add(p => p.Instruction, instruction);
+            extra?.Invoke(ps);
+        });
+
+    [Fact]
+    public void Trigger_click_streams_result_into_field_and_enters_review()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "yo, report pls", SelStart = 0, SelEnd = 0 });
+        var client = new ScriptedChatClient("Dear ", "team, ", "please send the report.");
+        var cut = RenderField(Agent(client));
+
+        cut.Find(".ai-field-trigger button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+
+        // the final write carries the full cleaned text
+        var writes = _module.Invocations.Where(i => i.Identifier == "write").ToList();
+        Assert.NotEmpty(writes);
+        Assert.Equal("Dear team, please send the report.", writes[^1].Arguments[1]);
+
+        // prompt was built from instruction + field value
+        Assert.Contains("Rewrite professionally", client.LastUserMessage);
+        Assert.Contains("yo, report pls", client.LastUserMessage);
+
+        // field was set busy at start
+        Assert.Contains(_module.Invocations, i => i.Identifier == "setBusy");
+    }
+
+    [Fact]
+    public void Selection_is_transformed_in_place()
+    {
+        // value "Hallo Welt!", selection [0,10) = "Hallo Welt"
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "Hallo Welt!", SelStart = 0, SelEnd = 10 });
+        var client = new ScriptedChatClient("Hello World");
+        var cut = RenderField(Agent(client), "Translate to English");
+
+        cut.Find(".ai-field-trigger button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+
+        var writes = _module.Invocations.Where(i => i.Identifier == "write").ToList();
+        Assert.Equal("Hello World!", writes[^1].Arguments[1]);          // prefix "" + result + suffix "!"
+        Assert.Contains("Selected portion", client.LastUserMessage);
+        Assert.Contains("Hallo Welt", client.LastUserMessage);
+    }
+
+    [Fact]
+    public void Aura_reaches_generated_on_review()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var cut = Render<DrylAiField>(ps => ps
+            .Add(p => p.Agent, Agent(new ScriptedChatClient("Hi")))
+            .Add(p => p.Instruction, "x")
+            .AddChildContent<DrylTextarea>(tp => tp.Add(t => t.Value, "")));
+
+        cut.Find(".ai-field-trigger button").Click();
+
+        // DrylTextarea consumes the cascaded scope → wrapper gets ai-aura + ai-generated in review
+        cut.WaitForAssertion(() =>
+        {
+            var wrapper = cut.Find(".textarea-wrapper");
+            Assert.Contains("ai-generated", wrapper.GetAttribute("class"));
+        });
+    }
+
+    [Fact]
+    public void No_field_found_does_nothing()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = false });
+        var client = new ScriptedChatClient("never");
+        var cut = RenderField(Agent(client));
+
+        cut.Find(".ai-field-trigger button").Click();
+
+        Assert.Empty(cut.FindAll(".ai-field-review"));
+        Assert.DoesNotContain(_module.Invocations, i => i.Identifier == "write");
+    }
+
+    [Fact]
+    public void Context_parameter_flows_into_the_prompt()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var client = new ScriptedChatClient("Subject");
+        var cut = RenderField(Agent(client), "Write a subject",
+            ps => ps.Add(p => p.Context, "Mail body: quarterly numbers"));
+
+        cut.Find(".ai-field-trigger button").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+        Assert.Contains("Mail body: quarterly numbers", client.LastUserMessage);
+    }
 }
