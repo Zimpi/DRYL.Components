@@ -1420,7 +1420,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   font-size: 14px;
   color: var(--on-accent);
   letter-spacing: -0.02em;
-  box-shadow: 0 0 0 1px var(--on-accent-line) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-accent) 10%, transparent) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -4139,7 +4139,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, var(--shimmer) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--shimmer) 82%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: ai-indicator-shimmer 3.6s var(--ease-in-out) infinite;
   pointer-events: none;
