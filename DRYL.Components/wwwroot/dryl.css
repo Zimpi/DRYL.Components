@@ -203,6 +203,16 @@
   --depth-edge-strong: rgba(255, 255, 255, 0.55);
   --depth-shadow:      rgba(0, 0, 0, 0.42);
   --accent-ico:        #c4b5fd;
+
+  /* Semi-opaque panel surfaces — the near-solid dark planes cards, toasts,
+     dialogs, tooltips and sticky headers sit on. Mode-dependent: the light
+     set swaps them for near-solid light planes. */
+  --panel-tint:        rgba(10, 10, 14, 0.4);
+  --panel-soft:        rgba(10, 10, 14, 0.78);
+  --panel-solid:       rgba(20, 20, 28, 0.95);
+  --panel-sticky:      rgba(7, 7, 10, 0.92);
+  --panel-grad:        linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
+  --panel-grad-strong: linear-gradient(180deg, rgba(20, 20, 28, 0.97), rgba(10, 10, 14, 0.97));
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -305,6 +315,12 @@
     --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
     --info-hi:    color-mix(in srgb, var(--info) 66%, white);
     --accent-ico: color-mix(in srgb, var(--accent-a) 78%, #10102a);
+    --panel-tint:        rgba(255, 255, 255, 0.4);
+    --panel-soft:        rgba(255, 255, 255, 0.78);
+    --panel-solid:       rgba(252, 252, 255, 0.95);
+    --panel-sticky:      rgba(245, 245, 250, 0.92);
+    --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.95), rgba(243, 243, 250, 0.95));
+    --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.97), rgba(243, 243, 250, 0.97));
   }
 }
 :root[data-dryl-mode="light"] {
@@ -369,6 +385,12 @@
   --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
   --info-hi:    color-mix(in srgb, var(--info) 66%, white);
   --accent-ico: color-mix(in srgb, var(--accent-a) 78%, #10102a);
+  --panel-tint:        rgba(255, 255, 255, 0.4);
+  --panel-soft:        rgba(255, 255, 255, 0.78);
+  --panel-solid:       rgba(252, 252, 255, 0.95);
+  --panel-sticky:      rgba(245, 245, 250, 0.92);
+  --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.95), rgba(243, 243, 250, 0.95));
+  --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.97), rgba(243, 243, 250, 0.97));
 }
 
 * { box-sizing: border-box; }
@@ -512,7 +534,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   position: relative;
   background:
     var(--sheen-grad),
-    rgba(10, 10, 14, 0.4);
+    var(--panel-tint);
   border: 1px solid var(--line);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
@@ -653,13 +675,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 .btn-danger {
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.3);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
   color: var(--danger-fg);
 }
 .btn-danger:hover {
-  background: rgba(248, 113, 113, 0.2);
-  box-shadow: 0 0 24px rgba(248, 113, 113, 0.25);
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
 .btn-icon {
@@ -966,13 +988,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 .input.input-error,
 .textarea.input-error,
-.select.input-error { border-color: rgba(248, 113, 113, 0.5); }
+.select.input-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
 .input.input-error:focus,
 .textarea.input-error:focus,
 .select.input-error:focus {
   border-color: var(--danger);
   background: var(--glass-2);
-  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12), 0 0 24px rgba(248, 113, 113, 0.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 12%, transparent), 0 0 24px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 .input.input-success,
 .textarea.input-success,
@@ -1090,7 +1112,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 .badge-success { color: var(--success); border-color: rgba(52, 211, 153, 0.3); background: rgba(52,211,153,0.1); }
 .badge-warning { color: var(--warning); border-color: rgba(251, 191, 36, 0.3); background: rgba(251,191,36,0.1); }
-.badge-danger  { color: var(--danger);  border-color: rgba(248, 113, 113, 0.3); background: rgba(248,113,113,0.1); }
+.badge-danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: rgba(248,113,113,0.1); }
 .badge-dot::before {
   content: '';
   width: 6px;
@@ -1839,6 +1861,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .main {
   padding: 40px 48px 80px;
   max-width: 1400px;
+  /* Center the capped column inside its grid track — otherwise wide
+     viewports pile all the leftover space onto the right edge. */
+  margin-inline: auto;
+  width: 100%;
   /* The only scroll region inside the app shell: the sidebar and top bar are
      fixed, page content scrolls here. min-height:0 lets this grid row shrink
      below its content so overflow-y can actually take effect. */
@@ -1988,7 +2014,7 @@ code, .code-inline {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgba(7, 7, 10, 0.92);
+  background: var(--panel-sticky);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
@@ -3033,7 +3059,7 @@ td.tbl-td-editing select {
   border-radius: var(--r-md);
   background:
     var(--sheen-grad),
-    rgba(10, 10, 14, 0.78);
+    var(--panel-soft);
   border: 1px solid var(--line-strong);
   backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
@@ -3259,17 +3285,17 @@ td.tbl-td-editing select {
 }
 
 .toast.toast-error {
-  border-color: rgba(248, 113, 113, 0.32);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
   box-shadow:
     inset 3px 0 0 var(--danger),
     inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
-    0 0 36px rgba(248, 113, 113, 0.22);
+    0 0 36px color-mix(in srgb, var(--danger) 22%, transparent);
 }
 .toast.toast-error .toast-icon-chip {
-  background: rgba(248, 113, 113, 0.15);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
-  border-color: rgba(248, 113, 113, 0.35);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .toast.toast-error .toast-progress {
   background: linear-gradient(90deg, var(--danger), var(--danger-hi));
@@ -3670,7 +3696,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   max-height: 90vh; /* Fallback für Browser ohne dvh */
   max-height: 90dvh;
   border-radius: var(--r-lg);
-  background: linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
+  background: var(--panel-grad);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-lg), 0 0 80px color-mix(in srgb, var(--accent-a) 25%, transparent);
   animation: dialogIn var(--dur-med) var(--ease-spring);
@@ -3810,58 +3836,30 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 /* Tooltip */
-.tt-wrap { position: relative; display: inline-flex; }
-.tt {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
+.tt-wrap { display: inline-flex; }
+/* The bubble lives as a body-level portal (see dryl.tooltip in dryl.js) so it
+   escapes ancestor overflow/backdrop-filter clipping; the JS flips the
+   preferred placement when the viewport has no room on that side. */
+.tt-portal {
+  position: fixed;
+  z-index: 9000;
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 11px;
   white-space: nowrap;
-  background: rgba(20,20,28,0.95);
+  background: var(--panel-solid);
   border: 1px solid var(--line-strong);
   color: var(--fg);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   box-shadow: var(--shadow-md);
-  z-index: 9000;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.tt-wrap:hover .tt {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-/* Tooltip — Bottom */
-.tt-bottom {
-  bottom: auto;
-  top: calc(100% + var(--sp-2));
-  transform: translateX(-50%) translateY(-4px);
-}
-.tt-wrap:hover .tt-bottom {
-  transform: translateX(-50%) translateY(0);
-}
-/* Tooltip — Left */
-.tt-left {
-  bottom: auto;
-  top: 50%;
-  left: auto;
-  right: calc(100% + var(--sp-2));
-  transform: translateY(-50%) translateX(4px);
-}
-.tt-wrap:hover .tt-left {
-  transform: translateY(-50%) translateX(0);
-}
-/* Tooltip — Right */
-.tt-right {
-  bottom: auto;
-  top: 50%;
-  left: calc(100% + var(--sp-2));
-  transform: translateY(-50%) translateX(-4px);
-}
-.tt-wrap:hover .tt-right {
-  transform: translateY(-50%) translateX(0);
+.tt-portal.from-below { transform: translateY(-4px); }
+.tt-portal.is-open { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .tt-portal { transition: none; }
 }
 
 /* Alert */
@@ -4374,7 +4372,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .menu-item--danger { color: var(--danger); }
 .menu-item--danger:hover,
 .menu-item--danger:focus-visible {
-  background: rgba(248, 113, 113, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
   color: var(--danger-fg);
 }
 
@@ -4690,7 +4688,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .file-item-remove:hover {
   color: var(--danger);
-  background: rgba(248, 113, 113, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 /* ============== SLIDER (DrylSlider) ============== */
@@ -5250,7 +5248,7 @@ pre { overflow-x: auto; }
   min-width: 120px;
   max-width: 240px;
   padding: var(--sp-3);
-  background: rgba(20, 20, 28, 0.95);
+  background: var(--panel-solid);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
   box-shadow: var(--shadow-md);

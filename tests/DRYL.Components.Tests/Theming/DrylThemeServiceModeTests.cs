@@ -25,6 +25,21 @@ public class DrylThemeServiceModeTests
     }
 
     [Fact]
+    public async Task SetModeAsync_awaits_every_subscriber()
+    {
+        // OnModeChanged is multicast (provider + switch UIs) — all delegates run.
+        var svc = new DrylThemeService();
+        var first = 0; var second = 0;
+        svc.OnModeChanged += () => { first++; return Task.CompletedTask; };
+        svc.OnModeChanged += () => { second++; return Task.CompletedTask; };
+
+        await svc.SetModeAsync(DrylColorMode.Dark);
+
+        Assert.Equal(1, first);
+        Assert.Equal(1, second);
+    }
+
+    [Fact]
     public async Task SetModeAsync_is_a_noop_for_the_current_mode()
     {
         var svc = new DrylThemeService();

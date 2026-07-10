@@ -1,7 +1,7 @@
 @namespace DRYL.Components
 
 @*  ─────────────────────────────────────────────────────────
-    DrylTooltip — hover-Tooltip-Wrapper für beliebige Trigger-Elemente.
+    DrylTooltip — hover/focus tooltip wrapper for any trigger.
 
     Usage:
       <DrylTooltip Text="Einstellungen öffnen">
@@ -14,43 +14,54 @@
           <DrylButton Variant="ButtonVariant.Danger" LeadingIcon="X">Delete</DrylButton>
       </DrylTooltip>
 
-    Der Tooltip wird per CSS-only angezeigt (kein JS).
-    Placement: Top (default) / Bottom / Left / Right.
+    The bubble is rendered by dryl.js into <body> (a fixed-position
+    portal), so it can never be clipped by an ancestor's overflow or
+    backdrop-filter (glass cards, app bars). A single delegated
+    document listener drives every tooltip — no per-instance JS
+    interop. Placement is a preference: when the preferred side has
+    no viewport room (e.g. Top inside the app bar), the bubble flips
+    to the opposite side automatically.
+
+    The bubble is purely decorative (aria-hidden): interactive
+    triggers carry their own aria-label (rule 2.11), which reads the
+    same text.
     ───────────────────────────────────────────────────────── *@
 
-<span class="tt-wrap @Class" @attributes="AdditionalAttributes">
+<span class="tt-wrap @Class"
+      data-tt="@Text"
+      data-tt-placement="@PlacementValue"
+      @attributes="AdditionalAttributes">
     @ChildContent
-    @if (!string.IsNullOrEmpty(Text))
-    {
-        <span class="@TooltipClass" role="tooltip">@Text</span>
-    }
 </span>
 
 @code {
-    /// <summary>Text, der im Tooltip-Bubble angezeigt wird.</summary>
+    /// <summary>Text shown in the tooltip bubble.</summary>
     [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
 
-    /// <summary>Auf welcher Seite des Triggers der Tooltip erscheint.</summary>
+    /// <summary>
+    /// Preferred side of the trigger. When the viewport has no room on that
+    /// side, the bubble flips to the opposite side automatically.
+    /// </summary>
     [Parameter] public TooltipPlacement Placement { get; set; } = TooltipPlacement.Top;
 
-    /// <summary>Das Element, das den Tooltip beim Hover auslöst.</summary>
+    /// <summary>The element that triggers the tooltip on hover/focus.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>Pass-through HTML-Attribute (werden auf den Wrapper-Span angewendet).</summary>
+    /// <summary>Pass-through HTML attributes (applied to the wrapper span).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
     /// <summary>Extra CSS class(es) merged onto the tooltip wrapper's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
-    private string TooltipClass => Placement switch
+    private string PlacementValue => Placement switch
     {
-        TooltipPlacement.Bottom => "tt tt-bottom",
-        TooltipPlacement.Left   => "tt tt-left",
-        TooltipPlacement.Right  => "tt tt-right",
-        _                       => "tt"
+        TooltipPlacement.Bottom => "bottom",
+        TooltipPlacement.Left   => "left",
+        TooltipPlacement.Right  => "right",
+        _                       => "top",
     };
 
-    /// <summary>Position des Tooltips relativ zum Trigger-Element.</summary>
+    /// <summary>Position of the tooltip relative to the trigger element.</summary>
     public enum TooltipPlacement { Top, Bottom, Left, Right }
 }

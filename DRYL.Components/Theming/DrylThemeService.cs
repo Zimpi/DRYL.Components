@@ -34,6 +34,13 @@ public sealed class DrylThemeService : IDrylThemeService
         if (mode == CurrentMode) return;
         CurrentMode = mode;
         if (OnModeChanged is { } handler)
-            await handler.Invoke();
+        {
+            // Unlike OnThemeChanged, this event is multicast: besides the
+            // provider (which applies the mode), any number of switch UIs
+            // (e.g. DrylColorModeToggle) subscribe to re-render. Await each
+            // delegate — a bare handler.Invoke() would only await the last.
+            foreach (var h in handler.GetInvocationList().Cast<Func<Task>>())
+                await h.Invoke();
+        }
     }
 }

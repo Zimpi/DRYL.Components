@@ -44,8 +44,9 @@ animated switcher (cycles System → Light → Dark).
 Because the neutral tokens are registered `@property` colors, a mode switch **glides**
 over `--dur-slow` exactly like an accent change — instant for reduced-motion users.
 Accent themes are mode-independent: any `DrylTheme` looks right in both modes without
-extra work. One deliberate exception to the swap: **code surfaces stay dark in both
-modes** (`--code-bg` / `--code-fg`).
+extra work. One deliberate exception to the swap: **markdown/chat code fences keep a
+dark surface in both modes** (`--code-bg` / `--code-fg`); `DrylCodeBlock` follows the
+mode with its token-mapped syntax colors.
 
 ---
 

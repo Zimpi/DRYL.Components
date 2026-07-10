@@ -47,4 +47,18 @@ public class DrylColorModeToggleTests : BunitContext
         await cut.Find("button").ClickAsync(new());
         Assert.Contains("is-light", cut.Find("button").ClassList);
     }
+
+    [Fact]
+    public async Task Reflects_mode_changes_it_did_not_trigger()
+    {
+        // The provider's startup sync (persisted choice) changes the mode from
+        // outside the toggle — the toggle must re-render to show it.
+        var svc = Services.GetRequiredService<IDrylThemeService>();
+        var cut = Render<DrylColorModeToggle>();
+
+        await cut.InvokeAsync(() => svc.SetModeAsync(DrylColorMode.Dark));
+
+        Assert.Contains("is-dark", cut.Find("button").ClassList);
+        Assert.Contains("Dark", cut.Find("button").GetAttribute("aria-label"));
+    }
 }

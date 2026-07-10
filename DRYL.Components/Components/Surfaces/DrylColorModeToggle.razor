@@ -1,15 +1,15 @@
 @namespace DRYL.Components
 @using DRYL.Components.Theming
 @inject IDrylThemeService ThemeService
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylColorModeToggle — cycles the color mode System → Light
     → Dark. The icon reflects the *chosen* mode (auto badge for
     System); the actual rendition is resolved by dryl.css.
-    Like the website's theme-switcher pattern, this component
-    triggers the change itself and re-renders — it does not
-    subscribe to OnModeChanged (that single-subscriber slot
-    belongs to the DrylThemeProvider).
+    Subscribes to the (multicast) OnModeChanged so it also
+    reflects changes it didn't trigger itself — e.g. the
+    provider's startup sync restoring a persisted choice.
 
     Usage:
       <DrylColorModeToggle />
@@ -78,4 +78,10 @@
         DrylColorMode.Light => DrylColorMode.Dark,
         _ => DrylColorMode.System,
     });
+
+    protected override void OnInitialized() => ThemeService.OnModeChanged += HandleModeChangedAsync;
+
+    private Task HandleModeChangedAsync() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ThemeService.OnModeChanged -= HandleModeChangedAsync;
 }

@@ -32,6 +32,12 @@ public interface IDrylThemeService
     /// <summary>Switch the color mode and notify listeners. Animates if motion is allowed.</summary>
     Task SetModeAsync(DrylColorMode mode);
 
-    /// <summary>Raised after <see cref="CurrentMode"/> changes. Single-subscriber, like <see cref="OnThemeChanged"/>.</summary>
+    /// <summary>Raised after <see cref="CurrentMode"/> changes.</summary>
+    /// <remarks>
+    /// Unlike <see cref="OnThemeChanged"/>, this event supports <strong>multiple
+    /// subscribers</strong>: the <c>DrylThemeProvider</c> applies the mode, and any
+    /// number of switch UIs (e.g. <c>DrylColorModeToggle</c>) subscribe to re-render.
+    /// All delegates are awaited sequentially.
+    /// </remarks>
     event Func<Task>? OnModeChanged;
 }

@@ -137,8 +137,8 @@ These carry the small optical details that must read differently per mode. Defin
 | `--depth-edge`           | `rgba(255,255,255,0.18)`            | `rgba(255,255,255,0.9)`      | DepthGlass reference edge.                      |
 | `--depth-edge-strong`    | `rgba(255,255,255,0.55)`            | `rgba(255,255,255,0.95)`     | DepthGlass strongest inset.                     |
 | `--depth-shadow`         | `rgba(0,0,0,0.42)`                  | `rgba(28,24,70,0.16)`        | DepthGlass / dialog drop shadow.                |
-| `--code-bg`              | `rgba(0,0,0,0.55)`                  | `#14141d`                    | Code block surface — **code stays dark in both modes** (by design). |
-| `--code-fg`              | `#f4f4f7`                           | (same)                       | Code text (light-on-dark in both modes).        |
+| `--code-bg`              | `rgba(0,0,0,0.55)`                  | `#14141d`                    | Markdown/chat code-fence surface — **stays dark in both modes** (by design; `DrylCodeBlock` itself follows the mode via its token-mapped colors). |
+| `--code-fg`              | `#f4f4f7`                           | (same)                       | Code-fence text (light-on-dark in both modes).  |
 | `--grain-opacity`        | `0.4`                               | `0.25`                       | Film-grain overlay strength.                    |
 | `--aurora-opacity`       | `0.85`                              | `0.5`                        | Aurora orb strength.                            |
 

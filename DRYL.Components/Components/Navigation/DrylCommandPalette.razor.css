@@ -8,15 +8,11 @@
     max-width: calc(100vw - var(--sp-8));
     max-height: min(80vh, 680px);
     border-radius: var(--r-lg);
-    background: linear-gradient(
-        180deg,
-        rgba(20, 20, 28, 0.97) 0%,
-        rgba(10, 10, 14, 0.97) 100%
-    );
+    background: var(--panel-grad-strong);
     backdrop-filter: blur(var(--glass-blur)) saturate(140%);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
     border: 1px solid var(--line-strong);
-    box-shadow: var(--shadow-lg), 0 0 80px rgba(124, 92, 255, 0.14);
+    box-shadow: var(--shadow-lg), 0 0 80px color-mix(in srgb, var(--accent-a) 14%, transparent);
     overflow: hidden;
     animation: cmd-in var(--dur-med) var(--ease-spring);
 }
