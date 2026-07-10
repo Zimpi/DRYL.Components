@@ -1,6 +1,6 @@
 # DRYL — Theming Guide
 
-DRYL ships with a **dark glass core** that never changes — surfaces stay translucent, text colors stay on the `--fg*` scale, and radii, shadows and motion tokens are fixed. What you _can_ theme are the accent colors that make the library feel like yours: the violet-to-cyan gradient, its derived fills and glows, an optional separate AI accent, and the semantic status colors.
+DRYL ships with a **glass core rendered in two color modes** — a deep-dark and a luminous-light rendition of the same identity. Surfaces stay translucent, text colors stay on the `--fg*` scale, and radii and motion tokens are fixed; the mode swaps the neutral values underneath and follows the user's operating system by default. What you theme on top are the accent colors that make the library feel like yours: the violet-to-cyan gradient, its derived fills and glows, an optional separate AI accent, and the semantic status colors — all of which read correctly in both modes.
 
 ---
 
@@ -16,6 +16,36 @@ Place `DrylThemeProvider` once in your root layout (e.g. `MainLayout.razor`). Th
 ```
 
 The provider renders a `<style>` block into `:root` on first paint (Blazor Server prerender-safe — no flash) and wires up the runtime-switch service automatically. Remove it entirely and the library falls back to the default Nebula palette.
+
+---
+
+## Color mode
+
+DRYL follows the operating-system preference (`prefers-color-scheme`) out of the
+box — no setup required, live response to OS changes, no flash of the wrong mode.
+To start an app in a fixed mode, pass `Mode` to the provider (a startup value —
+after startup, switch via the service):
+
+```razor
+<DrylThemeProvider Mode="DrylColorMode.Dark" />
+```
+
+Switch at runtime via the same service that switches themes:
+
+```csharp
+await ThemeService.SetModeAsync(DrylColorMode.Light);
+```
+
+An explicit choice is persisted (localStorage, key `dryl-color-mode`) and restored
+before first paint on the next visit; `DrylColorMode.System` clears it and follows
+the OS again. Drop `<DrylColorModeToggle />` into your app bar for a ready-made,
+animated switcher (cycles System → Light → Dark).
+
+Because the neutral tokens are registered `@property` colors, a mode switch **glides**
+over `--dur-slow` exactly like an accent change — instant for reduced-motion users.
+Accent themes are mode-independent: any `DrylTheme` looks right in both modes without
+extra work. One deliberate exception to the swap: **code surfaces stay dark in both
+modes** (`--code-bg` / `--code-fg`).
 
 ---
 
@@ -102,9 +132,10 @@ await ThemeService.SetThemeAsync(myTheme);
 | Accent colors (`--accent-a`, `--accent-b`) | Yes | `DrylTheme.Accent`                 |
 | AI accent (`--ai-a`, `--ai-b`)             | Yes (opt-in) | `DrylTheme.AiAccent`               |
 | Semantic colors (`--success`, `--warning`, `--danger`) | Yes | `DrylTheme.Semantic`   |
-| Surface translucency (glass values)        | No — by design | Dark glass is the DRYL identity    |
-| Background (page / `--ground`)             | No — by design | Pure black is the canvas            |
-| Foreground / text scale                    | No — by design | Contrast ratios are already tuned  |
+| Color mode (dark / light / system)         | Yes | `DrylThemeProvider.Mode`, `SetModeAsync`, `DrylColorModeToggle` |
+| Surface translucency (glass values)        | Per mode | Both modes ship tuned glass values; not freely configurable |
+| Background (page / `--ground`)             | Per mode | Deep-dark or luminous-light ground — the mode decides |
+| Foreground / text scale                    | Per mode | Both modes ship tuned contrast ratios              |
 | Radii, spacing, shadows, motion            | No — by design | Use the design tokens as written   |
 
 If you find yourself wanting to override something in the "No" column, reach for a CSS layer override in your own stylesheet rather than through the theme system — and know that it will not be supported.
@@ -119,4 +150,4 @@ You provide a handful of hue seeds (`--accent-a`, `--accent-b`, and optionally `
 
 ## Reduced motion
 
-Theme transitions (the animated glide between palettes) honour `prefers-reduced-motion: reduce`. When the operating system reports a reduced-motion preference, the `--dur-slow` transition on the `@property` seed variables collapses to `0s`, so the palette swap is instant. The component system is fully usable either way — motion is always decorative.
+Theme and color-mode transitions (the animated glide between palettes) honour `prefers-reduced-motion: reduce`. When the operating system reports a reduced-motion preference, the `--dur-slow` transition on the `@property` seed variables collapses to `0s`, so the palette swap is instant. The component system is fully usable either way — motion is always decorative.

@@ -6,39 +6,61 @@ The source of truth is `dryl.css`. This file is the readable index.
 
 ---
 
+## Color modes
+
+DRYL renders in two color modes — **dark** and **light** — from one token system. The
+default follows the operating system (`prefers-color-scheme`); an explicit mode is
+forced by `data-dryl-mode="light|dark"` on `<html>` (set via `DrylThemeProvider` /
+`IDrylThemeService.SetModeAsync`, persisted in localStorage as `dryl-color-mode`).
+
+- Dark values live in `:root`; light values live in the **LIGHT-TOKEN-SET** block in
+  `dryl.css`. That block exists **twice** (system media query + explicit attribute
+  selector) and both copies must stay identical — `node scripts/check-light-sync.mjs`
+  verifies it.
+- The neutral tokens are registered `@property <color>` values, so a mode switch glides
+  over `--dur-slow` like a theme change (instant under `prefers-reduced-motion`).
+- Components never branch on the mode — they consume tokens. If a value must differ per
+  mode, it becomes a token with both values in `dryl.css`; never a literal in component CSS.
+- Light-palette contrast is guarded by `node scripts/validate-light-contrast.mjs`.
+
+Tokens listed below with a single value are identical in both modes.
+
+---
+
 ## Colors
 
 ### Surfaces (the ground)
-| Token            | Value                          | Use                                                |
-| ---------------- | ------------------------------ | -------------------------------------------------- |
-| `--ground`       | `#000000`                      | The page background. Pure black, always.           |
-| `--bg-0`         | `#000000`                      | Lowest surface — alias of `--ground`.              |
-| `--bg-1`         | `#07070a`                      | Subtle lift from ground (e.g. sidebar).            |
-| `--bg-2`         | `#0c0c12`                      | Solid card background when transparency isn't OK.  |
-| `--bg-3`         | `#14141c`                      | Highest opaque surface (modals on solid bg).       |
+| Token            | Dark                | Light               | Use                                                |
+| ---------------- | ------------------- | ------------------- | -------------------------------------------------- |
+| `--ground`       | `#000000`           | `#f2f2f9`           | The page background.                                |
+| `--bg-0`         | `#000000`           | `#f2f2f9`           | Lowest surface — alias of `--ground`.              |
+| `--bg-1`         | `#07070a`           | `#f5f5fa`           | Subtle lift from ground (e.g. sidebar).            |
+| `--bg-2`         | `#0c0c12`           | `#f8f8fc`           | Solid card background when transparency isn't OK.  |
+| `--bg-3`         | `#14141c`           | `#fbfbfe`           | Highest opaque surface (modals on solid bg).       |
 
 ### Glass (the layers above)
-| Token            | Value                          | Use                                                |
-| ---------------- | ------------------------------ | -------------------------------------------------- |
-| `--glass-1`      | `rgba(255,255,255,0.03)`       | Default card / panel.                              |
-| `--glass-2`      | `rgba(255,255,255,0.05)`       | Slightly elevated (hover, secondary button).       |
-| `--glass-3`      | `rgba(255,255,255,0.08)`       | Top elevation (active state, popover).             |
-| `--glass-blur`   | `18px`                         | Default `backdrop-filter` blur radius.             |
+| Token            | Dark                       | Light                      | Use                                                |
+| ---------------- | -------------------------- | -------------------------- | -------------------------------------------------- |
+| `--glass-1`      | `rgba(255,255,255,0.03)`   | `rgba(255,255,255,0.55)`   | Default card / panel.                              |
+| `--glass-2`      | `rgba(255,255,255,0.05)`   | `rgba(255,255,255,0.62)`   | Slightly elevated (hover, secondary button).       |
+| `--glass-3`      | `rgba(255,255,255,0.08)`   | `rgba(255,255,255,0.72)`   | Top elevation (active state, popover).             |
+| `--glass-blur`   | `18px`                     | (same)                     | Default `backdrop-filter` blur radius.             |
 
 ### Lines (the edges)
-| Token            | Value                          | Use                                                |
-| ---------------- | ------------------------------ | -------------------------------------------------- |
-| `--line-soft`    | `rgba(255,255,255,0.04)`       | Whisper-quiet dividers.                            |
-| `--line`         | `rgba(255,255,255,0.06)`       | Default 1px border on glass surfaces.              |
-| `--line-strong`  | `rgba(255,255,255,0.12)`       | Hover state, form fields, table headers.          |
+| Token            | Dark                       | Light                      | Use                                                |
+| ---------------- | -------------------------- | -------------------------- | -------------------------------------------------- |
+| `--line-soft`    | `rgba(255,255,255,0.04)`   | `rgba(18,22,40,0.05)`      | Whisper-quiet dividers.                            |
+| `--line`         | `rgba(255,255,255,0.06)`   | `rgba(18,22,40,0.08)`      | Default 1px border on glass surfaces.              |
+| `--line-strong`  | `rgba(255,255,255,0.12)`   | `rgba(18,22,40,0.14)`      | Hover state, form fields, table headers.          |
+| `--line-hover`   | `rgba(255,255,255,0.18)`   | `rgba(18,22,40,0.24)`      | Border on hovered inputs/triggers.                 |
 
 ### Foreground (the text)
-| Token            | Value                          | Use                                                |
-| ---------------- | ------------------------------ | -------------------------------------------------- |
-| `--fg`           | `#f4f4f7`                      | Primary text, headings, active values.             |
-| `--fg-muted`     | `rgba(244,244,247,0.62)`       | Body text, labels, secondary content.              |
-| `--fg-dim`       | `rgba(244,244,247,0.38)`       | Captions, placeholders, helper text.               |
-| `--fg-faint`     | `rgba(244,244,247,0.22)`       | Decorative-only — separators, metadata.            |
+| Token            | Dark                       | Light                      | Use                                                |
+| ---------------- | -------------------------- | -------------------------- | -------------------------------------------------- |
+| `--fg`           | `#f4f4f7`                  | `#15151c`                  | Primary text, headings, active values.             |
+| `--fg-muted`     | `rgba(244,244,247,0.62)`   | `rgba(21,21,28,0.62)`      | Body text, labels, secondary content.              |
+| `--fg-dim`       | `rgba(244,244,247,0.38)`   | `rgba(21,21,28,0.38)`      | Captions, placeholders, helper text.               |
+| `--fg-faint`     | `rgba(244,244,247,0.22)`   | `rgba(21,21,28,0.22)`      | Decorative-only — separators, metadata.            |
 
 ### Accents (the glow)
 | Token            | Value                                                   | Use                                                |
@@ -52,22 +74,22 @@ The source of truth is `dryl.css`. This file is the readable index.
 | `--accent-line`  | `color-mix(in srgb, var(--accent-a) 45%, transparent)` | Accent border, focus ring. Derived.                |
 
 ### Semantic
-| Token         | Value      | Use                          |
-| ------------- | ---------- | ---------------------------- |
-| `--success`   | `#34d399`  | Healthy, succeeded, online.  |
-| `--warning`   | `#fbbf24`  | Throttled, pending, near-limit. |
-| `--danger`    | `#f87171`  | Failed, destructive action.  |
-| `--info`      | `#22d3ee`  | Informational, neutral status. (alias of `--accent-b`) |
+| Token         | Dark       | Light      | Use                          |
+| ------------- | ---------- | ---------- | ---------------------------- |
+| `--success`   | `#34d399`  | `#0e8a4d`  | Healthy, succeeded, online.  |
+| `--warning`   | `#fbbf24`  | `#b45309`  | Throttled, pending, near-limit. |
+| `--danger`    | `#f87171`  | `#dc2626`  | Failed, destructive action.  |
+| `--info`      | `#22d3ee` (alias of `--accent-b`) | `#0e7490` | Informational, neutral status. |
 
 ### Chart series palette
-| Token       | Value (default theme)                                | Use                                    |
-| ----------- | ---------------------------------------------------- | -------------------------------------- |
-| `--chart-1` | `oklch(from var(--accent-a) 0.65 clamp(0.1, c, 0.19) h)` ≈ `#8977fb` | Series 1 — follows the theme's A seed. |
-| `--chart-2` | `oklch(from var(--accent-b) 0.65 clamp(0.1, c, 0.19) h)` ≈ `#00a3be` | Series 2 — follows the theme's B seed. |
-| `--chart-3` | `#bd7a12`                                            | Series 3 (amber, fixed anchor).        |
-| `--chart-4` | `#26a058`                                            | Series 4 (green, fixed anchor).        |
-| `--chart-5` | `#d6428e`                                            | Series 5 (magenta, fixed anchor).      |
-| `--chart-6` | `#5583e3`                                            | Series 6 (blue, fixed anchor).         |
+| Token       | Dark (default theme)                                 | Light                                  | Use                                    |
+| ----------- | ---------------------------------------------------- | -------------------------------------- | -------------------------------------- |
+| `--chart-1` | `oklch(from var(--accent-a) 0.65 clamp(0.1, c, 0.19) h)` | same at `L 0.52`, chroma cap `0.17` | Series 1 — follows the theme's A seed. |
+| `--chart-2` | `oklch(from var(--accent-b) 0.65 clamp(0.1, c, 0.19) h)` | same at `L 0.52`, chroma cap `0.17` | Series 2 — follows the theme's B seed. |
+| `--chart-3` | `#bd7a12`                                            | `#96610e`                              | Series 3 (amber, fixed anchor).        |
+| `--chart-4` | `#26a058`                                            | `#1d7f46`                              | Series 4 (green, fixed anchor).        |
+| `--chart-5` | `#d6428e`                                            | `#b0316f`                              | Series 5 (magenta, fixed anchor).      |
+| `--chart-6` | `#5583e3`                                            | `#3a63c4`                              | Series 6 (blue, fixed anchor).         |
 
 Series 1/2 are **theme-following**: hue from the accent seeds, lightness snapped to
 the validated band (oklch L 0.65) and chroma clamped to 0.1–0.19, so any theme stays
@@ -80,10 +102,49 @@ initial values (`#8b7cf8` / `#0aa2b5` / …) double as the fallback palette in e
 without relative color syntax.
 
 Fixed order, assigned in sequence, **never cycled** — series 7+ renders `--fg-dim`
-(reads as "other"). Default and preset palettes are validated against the dark
-surface (`#000000`): lightness band, chroma floor, adjacent-pair CVD ΔE ≥ 12,
-contrast ≥ 3:1. Never use `--success` / `--warning` / `--danger` as series colors —
-status is reserved.
+(reads as "other"). Palettes are validated per mode (lightness band, chroma floor,
+adjacent-pair CVD ΔE ≥ 12, contrast ≥ 3:1 against the mode's surface; the light run
+is scripted in `scripts/validate-light-contrast.mjs`). Never use `--success` /
+`--warning` / `--danger` as series colors — status is reserved.
+
+### Effect tokens (mode-dependent surfaces & details)
+
+These carry the small optical details that must read differently per mode. Defined in
+`:root` (dark) with light overrides in the LIGHT-TOKEN-SET; "(same)" = mode-independent.
+
+| Token                    | Dark                                | Light                        | Use                                            |
+| ------------------------ | ----------------------------------- | ---------------------------- | ----------------------------------------------- |
+| `--edge-hi`              | `rgba(255,255,255,0.06)`            | `rgba(255,255,255,0.85)`     | 1px inset top highlight on glass.               |
+| `--edge-hi-strong`       | `rgba(255,255,255,0.18)`            | `rgba(255,255,255,0.95)`     | Stronger glass edge (active/raised).            |
+| `--sheen-grad`           | white 0.04 → 0.015 gradient         | white 0.55 → 0.15 gradient   | Top sheen on cards/buttons.                     |
+| `--sheen-grad-soft`      | white 0.02 → 0 gradient             | white 0.35 → 0 gradient      | Fainter sheen (rows, rails).                    |
+| `--shimmer`              | `rgba(255,255,255,0.22)`            | `rgba(255,255,255,0.8)`      | Moving shine sweep mid-stop.                    |
+| `--shimmer-strong`       | `rgba(255,255,255,0.4)`             | `rgba(255,255,255,0.95)`     | Strong shine (primary button).                  |
+| `--hover-wash`           | `rgba(255,255,255,0.02)`            | `rgba(18,22,40,0.03)`        | Row/list hover fill.                            |
+| `--press-wash`           | `rgba(0,0,0,0.25)`                  | `rgba(18,22,40,0.08)`        | Pressed/close-chip fill.                        |
+| `--backdrop`             | `rgba(0,0,0,0.6)`                   | `rgba(26,28,48,0.35)`        | Modal/drawer scrim.                             |
+| `--backdrop-soft`        | `rgba(0,0,0,0.4)`                   | `rgba(26,28,48,0.22)`        | Lighter scrim / translucent bars.               |
+| `--scrollbar-thumb`      | `rgba(255,255,255,0.08)`            | `rgba(18,22,40,0.18)`        | Scrollbar thumb.                                |
+| `--scrollbar-thumb-hover`| `rgba(255,255,255,0.16)`            | `rgba(18,22,40,0.3)`         | Scrollbar thumb hover.                          |
+| `--on-accent`            | `#ffffff`                           | (same)                       | Text/icons on accent-gradient fills.            |
+| `--on-accent-line`       | `rgba(255,255,255,0.12)`            | (same)                       | Border on accent fills.                         |
+| `--on-accent-hi`         | `rgba(255,255,255,0.2)`             | (same)                       | Inset highlight on accent fills.                |
+| `--knob`                 | `#ffffff`                           | (same)                       | Slider/switch knob fill.                        |
+| `--accent-fg`            | `#d6cbff`                           | accent-a 72% → near-black mix| Accent-tinted text on glass.                    |
+| `--accent-ico`           | `#c4b5fd`                           | accent-a 78% → near-black mix| Accent icon chips (alerts).                     |
+| `--danger-fg`            | `#fca5a5`                           | `#b91c1c`                    | Danger text on glass.                           |
+| `--success-hi` … `--info-hi` | exact bright literals            | seed → white mixes           | Bright gradient endpoints (progress bars). Dark stays pixel-exact; light derives from the mode's semantic seeds. |
+| `--depth-edge`           | `rgba(255,255,255,0.18)`            | `rgba(255,255,255,0.9)`      | DepthGlass reference edge.                      |
+| `--depth-edge-strong`    | `rgba(255,255,255,0.55)`            | `rgba(255,255,255,0.95)`     | DepthGlass strongest inset.                     |
+| `--depth-shadow`         | `rgba(0,0,0,0.42)`                  | `rgba(28,24,70,0.16)`        | DepthGlass / dialog drop shadow.                |
+| `--code-bg`              | `rgba(0,0,0,0.55)`                  | `#14141d`                    | Code block surface — **code stays dark in both modes** (by design). |
+| `--code-fg`              | `#f4f4f7`                           | (same)                       | Code text (light-on-dark in both modes).        |
+| `--grain-opacity`        | `0.4`                               | `0.25`                       | Film-grain overlay strength.                    |
+| `--aurora-opacity`       | `0.85`                              | `0.5`                        | Aurora orb strength.                            |
+
+Shadows and glows are also mode-tuned: `--shadow-sm/md/lg` swap their black stacks for
+soft indigo-tinted ones in light (`rgba(28,24,70,…)`), and `--glow-accent`/`--glow-soft`
+reduce their mix percentages. Exact values: `dryl.css` LIGHT-TOKEN-SET.
 
 ---
 

@@ -8,7 +8,7 @@ Read this file before doing any work. Read it again if you find yourself inventi
 
 ## 1. The system in one paragraph
 
-DRYL is **dark, glassy, alive — and AI-native**. Surfaces are translucent layers stacked on pure black. Accents glow (violet → cyan gradient) instead of shouting. Every component reads from CSS variables defined in `dryl.css` — never hardcode colors, sizes, radii, shadows or durations. AI is treated as a first-class state of the UI: any AI-aware component accepts an `AiState` parameter (`None / Active / Thinking / Streaming / Generated`) that drives a shared visual vocabulary — rotating gradient border, breathing glow, one-shot reveal — so a user can feel where the AI is at work across the entire library without ever reading a label.
+DRYL is **glassy, alive — and AI-native**, rendered in two color modes that are one identity: translucent layers stacked on a deep-dark or luminous-light ground, following the user's system by default. Accents glow (violet → cyan gradient) instead of shouting. Every component reads from CSS variables defined in `dryl.css` — never hardcode colors, sizes, radii, shadows or durations. AI is treated as a first-class state of the UI: any AI-aware component accepts an `AiState` parameter (`None / Active / Thinking / Streaming / Generated`) that drives a shared visual vocabulary — rotating gradient border, breathing glow, one-shot reveal — so a user can feel where the AI is at work across the entire library without ever reading a label.
 
 The design system lives in three files:
 
@@ -31,8 +31,12 @@ These rules are non-negotiable. A PR that violates them should not be merged.
 
 The full list lives in `DESIGN_TOKENS.md`. Every color, every padding, every radius, every shadow, every duration and every easing curve must reference a CSS variable.
 
-### 2.2 Dark first, only dark
-The library has no light theme. Don't add `prefers-color-scheme` overrides. Don't add a `--light-bg` variable. Dark is the design — not a toggle.
+### 2.2 Two modes, one identity
+DRYL renders in two color modes — dark and light — driven entirely by the token system. The default follows the operating system (`prefers-color-scheme`); apps and users can force a mode through `DrylThemeProvider` / `IDrylThemeService`.
+
+- Components never branch on the mode. They consume tokens; the mode swaps the token values underneath them.
+- Never write a mode-assuming literal (`rgba(255,255,255,…)`, hardcoded grays) in component CSS. If a value must differ per mode, it becomes a token with both values in `dryl.css` — added to **both** LIGHT-TOKEN-SET copies (`node scripts/check-light-sync.mjs` must stay green).
+- Every new component is verified in **both** modes before it ships (flip `data-dryl-mode` on `<html>` in devtools).
 
 ### 2.3 Glass surfaces, not solid blocks
 Cards, panels, modals → translucent with `backdrop-filter`. Never paint a solid hex on a card background.
@@ -144,8 +148,9 @@ If you're unsure whether a component "feels DRYL", check it against these:
 - [ ] Text on the surface uses `var(--fg)`, `var(--fg-muted)`, or `var(--fg-dim)` — never a hardcoded gray
 - [ ] Radii use `var(--r-xs|sm|md|lg|xl|pill)` — never an arbitrary px value
 - [ ] Padding uses `var(--sp-1..8)` — never an arbitrary px value
+- [ ] Component reads correctly in **both color modes** (flip `data-dryl-mode` on `<html>` in devtools)
 
-If 8/8 — ship it. If 6/8 — fix the two. If less — re-read this file.
+If 9/9 — ship it. If 7/9 — fix the two. If less — re-read this file.
 
 ---
 
@@ -168,7 +173,7 @@ If any of these are unclear, **ask** before writing code.
 ## 6. Things you should never do
 
 - ❌ Invent a new color
-- ❌ Add a light theme
+- ❌ Hardcode a mode-assuming color instead of a token — every per-mode value lives in `dryl.css` (both LIGHT-TOKEN-SET copies)
 - ❌ Use `!important` outside `__om-edit-overrides`
 - ❌ Inline `style="..."` for values that have a token (one-offs are fine for layout: `style="grid-template-columns: 1fr 1fr;"` is OK; `style="color: #f4f4f7;"` is not)
 - ❌ Add an external npm/JS library — DRYL has zero of them
