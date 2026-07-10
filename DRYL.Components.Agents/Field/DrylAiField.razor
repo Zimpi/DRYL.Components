@@ -298,6 +298,7 @@
             await module.InvokeVoidAsync("focusField", _root);
         }
         catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (ObjectDisposedException) { /* component disposed mid-run */ }
         await InvokeAsync(StateHasChanged);
     }
 
