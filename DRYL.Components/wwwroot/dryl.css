@@ -171,6 +171,13 @@
   --on-accent-line:  rgba(255, 255, 255, 0.12);
   --on-accent-hi:    rgba(255, 255, 255, 0.2);
   --knob:            #ffffff;
+  --backdrop:             rgba(0, 0, 0, 0.6);
+  --backdrop-soft:        rgba(0, 0, 0, 0.4);
+  --press-wash:           rgba(0, 0, 0, 0.25);
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.16);
+  --code-bg:         rgba(0, 0, 0, 0.55);
+  --code-fg:         #f4f4f7;
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -257,6 +264,12 @@
     --shimmer-strong:  rgba(255, 255, 255, 0.95);
     --hover-wash:      rgba(18, 22, 40, 0.03);
     --line-hover:      rgba(18, 22, 40, 0.24);
+    --backdrop:             rgba(26, 28, 48, 0.35);
+    --backdrop-soft:        rgba(26, 28, 48, 0.22);
+    --press-wash:           rgba(18, 22, 40, 0.08);
+    --scrollbar-thumb:       rgba(18, 22, 40, 0.18);
+    --scrollbar-thumb-hover: rgba(18, 22, 40, 0.3);
+    --code-bg:         #14141d;
   }
 }
 :root[data-dryl-mode="light"] {
@@ -305,6 +318,12 @@
   --shimmer-strong:  rgba(255, 255, 255, 0.95);
   --hover-wash:      rgba(18, 22, 40, 0.03);
   --line-hover:      rgba(18, 22, 40, 0.24);
+  --backdrop:             rgba(26, 28, 48, 0.35);
+  --backdrop-soft:        rgba(26, 28, 48, 0.22);
+  --press-wash:           rgba(18, 22, 40, 0.08);
+  --scrollbar-thumb:       rgba(18, 22, 40, 0.18);
+  --scrollbar-thumb-hover: rgba(18, 22, 40, 0.3);
+  --code-bg:         #14141d;
 }
 
 * { box-sizing: border-box; }
@@ -1178,12 +1197,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 /* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); background-clip: padding-box; border: 2px solid transparent; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); background-clip: padding-box; border: 2px solid transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* Focus ring for keyboard users.
@@ -1322,7 +1341,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--backdrop);
   backdrop-filter: blur(4px);
   z-index: 40;
   opacity: 0;
@@ -1651,7 +1670,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   gap: 16px;
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
-  background: rgba(0,0,0,0.4);
+  background: var(--backdrop-soft);
   backdrop-filter: blur(20px);
   position: sticky;
   top: 0;
@@ -1741,13 +1760,13 @@ code, .code-inline {
 .code-block {
   position: relative;
   border-radius: var(--r-md);
-  background: rgba(0,0,0,0.55);
+  background: var(--code-bg);
   border: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;
   padding: 16px 18px;
-  color: var(--fg-muted);
+  color: var(--code-fg);
   overflow: auto;
   box-shadow: inset 0 0 60px color-mix(in srgb, var(--accent-a) 5%, transparent);
 }
@@ -2260,7 +2279,7 @@ code, .code-inline {
   justify-content: center;
   transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.tbl-filter-chip-close:hover { color: var(--fg); background: rgba(0,0,0,0.25); }
+.tbl-filter-chip-close:hover { color: var(--fg); background: var(--press-wash); }
 
 /* ============== TABLE FOOTER + PAGINATION (Phase 2) ============== */
 
