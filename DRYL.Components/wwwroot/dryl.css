@@ -183,13 +183,11 @@
      --accent-fg / --danger-fg are the accent/danger-tinted TEXT colors used on
      glass (badges, code, AI indicator, danger menu items) — lighter than the
      solid --accent/--danger fills so they read on translucent surfaces.
-     --*-hi are the bright gradient-endpoint tints used on toast progress bars;
-     single color-mix definitions that ride the semantic seed, so they already
-     adapt in light mode without a separate override (percentages tuned below
-     for closest dark-value fidelity to the original literals — see task-7
-     report for the per-channel deltas, since the four original success/
-     warning/danger/info literals don't sit exactly on the seed-to-white
-     mix line). */
+     --*-hi are the bright gradient-endpoint tints used on toast progress bars.
+     Their dark values are exact literals (the four originals don't sit on the
+     seed-to-white mix line, so a color-mix here would shift dark rendering);
+     the LIGHT-TOKEN-SET copies override them with seed color-mixes so light
+     mode adapts to the semantic seeds. Do NOT remove those light overrides. */
   --accent-fg:  #d6cbff;
   --danger-fg:  #fca5a5;
   --success-hi: #6ee7b7;
