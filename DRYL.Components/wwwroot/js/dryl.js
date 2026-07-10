@@ -1247,6 +1247,7 @@ window.dryl.tooltip = (() => {
     }
 
     function place(wrap) {
+        if (!wrap.isConnected) return hide();
         const b = ensureBubble();
         b.textContent = wrap.getAttribute('data-tt') || '';
         if (!b.textContent) return hide();
@@ -1280,7 +1281,7 @@ window.dryl.tooltip = (() => {
         b.style.left = left + 'px';
         b.classList.toggle('from-below', placement === 'bottom');
         // Reveal on the next frame so the enter transition runs.
-        requestAnimationFrame(() => { if (current === wrap) b.classList.add('is-open'); });
+        requestAnimationFrame(() => { if (current === wrap && wrap.isConnected) b.classList.add('is-open'); });
     }
 
     function show(wrap) {
@@ -1303,6 +1304,16 @@ window.dryl.tooltip = (() => {
         document.addEventListener('pointerover', e => {
             const w = wrapFrom(e);
             if (w) show(w); else if (current) hide();
+        }, true);
+        // Hide when the pointer leaves the current wrap — including the case
+        // where the trigger is removed from the DOM mid-hover (Blazor
+        // re-render): a detached node fires no pointerover, but pointerout
+        // does fire on the way out, and the isConnected guard in place()
+        // covers programmatic removal.
+        document.addEventListener('pointerout', e => {
+            if (!current) return;
+            const to = e.relatedTarget;
+            if (!(to instanceof Element) || to.closest('[data-tt]') !== current) hide();
         }, true);
         document.addEventListener('focusin', e => {
             const w = wrapFrom(e);

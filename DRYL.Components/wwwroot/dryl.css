@@ -998,13 +998,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 .input.input-success,
 .textarea.input-success,
-.select.input-success { border-color: rgba(52, 211, 153, 0.5); }
+.select.input-success { border-color: color-mix(in srgb, var(--success) 50%, transparent); }
 .input.input-success:focus,
 .textarea.input-success:focus,
 .select.input-success:focus {
   border-color: var(--success);
   background: var(--glass-2);
-  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12), 0 0 24px rgba(52, 211, 153, 0.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 12%, transparent), 0 0 24px color-mix(in srgb, var(--success) 18%, transparent);
 }
 
 .input:disabled, .textarea:disabled {
@@ -1110,9 +1110,9 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
-.badge-success { color: var(--success); border-color: rgba(52, 211, 153, 0.3); background: rgba(52,211,153,0.1); }
-.badge-warning { color: var(--warning); border-color: rgba(251, 191, 36, 0.3); background: rgba(251,191,36,0.1); }
-.badge-danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: rgba(248,113,113,0.1); }
+.badge-success { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.badge-warning { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.badge-danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .badge-dot::before {
   content: '';
   width: 6px;
@@ -3006,9 +3006,9 @@ td.tbl-td-editing select {
 }
 .avatar-wrap--sm .avatar-status { width: 7px; height: 7px; }
 .avatar-wrap--lg .avatar-status { width: 12px; height: 12px; }
-.avatar-status--online  { background: var(--success); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(52,211,153,0.6); }
-.avatar-status--busy    { background: var(--danger);  box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(248,113,113,0.6); }
-.avatar-status--away    { background: var(--warning); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(251,191,36,0.55); }
+.avatar-status--online  { background: var(--success); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px color-mix(in srgb, var(--success) 60%, transparent); }
+.avatar-status--busy    { background: var(--danger);  box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px color-mix(in srgb, var(--danger) 60%, transparent); }
+.avatar-status--away    { background: var(--warning); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px color-mix(in srgb, var(--warning) 55%, transparent); }
 .avatar-status--offline { background: var(--fg-faint); }
 
 /* Stacked group */
@@ -3251,34 +3251,34 @@ td.tbl-td-editing select {
    The left rail is drawn with an inset box-shadow so the radius still clips
    it cleanly. */
 .toast.toast-success {
-  border-color: rgba(52, 211, 153, 0.28);
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--success),
     inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
-    0 0 32px rgba(52, 211, 153, 0.18);
+    0 0 32px color-mix(in srgb, var(--success) 18%, transparent);
 }
 .toast.toast-success .toast-icon-chip {
-  background: rgba(52, 211, 153, 0.15);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
   color: var(--success);
-  border-color: rgba(52, 211, 153, 0.35);
+  border-color: color-mix(in srgb, var(--success) 35%, transparent);
 }
 .toast.toast-success .toast-progress {
   background: linear-gradient(90deg, var(--success), var(--success-hi));
 }
 
 .toast.toast-warning {
-  border-color: rgba(251, 191, 36, 0.28);
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--warning),
     inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
-    0 0 32px rgba(251, 191, 36, 0.18);
+    0 0 32px color-mix(in srgb, var(--warning) 18%, transparent);
 }
 .toast.toast-warning .toast-icon-chip {
-  background: rgba(251, 191, 36, 0.15);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
   color: var(--warning);
-  border-color: rgba(251, 191, 36, 0.35);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
 }
 .toast.toast-warning .toast-progress {
   background: linear-gradient(90deg, var(--warning), var(--warning-hi));
@@ -3437,9 +3437,9 @@ td.tbl-td-editing select {
 .progress--sm { height: 4px; }
 .progress--lg { height: 10px; }
 
-.progress-bar--success { background: var(--success); box-shadow: 0 0 12px rgba(52,211,153,0.5); }
-.progress-bar--warning { background: var(--warning); box-shadow: 0 0 12px rgba(251,191,36,0.5); }
-.progress-bar--danger  { background: var(--danger);  box-shadow: 0 0 12px rgba(248,113,113,0.5); }
+.progress-bar--success { background: var(--success); box-shadow: 0 0 12px color-mix(in srgb, var(--success) 50%, transparent); }
+.progress-bar--warning { background: var(--warning); box-shadow: 0 0 12px color-mix(in srgb, var(--warning) 50%, transparent); }
+.progress-bar--danger  { background: var(--danger);  box-shadow: 0 0 12px color-mix(in srgb, var(--danger) 50%, transparent); }
 
 .progress--indeterminate .progress-bar {
   width: 40%;
@@ -3879,9 +3879,9 @@ body.dryl-scroll-locked { overflow: hidden; }
   flex: 0 0 28px;
 }
 .alert.info .ico    { background: var(--accent-soft); color: var(--accent-ico); }
-.alert.success .ico { background: rgba(52,211,153,0.15); color: var(--success); }
-.alert.warning .ico { background: rgba(251,191,36,0.15); color: var(--warning); }
-.alert.danger .ico  { background: rgba(248,113,113,0.15); color: var(--danger); }
+.alert.success .ico { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.alert.warning .ico { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+.alert.danger .ico  { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 /* KI-Variante — Akzentgradient als Icon-Chip, violett-cyanfarbener Text */
 .alert.ai .ico      { background: var(--accent-soft); color: var(--accent-ico); }
 .alert .title { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
