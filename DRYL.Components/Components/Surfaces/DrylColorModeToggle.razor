@@ -1,0 +1,81 @@
+@namespace DRYL.Components
+@using DRYL.Components.Theming
+@inject IDrylThemeService ThemeService
+
+@*  ─────────────────────────────────────────────────────────
+    DrylColorModeToggle — cycles the color mode System → Light
+    → Dark. The icon reflects the *chosen* mode (auto badge for
+    System); the actual rendition is resolved by dryl.css.
+    Like the website's theme-switcher pattern, this component
+    triggers the change itself and re-renders — it does not
+    subscribe to OnModeChanged (that single-subscriber slot
+    belongs to the DrylThemeProvider).
+
+    Usage:
+      <DrylColorModeToggle />
+    ───────────────────────────────────────────────────────── *@
+
+<DrylTooltip Text="@Label">
+    <button type="button"
+            class="@CssClass"
+            aria-label="@Label"
+            @attributes="AdditionalAttributes"
+            @onclick="CycleAsync">
+        <svg viewBox="0 0 24 24" width="@Size" height="@Size" fill="none"
+             stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+             stroke-linejoin="round" aria-hidden="true">
+            <circle class="cmt-core" cx="12" cy="12" r="4" />
+            <g class="cmt-rays">
+                <line x1="12" y1="2.5" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="21.5" />
+                <line x1="2.5" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="21.5" y2="12" />
+                <line x1="5.3" y1="5.3" x2="7" y2="7" /><line x1="17" y1="17" x2="18.7" y2="18.7" />
+                <line x1="5.3" y1="18.7" x2="7" y2="17" /><line x1="17" y1="7" x2="18.7" y2="5.3" />
+            </g>
+            <path class="cmt-moon" d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+        </svg>
+        <span class="cmt-auto" aria-hidden="true">A</span>
+    </button>
+</DrylTooltip>
+<span class="visually-hidden" role="status" aria-live="polite">@Label</span>
+
+@code {
+    /// <summary>Icon size in pixels. Default 18.</summary>
+    [Parameter] public int Size { get; set; } = 18;
+
+    /// <summary>
+    /// Extra CSS class(es) merged onto the button's own classes. Because Blazor
+    /// matches attribute names case-insensitively, a consumer-supplied
+    /// <c>class="..."</c> also binds here and is merged in — it does not clobber
+    /// the component's identity classes (which a bare <c>@attributes</c> splat would).
+    /// </summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass =>
+        string.Join(' ', new[] { "color-mode-toggle", StateClass, Class }
+                          .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    private string StateClass => ThemeService.CurrentMode switch
+    {
+        DrylColorMode.Light => "is-light",
+        DrylColorMode.Dark => "is-dark",
+        _ => "is-system",
+    };
+
+    private string Label => ThemeService.CurrentMode switch
+    {
+        DrylColorMode.Light => "Color mode: Light — switch to dark",
+        DrylColorMode.Dark => "Color mode: Dark — follow system",
+        _ => "Color mode: System — switch to light",
+    };
+
+    private Task CycleAsync() => ThemeService.SetModeAsync(ThemeService.CurrentMode switch
+    {
+        DrylColorMode.System => DrylColorMode.Light,
+        DrylColorMode.Light => DrylColorMode.Dark,
+        _ => DrylColorMode.System,
+    });
+}
