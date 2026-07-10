@@ -21,4 +21,19 @@ public sealed class DrylThemeService : IDrylThemeService
     /// <inheritdoc/>
     public Task SetAccentAsync(string a, string b) =>
         SetThemeAsync(Current with { Accent = new DrylAccent(a, b) });
+
+    /// <inheritdoc/>
+    public DrylColorMode CurrentMode { get; private set; } = DrylColorMode.System;
+
+    /// <inheritdoc/>
+    public event Func<Task>? OnModeChanged;
+
+    /// <inheritdoc/>
+    public async Task SetModeAsync(DrylColorMode mode)
+    {
+        if (mode == CurrentMode) return;
+        CurrentMode = mode;
+        if (OnModeChanged is { } handler)
+            await handler.Invoke();
+    }
 }
