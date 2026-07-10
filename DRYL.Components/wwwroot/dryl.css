@@ -192,10 +192,10 @@
      mix line). */
   --accent-fg:  #d6cbff;
   --danger-fg:  #fca5a5;
-  --success-hi: color-mix(in srgb, var(--success) 69%, white);
-  --warning-hi: color-mix(in srgb, var(--warning) 78%, white);
-  --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
-  --info-hi:    color-mix(in srgb, var(--info) 66%, white);
+  --success-hi: #6ee7b7;
+  --warning-hi: #fcd34d;
+  --danger-hi:  #fca5a5;
+  --info-hi:    #67e8f9;
 
   /* DepthGlass edge/shadow tokens — the white inset highlights and black drop
      shadow used by .dg-* (DrylDepthGlass / DrylCard Depth). --depth-edge is
@@ -204,6 +204,7 @@
   --depth-edge:        rgba(255, 255, 255, 0.18);
   --depth-edge-strong: rgba(255, 255, 255, 0.55);
   --depth-shadow:      rgba(0, 0, 0, 0.42);
+  --accent-ico:        #c4b5fd;
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -301,6 +302,11 @@
     --depth-edge:        rgba(255, 255, 255, 0.9);
     --depth-edge-strong: rgba(255, 255, 255, 0.95);
     --depth-shadow:      rgba(28, 24, 70, 0.16);
+    --success-hi: color-mix(in srgb, var(--success) 69%, white);
+    --warning-hi: color-mix(in srgb, var(--warning) 78%, white);
+    --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
+    --info-hi:    color-mix(in srgb, var(--info) 66%, white);
+    --accent-ico: color-mix(in srgb, var(--accent-a) 78%, #10102a);
   }
 }
 :root[data-dryl-mode="light"] {
@@ -360,6 +366,11 @@
   --depth-edge:        rgba(255, 255, 255, 0.9);
   --depth-edge-strong: rgba(255, 255, 255, 0.95);
   --depth-shadow:      rgba(28, 24, 70, 0.16);
+  --success-hi: color-mix(in srgb, var(--success) 69%, white);
+  --warning-hi: color-mix(in srgb, var(--warning) 78%, white);
+  --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
+  --info-hi:    color-mix(in srgb, var(--info) 66%, white);
+  --accent-ico: color-mix(in srgb, var(--accent-a) 78%, #10102a);
 }
 
 * { box-sizing: border-box; }
@@ -3807,12 +3818,12 @@ body.dryl-scroll-locked { overflow: hidden; }
   display: grid; place-content: center;
   flex: 0 0 28px;
 }
-.alert.info .ico    { background: var(--accent-soft); color: #c4b5fd; }
+.alert.info .ico    { background: var(--accent-soft); color: var(--accent-ico); }
 .alert.success .ico { background: rgba(52,211,153,0.15); color: var(--success); }
 .alert.warning .ico { background: rgba(251,191,36,0.15); color: var(--warning); }
 .alert.danger .ico  { background: rgba(248,113,113,0.15); color: var(--danger); }
 /* KI-Variante — Akzentgradient als Icon-Chip, violett-cyanfarbener Text */
-.alert.ai .ico      { background: var(--accent-soft); color: #c4b5fd; }
+.alert.ai .ico      { background: var(--accent-soft); color: var(--accent-ico); }
 .alert .title { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
 .alert .body { font-size: 12.5px; color: var(--fg-muted); }
 /* Flexibler Textbereich — nimmt verbleibenden Platz ein */
