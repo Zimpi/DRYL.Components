@@ -154,6 +154,23 @@
   --appbar-h:            60px;
   --sidebar-w:          260px;
   --sidebar-collapsed-w: 56px;
+
+  /* Mode-dependent effect tokens — white highlights, sheens, shimmer sweeps
+     and hover washes used across glass surfaces. Light-mode overrides live in
+     both LIGHT-TOKEN-SET copies below; --on-accent* and --knob stay fixed
+     because the accent-gradient fill they sit on doesn't change with mode. */
+  --edge-hi:         rgba(255, 255, 255, 0.06);
+  --edge-hi-strong:  rgba(255, 255, 255, 0.18);
+  --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  --shimmer:         rgba(255, 255, 255, 0.22);
+  --shimmer-strong:  rgba(255, 255, 255, 0.4);
+  --hover-wash:      rgba(255, 255, 255, 0.02);
+  --line-hover:      rgba(255, 255, 255, 0.18);
+  --on-accent:       #ffffff;
+  --on-accent-line:  rgba(255, 255, 255, 0.12);
+  --on-accent-hi:    rgba(255, 255, 255, 0.2);
+  --knob:            #ffffff;
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -232,6 +249,14 @@
                    0 0 120px color-mix(in srgb, var(--accent-b) 6%, transparent);
     --grain-opacity: 0.25;
     --aurora-opacity: 0.5;
+    --edge-hi:         rgba(255, 255, 255, 0.85);
+    --edge-hi-strong:  rgba(255, 255, 255, 0.95);
+    --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+    --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+    --shimmer:         rgba(255, 255, 255, 0.8);
+    --shimmer-strong:  rgba(255, 255, 255, 0.95);
+    --hover-wash:      rgba(18, 22, 40, 0.03);
+    --line-hover:      rgba(18, 22, 40, 0.24);
   }
 }
 :root[data-dryl-mode="light"] {
@@ -272,6 +297,14 @@
                  0 0 120px color-mix(in srgb, var(--accent-b) 6%, transparent);
   --grain-opacity: 0.25;
   --aurora-opacity: 0.5;
+  --edge-hi:         rgba(255, 255, 255, 0.85);
+  --edge-hi-strong:  rgba(255, 255, 255, 0.95);
+  --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+  --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+  --shimmer:         rgba(255, 255, 255, 0.8);
+  --shimmer-strong:  rgba(255, 255, 255, 0.95);
+  --hover-wash:      rgba(18, 22, 40, 0.03);
+  --line-hover:      rgba(18, 22, 40, 0.24);
 }
 
 * { box-sizing: border-box; }
@@ -414,14 +447,14 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .glass-card {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+    var(--sheen-grad),
     rgba(10, 10, 14, 0.4);
   border: 1px solid var(--line);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border-radius: var(--r-lg);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
   transition: transform var(--dur-med) var(--ease-out),
               border-color var(--dur-med) var(--ease-out),
@@ -490,7 +523,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   background: linear-gradient(
     105deg,
     transparent 38%,
-    rgba(255, 255, 255, 0.22) 50%,
+    var(--shimmer) 50%,
     transparent 62%
   );
   background-size: 250% 100%;
@@ -518,17 +551,17 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 .btn-primary {
   background: var(--accent-grad);
-  color: white;
-  border-color: rgba(255,255,255,0.12);
+  color: var(--on-accent);
+  border-color: var(--on-accent-line);
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.18) inset,
+    0 1px 0 var(--on-accent-hi) inset,
     0 0 0 1px color-mix(in srgb, var(--accent-a) 25%, transparent),
     0 6px 24px color-mix(in srgb, var(--accent-a) 35%, transparent),
     0 0 48px color-mix(in srgb, var(--accent-b) 18%, transparent);
 }
 .btn-primary:hover {
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.22) inset,
+    0 1px 0 var(--on-accent-hi) inset,
     0 0 0 1px color-mix(in srgb, var(--accent-a) 40%, transparent),
     0 10px 36px color-mix(in srgb, var(--accent-a) 50%, transparent),
     0 0 64px color-mix(in srgb, var(--accent-b) 28%, transparent);
@@ -656,7 +689,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   outline: none;
 }
 .input::placeholder, .textarea::placeholder { color: var(--fg-dim); }
-.input:hover, .textarea:hover, .select:hover { border-color: rgba(255,255,255,0.18); }
+.input:hover, .textarea:hover, .select:hover { border-color: var(--line-hover); }
 .input:focus, .textarea:focus, .select:focus {
   border-color: var(--accent-line);
   background: var(--glass-2);
@@ -860,7 +893,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   content: '';
   width: 10px;
   height: 6px;
-  border: 2px solid white;
+  border: 2px solid var(--knob);
   border-top: 0;
   border-right: 0;
   transform: rotate(-45deg) translate(1px, -1px) scale(0);
@@ -902,7 +935,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   box-shadow: 0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent);
 }
 .toggle:checked::after {
-  background: white;
+  background: var(--knob);
   transform: translateX(16px);
 }
 
@@ -1192,7 +1225,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   height: 100vh;
   padding: 24px 18px;
   border-right: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)) ;
+  background: var(--sheen-grad-soft);
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
@@ -1385,9 +1418,9 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 14px;
-  color: white;
+  color: var(--on-accent);
   letter-spacing: -0.02em;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
+  box-shadow: 0 0 0 1px var(--on-accent-line) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -1395,7 +1428,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, var(--shimmer-strong) 50%, transparent 70%);
   animation: shimmer 4s ease-in-out infinite;
   z-index: 1;
   pointer-events: none;
@@ -1813,7 +1846,7 @@ code, .code-inline {
   color: var(--fg-muted);
   vertical-align: middle;
 }
-.tbl tr:hover td { background: rgba(255,255,255,0.02); color: var(--fg); }
+.tbl tr:hover td { background: var(--hover-wash); color: var(--fg); }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .name { color: var(--fg); font-weight: 500; }
 
@@ -2592,7 +2625,7 @@ td.tbl-td-editing select {
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    var(--sheen-grad),
     var(--bg-2);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -2778,7 +2811,7 @@ td.tbl-td-editing select {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: white;
+  color: var(--on-accent);
   flex: 0 0 28px;
   box-shadow: 0 0 0 2px var(--bg-0), 0 0 12px color-mix(in srgb, var(--accent-a) 40%, transparent);
   overflow: hidden;
@@ -2871,13 +2904,13 @@ td.tbl-td-editing select {
   padding-bottom: calc(var(--sp-4) + 2px); /* room for the progress bar */
   border-radius: var(--r-md);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    var(--sheen-grad),
     rgba(10, 10, 14, 0.78);
   border: 1px solid var(--line-strong);
   backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
   min-width: 280px;
   max-width: 100%;
@@ -2898,7 +2931,7 @@ td.tbl-td-editing select {
 .toast:hover {
   transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-lg);
 }
 
@@ -3067,7 +3100,7 @@ td.tbl-td-editing select {
   border-color: rgba(52, 211, 153, 0.28);
   box-shadow:
     inset 3px 0 0 var(--success),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
     0 0 32px rgba(52, 211, 153, 0.18);
 }
@@ -3084,7 +3117,7 @@ td.tbl-td-editing select {
   border-color: rgba(251, 191, 36, 0.28);
   box-shadow:
     inset 3px 0 0 var(--warning),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
     0 0 32px rgba(251, 191, 36, 0.18);
 }
@@ -3101,7 +3134,7 @@ td.tbl-td-editing select {
   border-color: rgba(248, 113, 113, 0.32);
   box-shadow:
     inset 3px 0 0 var(--danger),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
     0 0 36px rgba(248, 113, 113, 0.22);
 }
@@ -3118,7 +3151,7 @@ td.tbl-td-editing select {
   border-color: color-mix(in srgb, var(--info) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--info),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
     0 0 32px color-mix(in srgb, var(--info) 18%, transparent);
 }
@@ -3144,7 +3177,7 @@ td.tbl-td-editing select {
 .toast.ai-aura.toast-error,
 .toast.ai-aura.toast-info {
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
 }
 /* The host has overflow:hidden so the outer ai-aura ring/glow would be
@@ -3186,7 +3219,7 @@ td.tbl-td-editing select {
 /* Skeleton */
 .skel {
   display: block;
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+  background: linear-gradient(90deg, var(--glass-1) 0%, var(--glass-3) 50%, var(--glass-1) 100%);
   background-size: 200% 100%;
   animation: skel 1.4s ease-in-out infinite;
   border-radius: 6px;
@@ -4106,7 +4139,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, var(--shimmer) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: ai-indicator-shimmer 3.6s var(--ease-in-out) infinite;
   pointer-events: none;
@@ -4263,7 +4296,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 /* Sync the separator to the input's border states */
-.input-wrapper.has-stepper:hover .num-stepper        { border-left-color: rgba(255,255,255,0.18); }
+.input-wrapper.has-stepper:hover .num-stepper        { border-left-color: var(--line-hover); }
 .input-wrapper.has-stepper:focus-within .num-stepper { border-left-color: var(--accent-line); }
 
 .num-stepper {
@@ -4345,7 +4378,7 @@ input[type=number] { -moz-appearance: textfield; }
   width: 8px;
   height: 8px;
   border-radius: var(--r-pill);
-  background: white;
+  background: var(--knob);
   transform: scale(0);
   transition: transform var(--dur-med) var(--ease-spring);
 }
