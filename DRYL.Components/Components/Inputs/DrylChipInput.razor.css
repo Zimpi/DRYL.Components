@@ -17,7 +17,7 @@
 }
 
 .chip-input-inner:hover:not(.chip-input-inner--disabled) {
-    border-color: rgba(255, 255, 255, 0.18);
+    border-color: var(--line-hover);
 }
 
 .chip-input-inner:focus-within:not(.chip-input-inner--disabled) {

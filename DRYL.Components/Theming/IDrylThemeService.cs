@@ -25,4 +25,19 @@ public interface IDrylThemeService
     /// injections or race conditions.
     /// </remarks>
     event Func<Task>? OnThemeChanged;
+
+    /// <summary>The currently chosen color mode. Starts as <see cref="DrylColorMode.System"/>.</summary>
+    DrylColorMode CurrentMode { get; }
+
+    /// <summary>Switch the color mode and notify listeners. Animates if motion is allowed.</summary>
+    Task SetModeAsync(DrylColorMode mode);
+
+    /// <summary>Raised after <see cref="CurrentMode"/> changes.</summary>
+    /// <remarks>
+    /// Unlike <see cref="OnThemeChanged"/>, this event supports <strong>multiple
+    /// subscribers</strong>: the <c>DrylThemeProvider</c> applies the mode, and any
+    /// number of switch UIs (e.g. <c>DrylColorModeToggle</c>) subscribe to re-render.
+    /// All delegates are awaited sequentially.
+    /// </remarks>
+    event Func<Task>? OnModeChanged;
 }

@@ -1199,6 +1199,132 @@ window.dryl.theme = {
                 root.style.setProperty(pair.slice(0, i).trim(), pair.slice(i + 1).trim());
             }
         });
+    },
+    /* Explicit color-mode forcing. mode: 'light' | 'dark' | 'system'.
+       'system' removes the attribute so the prefers-color-scheme media
+       query in dryl.css takes over (live, no JS listener needed). */
+    applyMode(mode, persist) {
+        const root = document.documentElement;
+        try {
+            if (mode === 'light' || mode === 'dark') {
+                root.setAttribute('data-dryl-mode', mode);
+                if (persist) localStorage.setItem('dryl-color-mode', mode);
+            } else {
+                root.removeAttribute('data-dryl-mode');
+                if (persist) localStorage.removeItem('dryl-color-mode');
+            }
+        } catch { /* storage unavailable (private mode etc.) — attribute still applied */ }
+    },
+    /* The persisted explicit choice, or null when the user follows System. */
+    storedMode() {
+        try {
+            const m = localStorage.getItem('dryl-color-mode');
+            return (m === 'light' || m === 'dark') ? m : null;
+        } catch { return null; }
     }
 };
+
+/* --------------------------------------------------------------
+ * Tooltip — a single delegated, body-portaled bubble for every
+ * DrylTooltip ([data-tt] wrapper). position:fixed on <body> escapes
+ * any ancestor overflow/backdrop-filter clipping (glass cards, app
+ * bars); the preferred placement flips when the viewport has no
+ * room on that side. Purely decorative (aria-hidden) — triggers
+ * carry their own aria-label.
+ * -------------------------------------------------------------- */
+window.dryl.tooltip = (() => {
+    const GAP = 8, PAD = 4;
+    let bubble = null;
+    let current = null;
+
+    function ensureBubble() {
+        if (bubble && bubble.isConnected) return bubble;
+        bubble = document.createElement('div');
+        bubble.className = 'tt-portal';
+        bubble.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(bubble);
+        return bubble;
+    }
+
+    function place(wrap) {
+        if (!wrap.isConnected) return hide();
+        const b = ensureBubble();
+        b.textContent = wrap.getAttribute('data-tt') || '';
+        if (!b.textContent) return hide();
+
+        // Measure invisibly at the final size, then position and reveal.
+        b.classList.remove('is-open');
+        b.style.top = '0px'; b.style.left = '-9999px';
+        const tr = wrap.getBoundingClientRect();
+        const bw = b.offsetWidth, bh = b.offsetHeight;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        let placement = wrap.getAttribute('data-tt-placement') || 'top';
+
+        // Flip when the preferred side has no room.
+        if (placement === 'top'    && tr.top - bh - GAP < PAD)        placement = 'bottom';
+        else if (placement === 'bottom' && tr.bottom + bh + GAP > vh - PAD) placement = 'top';
+        else if (placement === 'left'   && tr.left - bw - GAP < PAD)        placement = 'right';
+        else if (placement === 'right'  && tr.right + bw + GAP > vw - PAD)  placement = 'left';
+
+        let top, left;
+        switch (placement) {
+            case 'bottom': top = tr.bottom + GAP;            left = tr.left + tr.width / 2 - bw / 2; break;
+            case 'left':   top = tr.top + tr.height / 2 - bh / 2; left = tr.left - bw - GAP;         break;
+            case 'right':  top = tr.top + tr.height / 2 - bh / 2; left = tr.right + GAP;             break;
+            default:       top = tr.top - bh - GAP;          left = tr.left + tr.width / 2 - bw / 2; break;
+        }
+        // Clamp into the viewport.
+        left = Math.max(PAD, Math.min(left, vw - bw - PAD));
+        top  = Math.max(PAD, Math.min(top, vh - bh - PAD));
+
+        b.style.top = top + 'px';
+        b.style.left = left + 'px';
+        b.classList.toggle('from-below', placement === 'bottom');
+        // Reveal on the next frame so the enter transition runs.
+        requestAnimationFrame(() => { if (current === wrap && wrap.isConnected) b.classList.add('is-open'); });
+    }
+
+    function show(wrap) {
+        if (current === wrap) return;
+        current = wrap;
+        place(wrap);
+    }
+
+    function hide() {
+        current = null;
+        if (bubble) bubble.classList.remove('is-open');
+    }
+
+    function wrapFrom(e) {
+        return e.target instanceof Element ? e.target.closest('[data-tt]') : null;
+    }
+
+    if (!window.__drylTooltipBound) {
+        window.__drylTooltipBound = true;
+        document.addEventListener('pointerover', e => {
+            const w = wrapFrom(e);
+            if (w) show(w); else if (current) hide();
+        }, true);
+        // Hide when the pointer leaves the current wrap — including the case
+        // where the trigger is removed from the DOM mid-hover (Blazor
+        // re-render): a detached node fires no pointerover, but pointerout
+        // does fire on the way out, and the isConnected guard in place()
+        // covers programmatic removal.
+        document.addEventListener('pointerout', e => {
+            if (!current) return;
+            const to = e.relatedTarget;
+            if (!(to instanceof Element) || to.closest('[data-tt]') !== current) hide();
+        }, true);
+        document.addEventListener('focusin', e => {
+            const w = wrapFrom(e);
+            if (w) show(w);
+        }, true);
+        document.addEventListener('focusout', () => hide(), true);
+        document.addEventListener('pointerdown', () => hide(), true);
+        window.addEventListener('scroll', () => hide(), true);
+        window.addEventListener('resize', () => hide());
+    }
+
+    return { hide };
+})();
 

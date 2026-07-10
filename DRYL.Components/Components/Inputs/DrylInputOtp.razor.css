@@ -49,7 +49,7 @@
 }
 
 .otp-box:hover:not(:disabled) {
-    border-color: rgba(255, 255, 255, 0.18);
+    border-color: var(--line-hover);
 }
 
 .otp-box:focus:not(:disabled) {

@@ -9,7 +9,7 @@ A dark, glassy, **AI-native** UI component library for **Blazor Server** and **B
 ## Why DRYL
 
 - **Token-driven** — every color, spacing, radius, shadow and duration is a CSS variable. No magic numbers.
-- **Dark only** — dark is the design, not a toggle.
+- **Light & dark** — one glass identity in two color modes; follows the system, switchable and persisted at runtime.
 - **Glass surfaces** — translucent layers with `backdrop-filter`, never solid blocks.
 - **AI-aware** — every interactive surface can opt into an `AiState` (`Active` / `Thinking` / `Streaming` / `Generated`), giving users one visual language for "where is the AI working".
 - **No JS frameworks** — zero npm packages on top of Blazor; just CSS, Razor and minimal interop.

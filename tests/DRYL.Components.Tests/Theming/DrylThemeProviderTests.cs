@@ -45,4 +45,33 @@ public class DrylThemeProviderTests : BunitContext
         var style = cut.Find("style");
         Assert.Contains("--accent-a:#34d399;", style.TextContent);
     }
+
+    [Fact]
+    public void Renders_prepaint_mode_restore_script()
+    {
+        var cut = Render<DrylThemeProvider>();
+
+        Assert.Contains("dryl-color-mode", cut.Markup);          // localStorage key
+        Assert.Contains("data-dryl-mode", cut.Markup);           // attribute contract
+    }
+
+    [Fact]
+    public void Mode_parameter_is_baked_into_the_restore_script()
+    {
+        var cut = Render<DrylThemeProvider>(ps => ps.Add(p => p.Mode, DrylColorMode.Light));
+
+        Assert.Contains("var p='light'", cut.Markup);
+    }
+
+    [Fact]
+    public async Task Runtime_mode_change_invokes_applyMode_with_persist()
+    {
+        var svc = Services.GetRequiredService<IDrylThemeService>();
+        var cut = Render<DrylThemeProvider>();
+        var invocation = JSInterop.SetupVoid("dryl.theme.applyMode", "dark", true).SetVoidResult();
+
+        await cut.InvokeAsync(() => svc.SetModeAsync(DrylColorMode.Dark));
+
+        invocation.VerifyInvoke("dryl.theme.applyMode");
+    }
 }

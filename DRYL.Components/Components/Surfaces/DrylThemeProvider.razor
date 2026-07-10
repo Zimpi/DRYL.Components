@@ -20,6 +20,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <style>@($":root {{ {_vars} }}")</style>
+@((MarkupString)_modeScript)
 
 @code {
     /// <summary>
@@ -29,12 +30,22 @@
     /// </summary>
     [Parameter] public DrylTheme? Theme { get; set; }
 
+    /// <summary>
+    /// The color mode to start in. Defaults to <see cref="DrylColorMode.System"/>
+    /// (follow the OS). A persisted explicit user choice — made earlier via
+    /// <see cref="IDrylThemeService.SetModeAsync"/> — wins over this parameter.
+    /// </summary>
+    [Parameter] public DrylColorMode Mode { get; set; } = DrylColorMode.System;
+
     private string _vars = "";
+    private string _modeScript = "";
     private bool _attached;
+    private bool _persist = true;
 
     protected override async Task OnInitializedAsync()
     {
         ThemeService.OnThemeChanged += HandleChangedAsync;
+        ThemeService.OnModeChanged += HandleModeChangedAsync;
 
         if (Theme is not null && !ReferenceEquals(Theme, ThemeService.Current))
         {
@@ -44,6 +55,16 @@
         }
 
         _vars = ThemeService.Current.ToCssVariables();
+
+        // Pre-paint restore script: runs during HTML parsing, before first paint,
+        // so a persisted explicit choice (or this Mode fallback) never flashes.
+        // Kept in sync with dryl.theme.applyMode/storedMode in dryl.js.
+        var p = Mode switch { DrylColorMode.Light => "light", DrylColorMode.Dark => "dark", _ => "" };
+        _modeScript =
+            "<script>(function(){try{var p='" + p + "';" +
+            "var m=localStorage.getItem('dryl-color-mode');" +
+            "m=(m==='light'||m==='dark')?m:p;" +
+            "if(m){document.documentElement.setAttribute('data-dryl-mode',m);}}catch(e){}})();</script>";
     }
 
     private async Task HandleChangedAsync()
@@ -58,12 +79,54 @@
         }
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    private async Task HandleModeChangedAsync()
     {
-        // After the first render the inline <style> has painted; subsequent
-        // changes go through JS so the @property transition can interpolate.
-        if (firstRender) _attached = true;
+        await InvokeAsync(StateHasChanged);
+
+        if (_attached)
+        {
+            var mode = ThemeService.CurrentMode switch
+            {
+                DrylColorMode.Light => "light",
+                DrylColorMode.Dark => "dark",
+                _ => "system",
+            };
+            try { await JS.InvokeVoidAsync("dryl.theme.applyMode", mode, _persist); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
     }
 
-    public void Dispose() => ThemeService.OnThemeChanged -= HandleChangedAsync;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // After the first render the inline <style>/pre-paint script have painted;
+        // subsequent changes go through JS so the @property transition can interpolate.
+        if (!firstRender) return;
+        _attached = true;
+
+        // Sync the C# CurrentMode with whatever the pre-paint script actually
+        // applied (a persisted localStorage choice takes precedence over the
+        // Mode parameter — see the script built in OnInitializedAsync).
+        string? stored = null;
+        try { stored = await JS.InvokeAsync<string?>("dryl.theme.storedMode"); }
+        catch (JSDisconnectedException) { return; }
+
+        var startup = stored switch
+        {
+            "light" => DrylColorMode.Light,
+            "dark" => DrylColorMode.Dark,
+            _ => Mode,
+        };
+        if (startup != ThemeService.CurrentMode)
+        {
+            _persist = false; // startup sync is not a user choice — don't touch localStorage
+            try { await ThemeService.SetModeAsync(startup); }
+            finally { _persist = true; }
+        }
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= HandleChangedAsync;
+        ThemeService.OnModeChanged -= HandleModeChangedAsync;
+    }
 }

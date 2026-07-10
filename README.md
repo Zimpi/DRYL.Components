@@ -30,7 +30,7 @@
 Most Blazor component libraries are ports of Bootstrap or Material — safe, neutral, indistinguishable. DRYL starts from a different premise: **your app has a language model in it**, and AI is a first-class state of the UI, not a spinner you bolt on at the end.
 
 - **AI-native.** Every AI-capable surface accepts a single `Ai` parameter that drives a shared visual vocabulary — rotating gradient border, streaming glow, one-shot reveal — across the whole library.
-- **Dark only.** Translucent glass layers stacked on pure black. No light theme, no toggle — dark *is* the design.
+- **Light & dark, one identity.** Translucent glass layers on a deep-dark or luminous-light ground — following the user's system by default, switchable and persisted at runtime.
 - **Accents glow, never scream.** A violet-to-cyan gradient lives in 1px borders, glow rings and tiny indicators — never as a background fill.
 - **Motion is intentional.** Three durations, three easings, system-wide. Nothing flickers, nothing crawls. Every component animates its enter, exit and state changes.
 - **One token file.** Every color, spacing, radius, shadow and duration is a CSS variable in [`dryl.css`](DRYL.Components/wwwroot/dryl.css).

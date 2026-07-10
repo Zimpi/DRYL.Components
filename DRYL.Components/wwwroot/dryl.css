@@ -20,6 +20,24 @@
 @property --chart-5 { syntax: "<color>"; inherits: true; initial-value: #d6428e; }
 @property --chart-6 { syntax: "<color>"; inherits: true; initial-value: #5583e3; }
 
+/* Neutral tokens are registered so a color-mode switch glides exactly like
+   an accent-theme switch. Initial values mirror the built-in dark set. */
+@property --ground   { syntax: "<color>"; inherits: true; initial-value: #000000; }
+@property --bg-0     { syntax: "<color>"; inherits: true; initial-value: #000000; }
+@property --bg-1     { syntax: "<color>"; inherits: true; initial-value: #07070a; }
+@property --bg-2     { syntax: "<color>"; inherits: true; initial-value: #0c0c12; }
+@property --bg-3     { syntax: "<color>"; inherits: true; initial-value: #14141c; }
+@property --line        { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.06); }
+@property --line-strong { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.12); }
+@property --line-soft   { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.04); }
+@property --glass-1  { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.03); }
+@property --glass-2  { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.05); }
+@property --glass-3  { syntax: "<color>"; inherits: true; initial-value: rgba(255,255,255,0.08); }
+@property --fg       { syntax: "<color>"; inherits: true; initial-value: #f4f4f7; }
+@property --fg-muted { syntax: "<color>"; inherits: true; initial-value: rgba(244,244,247,0.62); }
+@property --fg-dim   { syntax: "<color>"; inherits: true; initial-value: rgba(244,244,247,0.38); }
+@property --fg-faint { syntax: "<color>"; inherits: true; initial-value: rgba(244,244,247,0.22); }
+
 :root {
   /* Tell the browser this surface is dark — applies to native UA controls (<select> dropdowns, scrollbars, form autofill) so they don't ship light-mode defaults onto our glass. */
   color-scheme: dark;
@@ -111,6 +129,10 @@
   --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 18%, transparent),
                  0 0 120px color-mix(in srgb, var(--accent-b) 8%, transparent);
 
+  /* Background texture opacity (tokenized so light mode can dial it down) */
+  --grain-opacity: 0.4;
+  --aurora-opacity: 0.85;
+
   /* Motion */
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
@@ -132,6 +154,66 @@
   --appbar-h:            60px;
   --sidebar-w:          260px;
   --sidebar-collapsed-w: 56px;
+
+  /* Mode-dependent effect tokens — white highlights, sheens, shimmer sweeps
+     and hover washes used across glass surfaces. Light-mode overrides live in
+     both LIGHT-TOKEN-SET copies below; --on-accent* and --knob stay fixed
+     because the accent-gradient fill they sit on doesn't change with mode. */
+  --edge-hi:         rgba(255, 255, 255, 0.06);
+  --edge-hi-strong:  rgba(255, 255, 255, 0.18);
+  --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  --shimmer:         rgba(255, 255, 255, 0.22);
+  --shimmer-strong:  rgba(255, 255, 255, 0.4);
+  --hover-wash:      rgba(255, 255, 255, 0.02);
+  --line-hover:      rgba(255, 255, 255, 0.18);
+  --on-accent:       #ffffff;
+  --on-accent-line:  rgba(255, 255, 255, 0.12);
+  --on-accent-hi:    rgba(255, 255, 255, 0.2);
+  --knob:            #ffffff;
+  --backdrop:             rgba(0, 0, 0, 0.6);
+  --backdrop-soft:        rgba(0, 0, 0, 0.4);
+  --bar-bg:               rgba(0, 0, 0, 0.4);       /* DrylAppBar (flat) surface — themeable independently of the modal scrim */
+  --press-wash:           rgba(0, 0, 0, 0.25);
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.08);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.16);
+  --code-bg:         rgba(0, 0, 0, 0.55);
+  --code-fg:         #f4f4f7;
+
+  /* Semantic-derived text/edge tokens (Task 7 literal sweep).
+     --accent-fg / --danger-fg are the accent/danger-tinted TEXT colors used on
+     glass (badges, code, AI indicator, danger menu items) — lighter than the
+     solid --accent/--danger fills so they read on translucent surfaces.
+     --*-hi are the bright gradient-endpoint tints used on toast progress bars.
+     Their dark values are exact literals (the four originals don't sit on the
+     seed-to-white mix line, so a color-mix here would shift dark rendering);
+     the LIGHT-TOKEN-SET copies override them with seed color-mixes so light
+     mode adapts to the semantic seeds. Do NOT remove those light overrides. */
+  --accent-fg:  #d6cbff;
+  --danger-fg:  #fca5a5;
+  --success-hi: #6ee7b7;
+  --warning-hi: #fcd34d;
+  --danger-hi:  #fca5a5;
+  --info-hi:    #67e8f9;
+
+  /* DepthGlass edge/shadow tokens — the white inset highlights and black drop
+     shadow used by .dg-* (DrylDepthGlass / DrylCard Depth). --depth-edge is
+     the ~0.18 reference edge; --depth-edge-strong is the brightest inset
+     (task-added, same pattern as the pair above — see task-7 report). */
+  --depth-edge:        rgba(255, 255, 255, 0.18);
+  --depth-edge-strong: rgba(255, 255, 255, 0.55);
+  --depth-shadow:      rgba(0, 0, 0, 0.42);
+  --accent-ico:        #c4b5fd;
+
+  /* Semi-opaque panel surfaces — the near-solid dark planes cards, toasts,
+     dialogs, tooltips and sticky headers sit on. Mode-dependent: the light
+     set swaps them for near-solid light planes. */
+  --panel-tint:        rgba(10, 10, 14, 0.4);
+  --panel-soft:        rgba(10, 10, 14, 0.78);
+  --panel-solid:       rgba(20, 20, 28, 0.95);
+  --panel-sticky:      rgba(7, 7, 10, 0.92);
+  --panel-grad:        linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
+  --panel-grad-strong: linear-gradient(180deg, rgba(20, 20, 28, 0.97), rgba(10, 10, 14, 0.97));
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -146,8 +228,172 @@
                 --chart-3 var(--dur-slow) var(--ease-in-out),
                 --chart-4 var(--dur-slow) var(--ease-in-out),
                 --chart-5 var(--dur-slow) var(--ease-in-out),
-                --chart-6 var(--dur-slow) var(--ease-in-out);
+                --chart-6 var(--dur-slow) var(--ease-in-out),
+                --ground var(--dur-slow) var(--ease-in-out),
+                --bg-0 var(--dur-slow) var(--ease-in-out),
+                --bg-1 var(--dur-slow) var(--ease-in-out),
+                --bg-2 var(--dur-slow) var(--ease-in-out),
+                --bg-3 var(--dur-slow) var(--ease-in-out),
+                --line var(--dur-slow) var(--ease-in-out),
+                --line-strong var(--dur-slow) var(--ease-in-out),
+                --line-soft var(--dur-slow) var(--ease-in-out),
+                --glass-1 var(--dur-slow) var(--ease-in-out),
+                --glass-2 var(--dur-slow) var(--ease-in-out),
+                --glass-3 var(--dur-slow) var(--ease-in-out),
+                --fg var(--dur-slow) var(--ease-in-out),
+                --fg-muted var(--dur-slow) var(--ease-in-out),
+                --fg-dim var(--dur-slow) var(--ease-in-out),
+                --fg-faint var(--dur-slow) var(--ease-in-out);
   }
+}
+
+/* =============================================================
+   LIGHT MODE — token overrides ("Aurora Light").
+   ⚠ THE BLOCK BELOW EXISTS TWICE (system media query + explicit
+   attribute). Keep both copies IDENTICAL — checked by
+   scripts/check-light-sync.mjs.
+   ============================================================= */
+@media (prefers-color-scheme: light) {
+  :root:not([data-dryl-mode="dark"]) {
+    /* LIGHT-TOKEN-SET — copy 1/2 */
+    color-scheme: light;
+    --ground:        #f2f2f9;
+    --bg-0:          #f2f2f9;
+    --bg-1:          #f5f5fa;
+    --bg-2:          #f8f8fc;
+    --bg-3:          #fbfbfe;
+    --line:          rgba(18, 22, 40, 0.08);
+    --line-strong:   rgba(18, 22, 40, 0.14);
+    --line-soft:     rgba(18, 22, 40, 0.05);
+    --glass-1:       rgba(255, 255, 255, 0.55);
+    --glass-2:       rgba(255, 255, 255, 0.62);
+    --glass-3:       rgba(255, 255, 255, 0.72);
+    --fg:            #15151c;
+    --fg-muted:      rgba(21, 21, 28, 0.62);
+    --fg-dim:        rgba(21, 21, 28, 0.38);
+    --fg-faint:      rgba(21, 21, 28, 0.22);
+    --success:       #0e8a4d;
+    --warning:       #b45309;
+    --danger:        #dc2626;
+    --info:          #0e7490;
+    --chart-1:       oklch(from var(--accent-a) 0.52 clamp(0.1, c, 0.17) h);
+    --chart-2:       oklch(from var(--accent-b) 0.52 clamp(0.1, c, 0.17) h);
+    --chart-3:       #96610e;
+    --chart-4:       #1d7f46;
+    --chart-5:       #b0316f;
+    --chart-6:       #3a63c4;
+    --shadow-sm:  0 1px 2px rgba(28, 24, 70, 0.08);
+    --shadow-md:  0 8px 24px rgba(28, 24, 70, 0.10), 0 2px 6px rgba(28, 24, 70, 0.06);
+    --shadow-lg:  0 24px 64px rgba(28, 24, 70, 0.15), 0 8px 16px rgba(28, 24, 70, 0.08);
+    --glow-accent: 0 0 0 1px var(--accent-line),
+                   0 8px 32px color-mix(in srgb, var(--accent-a) 22%, transparent),
+                   0 0 64px color-mix(in srgb, var(--accent-b) 12%, transparent);
+    --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                   0 0 120px color-mix(in srgb, var(--accent-b) 6%, transparent);
+    --grain-opacity: 0.25;
+    --aurora-opacity: 0.5;
+    --edge-hi:         rgba(255, 255, 255, 0.85);
+    --edge-hi-strong:  rgba(255, 255, 255, 0.95);
+    --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+    --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+    --shimmer:         rgba(255, 255, 255, 0.8);
+    --shimmer-strong:  rgba(255, 255, 255, 0.95);
+    --hover-wash:      rgba(18, 22, 40, 0.03);
+    --line-hover:      rgba(18, 22, 40, 0.24);
+    --backdrop:             rgba(26, 28, 48, 0.35);
+    --backdrop-soft:        rgba(26, 28, 48, 0.22);
+    --bar-bg:               rgba(252, 252, 255, 0.72);
+    --press-wash:           rgba(18, 22, 40, 0.08);
+    --scrollbar-thumb:       rgba(18, 22, 40, 0.18);
+    --scrollbar-thumb-hover: rgba(18, 22, 40, 0.3);
+    --code-bg:         #14141d;
+    --accent-fg:  color-mix(in srgb, var(--accent-a) 72%, #10102a);
+    --danger-fg:  #b91c1c;
+    --depth-edge:        rgba(255, 255, 255, 0.9);
+    --depth-edge-strong: rgba(255, 255, 255, 0.95);
+    --depth-shadow:      rgba(28, 24, 70, 0.16);
+    --success-hi: color-mix(in srgb, var(--success) 69%, white);
+    --warning-hi: color-mix(in srgb, var(--warning) 78%, white);
+    --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
+    --info-hi:    color-mix(in srgb, var(--info) 66%, white);
+    --accent-ico: color-mix(in srgb, var(--accent-a) 78%, #10102a);
+    --panel-tint:        rgba(255, 255, 255, 0.4);
+    --panel-soft:        rgba(255, 255, 255, 0.78);
+    --panel-solid:       rgba(252, 252, 255, 0.95);
+    --panel-sticky:      rgba(245, 245, 250, 0.92);
+    --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.95), rgba(243, 243, 250, 0.95));
+    --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.97), rgba(243, 243, 250, 0.97));
+  }
+}
+:root[data-dryl-mode="light"] {
+  /* LIGHT-TOKEN-SET — copy 2/2 */
+  color-scheme: light;
+  --ground:        #f2f2f9;
+  --bg-0:          #f2f2f9;
+  --bg-1:          #f5f5fa;
+  --bg-2:          #f8f8fc;
+  --bg-3:          #fbfbfe;
+  --line:          rgba(18, 22, 40, 0.08);
+  --line-strong:   rgba(18, 22, 40, 0.14);
+  --line-soft:     rgba(18, 22, 40, 0.05);
+  --glass-1:       rgba(255, 255, 255, 0.55);
+  --glass-2:       rgba(255, 255, 255, 0.62);
+  --glass-3:       rgba(255, 255, 255, 0.72);
+  --fg:            #15151c;
+  --fg-muted:      rgba(21, 21, 28, 0.62);
+  --fg-dim:        rgba(21, 21, 28, 0.38);
+  --fg-faint:      rgba(21, 21, 28, 0.22);
+  --success:       #0e8a4d;
+  --warning:       #b45309;
+  --danger:        #dc2626;
+  --info:          #0e7490;
+  --chart-1:       oklch(from var(--accent-a) 0.52 clamp(0.1, c, 0.17) h);
+  --chart-2:       oklch(from var(--accent-b) 0.52 clamp(0.1, c, 0.17) h);
+  --chart-3:       #96610e;
+  --chart-4:       #1d7f46;
+  --chart-5:       #b0316f;
+  --chart-6:       #3a63c4;
+  --shadow-sm:  0 1px 2px rgba(28, 24, 70, 0.08);
+  --shadow-md:  0 8px 24px rgba(28, 24, 70, 0.10), 0 2px 6px rgba(28, 24, 70, 0.06);
+  --shadow-lg:  0 24px 64px rgba(28, 24, 70, 0.15), 0 8px 16px rgba(28, 24, 70, 0.08);
+  --glow-accent: 0 0 0 1px var(--accent-line),
+                 0 8px 32px color-mix(in srgb, var(--accent-a) 22%, transparent),
+                 0 0 64px color-mix(in srgb, var(--accent-b) 12%, transparent);
+  --glow-soft:   0 0 60px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                 0 0 120px color-mix(in srgb, var(--accent-b) 6%, transparent);
+  --grain-opacity: 0.25;
+  --aurora-opacity: 0.5;
+  --edge-hi:         rgba(255, 255, 255, 0.85);
+  --edge-hi-strong:  rgba(255, 255, 255, 0.95);
+  --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
+  --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
+  --shimmer:         rgba(255, 255, 255, 0.8);
+  --shimmer-strong:  rgba(255, 255, 255, 0.95);
+  --hover-wash:      rgba(18, 22, 40, 0.03);
+  --line-hover:      rgba(18, 22, 40, 0.24);
+  --backdrop:             rgba(26, 28, 48, 0.35);
+  --backdrop-soft:        rgba(26, 28, 48, 0.22);
+  --bar-bg:               rgba(252, 252, 255, 0.72);
+  --press-wash:           rgba(18, 22, 40, 0.08);
+  --scrollbar-thumb:       rgba(18, 22, 40, 0.18);
+  --scrollbar-thumb-hover: rgba(18, 22, 40, 0.3);
+  --code-bg:         #14141d;
+  --accent-fg:  color-mix(in srgb, var(--accent-a) 72%, #10102a);
+  --danger-fg:  #b91c1c;
+  --depth-edge:        rgba(255, 255, 255, 0.9);
+  --depth-edge-strong: rgba(255, 255, 255, 0.95);
+  --depth-shadow:      rgba(28, 24, 70, 0.16);
+  --success-hi: color-mix(in srgb, var(--success) 69%, white);
+  --warning-hi: color-mix(in srgb, var(--warning) 78%, white);
+  --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
+  --info-hi:    color-mix(in srgb, var(--info) 66%, white);
+  --accent-ico: color-mix(in srgb, var(--accent-a) 78%, #10102a);
+  --panel-tint:        rgba(255, 255, 255, 0.4);
+  --panel-soft:        rgba(255, 255, 255, 0.78);
+  --panel-solid:       rgba(252, 252, 255, 0.95);
+  --panel-sticky:      rgba(245, 245, 250, 0.92);
+  --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.95), rgba(243, 243, 250, 0.95));
+  --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.97), rgba(243, 243, 250, 0.97));
 }
 
 * { box-sizing: border-box; }
@@ -183,7 +429,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: var(--grain-opacity, 0.4);
+  opacity: var(--grain-opacity);
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
@@ -196,7 +442,7 @@ body::before {
   pointer-events: none;
   overflow: hidden;
   filter: blur(70px) saturate(140%);
-  opacity: 0.85;
+  opacity: var(--aurora-opacity);
 }
 .aurora::before,
 .aurora::after,
@@ -290,14 +536,14 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .glass-card {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
-    rgba(10, 10, 14, 0.4);
+    var(--sheen-grad),
+    var(--panel-tint);
   border: 1px solid var(--line);
   backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
   border-radius: var(--r-lg);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
   transition: transform var(--dur-med) var(--ease-out),
               border-color var(--dur-med) var(--ease-out),
@@ -366,7 +612,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   background: linear-gradient(
     105deg,
     transparent 38%,
-    rgba(255, 255, 255, 0.22) 50%,
+    var(--shimmer) 50%,
     transparent 62%
   );
   background-size: 250% 100%;
@@ -394,17 +640,17 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 .btn-primary {
   background: var(--accent-grad);
-  color: white;
-  border-color: rgba(255,255,255,0.12);
+  color: var(--on-accent);
+  border-color: var(--on-accent-line);
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.18) inset,
+    0 1px 0 var(--on-accent-hi) inset,
     0 0 0 1px color-mix(in srgb, var(--accent-a) 25%, transparent),
     0 6px 24px color-mix(in srgb, var(--accent-a) 35%, transparent),
     0 0 48px color-mix(in srgb, var(--accent-b) 18%, transparent);
 }
 .btn-primary:hover {
   box-shadow:
-    0 1px 0 rgba(255,255,255,0.22) inset,
+    0 1px 0 var(--on-accent-hi) inset,
     0 0 0 1px color-mix(in srgb, var(--accent-a) 40%, transparent),
     0 10px 36px color-mix(in srgb, var(--accent-a) 50%, transparent),
     0 0 64px color-mix(in srgb, var(--accent-b) 28%, transparent);
@@ -432,13 +678,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 .btn-danger {
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.3);
-  color: #fca5a5;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  color: var(--danger-fg);
 }
 .btn-danger:hover {
-  background: rgba(248, 113, 113, 0.2);
-  box-shadow: 0 0 24px rgba(248, 113, 113, 0.25);
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--danger) 25%, transparent);
 }
 
 .btn-icon {
@@ -514,6 +760,70 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .split-btn > .popover-anchor .btn:hover,
 .split-btn > .popover-anchor .btn:focus-visible { z-index: 1; }
 
+/* ---- Color-mode toggle ---------------------------------------- */
+.color-mode-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--glass-1);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.color-mode-toggle:hover { border-color: var(--line-hover); color: var(--fg); box-shadow: var(--shadow-sm); }
+.color-mode-toggle .cmt-core,
+.color-mode-toggle .cmt-rays,
+.color-mode-toggle .cmt-moon {
+  transform-origin: 12px 12px;
+  transition: opacity var(--dur-med) var(--ease-out),
+              transform var(--dur-med) var(--ease-spring);
+}
+/* chosen: light → sun */
+.color-mode-toggle.is-light .cmt-moon { opacity: 0; transform: rotate(-40deg) scale(0.6); }
+.color-mode-toggle.is-light .cmt-core,
+.color-mode-toggle.is-light .cmt-rays { opacity: 1; transform: none; }
+/* chosen: dark → moon */
+.color-mode-toggle.is-dark .cmt-moon { opacity: 1; transform: none; }
+.color-mode-toggle.is-dark .cmt-core,
+.color-mode-toggle.is-dark .cmt-rays { opacity: 0; transform: rotate(40deg) scale(0.5); }
+/* chosen: system → moon base + auto badge */
+.color-mode-toggle.is-system .cmt-moon { opacity: 1; transform: none; }
+.color-mode-toggle.is-system .cmt-core,
+.color-mode-toggle.is-system .cmt-rays { opacity: 0; transform: rotate(40deg) scale(0.5); }
+.color-mode-toggle .cmt-auto {
+  position: absolute; right: -3px; bottom: -3px;
+  font-size: 8px; font-weight: 700; line-height: 1;
+  padding: 2px 3px; border-radius: var(--r-xs);
+  background: var(--accent-grad); color: var(--on-accent);
+  opacity: 0; transform: scale(0.5);
+  transition: opacity var(--dur-med) var(--ease-out),
+              transform var(--dur-med) var(--ease-spring);
+}
+.color-mode-toggle.is-system .cmt-auto { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .color-mode-toggle .cmt-core, .color-mode-toggle .cmt-rays,
+  .color-mode-toggle .cmt-moon, .color-mode-toggle .cmt-auto { transition: none; }
+}
+
+/* ---- Screen-reader-only utility --------------------------------
+   Visually hidden but still reachable by assistive tech; layout-only,
+   no color tokens needed. */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ============== INPUTS ============== */
 .input,
 .textarea,
@@ -532,7 +842,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   outline: none;
 }
 .input::placeholder, .textarea::placeholder { color: var(--fg-dim); }
-.input:hover, .textarea:hover, .select:hover { border-color: rgba(255,255,255,0.18); }
+.input:hover, .textarea:hover, .select:hover { border-color: var(--line-hover); }
 .input:focus, .textarea:focus, .select:focus {
   border-color: var(--accent-line);
   background: var(--glass-2);
@@ -681,23 +991,23 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 .input.input-error,
 .textarea.input-error,
-.select.input-error { border-color: rgba(248, 113, 113, 0.5); }
+.select.input-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
 .input.input-error:focus,
 .textarea.input-error:focus,
 .select.input-error:focus {
   border-color: var(--danger);
   background: var(--glass-2);
-  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12), 0 0 24px rgba(248, 113, 113, 0.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 12%, transparent), 0 0 24px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 .input.input-success,
 .textarea.input-success,
-.select.input-success { border-color: rgba(52, 211, 153, 0.5); }
+.select.input-success { border-color: color-mix(in srgb, var(--success) 50%, transparent); }
 .input.input-success:focus,
 .textarea.input-success:focus,
 .select.input-success:focus {
   border-color: var(--success);
   background: var(--glass-2);
-  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12), 0 0 24px rgba(52, 211, 153, 0.18);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 12%, transparent), 0 0 24px color-mix(in srgb, var(--success) 18%, transparent);
 }
 
 .input:disabled, .textarea:disabled {
@@ -736,7 +1046,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   content: '';
   width: 10px;
   height: 6px;
-  border: 2px solid white;
+  border: 2px solid var(--knob);
   border-top: 0;
   border-right: 0;
   transform: rotate(-45deg) translate(1px, -1px) scale(0);
@@ -778,7 +1088,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   box-shadow: 0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent);
 }
 .toggle:checked::after {
-  background: white;
+  background: var(--knob);
   transform: translateX(16px);
 }
 
@@ -799,13 +1109,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   color: var(--fg-muted);
 }
 .badge-accent {
-  color: #d6cbff;
+  color: var(--accent-fg);
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
-.badge-success { color: var(--success); border-color: rgba(52, 211, 153, 0.3); background: rgba(52,211,153,0.1); }
-.badge-warning { color: var(--warning); border-color: rgba(251, 191, 36, 0.3); background: rgba(251,191,36,0.1); }
-.badge-danger  { color: var(--danger);  border-color: rgba(248, 113, 113, 0.3); background: rgba(248,113,113,0.1); }
+.badge-success { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.badge-warning { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.badge-danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .badge-dot::before {
   content: '';
   width: 6px;
@@ -944,10 +1254,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .dg-warp:hover {
   --dg-lift: -4px;
   box-shadow:
-    0 22px 50px rgba(0, 0, 0, 0.42),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
-    inset -1px -1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 0 26px rgba(255, 255, 255, 0.07);
+    0 22px 50px var(--depth-shadow),
+    inset 1px 1px 0 var(--depth-edge-strong),
+    inset -1px -1px 0 color-mix(in srgb, var(--depth-edge) 78%, transparent),
+    inset 0 0 26px color-mix(in srgb, var(--depth-edge) 39%, transparent);
 }
 
 .dg--subtle { --dg-tilt: 4deg;  --dg-par: 6px;  }
@@ -957,15 +1267,15 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 /* Standalone surface look (DrylDepthGlass). */
 .dg-surface {
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-1);
   backdrop-filter: blur(8px) saturate(1.5);
   -webkit-backdrop-filter: blur(8px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--depth-edge);
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.32),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.5),
-    inset -1px -1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 0 20px rgba(255, 255, 255, 0.05);
+    0 12px 36px color-mix(in srgb, var(--depth-shadow) 76%, transparent),
+    inset 1px 1px 0 color-mix(in srgb, var(--depth-edge-strong) 91%, transparent),
+    inset -1px -1px 0 color-mix(in srgb, var(--depth-edge) 67%, transparent),
+    inset 0 0 20px color-mix(in srgb, var(--depth-edge) 28%, transparent);
 }
 .dg-surface > .dg-content { padding: var(--sp-5); color: var(--fg); }
 
@@ -981,7 +1291,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    glass as it warps (depth cue). */
 .dg-sheen {
   z-index: 1;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.24), transparent 45%);
+  background: linear-gradient(155deg, color-mix(in srgb, var(--depth-edge-strong) 44%, transparent), transparent 45%);
   mix-blend-mode: screen;
   opacity: 0.7;
   transform: translate(
@@ -995,7 +1305,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   z-index: 2;
   background: radial-gradient(
     220px 220px at var(--mx, 50%) var(--my, 0%),
-    rgba(255, 255, 255, 0.40), transparent 60%);
+    color-mix(in srgb, var(--depth-edge-strong) 73%, transparent), transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.6;
 }
@@ -1021,12 +1331,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 /* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
+  background: var(--scrollbar-thumb);
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); background-clip: padding-box; border: 2px solid transparent; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); background-clip: padding-box; border: 2px solid transparent; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* Focus ring for keyboard users.
@@ -1068,7 +1378,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   height: 100vh;
   padding: 24px 18px;
   border-right: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)) ;
+  background: var(--sheen-grad-soft);
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
@@ -1165,7 +1475,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--backdrop);
   backdrop-filter: blur(4px);
   z-index: 40;
   opacity: 0;
@@ -1261,9 +1571,9 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 14px;
-  color: white;
+  color: var(--on-accent);
   letter-spacing: -0.02em;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.1) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--on-accent) 10%, transparent) inset, 0 8px 24px color-mix(in srgb, var(--accent-a) 40%, transparent), 0 0 32px color-mix(in srgb, var(--accent-b) 20%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -1271,7 +1581,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, var(--shimmer-strong) 50%, transparent 70%);
   animation: shimmer 4s ease-in-out infinite;
   z-index: 1;
   pointer-events: none;
@@ -1494,7 +1804,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   gap: 16px;
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
-  background: rgba(0,0,0,0.4);
+  background: var(--bar-bg);
   backdrop-filter: blur(20px);
   position: sticky;
   top: 0;
@@ -1554,6 +1864,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .main {
   padding: 40px 48px 80px;
   max-width: 1400px;
+  /* Center the capped column inside its grid track — otherwise wide
+     viewports pile all the leftover space onto the right edge. */
+  margin-inline: auto;
+  width: 100%;
   /* The only scroll region inside the app shell: the sidebar and top bar are
      fixed, page content scrolls here. min-height:0 lets this grid row shrink
      below its content so overflow-y can actually take effect. */
@@ -1578,19 +1892,19 @@ code, .code-inline {
   border-radius: 5px;
   background: var(--glass-2);
   border: 1px solid var(--line);
-  color: #d6cbff;
+  color: var(--accent-fg);
 }
 
 .code-block {
   position: relative;
   border-radius: var(--r-md);
-  background: rgba(0,0,0,0.55);
+  background: var(--code-bg);
   border: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;
   padding: 16px 18px;
-  color: var(--fg-muted);
+  color: var(--code-fg);
   overflow: auto;
   box-shadow: inset 0 0 60px color-mix(in srgb, var(--accent-a) 5%, transparent);
 }
@@ -1689,7 +2003,7 @@ code, .code-inline {
   color: var(--fg-muted);
   vertical-align: middle;
 }
-.tbl tr:hover td { background: rgba(255,255,255,0.02); color: var(--fg); }
+.tbl tr:hover td { background: var(--hover-wash); color: var(--fg); }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .name { color: var(--fg); font-weight: 500; }
 
@@ -1703,7 +2017,7 @@ code, .code-inline {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgba(7, 7, 10, 0.92);
+  background: var(--panel-sticky);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
@@ -2103,7 +2417,7 @@ code, .code-inline {
   justify-content: center;
   transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.tbl-filter-chip-close:hover { color: var(--fg); background: rgba(0,0,0,0.25); }
+.tbl-filter-chip-close:hover { color: var(--fg); background: var(--press-wash); }
 
 /* ============== TABLE FOOTER + PAGINATION (Phase 2) ============== */
 
@@ -2468,7 +2782,7 @@ td.tbl-td-editing select {
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    var(--sheen-grad),
     var(--bg-2);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
@@ -2654,7 +2968,7 @@ td.tbl-td-editing select {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: white;
+  color: var(--on-accent);
   flex: 0 0 28px;
   box-shadow: 0 0 0 2px var(--bg-0), 0 0 12px color-mix(in srgb, var(--accent-a) 40%, transparent);
   overflow: hidden;
@@ -2695,9 +3009,9 @@ td.tbl-td-editing select {
 }
 .avatar-wrap--sm .avatar-status { width: 7px; height: 7px; }
 .avatar-wrap--lg .avatar-status { width: 12px; height: 12px; }
-.avatar-status--online  { background: var(--success); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(52,211,153,0.6); }
-.avatar-status--busy    { background: var(--danger);  box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(248,113,113,0.6); }
-.avatar-status--away    { background: var(--warning); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px rgba(251,191,36,0.55); }
+.avatar-status--online  { background: var(--success); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px color-mix(in srgb, var(--success) 60%, transparent); }
+.avatar-status--busy    { background: var(--danger);  box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px color-mix(in srgb, var(--danger) 60%, transparent); }
+.avatar-status--away    { background: var(--warning); box-shadow: 0 0 0 2px var(--bg-0), 0 0 8px color-mix(in srgb, var(--warning) 55%, transparent); }
 .avatar-status--offline { background: var(--fg-faint); }
 
 /* Stacked group */
@@ -2747,13 +3061,13 @@ td.tbl-td-editing select {
   padding-bottom: calc(var(--sp-4) + 2px); /* room for the progress bar */
   border-radius: var(--r-md);
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
-    rgba(10, 10, 14, 0.78);
+    var(--sheen-grad),
+    var(--panel-soft);
   border: 1px solid var(--line-strong);
   backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
   min-width: 280px;
   max-width: 100%;
@@ -2774,7 +3088,7 @@ td.tbl-td-editing select {
 .toast:hover {
   transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-lg);
 }
 
@@ -2784,7 +3098,7 @@ td.tbl-td-editing select {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.09) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--shimmer) 41%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: toast-shine 1300ms var(--ease-out) 220ms both;
   pointer-events: none;
@@ -2940,61 +3254,61 @@ td.tbl-td-editing select {
    The left rail is drawn with an inset box-shadow so the radius still clips
    it cleanly. */
 .toast.toast-success {
-  border-color: rgba(52, 211, 153, 0.28);
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--success),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
-    0 0 32px rgba(52, 211, 153, 0.18);
+    0 0 32px color-mix(in srgb, var(--success) 18%, transparent);
 }
 .toast.toast-success .toast-icon-chip {
-  background: rgba(52, 211, 153, 0.15);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
   color: var(--success);
-  border-color: rgba(52, 211, 153, 0.35);
+  border-color: color-mix(in srgb, var(--success) 35%, transparent);
 }
 .toast.toast-success .toast-progress {
-  background: linear-gradient(90deg, var(--success), #6ee7b7);
+  background: linear-gradient(90deg, var(--success), var(--success-hi));
 }
 
 .toast.toast-warning {
-  border-color: rgba(251, 191, 36, 0.28);
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--warning),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
-    0 0 32px rgba(251, 191, 36, 0.18);
+    0 0 32px color-mix(in srgb, var(--warning) 18%, transparent);
 }
 .toast.toast-warning .toast-icon-chip {
-  background: rgba(251, 191, 36, 0.15);
+  background: color-mix(in srgb, var(--warning) 15%, transparent);
   color: var(--warning);
-  border-color: rgba(251, 191, 36, 0.35);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
 }
 .toast.toast-warning .toast-progress {
-  background: linear-gradient(90deg, var(--warning), #fcd34d);
+  background: linear-gradient(90deg, var(--warning), var(--warning-hi));
 }
 
 .toast.toast-error {
-  border-color: rgba(248, 113, 113, 0.32);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
   box-shadow:
     inset 3px 0 0 var(--danger),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
-    0 0 36px rgba(248, 113, 113, 0.22);
+    0 0 36px color-mix(in srgb, var(--danger) 22%, transparent);
 }
 .toast.toast-error .toast-icon-chip {
-  background: rgba(248, 113, 113, 0.15);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
-  border-color: rgba(248, 113, 113, 0.35);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .toast.toast-error .toast-progress {
-  background: linear-gradient(90deg, var(--danger), #fca5a5);
+  background: linear-gradient(90deg, var(--danger), var(--danger-hi));
 }
 
 .toast.toast-info {
   border-color: color-mix(in srgb, var(--info) 28%, transparent);
   box-shadow:
     inset 3px 0 0 var(--info),
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md),
     0 0 32px color-mix(in srgb, var(--info) 18%, transparent);
 }
@@ -3004,7 +3318,7 @@ td.tbl-td-editing select {
   border-color: color-mix(in srgb, var(--info) 35%, transparent);
 }
 .toast.toast-info .toast-progress {
-  background: linear-gradient(90deg, var(--info), #67e8f9);
+  background: linear-gradient(90deg, var(--info), var(--info-hi));
 }
 
 /* ── AI dominance (CLAUDE.md §2.10) ── When .ai-aura is set, the rotating
@@ -3020,7 +3334,7 @@ td.tbl-td-editing select {
 .toast.ai-aura.toast-error,
 .toast.ai-aura.toast-info {
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
 }
 /* The host has overflow:hidden so the outer ai-aura ring/glow would be
@@ -3062,7 +3376,7 @@ td.tbl-td-editing select {
 /* Skeleton */
 .skel {
   display: block;
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+  background: linear-gradient(90deg, var(--glass-1) 0%, var(--glass-3) 50%, var(--glass-1) 100%);
   background-size: 200% 100%;
   animation: skel 1.4s ease-in-out infinite;
   border-radius: 6px;
@@ -3075,7 +3389,7 @@ td.tbl-td-editing select {
   display: block;
   width: 18px; height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 2px solid color-mix(in srgb, var(--edge-hi-strong) 56%, transparent);
   border-top-color: var(--accent-b);
   animation: spin 0.9s linear infinite;
 }
@@ -3126,9 +3440,9 @@ td.tbl-td-editing select {
 .progress--sm { height: 4px; }
 .progress--lg { height: 10px; }
 
-.progress-bar--success { background: var(--success); box-shadow: 0 0 12px rgba(52,211,153,0.5); }
-.progress-bar--warning { background: var(--warning); box-shadow: 0 0 12px rgba(251,191,36,0.5); }
-.progress-bar--danger  { background: var(--danger);  box-shadow: 0 0 12px rgba(248,113,113,0.5); }
+.progress-bar--success { background: var(--success); box-shadow: 0 0 12px color-mix(in srgb, var(--success) 50%, transparent); }
+.progress-bar--warning { background: var(--warning); box-shadow: 0 0 12px color-mix(in srgb, var(--warning) 50%, transparent); }
+.progress-bar--danger  { background: var(--danger);  box-shadow: 0 0 12px color-mix(in srgb, var(--danger) 50%, transparent); }
 
 .progress--indeterminate .progress-bar {
   width: 40%;
@@ -3266,7 +3580,7 @@ td.tbl-td-editing select {
    not the whole tab bar). The .is-active ::after underline still wins on
    top, so an active+AI tab reads as both selected and AI-busy. */
 .tab.ai-aura {
-  color: #d6cbff;
+  color: var(--accent-fg);
   background: var(--accent-soft);
 }
 .tab.ai-aura::before {
@@ -3321,7 +3635,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: color-mix(in srgb, var(--backdrop) 92%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: grid;
@@ -3385,7 +3699,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   max-height: 90vh; /* Fallback für Browser ohne dvh */
   max-height: 90dvh;
   border-radius: var(--r-lg);
-  background: linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
+  background: var(--panel-grad);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-lg), 0 0 80px color-mix(in srgb, var(--accent-a) 25%, transparent);
   animation: dialogIn var(--dur-med) var(--ease-spring);
@@ -3525,58 +3839,30 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 /* Tooltip */
-.tt-wrap { position: relative; display: inline-flex; }
-.tt {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
+.tt-wrap { display: inline-flex; }
+/* The bubble lives as a body-level portal (see dryl.tooltip in dryl.js) so it
+   escapes ancestor overflow/backdrop-filter clipping; the JS flips the
+   preferred placement when the viewport has no room on that side. */
+.tt-portal {
+  position: fixed;
+  z-index: 9000;
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 11px;
   white-space: nowrap;
-  background: rgba(20,20,28,0.95);
+  background: var(--panel-solid);
   border: 1px solid var(--line-strong);
   color: var(--fg);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
   box-shadow: var(--shadow-md);
-  z-index: 9000;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.tt-wrap:hover .tt {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-/* Tooltip — Bottom */
-.tt-bottom {
-  bottom: auto;
-  top: calc(100% + var(--sp-2));
-  transform: translateX(-50%) translateY(-4px);
-}
-.tt-wrap:hover .tt-bottom {
-  transform: translateX(-50%) translateY(0);
-}
-/* Tooltip — Left */
-.tt-left {
-  bottom: auto;
-  top: 50%;
-  left: auto;
-  right: calc(100% + var(--sp-2));
-  transform: translateY(-50%) translateX(4px);
-}
-.tt-wrap:hover .tt-left {
-  transform: translateY(-50%) translateX(0);
-}
-/* Tooltip — Right */
-.tt-right {
-  bottom: auto;
-  top: 50%;
-  left: calc(100% + var(--sp-2));
-  transform: translateY(-50%) translateX(-4px);
-}
-.tt-wrap:hover .tt-right {
-  transform: translateY(-50%) translateX(0);
+.tt-portal.from-below { transform: translateY(-4px); }
+.tt-portal.is-open { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .tt-portal { transition: none; }
 }
 
 /* Alert */
@@ -3595,12 +3881,12 @@ body.dryl-scroll-locked { overflow: hidden; }
   display: grid; place-content: center;
   flex: 0 0 28px;
 }
-.alert.info .ico    { background: var(--accent-soft); color: #c4b5fd; }
-.alert.success .ico { background: rgba(52,211,153,0.15); color: var(--success); }
-.alert.warning .ico { background: rgba(251,191,36,0.15); color: var(--warning); }
-.alert.danger .ico  { background: rgba(248,113,113,0.15); color: var(--danger); }
+.alert.info .ico    { background: var(--accent-soft); color: var(--accent-ico); }
+.alert.success .ico { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.alert.warning .ico { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+.alert.danger .ico  { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 /* KI-Variante — Akzentgradient als Icon-Chip, violett-cyanfarbener Text */
-.alert.ai .ico      { background: var(--accent-soft); color: #c4b5fd; }
+.alert.ai .ico      { background: var(--accent-soft); color: var(--accent-ico); }
 .alert .title { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
 .alert .body { font-size: 12.5px; color: var(--fg-muted); }
 /* Flexibler Textbereich — nimmt verbleibenden Platz ein */
@@ -3963,7 +4249,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: #d6cbff;
+  color: var(--accent-fg);
   border: 1px solid var(--accent-line);
   background: var(--accent-soft);
   position: relative;
@@ -3982,7 +4268,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--shimmer) 82%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: ai-indicator-shimmer 3.6s var(--ease-in-out) infinite;
   pointer-events: none;
@@ -4089,8 +4375,8 @@ body.dryl-scroll-locked { overflow: hidden; }
 .menu-item--danger { color: var(--danger); }
 .menu-item--danger:hover,
 .menu-item--danger:focus-visible {
-  background: rgba(248, 113, 113, 0.1);
-  color: #fca5a5;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger-fg);
 }
 
 /* Keyboard shortcut hint — pushed to trailing edge */
@@ -4139,7 +4425,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 /* Sync the separator to the input's border states */
-.input-wrapper.has-stepper:hover .num-stepper        { border-left-color: rgba(255,255,255,0.18); }
+.input-wrapper.has-stepper:hover .num-stepper        { border-left-color: var(--line-hover); }
 .input-wrapper.has-stepper:focus-within .num-stepper { border-left-color: var(--accent-line); }
 
 .num-stepper {
@@ -4221,7 +4507,7 @@ input[type=number] { -moz-appearance: textfield; }
   width: 8px;
   height: 8px;
   border-radius: var(--r-pill);
-  background: white;
+  background: var(--knob);
   transform: scale(0);
   transition: transform var(--dur-med) var(--ease-spring);
 }
@@ -4405,7 +4691,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .file-item-remove:hover {
   color: var(--danger);
-  background: rgba(248, 113, 113, 0.1);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 /* ============== SLIDER (DrylSlider) ============== */
@@ -4965,7 +5251,7 @@ pre { overflow-x: auto; }
   min-width: 120px;
   max-width: 240px;
   padding: var(--sp-3);
-  background: rgba(20, 20, 28, 0.95);
+  background: var(--panel-solid);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
   box-shadow: var(--shadow-md);

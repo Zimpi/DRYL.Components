@@ -19,7 +19,7 @@
     outline: none;
 }
 
-.multiselect-trigger:hover { border-color: rgba(255,255,255,0.18); }
+.multiselect-trigger:hover { border-color: var(--line-hover); }
 
 .multiselect-trigger:focus,
 .multiselect-trigger.select--open {

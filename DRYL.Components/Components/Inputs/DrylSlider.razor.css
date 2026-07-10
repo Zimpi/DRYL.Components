@@ -34,9 +34,9 @@
     width: 18px;
     height: 18px;
     border-radius: var(--r-pill);
-    background: white;
+    background: var(--knob);
     border: none;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 0 0 2px transparent;
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent), 0 0 0 2px transparent;
     transition: box-shadow var(--dur-fast) var(--ease-out),
                 transform   var(--dur-fast) var(--ease-spring);
     cursor: grab;
@@ -46,19 +46,19 @@
     width: 18px;
     height: 18px;
     border-radius: var(--r-pill);
-    background: white;
+    background: var(--knob);
     border: none;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
     cursor: grab;
 }
 
 .dryl-slider:focus::-webkit-slider-thumb {
-    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px rgba(0,0,0,0.5);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
     transform: scale(1.1);
 }
 
 .dryl-slider:focus::-moz-range-thumb {
-    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px rgba(0,0,0,0.5);
+    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
 }
 
 .dryl-slider:active::-webkit-slider-thumb { cursor: grabbing; }
