@@ -178,6 +178,32 @@
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.16);
   --code-bg:         rgba(0, 0, 0, 0.55);
   --code-fg:         #f4f4f7;
+
+  /* Semantic-derived text/edge tokens (Task 7 literal sweep).
+     --accent-fg / --danger-fg are the accent/danger-tinted TEXT colors used on
+     glass (badges, code, AI indicator, danger menu items) — lighter than the
+     solid --accent/--danger fills so they read on translucent surfaces.
+     --*-hi are the bright gradient-endpoint tints used on toast progress bars;
+     single color-mix definitions that ride the semantic seed, so they already
+     adapt in light mode without a separate override (percentages tuned below
+     for closest dark-value fidelity to the original literals — see task-7
+     report for the per-channel deltas, since the four original success/
+     warning/danger/info literals don't sit exactly on the seed-to-white
+     mix line). */
+  --accent-fg:  #d6cbff;
+  --danger-fg:  #fca5a5;
+  --success-hi: color-mix(in srgb, var(--success) 69%, white);
+  --warning-hi: color-mix(in srgb, var(--warning) 78%, white);
+  --danger-hi:  color-mix(in srgb, var(--danger) 63%, white);
+  --info-hi:    color-mix(in srgb, var(--info) 66%, white);
+
+  /* DepthGlass edge/shadow tokens — the white inset highlights and black drop
+     shadow used by .dg-* (DrylDepthGlass / DrylCard Depth). --depth-edge is
+     the ~0.18 reference edge; --depth-edge-strong is the brightest inset
+     (task-added, same pattern as the pair above — see task-7 report). */
+  --depth-edge:        rgba(255, 255, 255, 0.18);
+  --depth-edge-strong: rgba(255, 255, 255, 0.55);
+  --depth-shadow:      rgba(0, 0, 0, 0.42);
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -270,6 +296,11 @@
     --scrollbar-thumb:       rgba(18, 22, 40, 0.18);
     --scrollbar-thumb-hover: rgba(18, 22, 40, 0.3);
     --code-bg:         #14141d;
+    --accent-fg:  color-mix(in srgb, var(--accent-a) 72%, #10102a);
+    --danger-fg:  #b91c1c;
+    --depth-edge:        rgba(255, 255, 255, 0.9);
+    --depth-edge-strong: rgba(255, 255, 255, 0.95);
+    --depth-shadow:      rgba(28, 24, 70, 0.16);
   }
 }
 :root[data-dryl-mode="light"] {
@@ -324,6 +355,11 @@
   --scrollbar-thumb:       rgba(18, 22, 40, 0.18);
   --scrollbar-thumb-hover: rgba(18, 22, 40, 0.3);
   --code-bg:         #14141d;
+  --accent-fg:  color-mix(in srgb, var(--accent-a) 72%, #10102a);
+  --danger-fg:  #b91c1c;
+  --depth-edge:        rgba(255, 255, 255, 0.9);
+  --depth-edge-strong: rgba(255, 255, 255, 0.95);
+  --depth-shadow:      rgba(28, 24, 70, 0.16);
 }
 
 * { box-sizing: border-box; }
@@ -610,7 +646,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .btn-danger {
   background: rgba(248, 113, 113, 0.12);
   border-color: rgba(248, 113, 113, 0.3);
-  color: #fca5a5;
+  color: var(--danger-fg);
 }
 .btn-danger:hover {
   background: rgba(248, 113, 113, 0.2);
@@ -975,7 +1011,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   color: var(--fg-muted);
 }
 .badge-accent {
-  color: #d6cbff;
+  color: var(--accent-fg);
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
@@ -1120,10 +1156,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .dg-warp:hover {
   --dg-lift: -4px;
   box-shadow:
-    0 22px 50px rgba(0, 0, 0, 0.42),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.55),
-    inset -1px -1px 0 rgba(255, 255, 255, 0.14),
-    inset 0 0 26px rgba(255, 255, 255, 0.07);
+    0 22px 50px var(--depth-shadow),
+    inset 1px 1px 0 var(--depth-edge-strong),
+    inset -1px -1px 0 color-mix(in srgb, var(--depth-edge) 78%, transparent),
+    inset 0 0 26px color-mix(in srgb, var(--depth-edge) 39%, transparent);
 }
 
 .dg--subtle { --dg-tilt: 4deg;  --dg-par: 6px;  }
@@ -1133,15 +1169,15 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 /* Standalone surface look (DrylDepthGlass). */
 .dg-surface {
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-1);
   backdrop-filter: blur(8px) saturate(1.5);
   -webkit-backdrop-filter: blur(8px) saturate(1.5);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--depth-edge);
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.32),
-    inset 1px 1px 0 rgba(255, 255, 255, 0.5),
-    inset -1px -1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 0 20px rgba(255, 255, 255, 0.05);
+    0 12px 36px color-mix(in srgb, var(--depth-shadow) 76%, transparent),
+    inset 1px 1px 0 color-mix(in srgb, var(--depth-edge-strong) 91%, transparent),
+    inset -1px -1px 0 color-mix(in srgb, var(--depth-edge) 67%, transparent),
+    inset 0 0 20px color-mix(in srgb, var(--depth-edge) 28%, transparent);
 }
 .dg-surface > .dg-content { padding: var(--sp-5); color: var(--fg); }
 
@@ -1157,7 +1193,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    glass as it warps (depth cue). */
 .dg-sheen {
   z-index: 1;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.24), transparent 45%);
+  background: linear-gradient(155deg, color-mix(in srgb, var(--depth-edge-strong) 44%, transparent), transparent 45%);
   mix-blend-mode: screen;
   opacity: 0.7;
   transform: translate(
@@ -1171,7 +1207,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   z-index: 2;
   background: radial-gradient(
     220px 220px at var(--mx, 50%) var(--my, 0%),
-    rgba(255, 255, 255, 0.40), transparent 60%);
+    color-mix(in srgb, var(--depth-edge-strong) 73%, transparent), transparent 60%);
   mix-blend-mode: screen;
   opacity: 0.6;
 }
@@ -1754,7 +1790,7 @@ code, .code-inline {
   border-radius: 5px;
   background: var(--glass-2);
   border: 1px solid var(--line);
-  color: #d6cbff;
+  color: var(--accent-fg);
 }
 
 .code-block {
@@ -2960,7 +2996,7 @@ td.tbl-td-editing select {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.09) 50%, transparent 70%);
+  background: linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--shimmer) 41%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
   animation: toast-shine 1300ms var(--ease-out) 220ms both;
   pointer-events: none;
@@ -3129,7 +3165,7 @@ td.tbl-td-editing select {
   border-color: rgba(52, 211, 153, 0.35);
 }
 .toast.toast-success .toast-progress {
-  background: linear-gradient(90deg, var(--success), #6ee7b7);
+  background: linear-gradient(90deg, var(--success), var(--success-hi));
 }
 
 .toast.toast-warning {
@@ -3146,7 +3182,7 @@ td.tbl-td-editing select {
   border-color: rgba(251, 191, 36, 0.35);
 }
 .toast.toast-warning .toast-progress {
-  background: linear-gradient(90deg, var(--warning), #fcd34d);
+  background: linear-gradient(90deg, var(--warning), var(--warning-hi));
 }
 
 .toast.toast-error {
@@ -3163,7 +3199,7 @@ td.tbl-td-editing select {
   border-color: rgba(248, 113, 113, 0.35);
 }
 .toast.toast-error .toast-progress {
-  background: linear-gradient(90deg, var(--danger), #fca5a5);
+  background: linear-gradient(90deg, var(--danger), var(--danger-hi));
 }
 
 .toast.toast-info {
@@ -3180,7 +3216,7 @@ td.tbl-td-editing select {
   border-color: color-mix(in srgb, var(--info) 35%, transparent);
 }
 .toast.toast-info .toast-progress {
-  background: linear-gradient(90deg, var(--info), #67e8f9);
+  background: linear-gradient(90deg, var(--info), var(--info-hi));
 }
 
 /* ── AI dominance (CLAUDE.md §2.10) ── When .ai-aura is set, the rotating
@@ -3251,7 +3287,7 @@ td.tbl-td-editing select {
   display: block;
   width: 18px; height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 2px solid color-mix(in srgb, var(--edge-hi-strong) 56%, transparent);
   border-top-color: var(--accent-b);
   animation: spin 0.9s linear infinite;
 }
@@ -3442,7 +3478,7 @@ td.tbl-td-editing select {
    not the whole tab bar). The .is-active ::after underline still wins on
    top, so an active+AI tab reads as both selected and AI-busy. */
 .tab.ai-aura {
-  color: #d6cbff;
+  color: var(--accent-fg);
   background: var(--accent-soft);
 }
 .tab.ai-aura::before {
@@ -3497,7 +3533,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: color-mix(in srgb, var(--backdrop) 92%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: grid;
@@ -4139,7 +4175,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: #d6cbff;
+  color: var(--accent-fg);
   border: 1px solid var(--accent-line);
   background: var(--accent-soft);
   position: relative;
@@ -4266,7 +4302,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .menu-item--danger:hover,
 .menu-item--danger:focus-visible {
   background: rgba(248, 113, 113, 0.1);
-  color: #fca5a5;
+  color: var(--danger-fg);
 }
 
 /* Keyboard shortcut hint — pushed to trailing edge */
