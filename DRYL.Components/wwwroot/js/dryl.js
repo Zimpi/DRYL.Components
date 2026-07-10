@@ -1199,6 +1199,28 @@ window.dryl.theme = {
                 root.style.setProperty(pair.slice(0, i).trim(), pair.slice(i + 1).trim());
             }
         });
+    },
+    /* Explicit color-mode forcing. mode: 'light' | 'dark' | 'system'.
+       'system' removes the attribute so the prefers-color-scheme media
+       query in dryl.css takes over (live, no JS listener needed). */
+    applyMode(mode, persist) {
+        const root = document.documentElement;
+        try {
+            if (mode === 'light' || mode === 'dark') {
+                root.setAttribute('data-dryl-mode', mode);
+                if (persist) localStorage.setItem('dryl-color-mode', mode);
+            } else {
+                root.removeAttribute('data-dryl-mode');
+                if (persist) localStorage.removeItem('dryl-color-mode');
+            }
+        } catch { /* storage unavailable (private mode etc.) — attribute still applied */ }
+    },
+    /* The persisted explicit choice, or null when the user follows System. */
+    storedMode() {
+        try {
+            const m = localStorage.getItem('dryl-color-mode');
+            return (m === 'light' || m === 'dark') ? m : null;
+        } catch { return null; }
     }
 };
 
