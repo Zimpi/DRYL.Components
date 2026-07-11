@@ -3622,11 +3622,18 @@ td.tbl-td-editing select {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* Direction-aware content entry: switching forward slides the new panel in
+   from the right, switching back from the left (reuses the presence
+   keyframes — 12px travel reads clearly without feeling like a carousel). */
+.tab-panel--fwd  { animation-name: presence-in-left; }
+.tab-panel--back { animation-name: presence-in-right; }
 
 @media (prefers-reduced-motion: reduce) {
   .tab.is-active::after,
   .tab.ai-aura::before,
-  .tab-panel { animation: none; }
+  .tab-panel,
+  .tab-panel--fwd,
+  .tab-panel--back { animation: none; }
   .tab.ai-aura::before { opacity: 0.6; }
 }
 

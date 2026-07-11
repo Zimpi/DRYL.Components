@@ -63,7 +63,7 @@
 
     @if (ActiveTab is not null)
     {
-        <div class="tab-panel"
+        <div class="@PanelCss"
              role="tabpanel"
              id="@($"dryl-tabpanel-{ActiveTab.InternalId}")"
              aria-labelledby="@($"dryl-tab-{ActiveTab.InternalId}")"
@@ -167,9 +167,21 @@
 
     internal void NotifyTabChanged() => StateHasChanged();
 
+    // Direction of the last tab switch (+1 = forward/right, -1 = back/left, 0 = none
+    // yet) — drives which side the new panel content slides in from.
+    private int _panelDir;
+
+    private string PanelCss =>
+        _panelDir > 0 ? "tab-panel tab-panel--fwd"
+        : _panelDir < 0 ? "tab-panel tab-panel--back"
+        : "tab-panel";
+
     private async Task ActivateAsync(DrylTab tab)
     {
         if (tab.Disabled || ReferenceEquals(tab, ActiveTab)) return;
+        var oldIdx = ActiveTab is { } cur ? _tabs.IndexOf(cur) : -1;
+        var newIdx = _tabs.IndexOf(tab);
+        _panelDir = oldIdx < 0 ? 0 : Math.Sign(newIdx - oldIdx);
         _activeId = tab.InternalId;
         Active = _activeId;
         if (ActiveChanged.HasDelegate)

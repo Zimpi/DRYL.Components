@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-07-11
+
+### Changed
+- `DrylTabs` — Tab content entry is now direction-aware: switching to a tab on the right slides the panel in from the right, switching back slides in from the left (reuses the shared presence keyframes; the previous subtle fade+rise remains for the first render). Honours `prefers-reduced-motion`
+
 ## [2.2.0] — 2026-07-11
 
 ### Added
