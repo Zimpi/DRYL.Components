@@ -321,8 +321,16 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private Task SubmitPromptAsync() => Task.CompletedTask;
-    private Task HandlePromptKeyDown(KeyboardEventArgs e) => Task.CompletedTask;
+    private async Task SubmitPromptAsync()
+    {
+        var text = _promptText.Trim();
+        if (text.Length == 0) return;
+        _promptOpen = false;
+        await StartAsync(text);
+    }
+
+    private Task HandlePromptKeyDown(KeyboardEventArgs e) =>
+        e.Key == "Enter" ? SubmitPromptAsync() : Task.CompletedTask;
 
     private async Task HandleRootKeyDown(KeyboardEventArgs e)
     {

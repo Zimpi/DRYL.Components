@@ -420,4 +420,63 @@ public class DrylAiFieldTests : BunitContext
         cut.WaitForAssertion(() =>
             Assert.Contains("presence-exit", cut.Find(".ai-field-error").ParentElement!.GetAttribute("class")));
     }
+
+    // ── Task 7: mini-prompt popover ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Without_instruction_trigger_opens_prompt_instead_of_running()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var client = new ScriptedChatClient("res");
+        var cut = RenderField(Agent(client), instruction: null);
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+
+        Assert.Single(cut.FindAll(".ai-field-prompt"));
+        Assert.Null(client.LastUserMessage);   // nothing ran yet
+    }
+
+    [Fact]
+    public async Task Prompt_enter_starts_run_with_typed_instruction()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var client = new ScriptedChatClient("Guten Tag");
+        var cut = RenderField(Agent(client), instruction: null);
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field-prompt input").Input("Übersetze auf Deutsch"));
+        await cut.InvokeAsync(() => cut.Find(".ai-field-prompt")
+            .KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+        Assert.StartsWith("Übersetze auf Deutsch", client.LastUserMessage);
+        Assert.Empty(cut.FindAll(".ai-field-prompt"));   // popover closed on submit
+    }
+
+    [Fact]
+    public async Task Empty_prompt_does_not_start()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var client = new ScriptedChatClient("res");
+        var cut = RenderField(Agent(client), instruction: null);
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field-prompt")
+            .KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        Assert.Null(client.LastUserMessage);
+        Assert.Single(cut.FindAll(".ai-field-prompt"));   // stays open
+    }
+
+    [Fact]
+    public async Task ShowPrompt_prefills_the_instruction()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var cut = RenderField(Agent(new ScriptedChatClient("res")), instruction: "Kürzen",
+            extra: ps => ps.Add(p => p.ShowPrompt, true));
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+
+        Assert.Equal("Kürzen", cut.Find(".ai-field-prompt input").GetAttribute("value"));
+    }
 }
