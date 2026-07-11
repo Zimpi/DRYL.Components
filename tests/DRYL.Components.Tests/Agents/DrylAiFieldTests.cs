@@ -30,12 +30,21 @@ public class DrylAiFieldTests : BunitContext
         private readonly string[] _chunks;
         public string? LastUserMessage { get; private set; }
 
+        /// <summary>
+        /// How many times a streaming call actually started. Iterator methods defer execution until
+        /// the first MoveNextAsync, but that first step (including this increment) still runs
+        /// synchronously before the method's first await — so this reliably counts distinct runs,
+        /// not just distinct calls that were never enumerated.
+        /// </summary>
+        public int Calls { get; private set; }
+
         public ScriptedChatClient(params string[] chunks) => _chunks = chunks;
 
         public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<ChatMessage> messages, ChatOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
+            Calls++;
             LastUserMessage = messages.LastOrDefault(m => m.Role == ChatRole.User)?.Text;
             foreach (var chunk in _chunks)
             {
@@ -161,6 +170,33 @@ public class DrylAiFieldTests : BunitContext
 
         // field was set busy at start
         Assert.Contains(_module.Invocations, i => i.Identifier == "setBusy");
+    }
+
+    [Fact]
+    public async Task Rapid_double_click_runs_the_agent_only_once()
+    {
+        // TOCTOU regression: the old guard only flipped `_phase` to Running AFTER two awaits
+        // (module load + snapshot). A second dispatch landing inside that window sailed straight
+        // past `if (_phase == Running) return` and started a second, independent run. We hold the
+        // snapshot call pending so both clicks are forced to land inside that exact window —
+        // the first click's synchronous run stalls right there until we release it below.
+        var snapshotCall = _module.Setup<AiFieldSnapshot>("snapshot", _ => true);
+        var client = new ScriptedChatClient("Dear ", "team, ", "please send the report.");
+        var cut = RenderField(Agent(client));
+
+        var click1 = cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+
+        // Release the stalled snapshot call(s). Under the old bug, both dispatches would be
+        // waiting here and both would proceed; under the fix only the first ever reaches it.
+        snapshotCall.SetResult(new AiFieldSnapshot { Found = true, Value = "before", SelStart = 0, SelEnd = 0 });
+        await click1;
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+
+        // The core guarantee: the second click must never start an independent second run.
+        Assert.Equal(1, client.Calls);
+        Assert.Equal(1, _module.Invocations.Count(i => i.Identifier == "snapshot"));
     }
 
     [Fact]

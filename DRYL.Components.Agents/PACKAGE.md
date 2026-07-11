@@ -3,7 +3,7 @@
 Companion package for [**DRYL.Components**](https://www.nuget.org/packages/DRYL.Components)
 that bridges the [Microsoft Agent Framework](https://www.nuget.org/packages/Microsoft.Agents.AI)
 (`Microsoft.Agents.AI`) to DRYL's AI vocabulary. It takes real work off your hands across
-four subsystems — without you ever setting `Ai="…"` by hand.
+the following subsystems — without you ever setting `Ai="…"` by hand.
 
 > **Experimental — 0.5.0.** Independently versioned and deliberately decoupled from the
 > stable core so the agent integration can mature without breaking core SemVer.

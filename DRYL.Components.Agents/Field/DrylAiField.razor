@@ -200,11 +200,16 @@
     private async Task StartAsync(string instruction)
     {
         if (_phase == FieldPhase.Running) return;
+        _phase = FieldPhase.Running;   // close the TOCTOU window synchronously — before the first await
         _errorText = null;
 
         var module = await GetModuleAsync();
         var snap = await module.InvokeAsync<AiFieldSnapshot>("snapshot", _root);
-        if (!snap.Found) return;   // nothing text-like inside — the affordance is a no-op
+        if (!snap.Found)
+        {
+            _phase = FieldPhase.Idle;   // nothing text-like inside — the affordance is a no-op
+            return;
+        }
 
         _snapshotValue = snap.Value;
         string? selection = null;
@@ -223,7 +228,6 @@
         _cts = new CancellationTokenSource();
         var ct = _cts.Token;
 
-        _phase = FieldPhase.Running;
         SetAura(AiState.Thinking);
         Announce("Die AI schreibt …");
         await module.InvokeVoidAsync("setBusy", _root, true);
