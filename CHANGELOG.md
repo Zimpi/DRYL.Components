@@ -14,8 +14,16 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-07-11
+
 ### Added
+- `IDrylViewTransition` / `dryl.viewTransition` — Same-document View Transition bridge: `RunAsync(mutate)` snapshots the DOM, applies the state change once the render is committed, and morphs old → new (FLIP-style position/size/opacity). Direct, morph-free fallback for unsupported browsers, prerender and `prefers-reduced-motion`; registered by `AddDrylComponents()`
+- `DrylViewTransitionStyle` — `Glide / DepthGlass` morph tiers. New `--ease-viscous` easing token (view-transition pseudo-elements only) plus the `dryl-depth` "Depth Glass" CSS choreography: mercury merge filter + translucency pulse with crystalline clarity landing on `--dur-med`, before the `--dur-slow` shape settle
+- `DrylCard` — New `ViewTransitionName` / `ViewTransitionStyle` parameters mark a card as a shared-element morph endpoint
 - `DrylAiField` (`DRYL.Components.Agents` **0.5.0**) — Wrap any existing text-like DRYL input to give it a ✨ AI affordance: empty field → the agent generates the value, selected text → only the selection is transformed (instruction-driven or free mini-prompt). The result streams live into the field through a DOM value bridge (the inner `@bind-Value` keeps working untouched), the shared ai-aura plays via `DrylAiScope`, and the user accepts or rejects (Esc) the suggestion. One line, zero wiring: `<DrylAiField Agent="agent" Instruction="…"><DrylTextarea @bind-Value="…" /></DrylAiField>`
+
+### Changed
+- `DrylTable` — New `AnimateReorder` + `RowIdSelector` parameters: row drag-reorder (and click-to-sort) morphs rows to their new position via a view transition instead of snapping. Off by default; requires a client-side list
 
 ## [2.1.0] — 2026-07-10
 
