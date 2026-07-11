@@ -27,6 +27,8 @@
 
 <div @ref="_el"
      class="@CssClass"
+     style="@VtStyle"
+     data-vt-depth="@VtDepthMarker"
      @attributes="AdditionalAttributes">
     @if (EffectiveAi != AiState.None)
     {
@@ -85,6 +87,24 @@
     /// <summary>Extra CSS class(es) merged onto the card's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
+    /// <summary>
+    /// Marks this card as a shared-element morph endpoint for view transitions
+    /// (<see cref="Motion.IDrylViewTransition"/>): renders <c>view-transition-name</c>
+    /// with this value. Must be a valid CSS identifier (letters, digits, <c>-</c>,
+    /// <c>_</c>) and unique among elements simultaneously in the DOM — a duplicate
+    /// name voids the entire transition. Supply a stable per-instance id, same
+    /// discipline as <c>@key</c>. Null (default) opts out.
+    /// </summary>
+    [Parameter] public string? ViewTransitionName { get; set; }
+
+    /// <summary>
+    /// How much "Depth Glass" a morph of this card gets — <see cref="DrylViewTransitionStyle.Glide"/>
+    /// (default, viscous shape settle only) or <see cref="DrylViewTransitionStyle.DepthGlass"/>
+    /// (adds the translucency pulse + mercury merge; reserve for rare, high-meaning merges).
+    /// Ignored unless <see cref="ViewTransitionName"/> is set.
+    /// </summary>
+    [Parameter] public DrylViewTransitionStyle ViewTransitionStyle { get; set; } = DrylViewTransitionStyle.Glide;
+
     private ElementReference _el;
     private bool _tracking;
     private bool _depthTracked;
@@ -101,6 +121,20 @@
         }
         _prevAi = EffectiveAi;
     }
+
+    private bool VtDepth =>
+        !string.IsNullOrWhiteSpace(ViewTransitionName)
+        && ViewTransitionStyle == DrylViewTransitionStyle.DepthGlass;
+
+    // Marker attribute the JS bridge keys on to lazily inject the #dryl-merge filter.
+    private string? VtDepthMarker => VtDepth ? "" : null;
+
+    private string? VtStyle =>
+        string.IsNullOrWhiteSpace(ViewTransitionName)
+            ? null
+            : VtDepth
+                ? $"view-transition-name: {ViewTransitionName}; view-transition-class: dryl-depth"
+                : $"view-transition-name: {ViewTransitionName}";
 
     private string CssClass
     {
