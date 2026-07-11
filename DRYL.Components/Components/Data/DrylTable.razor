@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@using DRYL.Components.Motion
 @typeparam TItem
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -419,6 +420,7 @@
     @<text>
         @{ var rowIndex = ReorderColumnVisible ? _view.IndexOf(item) : -1; }
         <tr class="@RowCssClass(item, rowIndex)"
+            style="@RowVtStyle(item)"
             @onclick="() => HandleRowClick(item)"
             @onkeydown="@((KeyboardEventArgs e) => OnEditKeyDown(e, item))"
             @key="item"
@@ -714,6 +716,27 @@
     [Parameter] public EventCallback<RowReorderEventArgs> OnRowReordered { get; set; }
 
     /// <summary>
+    /// Animates row reorder (drag / Alt+Arrow) and click-to-sort with a same-document
+    /// view transition: rows glide to their new position on the viscous easing instead
+    /// of snapping. Opt-in and additive — off by default. Requires a plain client-side
+    /// list (inactive when <see cref="Virtualize"/>, <see cref="GroupBy"/> or
+    /// <see cref="DataProvider"/> is set) and falls back to an instant, morph-free
+    /// update in browsers without the View Transition API, under
+    /// <c>prefers-reduced-motion</c>, and during prerender. Rows need a stable
+    /// identity for the morph — see <see cref="RowIdSelector"/>.
+    /// </summary>
+    [Parameter] public bool AnimateReorder { get; set; }
+
+    /// <summary>
+    /// Stable per-row id used to build each row's <c>view-transition-name</c> when
+    /// <see cref="AnimateReorder"/> is on. Falls back to <c>GetHashCode()</c> — stable
+    /// for records and immutable rows, but pass an explicit selector (e.g. a database
+    /// key) when row instances mutate in place. Ids must be unique per row; the value
+    /// is sanitized to letters, digits, <c>-</c> and <c>_</c>.
+    /// </summary>
+    [Parameter] public Func<TItem, object>? RowIdSelector { get; set; }
+
+    /// <summary>
     /// Enables inline editing. Columns that declare an <see cref="DrylColumn{TItem}.EditTemplate"/>
     /// become editable; double-clicking a row (or a cell in <see cref="TableEditMode.Cell"/> mode)
     /// or pressing the pencil action enters edit mode. Enter commits, Escape cancels. Pair with
@@ -822,6 +845,7 @@
     private int? _dragOverIndex;
     private int? _pendingFocusGrip;
     private ElementReference _rootEl;
+    private DrylViewTransition? _rowTransition;
 
     // Inline editing — one row at a time. _editBuffer is the item handed to the column
     // EditTemplates: a clone when CloneRow is set (so cancel reverts), otherwise the live item.
@@ -887,6 +911,53 @@
     // The handle is live only when no sort is applied — reordering a sorted view is meaningless,
     // so the grip is shown but disabled until the user clears the sort.
     private bool CanReorderNow => ReorderColumnVisible && _sort.Count == 0;
+
+    // View-transition morphs only make sense over a plain client-side list — the same
+    // constraints as row reorder itself, minus the sort lock (sorting morphs too).
+    private bool AnimateReorderActive =>
+        AnimateReorder && !Virtualize && GroupBy is null && DataProvider is null;
+
+    private string? RowVtStyle(TItem item) =>
+        AnimateReorderActive ? $"view-transition-name: tbl-row-{RowVtId(item)}" : null;
+
+    private string RowVtId(TItem item)
+    {
+        var raw = (RowIdSelector is not null ? RowIdSelector(item)?.ToString() : null)
+                  ?? item?.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture)
+                  ?? "null";
+        return SanitizeVtName(raw);
+    }
+
+    // view-transition-name must be a CSS custom-ident: keep [A-Za-z0-9_-], map the
+    // rest to '_'. The "tbl-row-" prefix guarantees a valid ident start.
+    private static string SanitizeVtName(string raw)
+    {
+        Span<char> buf = raw.Length <= 64 ? stackalloc char[raw.Length] : new char[raw.Length];
+        for (var i = 0; i < raw.Length; i++)
+        {
+            var c = raw[i];
+            buf[i] = char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '_';
+        }
+        return new string(buf);
+    }
+
+    // Wraps a view mutation in a view transition when active; otherwise applies it
+    // directly. The service guarantees the mutation runs even if the JS side never
+    // calls back (prerender, disconnected circuit, test renderer).
+    private async Task RunRowTransitionAsync(Func<Task> mutate)
+    {
+        if (!AnimateReorderActive)
+        {
+            await mutate();
+            return;
+        }
+        _rowTransition ??= new DrylViewTransition(JS);
+        await _rowTransition.RunAsync(async () =>
+        {
+            await mutate();
+            StateHasChanged();
+        });
+    }
 
     // Inline editing only makes sense over a client-side list; a DataProvider owns its own rows.
     private bool EditingEnabled => Editable && DataProvider is null;
@@ -1022,6 +1093,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // Tell an in-flight view transition that the mutated state reached the DOM
+        // (no-op when none is running).
+        _rowTransition?.SignalRendered();
+
         if (firstRender && !string.IsNullOrEmpty(PersistStateKey))
         {
             await RestoreStateAsync(PersistStateKey);
@@ -1255,7 +1330,7 @@
         if (!column.Sortable) return;
         ToggleSort(column, e.ShiftKey);
         MarkPersistDirty();
-        await RebuildViewAsync();
+        await RunRowTransitionAsync(RebuildViewAsync);
     }
 
     private async Task OnHeaderKeyDown(DrylColumn<TItem> column, KeyboardEventArgs e)
@@ -1271,7 +1346,7 @@
         if (e.Key is not ("Enter" or " ")) return;
         ToggleSort(column, e.ShiftKey);
         MarkPersistDirty();
-        await RebuildViewAsync();
+        await RunRowTransitionAsync(RebuildViewAsync);
     }
 
     private void ToggleSort(DrylColumn<TItem> column, bool multi)
@@ -1578,10 +1653,13 @@
 
     private async Task OnDrop(int index)
     {
-        if (_dragIndex is int from)
-            await MoveRow(from, index);
+        // Clear the drag-highlight state before the morph so the drop-target
+        // classes don't linger through the glide.
+        var from = _dragIndex;
         _dragIndex = null;
         _dragOverIndex = null;
+        if (from is int f)
+            await MoveRow(f, index);
     }
 
     private void OnDragEnd()
@@ -1604,8 +1682,9 @@
         _pendingFocusGrip = target;
     }
 
-    // Optimistically reorders the displayed view so the move is reflected immediately, then
-    // raises OnRowReordered so the consumer can apply the same move to its backing collection.
+    // Optimistically reorders the displayed view so the move is reflected immediately
+    // (morphing via a view transition when AnimateReorder is active), then raises
+    // OnRowReordered so the consumer can apply the same move to its backing collection.
     private async Task MoveRow(int from, int to)
     {
         if (!CanReorderNow) return;
@@ -1613,9 +1692,13 @@
         to = Math.Clamp(to, 0, _view.Count - 1);
         if (from == to) return;
 
-        var item = _view[from];
-        _view.RemoveAt(from);
-        _view.Insert(to, item);
+        await RunRowTransitionAsync(() =>
+        {
+            var item = _view[from];
+            _view.RemoveAt(from);
+            _view.Insert(to, item);
+            return Task.CompletedTask;
+        });
         await OnRowReordered.InvokeAsync(new RowReorderEventArgs(from, to));
     }
 
@@ -1970,6 +2053,7 @@
             catch (Microsoft.JSInterop.JSException) { /* circuit gone */ }
             catch (Microsoft.JSInterop.JSDisconnectedException) { /* circuit gone */ }
         }
+        _rowTransition?.Dispose();
         _dotNetRef?.Dispose();
     }
 }

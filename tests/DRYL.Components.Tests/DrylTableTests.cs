@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Bunit;
 using DRYL.Components;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace DRYL.Components.Tests;
 
@@ -129,5 +130,75 @@ public class DrylTableTests : BunitContext
             .Add(p => p.Page, 1)); // jump straight to the second page
 
         Assert.Equal(new[] { "Bob" }, FirstColumnValues(cut));
+    }
+
+    // ───── AnimateReorder (view transitions) ─────
+
+    private static IReadOnlyList<string> NameCellValues(IRenderedComponent<DrylTable<Person>> cut) =>
+        cut.FindAll("tbody tr")
+           .Select(tr => tr.QuerySelectorAll("td").Skip(1).FirstOrDefault()?.TextContent.Trim() ?? "")
+           .ToList(); // td[0] is the reorder grip column
+
+    [Fact]
+    public void Rows_have_no_view_transition_name_by_default()
+    {
+        var cut = RenderTable(ps => ps.Add(p => p.Reorderable, true));
+
+        foreach (var tr in cut.FindAll("tbody tr"))
+            Assert.DoesNotContain("view-transition-name", tr.GetAttribute("style") ?? "");
+    }
+
+    [Fact]
+    public void AnimateReorder_adds_a_view_transition_name_per_row()
+    {
+        var cut = RenderTable(ps => ps
+            .Add(p => p.Reorderable, true)
+            .Add(p => p.AnimateReorder, true)
+            .Add(p => p.RowIdSelector, (Person p) => p.Name));
+
+        var styles = cut.FindAll("tbody tr").Select(tr => tr.GetAttribute("style")).ToList();
+        Assert.Equal(3, styles.Count);
+        Assert.Contains("view-transition-name: tbl-row-Charlie", styles[0]);
+        Assert.Contains("view-transition-name: tbl-row-Alice", styles[1]);
+        Assert.Contains("view-transition-name: tbl-row-Bob", styles[2]);
+    }
+
+    [Fact]
+    public void Row_id_is_sanitized_to_a_css_ident()
+    {
+        var cut = RenderTable(ps => ps
+            .Add(p => p.Reorderable, true)
+            .Add(p => p.AnimateReorder, true)
+            .Add(p => p.RowIdSelector, (Person p) => $"{p.Name} v/2"));
+
+        Assert.Contains("view-transition-name: tbl-row-Charlie_v_2",
+            cut.FindAll("tbody tr")[0].GetAttribute("style"));
+    }
+
+    [Fact]
+    public void Drag_reorder_with_AnimateReorder_still_moves_the_row()
+    {
+        // Loose JSInterop never invokes ApplyChange back — this exercises the
+        // service's direct-apply fallback, so the mutation must still land.
+        var cut = RenderTable(ps => ps
+            .Add(p => p.Reorderable, true)
+            .Add(p => p.AnimateReorder, true));
+
+        cut.FindAll(".tbl-grip")[0].TriggerEvent("ondragstart", new DragEventArgs());
+        cut.FindAll("tbody tr")[2].TriggerEvent("ondrop", new DragEventArgs());
+
+        Assert.Equal(new[] { "Alice", "Bob", "Charlie" }, NameCellValues(cut));
+    }
+
+    [Fact]
+    public void Sort_with_AnimateReorder_still_sorts()
+    {
+        var cut = RenderTable(ps => ps
+            .Add(p => p.Reorderable, true)
+            .Add(p => p.AnimateReorder, true));
+
+        cut.FindAll(".tbl-th-clickable")[0].Click(); // Name → ascending
+
+        Assert.Equal(new[] { "Alice", "Bob", "Charlie" }, NameCellValues(cut));
     }
 }
