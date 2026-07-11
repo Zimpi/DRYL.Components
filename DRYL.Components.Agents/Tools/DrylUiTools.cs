@@ -58,7 +58,12 @@ public sealed class DrylUiTools
             ["Options"] = options,
             ["Recommended"] = recommended,
         };
-        var reference = await _dialogs.ShowAsync<DrylAskChoiceDialog>("Choose", p);
+        var dialogOptions = new DialogOptions
+        {
+            AnimateHandoff = true,
+            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+        };
+        var reference = await _dialogs.ShowAsync<DrylAskChoiceDialog>("Choose", p, dialogOptions);
         var result = await Await(reference, ct);
         return result.Canceled
             ? "The user cancelled the question."
@@ -77,7 +82,12 @@ public sealed class DrylUiTools
             ["Options"] = options,
             ["Recommended"] = recommended,
         };
-        var reference = await _dialogs.ShowAsync<DrylAskMultiChoiceDialog>("Choose", p);
+        var dialogOptions = new DialogOptions
+        {
+            AnimateHandoff = true,
+            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+        };
+        var reference = await _dialogs.ShowAsync<DrylAskMultiChoiceDialog>("Choose", p, dialogOptions);
         var result = await Await(reference, ct);
         if (result.Canceled) return "The user cancelled the question.";
         var chosen = result.DataAs<string[]>() ?? Array.Empty<string>();
@@ -90,7 +100,12 @@ public sealed class DrylUiTools
         CancellationToken ct = default)
     {
         var message = string.IsNullOrWhiteSpace(details) ? action : $"{action}\n\n{details}";
-        var showTask = _dialogs.ShowConfirmAsync("Permission required", message, "Allow", "Deny");
+        var dialogOptions = new DialogOptions
+        {
+            AnimateHandoff = true,
+            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+        };
+        var showTask = _dialogs.ShowConfirmAsync("Permission required", message, "Allow", "Deny", dialogOptions);
 
         var tcs = new TaskCompletionSource<DialogResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await using (ct.Register(() => tcs.TrySetResult(DialogResult.Cancel())))
@@ -110,7 +125,12 @@ public sealed class DrylUiTools
             ["Question"] = question,
             ["Placeholder"] = placeholder,
         };
-        var reference = await _dialogs.ShowAsync<DrylAskTextDialog>("Question", p);
+        var dialogOptions = new DialogOptions
+        {
+            AnimateHandoff = true,
+            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+        };
+        var reference = await _dialogs.ShowAsync<DrylAskTextDialog>("Question", p, dialogOptions);
         var result = await Await(reference, ct);
         return result.Canceled
             ? "The user cancelled the question."

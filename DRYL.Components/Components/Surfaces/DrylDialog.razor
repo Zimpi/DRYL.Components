@@ -18,6 +18,8 @@
      role="dialog"
      aria-modal="true"
      aria-labelledby="@_titleId"
+     style="@RootVtStyle"
+     data-vt-depth="@VtDepthMarker"
      @attributes="AdditionalAttributes">
 
     @if (EffectiveAi != AiState.None)
@@ -32,7 +34,7 @@
 
     @if (ShowHeader)
     {
-        <header class="dialog-header">
+        <header class="dialog-header" style="@HeaderVtStyle">
             @if (!string.IsNullOrEmpty(Icon))
             {
                 <span class="dialog-header-icon">
@@ -55,13 +57,13 @@
         </header>
     }
 
-    <div class="dialog-body">
+    <div class="dialog-body" style="@BodyVtStyle">
         @ChildContent
     </div>
 
     @if (ActionContent is not null)
     {
-        <footer class="dialog-footer">
+        <footer class="dialog-footer" style="@FooterVtStyle">
             @ActionContent
         </footer>
     }
@@ -121,6 +123,39 @@
         ShowCloseButton ?? Instance?.Options.ShowCloseButton ?? true;
 
     private DialogSize EffectiveSize => Instance?.Options.Size ?? DialogSize.Medium;
+
+    // Sequential "agent handoff" chains opted into DialogOptions.AnimateHandoff:
+    // the shell and its title/body/footer each get a stable view-transition-name
+    // so DrylDialogProvider's morph (Motion.IDrylViewTransition, see
+    // RunHandoffTransitionAsync) can glide the outer size/position while the
+    // header, body and footer cross-fade independently. A fixed name is fine —
+    // only one handoff chain is ever mid-transition at a time; a second dialog
+    // rendered with the same name simultaneously just voids its own morph
+    // (same discipline as DrylCard.ViewTransitionName).
+    private const string HandoffVtName = "dryl-dialog-handoff";
+
+    private bool VtHandoff => Instance?.Options.AnimateHandoff == true;
+
+    // DepthGlass tier (default for handoffs, see DialogOptions.HandoffStyle): tags every
+    // named element with view-transition-class="dryl-depth" so the mercury-merge +
+    // translucency-pulse CSS (dryl.css) plays — the size morph alone is easy to miss when
+    // two dialogs happen to be nearly the same size, the pulse makes the content swap read
+    // as a deliberate change regardless. data-vt-depth is the marker dryl.js keys on to
+    // lazily inject the shared #dryl-merge filter (same mechanism as DrylCard).
+    private bool VtDepth => VtHandoff && Instance?.Options.HandoffStyle == DrylViewTransitionStyle.DepthGlass;
+
+    private string? VtDepthMarker => VtDepth ? "" : null;
+
+    private string? VtStyleFor(string suffix) =>
+        !VtHandoff ? null :
+        VtDepth
+            ? $"view-transition-name: {HandoffVtName}{suffix}; view-transition-class: dryl-depth"
+            : $"view-transition-name: {HandoffVtName}{suffix}";
+
+    private string? RootVtStyle => VtStyleFor("");
+    private string? HeaderVtStyle => VtStyleFor("-header");
+    private string? BodyVtStyle => VtStyleFor("-body");
+    private string? FooterVtStyle => VtStyleFor("-footer");
 
     protected override void OnParametersSet()
     {

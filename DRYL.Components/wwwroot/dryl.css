@@ -5496,10 +5496,17 @@ pre { overflow-x: auto; }
 
 /* DepthGlass: translucency + crystalline clarity. Runs on --dur-med
    (faster than the --dur-slow shape glide above) so the surface is
-   always sharp before the shape finishes settling. */
+   always sharp before the shape finishes settling. The opacity ramp
+   matters as much as the blur: the "animation" shorthand below fully
+   replaces the UA default cross-fade-in, so without it the new snapshot
+   would pop in at full opacity on frame one, instantly occluding the
+   still-fading-out old one — a hard cut that reads as a flicker instead
+   of a merge. Keeping opacity in these keyframes is what lets the two
+   snapshots actually overlap while translucent, which is also what
+   gives the #dryl-merge goo filter something to blend. */
 @keyframes dryl-depth-clarify {
-  from { filter: blur(6px) saturate(1.35); }
-  to   { filter: blur(0) saturate(1); }
+  from { opacity: 0; filter: blur(6px) saturate(1.35); }
+  to   { opacity: 1; filter: blur(0) saturate(1); }
 }
 ::view-transition-new(*.dryl-depth) {
   animation: dryl-depth-clarify var(--dur-med) var(--ease-out) both;

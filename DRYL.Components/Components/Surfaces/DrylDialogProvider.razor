@@ -1,5 +1,6 @@
 @namespace DRYL.Components
 @using DRYL.Components.Dialogs
+@using DRYL.Components.Motion
 @using Microsoft.AspNetCore.Components.Rendering
 @inject IDrylDialogService DialogService
 @inject IJSRuntime JS
@@ -21,6 +22,15 @@
     transitions its opacity, the outgoing dialog plays dialogOut
     while the incoming one enters slightly delayed (.is-handoff) —
     a cross-fade handoff instead of two full backdrop fades.
+
+    When the incoming dialog opts into DialogOptions.AnimateHandoff,
+    that CSS cross-fade is replaced by a browser View Transition
+    (RunHandoffTransitionAsync): the predecessor is finalized
+    immediately (skipping its own dialogOut) and the swap — its
+    removal plus the successor's mount — is wrapped in one
+    IDrylViewTransition.RunAsync so DrylDialog's matching
+    view-transition-names (see DrylDialog.VtHandoff) morph shell
+    size/position while title/body/footer cross-fade independently.
     ───────────────────────────────────────────────────────── *@
 
 @if (_entries.Count > 0)
@@ -73,6 +83,12 @@
     // after this grace period no matter what.
     private static readonly TimeSpan ExitWatchdogTimeout = TimeSpan.FromMilliseconds(600);
 
+    // Lazily created the first time a chain opts into DialogOptions.AnimateHandoff.
+    // A dedicated instance (not the DI-scoped IDrylViewTransition) — the provider
+    // may need to run its own handoff morph independently of whatever else in the
+    // app is mid-transition, same reasoning as DrylTable's _rowTransition.
+    private DrylViewTransition? _handoffTransition;
+
     private bool AllExiting => _entries.Count > 0 && _entries.All(e => e.IsExiting);
 
     private static string LayerClass(Entry entry)
@@ -92,15 +108,26 @@
 
     private void OnAdded(IDrylDialogReference reference)
     {
-        if (reference is DrylDialogReference impl)
+        if (reference is not DrylDialogReference impl) return;
+
+        // Opted into AnimateHandoff AND a predecessor is currently exiting →
+        // morph via the View Transition API instead of the CSS cross-fade.
+        var predecessor = impl.Options.AnimateHandoff
+            ? _entries.FirstOrDefault(e => e.IsExiting && !e.Finalized)
+            : null;
+
+        if (predecessor is not null)
         {
-            _entries.Add(new Entry
-            {
-                Reference = impl,
-                IsHandoff = _entries.Any(e => e.IsExiting)
-            });
-            InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(() => RunHandoffTransitionAsync(predecessor, impl));
+            return;
         }
+
+        _entries.Add(new Entry
+        {
+            Reference = impl,
+            IsHandoff = _entries.Any(e => e.IsExiting)
+        });
+        InvokeAsync(StateHasChanged);
     }
 
     private void OnClosed(IDrylDialogReference reference)
@@ -109,7 +136,9 @@
         if (entry is null || entry.IsExiting) return;
         // Begin the exit animation; the entry is removed once it finishes
         // (FinalizeExit, driven by dryl.motion.onExit on the layer) — or by
-        // the watchdog, if the animationend event gets lost.
+        // the watchdog, if the animationend event gets lost. If a handoff
+        // follows (see OnAdded), it is finalized immediately instead and
+        // this CSS exit never gets to run to completion.
         entry.IsExiting = true;
         entry.ExitWatchdog = new CancellationTokenSource();
         _ = RunExitWatchdogAsync(entry, entry.ExitWatchdog.Token);
@@ -123,21 +152,54 @@
         FinalizeExit(entry);
     }
 
+    // Runs the predecessor's removal + successor's mount as a single DOM mutation
+    // inside a view transition: the browser snapshots the predecessor as it is
+    // currently rendered (the "old" state), then — once ApplyChange's
+    // StateHasChanged has reached the DOM (SignalRendered) — snapshots the
+    // successor (the "new" state) and morphs between them. Both dialogs render
+    // the same view-transition-name (DrylDialog.VtHandoff), so only one may be
+    // in flight per provider at a time; that already matches the sequential,
+    // non-stacked chain this option is designed for.
+    private async Task RunHandoffTransitionAsync(Entry predecessor, DrylDialogReference incoming)
+    {
+        _handoffTransition ??= new DrylViewTransition(JS);
+        try
+        {
+            await _handoffTransition.RunAsync(async () =>
+            {
+                await FinalizeExitImmediateAsync(predecessor);
+                _entries.Add(new Entry { Reference = incoming });
+                StateHasChanged();
+            });
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+    }
+
     private void FinalizeExit(Entry entry)
     {
         InvokeAsync(async () =>
         {
-            if (entry.Finalized) return;
-            entry.Finalized = true;
-            entry.ExitWatchdog?.Cancel();
-            entry.ExitWatchdog?.Dispose();
-            entry.ExitWatchdog = null;
-            await DetachInterop(entry);
-            entry.ExitRef?.Dispose();
-            entry.ExitRef = null;
-            _entries.Remove(entry);
+            await FinalizeExitImmediateAsync(entry);
             StateHasChanged();
         });
+    }
+
+    // Shared cleanup for an exiting entry: cancels its watchdog, detaches its
+    // JS interop and drops it from _entries — without a StateHasChanged of its
+    // own, so RunHandoffTransitionAsync can chain it with adding the successor
+    // and render both changes as one atomic step (see there for why that
+    // ordering matters for the view transition's "new" snapshot).
+    private async Task FinalizeExitImmediateAsync(Entry entry)
+    {
+        if (entry.Finalized) return;
+        entry.Finalized = true;
+        entry.ExitWatchdog?.Cancel();
+        entry.ExitWatchdog?.Dispose();
+        entry.ExitWatchdog = null;
+        await DetachInterop(entry);
+        entry.ExitRef?.Dispose();
+        entry.ExitRef = null;
+        _entries.Remove(entry);
     }
 
     private void OnUpdated(IDrylDialogReference reference)
@@ -147,6 +209,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // Cheap no-op unless a handoff view transition is currently awaiting this
+        // render (see RunHandoffTransitionAsync / IDrylViewTransition contract).
+        _handoffTransition?.SignalRendered();
+
         foreach (var entry in _entries.Where(e => !e.Attached && !e.IsExiting).ToList())
         {
             entry.DotNetRef = DotNetObjectReference.Create(new DialogCallbacks(entry.Reference));
@@ -208,6 +274,9 @@
         DialogService.OnDialogInstanceAdded   -= OnAdded;
         DialogService.OnDialogCloseRequested  -= OnClosed;
         DialogService.OnDialogInstanceUpdated -= OnUpdated;
+
+        _handoffTransition?.Dispose();
+        _handoffTransition = null;
 
         foreach (var entry in _entries.ToList())
         {

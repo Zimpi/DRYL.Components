@@ -14,6 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-07-11
+
+### Added
+- `DialogOptions.AnimateHandoff` — Opt-in per dialog call: when a dialog opens while its predecessor is still closing (the sequential "agent handoff" pattern), the swap morphs through the browser's View Transition API (`IDrylViewTransition`) instead of the default CSS cross-fade. `DrylDialog`'s shell, header, body and footer each carry a matching `view-transition-name` so the outer size/position glides while the title/content/buttons cross-fade independently. `DrylDialogProvider` finalizes the outgoing dialog immediately and wraps the swap in one view transition. Off by default; falls back to the existing cross-fade automatically without View Transition support, during prerender, and under `prefers-reduced-motion`
+- `DialogOptions.HandoffStyle` — Morph tier for `AnimateHandoff`, defaults to `DrylViewTransitionStyle.DepthGlass`: every named dialog element also gets `view-transition-class="dryl-depth"`, so the mercury-merge + translucency pulse plays on the swap — making the content change read clearly even when two dialogs happen to be nearly the same size. Set to `DrylViewTransitionStyle.Glide` for the cheaper shape-only morph
+
+### Fixed
+- `dryl-depth-clarify` (the DepthGlass view-transition tier) — the keyframes only animated `filter`, so the `animation` shorthand on `::view-transition-new(*.dryl-depth)` silently dropped the browser's default cross-fade-in; the new snapshot popped in at full opacity on frame one and instantly occluded the still-fading-out old one, reading as a flicker instead of a merge. Added an `opacity` ramp to the same keyframes — first hit on `DrylDialog`'s handoff morph, but the bug affected every `DepthGlass` shared-element morph (e.g. `DrylCard.ViewTransitionStyle`)
+
 ## [2.2.1] — 2026-07-11
 
 ### Changed
