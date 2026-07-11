@@ -440,21 +440,57 @@ public class DrylAiFieldTests : BunitContext
         Assert.Equal("before", writes[^1].Arguments[1]);   // restored
     }
 
+    /// <summary>
+    /// Fails on its first call (like <see cref="FailingChatClient"/>), then hangs on every
+    /// subsequent call. Used to make the SECOND run in a "does a new run clear the previous
+    /// error" test settle into a stable Running state instead of failing again — a fixed
+    /// FailingChatClient would race the error-cleared assertion against the second failure.
+    /// </summary>
+    private sealed class FailThenHangChatClient : IChatClient
+    {
+        private int _calls;
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            var isFirstCall = Interlocked.Increment(ref _calls) == 1;
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "par");
+            await Task.Yield();
+            if (isFirstCall) throw new InvalidOperationException("model unavailable");
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) =>
+            serviceKey is null && serviceType.IsInstanceOfType(this) ? this : null;
+
+        public void Dispose() { }
+    }
+
     [Fact]
     public async Task New_run_clears_previous_error()
     {
         SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
-        var cut = RenderField(Agent(new FailingChatClient()));
+        var cut = RenderField(Agent(new FailThenHangChatClient()));
         await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-error")));
 
-        // second click starts a new run — StartAsync clears _errorText at the top, so the error's
-        // DrylPresence wrapper immediately starts its exit transition (Loose JSInterop never fires
-        // the exit-finished callback, so it stays mounted with presence-exit rather than unmounting
-        // — see the Task 5 accept/reject tests for the established pattern).
+        // Second click starts a new run — StartAsync clears _errorText at the top, so the error's
+        // DrylPresence wrapper starts its exit transition (Loose JSInterop never fires the
+        // exit-finished callback, so it stays mounted with presence-exit rather than unmounting —
+        // see the Task 5 accept/reject tests for the established pattern). The second run hangs
+        // instead of failing again, so the cleared state is stable rather than racing a second
+        // failure that would re-mount the error and flip presence-enter back in.
         await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
         cut.WaitForAssertion(() =>
-            Assert.Contains("presence-exit", cut.Find(".ai-field-error").ParentElement!.GetAttribute("class")));
+        {
+            Assert.Contains("presence-exit", cut.Find(".ai-field-error").ParentElement!.GetAttribute("class"));
+            Assert.Contains("ai-field--on", cut.Find(".ai-field").GetAttribute("class"));
+        });
     }
 
     // ── Task 7: mini-prompt popover ─────────────────────────────────────────
