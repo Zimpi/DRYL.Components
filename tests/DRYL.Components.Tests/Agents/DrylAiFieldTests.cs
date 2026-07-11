@@ -306,4 +306,118 @@ public class DrylAiFieldTests : BunitContext
         });
         Assert.True(rejected);
     }
+
+    // ── Task 6: cancel + error ──────────────────────────────────────────────
+
+    /// <summary>Streams one chunk, then hangs until cancelled — lets tests cancel mid-stream.</summary>
+    private sealed class HangingChatClient : IChatClient
+    {
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "partial ");
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) =>
+            serviceKey is null && serviceType.IsInstanceOfType(this) ? this : null;
+
+        public void Dispose() { }
+    }
+
+    /// <summary>Fails after one chunk — exercises the run-error path.</summary>
+    private sealed class FailingChatClient : IChatClient
+    {
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, "par");
+            await Task.Yield();
+            throw new InvalidOperationException("model unavailable");
+        }
+
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) =>
+            serviceKey is null && serviceType.IsInstanceOfType(this) ? this : null;
+
+        public void Dispose() { }
+    }
+
+    [Fact]
+    public async Task Escape_during_run_cancels_and_restores()
+    {
+        var rejected = false;
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "before", SelStart = 0, SelEnd = 0 });
+        var cut = RenderField(Agent(new HangingChatClient()),
+            extra: ps => ps.Add(p => p.OnRejected, () => rejected = true));
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        // wait until the stream produced at least one write (running for sure)
+        cut.WaitForAssertion(() =>
+            Assert.Contains(_module.Invocations, i => i.Identifier == "write"));
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field").KeyDown(new KeyboardEventArgs { Key = "Escape" }));
+
+        cut.WaitForAssertion(() =>
+        {
+            var writes = _module.Invocations.Where(i => i.Identifier == "write").ToList();
+            Assert.Equal("before", writes[^1].Arguments[1]);
+        });
+        Assert.True(rejected);
+        // Review chips never mounted in this run — no cancel-only path enters Review.
+        Assert.Empty(cut.FindAll(".ai-field-review"));
+    }
+
+    [Fact]
+    public async Task Run_error_restores_shows_message_and_fires_OnError()
+    {
+        DrylRunError? error = null;
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "before", SelStart = 0, SelEnd = 0 });
+        var cut = RenderField(Agent(new FailingChatClient()),
+            extra: ps => ps.Add(p => p.OnError, (DrylRunError e) => error = e));
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+
+        // .ai-field-error is DrylPresence-wrapped and Appear, so it's actually mounted when showing.
+        // FailAsync restores (which drives the render) BEFORE invoking OnError — same
+        // restore-then-notify order as Reject/cancel — so wait for both together rather than
+        // assuming OnError has already landed the instant the DOM shows the error.
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Single(cut.FindAll(".ai-field-error"));
+            Assert.NotNull(error);
+        });
+        Assert.Contains("model unavailable", cut.Find(".ai-field-error").TextContent);
+        // Review chips never mounted — the run failed before reaching Review.
+        Assert.Empty(cut.FindAll(".ai-field-review"));
+
+        var writes = _module.Invocations.Where(i => i.Identifier == "write").ToList();
+        Assert.Equal("before", writes[^1].Arguments[1]);   // restored
+    }
+
+    [Fact]
+    public async Task New_run_clears_previous_error()
+    {
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
+        var cut = RenderField(Agent(new FailingChatClient()));
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-error")));
+
+        // second click starts a new run — StartAsync clears _errorText at the top, so the error's
+        // DrylPresence wrapper immediately starts its exit transition (Loose JSInterop never fires
+        // the exit-finished callback, so it stays mounted with presence-exit rather than unmounting
+        // — see the Task 5 accept/reject tests for the established pattern).
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        cut.WaitForAssertion(() =>
+            Assert.Contains("presence-exit", cut.Find(".ai-field-error").ParentElement!.GetAttribute("class")));
+    }
 }
