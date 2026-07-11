@@ -156,6 +156,23 @@ error in place.
 }
 ```
 
+## 7 — `DrylAiField` — AI affordance for any input
+
+Lay it around any existing text-like input; pass only the agent. The field gets
+an unobtrusive ✨ trigger: empty field → generate, selected text → transform
+only the selection. The result streams live into the field, the shared ai-aura
+plays, the user accepts or rejects.
+
+```razor
+<DrylAiField Agent="agent" Instruction="Formuliere professioneller">
+    <DrylTextarea @bind-Value="mail.Body" />
+</DrylAiField>
+```
+
+No `Instruction` (or `ShowPrompt`) opens a mini-prompt popover instead. The
+wrapped component is never touched — the value bridge dispatches native
+`input` events, so `@bind-Value` just works.
+
 ## Versioning & publishing
 
 This package carries its own `Version` (starting at `0.1.0`) and is published independently
