@@ -14,6 +14,18 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.4.0] — 2026-07-12
+
+### Added
+- Streaming reveal, reworked — freshly streamed AI text no longer pops in at full opacity; it comes alive, with a small glowing violet→cyan accent dot riding the tip of the stream. Two Blazor-safe reveals share the AI motion vocabulary, both new primitives in `dryl.css` and honouring `prefers-reduced-motion`:
+  - **Plain text** (`DrylMessage Text="…"` without `Markdown`) — each freshly arrived word blur-fades to crisp, staggered per word (`.stream-token`, rendered fully server-side; already-shown words never re-animate)
+  - **Markdown** (`DrylMarkdown`, and Markdown `DrylMessage` bubbles) — the newest top-level block (the one being written) is filled with the moving AI gradient — a "being written right now" sheen that advances with the writing head as blocks complete; settled blocks relax to normal text
+- `DrylMarkdown` — shows the newest-block streaming sheen automatically while `Ai="AiState.Streaming"`; no API change
+- `DrylMessage` — plain-text bubbles show the per-word materialize while streaming, Markdown bubbles the block sheen; no API change
+
+### Fixed
+- `DrylMessage` — Streaming Markdown bubbles no longer double up the AI aura: `DrylMessage` was forwarding its `Ai` state into the nested `DrylMarkdown`, which independently drew its own ring/glow/glass surface inside the bubble that already hosts the aura, reading as a nested duplicate box. `DrylMarkdown` inside a message bubble now renders plain (`Ai` stays `AiState.None`); only the bubble carries the aura
+
 ## [2.3.0] — 2026-07-11
 
 ### Added

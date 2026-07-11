@@ -76,11 +76,25 @@ else
                 }
                 else if (Markdown && Text is not null)
                 {
-                    <DrylMarkdown Content="@Text" Ai="@EffectiveAi" />
+                    @* The bubble itself already hosts the ai-aura ring/glow above — passing
+                       EffectiveAi into DrylMarkdown too would wrap the text a second time in
+                       its own glass surface + ring, reading as a nested duplicate box. *@
+                    <DrylMarkdown Content="@Text" />
                 }
                 else if (Text is not null)
                 {
-                    @Text
+                    @if (_streamTokens.Count > 0)
+                    {
+                        @* Plain-text streaming: each freshly arrived word mounts as its own
+                           keyed-by-position .stream-token span and blur-materializes in;
+                           .stream-text::after draws the glowing caret at the tip. Whitespace
+                           lives inside the token text, so no markup whitespace between spans. *@
+                        <span class="stream-text">@foreach (var t in _streamTokens){<span class="stream-token" style="--stream-i:@t.Stagger">@t.Text</span>}</span>
+                    }
+                    else
+                    {
+                        @Text
+                    }
                 }
                 else
                 {
@@ -146,10 +160,61 @@ else
     private AiState _prevAi = AiState.None;
     private int _genTick;
 
+    private readonly List<(string Text, int Stagger)> _streamTokens = new();
+    private string _streamSeen = "";
+
     protected override void OnParametersSet()
     {
         if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = EffectiveAi;
+        TrackPlainStream();
+    }
+
+    // Plain-text streaming reveal (server-side, no JS): accumulate the delta of
+    // each Text update as word tokens so only the freshly arrived words mount as
+    // new .stream-token spans. Blazor's index-based diff keeps the already-shown
+    // spans untouched (append-only), so they never re-animate — only new words
+    // blur-materialize in. Markdown bubbles can't tokenize this way (words live
+    // inside Markdig markup); they use the CSS newest-block sheen instead.
+    private void TrackPlainStream()
+    {
+        if (EffectiveAi != AiState.Streaming || Markdown || Typing || Text is null)
+        {
+            _streamTokens.Clear();
+            _streamSeen = "";
+            return;
+        }
+
+        if (!Text.StartsWith(_streamSeen, StringComparison.Ordinal))
+        {
+            _streamTokens.Clear();      // stream restarted — re-materialize from scratch
+            _streamSeen = "";
+        }
+
+        if (Text.Length > _streamSeen.Length)
+        {
+            var stagger = 0;
+            foreach (var token in SplitTokens(Text.AsMemory(_streamSeen.Length)))
+                _streamTokens.Add((token, Math.Min(stagger++, 10)));
+            _streamSeen = Text;
+        }
+    }
+
+    // "word + trailing whitespace" chunks; a leading whitespace run is its own
+    // token. Whitespace stays inside the span so adjacent spans never need
+    // markup whitespace between them (which Blazor's diff may drop).
+    private static IEnumerable<string> SplitTokens(ReadOnlyMemory<char> text)
+    {
+        var s = text;
+        while (!s.IsEmpty)
+        {
+            var span = s.Span;
+            var i = 0;
+            while (i < span.Length && !char.IsWhiteSpace(span[i])) i++;
+            while (i < span.Length && char.IsWhiteSpace(span[i])) i++;
+            yield return s[..i].ToString();
+            s = s[i..];
+        }
     }
 
     private string? DefaultIcon =>

@@ -4752,6 +4752,105 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .md-content > * { margin: 0; }
 
+/* ── Streaming materialize (AI vocabulary, CLAUDE.md §2.10) ──
+   Freshly streamed AI text should not pop in at full opacity — it comes
+   alive. Two Blazor-safe reveals, no JS DOM surgery (that corrupts Blazor
+   Server's batch diff):
+
+   Plain text (DrylMessage Text=…, no Markdown) — each freshly arrived word is
+   rendered server-side as a .stream-token span inside .stream-text; it blur-
+   fades to crisp, staggered per word via --stream-i so a burst reads as a
+   wave. Already-shown words are never re-created, so they never re-animate.
+
+   Markdown (DrylMarkdown / a Markdown DrylMessage bubble) — words live inside
+   Markdig markup that can't be tokenized without touching Blazor-owned nodes,
+   so instead the *newest* top-level block (the one currently being written)
+   is filled with the moving violet→cyan AI gradient — a "being written right
+   now" sheen. As each block finishes and the next begins, the sheen advances
+   with the writing head; settled blocks relax to normal text. Pure CSS on
+   :last-child, no markup change.
+
+   .stream-caret / *::after — a small glowing accent dot riding the tip of the
+   stream, the inline "the AI is here" indicator. Both reveals share it. */
+.stream-token {
+  display: inline;
+  animation: stream-token-in var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--stream-i, 0) * 30ms);
+}
+
+@keyframes stream-token-in {
+  from { opacity: 0; filter: blur(5px); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+/* Newest-block sheen. Excludes DrylCodeBlock (.code-block) — clipping a code
+   surface to its text would erase its chrome. The gradient is mostly --fg with
+   a travelling accent band, so text stays readable while the band sweeps. */
+.md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
+.chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
+  background-image: linear-gradient(
+    100deg,
+    var(--fg) 0%, var(--fg) 38%,
+    var(--ai-a) 47%, var(--ai-b) 55%,
+    var(--fg) 64%, var(--fg) 100%);
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+          background-clip: text;
+  -webkit-text-fill-color: transparent;
+          color: transparent;
+  animation: stream-sheen 2.2s var(--ease-in-out) infinite;
+}
+
+@keyframes stream-sheen {
+  from { background-position: 130% 0; }
+  to   { background-position: -130% 0; }
+}
+
+.stream-caret,
+.stream-text::after,
+.md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after,
+.chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: 0.14em;
+  border-radius: var(--r-pill);
+  vertical-align: baseline;
+  background: linear-gradient(135deg, var(--ai-a), var(--ai-b));
+  -webkit-text-fill-color: initial;   /* immune to the parent's text-fill on the sheen block */
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--ai-a) 60%, transparent),
+    0 0 22px color-mix(in srgb, var(--ai-b) 35%, transparent);
+  animation: stream-caret-pulse 1.2s var(--ease-in-out) infinite;
+}
+
+@keyframes stream-caret-pulse {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.4;  transform: scale(0.68); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-token { animation: none; }
+  .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
+  .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
+    animation: none;
+    /* Drop the clip so text returns to its normal colour, no half-swept band. */
+    -webkit-text-fill-color: currentColor;
+            color: var(--fg-muted);
+    background-image: none;
+  }
+  /* Keep the caret as a static position marker; just stop it pulsing. */
+  .stream-caret,
+  .stream-text::after,
+  .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after,
+  .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after {
+    animation: none;
+  }
+}
+
 .md-content h1,
 .md-content h2,
 .md-content h3,
