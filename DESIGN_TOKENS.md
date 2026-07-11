@@ -308,8 +308,15 @@ enum (e.g. `DrylStack.CollapseBelow="Breakpoint.Md"`).
 | `--ease-out`     | `cubic-bezier(0.16, 1, 0.3, 1)`| Exits, fade-ins, default reveal    |
 | `--ease-in-out`  | `cubic-bezier(0.65, 0, 0.35, 1)`| Layout shifts, tab content swap   |
 | `--ease-spring`  | `cubic-bezier(0.34, 1.56, 0.64, 1)`| Toggles, indicator pings        |
+| `--ease-viscous` | `cubic-bezier(0.45, 0.05, 0.15, 1)`| **View-transition pseudo-elements only** — viscous morph settle |
 
 **Do not use `linear` for anything except progress bars and loaders.**
+
+**`--ease-viscous` is scoped to view transitions.** It models a viscous, syrup-like
+settle — resists starting, then glides with weight, no overshoot. It exists because
+none of the other three fit a morph: `--ease-spring` bounces (the opposite of
+viscous), `--ease-out` is snappy, `--ease-in-out` is thin. Do not use it for
+hover states, indicators or presence animations — those keep the three core curves.
 
 ### Reveal animations
 

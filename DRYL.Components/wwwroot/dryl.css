@@ -137,6 +137,7 @@
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-viscous: cubic-bezier(0.45, 0.05, 0.15, 1); /* view-transition pseudo-elements only */
   --dur-fast:    140ms;
   --dur-med:     240ms;
   --dur-slow:    420ms;
@@ -5461,4 +5462,48 @@ pre { overflow-x: auto; }
     animation: none;
   }
   .chart-tip, .chart-crosshair, .chart-bar, .donut-slice path { transition: none; }
+}
+
+/* ──────────────────────────────────────────────────────────
+   View transitions — the "Depth Glass" morph vocabulary.
+   Same-document view transitions started by dryl.viewTransition
+   (IDrylViewTransition). Glide tier = viscous shape settle only.
+   DepthGlass tier (view-transition-class: dryl-depth) adds the
+   translucency pulse + mercury merge; clarity arrives on --dur-med,
+   before the --dur-slow shape finishes settling — the glass clears
+   before the motion ends.
+   ────────────────────────────────────────────────────────── */
+::view-transition-group(*) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-viscous);
+}
+
+/* DepthGlass: mercury-like merge. A merge filter (blur + high-contrast,
+   the "goo" technique) pulls the old/new snapshots together with a
+   droplet's surface tension instead of a flat cross-fade. Transient —
+   the pseudo-tree (and the filter with it) disappears when the
+   transition ends, and the clarify pass below lands on filter: none. */
+::view-transition-image-pair(*.dryl-depth) {
+  filter: url(#dryl-merge);
+}
+
+/* DepthGlass: translucency + crystalline clarity. Runs on --dur-med
+   (faster than the --dur-slow shape glide above) so the surface is
+   always sharp before the shape finishes settling. */
+@keyframes dryl-depth-clarify {
+  from { filter: blur(6px) saturate(1.35); }
+  to   { filter: blur(0) saturate(1); }
+}
+::view-transition-new(*.dryl-depth) {
+  animation: dryl-depth-clarify var(--dur-med) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-image-pair(*) {
+    animation: none !important;
+    filter: none !important;
+  }
 }
