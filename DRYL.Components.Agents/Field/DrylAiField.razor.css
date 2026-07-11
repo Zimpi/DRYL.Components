@@ -1,0 +1,69 @@
+/* DrylAiField — trigger affordance, review chips, live region. Tokens only. */
+
+.ai-field {
+    position: relative;
+    display: block;
+}
+
+.ai-field-host {
+    position: relative;
+}
+
+/* ✨ trigger: fades/scales in on hover or focus-within, stays while running/review */
+.ai-field-trigger {
+    position: absolute;
+    top: var(--sp-2);
+    right: var(--sp-2);
+    z-index: 2;
+    opacity: 0;
+    transform: scale(0.92);
+    transition: opacity var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+}
+
+.ai-field:hover .ai-field-trigger,
+.ai-field:focus-within .ai-field-trigger,
+.ai-field--on .ai-field-trigger {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* mini-prompt row (rendered inside the portaled popover panel) */
+.ai-field-prompt {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 280px;
+}
+
+.ai-field-prompt ::deep .field {
+    flex: 1;
+}
+
+/* accept / reject chips */
+.ai-field-review {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding-top: var(--sp-2);
+}
+
+.ai-field-error {
+    margin-top: var(--sp-1);
+}
+
+/* visually hidden aria-live region */
+.ai-field-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ai-field-trigger {
+        transition: none;
+    }
+}

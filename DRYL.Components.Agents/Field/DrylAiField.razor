@@ -1,0 +1,396 @@
+@namespace DRYL.Components.Agents
+@using System.Text
+@using DRYL.Components
+@using Microsoft.Agents.AI
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAiField — lays a ✨ AI affordance around any existing text-like
+    DRYL input without touching it. Empty field → the agent generates the
+    value; selected text → only the selection is transformed. The result
+    streams live into the field (DOM value bridge dispatching native input
+    events), the shared ai-aura plays via DrylAiScope, and the user accepts
+    or rejects the suggestion.
+
+    Usage (one line, zero wiring):
+      <DrylAiField Agent="agent" Instruction="Formuliere professioneller">
+          <DrylTextarea @bind-Value="mail.Body" />
+      </DrylAiField>
+
+    Without Instruction (or with ShowPrompt) the trigger opens a mini-prompt
+    popover instead. Esc cancels a running stream / rejects a suggestion.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCss" @ref="_root" @onkeydown="HandleRootKeyDown">
+    <div class="ai-field-host">
+        <DrylAiScope State="_aura">
+            @ChildContent
+        </DrylAiScope>
+
+        @if (!Disabled)
+        {
+            <div class="ai-field-trigger" data-aifield-ui>
+                @if (UsesPrompt)
+                {
+                    <DrylPopover @bind-Open="_promptOpen" Placement="PopoverPlacement.BottomEnd">
+                        <TriggerContent>
+                            @* stopPropagation: our button decides; the popover never self-toggles *@
+                            <span @onclick:stopPropagation>@TriggerButton</span>
+                        </TriggerContent>
+                        <PanelContent>
+                            <div class="ai-field-prompt" data-aifield-ui @onkeydown="HandlePromptKeyDown">
+                                <DrylInputText @bind-Value="_promptText"
+                                               Placeholder="@PromptPlaceholder"
+                                               AriaLabel="@PromptPlaceholder" />
+                                <DrylTooltip Text="@SendLabel">
+                                    <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                                                Size="DrylButton.ButtonSize.Small"
+                                                AriaLabel="@SendLabel"
+                                                LeadingIcon="ArrowUp"
+                                                OnClick="SubmitPromptAsync" />
+                                </DrylTooltip>
+                            </div>
+                        </PanelContent>
+                    </DrylPopover>
+                }
+                else
+                {
+                    @TriggerButton
+                }
+            </div>
+        }
+    </div>
+
+    <DrylPresence Visible="_phase == FieldPhase.Review" Transition="PresenceTransition.SlideUp" Appear>
+        <div class="ai-field-review" data-aifield-ui>
+            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                        Size="DrylButton.ButtonSize.Small"
+                        LeadingIcon="Check"
+                        OnClick="AcceptAsync">@AcceptLabel</DrylButton>
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                        Size="DrylButton.ButtonSize.Small"
+                        LeadingIcon="X"
+                        OnClick="RejectAsync">@RejectLabel</DrylButton>
+        </div>
+    </DrylPresence>
+
+    <DrylPresence Visible="_errorText is not null" Transition="PresenceTransition.Fade" Appear>
+        <div class="input-helper input-helper-error ai-field-error" role="status">@_errorText</div>
+    </DrylPresence>
+
+    <span class="ai-field-live" aria-live="polite">@_live</span>
+</div>
+
+@code {
+    /// <summary>The agent that generates or transforms the field value.</summary>
+    [Parameter, EditorRequired] public AIAgent Agent { get; set; } = default!;
+
+    /// <summary>Fixed instruction (e.g. "Formuliere professioneller"). Null opens the mini-prompt instead.</summary>
+    [Parameter] public string? Instruction { get; set; }
+
+    /// <summary>Always opens the mini-prompt; <see cref="Instruction"/> becomes the prefill.</summary>
+    [Parameter] public bool ShowPrompt { get; set; }
+
+    /// <summary>Extra context sent with the prompt (e.g. the mail body when generating a subject).</summary>
+    [Parameter] public string? Context { get; set; }
+
+    /// <summary>Optional session factory for session reuse. Default: a fresh session per invocation.</summary>
+    [Parameter] public Func<CancellationToken, Task<AgentSession>>? SessionFactory { get; set; }
+
+    /// <summary>Tooltip and aria-label of the ✨ trigger.</summary>
+    [Parameter] public string TriggerLabel { get; set; } = "Mit AI ausfüllen";
+
+    /// <summary>Tooltip and aria-label of the trigger while a run can be cancelled.</summary>
+    [Parameter] public string CancelLabel { get; set; } = "Abbrechen";
+
+    /// <summary>Tooltip and aria-label of the mini-prompt send button.</summary>
+    [Parameter] public string SendLabel { get; set; } = "Senden";
+
+    /// <summary>Placeholder of the mini-prompt input.</summary>
+    [Parameter] public string PromptPlaceholder { get; set; } = "Was soll die AI tun?";
+
+    /// <summary>Label of the accept chip.</summary>
+    [Parameter] public string AcceptLabel { get; set; } = "Übernehmen";
+
+    /// <summary>Label of the reject chip.</summary>
+    [Parameter] public string RejectLabel { get; set; } = "Verwerfen";
+
+    /// <summary>Hides the affordance entirely; the wrapped input renders unchanged.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the wrapper's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>The wrapped input (any markup containing one text-like input or textarea).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Fires when the user accepts a suggestion — receives the final field value.</summary>
+    [Parameter] public EventCallback<string> OnAccepted { get; set; }
+
+    /// <summary>Fires when the user rejects a suggestion (chip, Esc, or cancel mid-stream).</summary>
+    [Parameter] public EventCallback OnRejected { get; set; }
+
+    /// <summary>Fires when the run fails; the field is restored automatically.</summary>
+    [Parameter] public EventCallback<DrylRunError> OnError { get; set; }
+
+    [Inject] private DrylAgentRunner Runner { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
+
+    private const string ModulePath = "./_content/DRYL.Components.Agents/js/dryl-aifield.js";
+    private const int FlushMs = 50;
+
+    private enum FieldPhase { Idle, Running, Review }
+
+    private ElementReference _root;
+    private IJSObjectReference? _module;
+    private bool _attached;                    // JS module was loaded (prerender guard)
+    private FieldPhase _phase = FieldPhase.Idle;
+    private AiState? _aura = AiState.None;      // this component always forces an explicit state
+    private bool _promptOpen;
+    private string _promptText = string.Empty;
+    private string _snapshotValue = string.Empty;
+    private string _prefix = string.Empty, _suffix = string.Empty;
+    private string _finalText = string.Empty;
+    private string? _errorText;
+    private string _live = string.Empty;
+    private DrylAgentRun? _run;
+    private CancellationTokenSource? _cts;
+
+    private bool UsesPrompt => Instruction is null || ShowPrompt;
+
+    private string RootCss => string.Join(' ',
+        new[] { "ai-field", _phase != FieldPhase.Idle ? "ai-field--on" : null, Class }
+            .Where(s => !string.IsNullOrWhiteSpace(s))!);
+
+    private RenderFragment TriggerButton => __builder =>
+    {
+        var running = _phase == FieldPhase.Running;
+        var label = running ? CancelLabel : TriggerLabel;
+        <DrylTooltip Text="@label">
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                        Size="DrylButton.ButtonSize.Small"
+                        AriaLabel="@label"
+                        LeadingIcon="@(running ? "X" : "Sparkle")"
+                        OnClick="HandleTriggerClickAsync" />
+        </DrylTooltip>
+    };
+
+    // ── Flow methods ─────────────────────────────────────────────────────────
+
+    private async Task HandleTriggerClickAsync()
+    {
+        switch (_phase)
+        {
+            case FieldPhase.Running:
+                CancelRun();
+                break;
+            case FieldPhase.Idle when UsesPrompt:
+                _promptText = ShowPrompt ? (Instruction ?? string.Empty) : string.Empty;
+                _promptOpen = true;
+                break;
+            case FieldPhase.Idle:
+                await StartAsync(Instruction!);
+                break;
+            // Review: the chips are the affordance — the trigger is inert.
+        }
+    }
+
+    private void CancelRun() => _cts?.Cancel();
+
+    private async Task StartAsync(string instruction)
+    {
+        if (_phase == FieldPhase.Running) return;
+        _phase = FieldPhase.Running;   // close the TOCTOU window synchronously — before the first await
+        _errorText = null;
+
+        var module = await GetModuleAsync();
+        var snap = await module.InvokeAsync<AiFieldSnapshot>("snapshot", _root);
+        if (!snap.Found)
+        {
+            _phase = FieldPhase.Idle;   // nothing text-like inside — the affordance is a no-op
+            return;
+        }
+
+        _snapshotValue = snap.Value;
+        string? selection = null;
+        _prefix = _suffix = string.Empty;
+        if (snap.HasSelection)
+        {
+            selection = snap.Value[snap.SelStart..snap.SelEnd];
+            _prefix = snap.Value[..snap.SelStart];
+            _suffix = snap.Value[snap.SelEnd..];
+        }
+
+        var prompt = AiFieldPrompt.Build(instruction, Context, snap.Value, selection);
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+
+        SetAura(AiState.Thinking);
+        Announce("Die AI schreibt …");
+        await module.InvokeVoidAsync("setBusy", _root, true);
+
+        try
+        {
+            var session = SessionFactory is not null
+                ? await SessionFactory(ct)
+                : await Agent.CreateSessionAsync(ct);
+
+            _run = Runner.Start(Agent, session, prompt, aiKey: null, ct);
+            await ConsumeAsync(_run, module, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            await RestoreAsync("Vorschlag verworfen.");
+            await OnRejected.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            await FailAsync(new DrylRunError(ex.Message, ex));
+        }
+    }
+
+    private async Task ConsumeAsync(DrylAgentRun run, IJSObjectReference module, CancellationToken ct)
+    {
+        var sb = new StringBuilder();
+        var lastFlush = Environment.TickCount64 - FlushMs;   // first delta flushes immediately
+
+        await foreach (var delta in run.TextStream.WithCancellation(ct))
+        {
+            sb.Append(delta);
+            if (_aura != AiState.Streaming) SetAura(AiState.Streaming);
+            if (Environment.TickCount64 - lastFlush >= FlushMs)
+            {
+                lastFlush = Environment.TickCount64;
+                await module.InvokeVoidAsync("write", ct, _root, Compose(sb.ToString()));
+            }
+        }
+
+        await run.WaitForCompletionAsync();
+        ct.ThrowIfCancellationRequested();
+
+        if (run.Error is not null)
+        {
+            await FailAsync(run.Error);
+            return;
+        }
+
+        _finalText = Compose(AiFieldPrompt.Clean(sb.ToString()));
+        await module.InvokeVoidAsync("write", ct, _root, _finalText);
+        await module.InvokeVoidAsync("setBusy", ct, _root, false);
+
+        _phase = FieldPhase.Review;
+        SetAura(AiState.Generated);
+        Announce("AI-Vorschlag bereit — übernehmen oder verwerfen.");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string Compose(string core) => _prefix + core + _suffix;
+
+    private async Task RestoreAsync(string announcement)
+    {
+        _phase = FieldPhase.Idle;
+        SetAura(AiState.None);
+        Announce(announcement);
+        try
+        {
+            var module = await GetModuleAsync();
+            await module.InvokeVoidAsync("write", _root, _snapshotValue);
+            await module.InvokeVoidAsync("setBusy", _root, false);
+            await module.InvokeVoidAsync("focusField", _root);
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (ObjectDisposedException) { /* component disposed mid-run */ }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FailAsync(DrylRunError error)
+    {
+        _errorText = error.Message;
+        await RestoreAsync("Die AI-Anfrage ist fehlgeschlagen.");
+        await OnError.InvokeAsync(error);
+    }
+
+    private void SetAura(AiState state)
+    {
+        _aura = state;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Announce(string message)
+    {
+        _live = message;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SubmitPromptAsync()
+    {
+        var text = _promptText.Trim();
+        if (text.Length == 0) return;
+        _promptOpen = false;
+        await StartAsync(text);
+    }
+
+    private Task HandlePromptKeyDown(KeyboardEventArgs e) =>
+        e.Key == "Enter" ? SubmitPromptAsync() : Task.CompletedTask;
+
+    private async Task HandleRootKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape") return;
+        if (_phase == FieldPhase.Running) CancelRun();
+        else if (_phase == FieldPhase.Review) await RejectAsync();
+    }
+
+    private async Task AcceptAsync()
+    {
+        if (_phase != FieldPhase.Review) return;
+        _phase = FieldPhase.Idle;
+        SetAura(AiState.None);
+        Announce("Vorschlag übernommen.");
+
+        var acceptedValue = _finalText;
+        try
+        {
+            var module = await GetModuleAsync();
+            // Fresh snapshot: the user may have hand-edited the suggestion during review.
+            var snap = await module.InvokeAsync<AiFieldSnapshot>("snapshot", _root);
+            await module.InvokeVoidAsync("focusField", _root);
+            if (snap.Found) acceptedValue = snap.Value;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (ObjectDisposedException) { /* component disposed mid-run */ }
+
+        await OnAccepted.InvokeAsync(acceptedValue);
+    }
+
+    private async Task RejectAsync()
+    {
+        if (_phase != FieldPhase.Review) return;
+        await RestoreAsync("Vorschlag verworfen.");
+        await OnRejected.InvokeAsync();
+    }
+
+    private async Task<IJSObjectReference> GetModuleAsync()
+    {
+        if (_module is null)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            _attached = true;
+        }
+        return _module;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        if (_attached && _module is not null)
+        {
+            try { await _module.DisposeAsync(); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* static prerender */ }
+        }
+    }
+}

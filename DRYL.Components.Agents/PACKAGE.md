@@ -3,9 +3,9 @@
 Companion package for [**DRYL.Components**](https://www.nuget.org/packages/DRYL.Components)
 that bridges the [Microsoft Agent Framework](https://www.nuget.org/packages/Microsoft.Agents.AI)
 (`Microsoft.Agents.AI`) to DRYL's AI vocabulary. It takes real work off your hands across
-four subsystems — without you ever setting `Ai="…"` by hand.
+the following subsystems — without you ever setting `Ai="…"` by hand.
 
-> **Experimental — 0.4.0.** Independently versioned and deliberately decoupled from the
+> **Experimental — 0.5.0.** Independently versioned and deliberately decoupled from the
 > stable core so the agent integration can mature without breaking core SemVer.
 
 The core stays dependency-free (Markdig only); the LLM SDK lives **exclusively** in this
@@ -155,6 +155,23 @@ error in place.
     }, "Write about glass surfaces.");
 }
 ```
+
+## 7 — `DrylAiField` — AI affordance for any input
+
+Lay it around any existing text-like input; pass only the agent. The field gets
+an unobtrusive ✨ trigger: empty field → generate, selected text → transform
+only the selection. The result streams live into the field, the shared ai-aura
+plays, the user accepts or rejects.
+
+```razor
+<DrylAiField Agent="agent" Instruction="Formuliere professioneller">
+    <DrylTextarea @bind-Value="mail.Body" />
+</DrylAiField>
+```
+
+No `Instruction` (or `ShowPrompt`) opens a mini-prompt popover instead. The
+wrapped component is never touched — the value bridge dispatches native
+`input` events, so `@bind-Value` just works.
 
 ## Versioning & publishing
 
