@@ -1,5 +1,6 @@
 using DRYL.Components.Ai;
 using DRYL.Components.Dialogs;
+using DRYL.Components.Motion;
 using DRYL.Components.Theming;
 using DRYL.Components.Toasts;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,8 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Register DRYL component services — <see cref="IDrylDialogService"/>,
     /// <see cref="IDrylToastService"/>, <see cref="IDrylNotificationService"/>,
-    /// <see cref="IDrylAiActivityService"/> and <see cref="IDrylThemeService"/>.
+    /// <see cref="IDrylAiActivityService"/>, <see cref="IDrylThemeService"/> and
+    /// <see cref="IDrylViewTransition"/>.
     /// Call this in <c>Program.cs</c>:
     /// <code>builder.Services.AddDrylComponents();</code>
     /// Then place a single <c>&lt;DrylDialogProvider/&gt;</c>, (if you want
@@ -29,6 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDrylAiActivityService, DrylAiActivityService>();
         services.AddScoped<IDrylThemeService, DrylThemeService>();
         services.AddScoped<ICommandRegistry, CommandRegistry>();
+        services.AddScoped<IDrylViewTransition, DrylViewTransition>();
         return services;
     }
 }
