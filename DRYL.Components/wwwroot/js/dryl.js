@@ -2,6 +2,11 @@
 
 window.dryl = window.dryl || {};
 
+/* Shared prefers-reduced-motion check — used by dryl.motion and
+   dryl.viewTransition so both honour the user's setting identically. */
+window.dryl.reduced = () =>
+    !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
 /* --------------------------------------------------------------
  * Storage — thin wrapper over localStorage used by DrylTable's
  * PersistStateKey. Returns null on any access failure (private
@@ -1026,8 +1031,7 @@ window.dryl.motion = (() => {
     const _ind    = new WeakMap(); // container  -> { ro }
     const _reveal = new WeakMap(); // wrapper el -> { io }
 
-    const reduced = () =>
-        !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const reduced = () => window.dryl.reduced();
 
     /* ---- Presence: exit lifecycle ----------------------------------
      * onExit(el, ref, opts) fires OnExitFinished when an exit animation ends.
@@ -1137,6 +1141,55 @@ window.dryl.motion = (() => {
     }
 
     return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve };
+})();
+
+/* ──────────────────────────────────────────────────────────
+ * dryl.viewTransition — same-document View Transition bridge.
+ *
+ * start(dotNetRef) snapshots the current DOM, asks .NET to apply its
+ * state change (ApplyChange resolves only after the consuming
+ * component's OnAfterRender fired, i.e. the new DOM is committed),
+ * then lets the browser morph old → new. Falls back to a direct,
+ * morph-free apply when the API is missing or the user prefers
+ * reduced motion — the feature never blocks unsupported browsers.
+ *
+ * The #dryl-merge SVG "goo" filter used by DepthGlass morphs
+ * (view-transition-class: dryl-depth) is injected lazily the first
+ * time a DepthGlass element ([data-vt-depth]) is in the DOM —
+ * the same lazy-DOM-injection pattern as the tooltip portal.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.viewTransition = (() => {
+    function ensureMergeFilter() {
+        if (document.getElementById('dryl-merge')) return;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '0');
+        svg.setAttribute('height', '0');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.style.position = 'absolute';
+        svg.innerHTML =
+            '<defs><filter id="dryl-merge">' +
+            '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>' +
+            '<feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -12" result="g"/>' +
+            '<feComposite in="SourceGraphic" in2="g" operator="atop"/>' +
+            '</filter></defs>';
+        document.body.appendChild(svg);
+    }
+
+    function start(dotNetRef) {
+        if (!document.startViewTransition || window.dryl.reduced()) {
+            // No support, or user opted out of motion: apply the change
+            // directly — no snapshot, no morph (same fallback shape as
+            // dryl.motion.onExit).
+            return dotNetRef.invokeMethodAsync('ApplyChange');
+        }
+        if (document.querySelector('[data-vt-depth]')) ensureMergeFilter();
+        const t = document.startViewTransition(() => dotNetRef.invokeMethodAsync('ApplyChange'));
+        // Swallow skip-rejections (e.g. duplicate view-transition-name):
+        // the DOM change itself was applied; only the morph was skipped.
+        return t.finished.catch(() => { });
+    }
+
+    return { start };
 })();
 
 /* ──────────────────────────────────────────────────────────
