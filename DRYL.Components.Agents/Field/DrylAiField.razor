@@ -323,9 +323,42 @@
 
     private Task SubmitPromptAsync() => Task.CompletedTask;
     private Task HandlePromptKeyDown(KeyboardEventArgs e) => Task.CompletedTask;
-    private Task HandleRootKeyDown(KeyboardEventArgs e) => Task.CompletedTask;
-    private Task AcceptAsync() => Task.CompletedTask;
-    private Task RejectAsync() => Task.CompletedTask;
+
+    private async Task HandleRootKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape") return;
+        if (_phase == FieldPhase.Running) CancelRun();
+        else if (_phase == FieldPhase.Review) await RejectAsync();
+    }
+
+    private async Task AcceptAsync()
+    {
+        if (_phase != FieldPhase.Review) return;
+        _phase = FieldPhase.Idle;
+        SetAura(AiState.None);
+        Announce("Vorschlag übernommen.");
+
+        var acceptedValue = _finalText;
+        try
+        {
+            var module = await GetModuleAsync();
+            // Fresh snapshot: the user may have hand-edited the suggestion during review.
+            var snap = await module.InvokeAsync<AiFieldSnapshot>("snapshot", _root);
+            await module.InvokeVoidAsync("focusField", _root);
+            if (snap.Found) acceptedValue = snap.Value;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (ObjectDisposedException) { /* component disposed mid-run */ }
+
+        await OnAccepted.InvokeAsync(acceptedValue);
+    }
+
+    private async Task RejectAsync()
+    {
+        if (_phase != FieldPhase.Review) return;
+        await RestoreAsync("Vorschlag verworfen.");
+        await OnRejected.InvokeAsync();
+    }
 
     private async Task<IJSObjectReference> GetModuleAsync()
     {

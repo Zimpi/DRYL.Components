@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -224,5 +225,85 @@ public class DrylAiFieldTests : BunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
         Assert.Contains("Mail body: quarterly numbers", client.LastUserMessage);
+    }
+
+    // ── Task 5: accept / reject ─────────────────────────────────────────────
+
+    private async Task<IRenderedComponent<DrylAiField>> RenderInReviewAsync(
+        Action<ComponentParameterCollectionBuilder<DrylAiField>>? extra = null,
+        string fieldValueAtAccept = "Dear team, please send the report.")
+    {
+        SetupSnapshot(new AiFieldSnapshot
+        {
+            Found = true, Value = fieldValueAtAccept, SelStart = 0, SelEnd = 0,
+        });
+        var cut = RenderField(Agent(new ScriptedChatClient("Dear team, please send the report.")), extra: extra);
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+        return cut;
+    }
+
+    [Fact]
+    public async Task Accept_keeps_value_fires_OnAccepted_and_settles()
+    {
+        string? accepted = null;
+        var cut = await RenderInReviewAsync(ps =>
+            ps.Add(p => p.OnAccepted, (string v) => accepted = v));
+
+        await cut.InvokeAsync(() => cut.FindAll(".ai-field-review button")[0].Click());
+
+        // Phase left Review: the root drops ai-field--on and the chips play their
+        // exit animation. DrylPresence keeps them mounted with presence-exit here,
+        // because Loose JSInterop never fires the exit-finished callback (see
+        // DrylPresenceTests.Hiding_keeps_child_mounted_with_exit_class).
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain("ai-field--on", cut.Find(".ai-field").GetAttribute("class"));
+            Assert.Contains("presence-exit", cut.Find(".ai-field-review").ParentElement!.GetAttribute("class"));
+        });
+        Assert.Equal("Dear team, please send the report.", accepted);
+        // accepted value comes from a fresh snapshot (user may have edited during review)
+        Assert.True(_module.Invocations.Count(i => i.Identifier == "snapshot") >= 2);
+    }
+
+    [Fact]
+    public async Task Reject_restores_snapshot_and_fires_OnRejected()
+    {
+        var rejected = false;
+        SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "original", SelStart = 0, SelEnd = 0 });
+        var cut = RenderField(Agent(new ScriptedChatClient("replacement")),
+            extra: ps => ps.Add(p => p.OnRejected, () => rejected = true));
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+
+        await cut.InvokeAsync(() => cut.FindAll(".ai-field-review button")[1].Click());
+
+        // Phase left Review (chips stay mounted with presence-exit under Loose JSInterop).
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain("ai-field--on", cut.Find(".ai-field").GetAttribute("class"));
+            Assert.Contains("presence-exit", cut.Find(".ai-field-review").ParentElement!.GetAttribute("class"));
+        });
+        Assert.True(rejected);
+        var writes = _module.Invocations.Where(i => i.Identifier == "write").ToList();
+        Assert.Equal("original", writes[^1].Arguments[1]);   // last write restored the snapshot
+    }
+
+    [Fact]
+    public async Task Escape_in_review_rejects()
+    {
+        var rejected = false;
+        var cut = await RenderInReviewAsync(ps =>
+            ps.Add(p => p.OnRejected, () => rejected = true));
+
+        await cut.InvokeAsync(() => cut.Find(".ai-field").KeyDown(new KeyboardEventArgs { Key = "Escape" }));
+
+        // Phase left Review (chips stay mounted with presence-exit under Loose JSInterop).
+        cut.WaitForAssertion(() =>
+        {
+            Assert.DoesNotContain("ai-field--on", cut.Find(".ai-field").GetAttribute("class"));
+            Assert.Contains("presence-exit", cut.Find(".ai-field-review").ParentElement!.GetAttribute("class"));
+        });
+        Assert.True(rejected);
     }
 }
