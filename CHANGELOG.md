@@ -14,6 +14,9 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DrylAiField` (`DRYL.Components.Agents` **0.5.0**) — Wrap any existing text-like DRYL input to give it a ✨ AI affordance: empty field → the agent generates the value, selected text → only the selection is transformed (instruction-driven or free mini-prompt). The result streams live into the field through a DOM value bridge (the inner `@bind-Value` keeps working untouched), the shared ai-aura plays via `DrylAiScope`, and the user accepts or rejects (Esc) the suggestion. One line, zero wiring: `<DrylAiField Agent="agent" Instruction="…"><DrylTextarea @bind-Value="…" /></DrylAiField>`
+
 ## [2.1.0] — 2026-07-10
 
 ### Added
