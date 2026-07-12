@@ -4765,10 +4765,12 @@ input[type=number] { -moz-appearance: textfield; }
    Markdown (DrylMarkdown / a Markdown DrylMessage bubble) — words live inside
    Markdig markup that can't be tokenized without touching Blazor-owned nodes,
    so instead the *newest* top-level block (the one currently being written)
-   is filled with the moving violet→cyan AI gradient — a "being written right
-   now" sheen. As each block finishes and the next begins, the sheen advances
-   with the writing head; settled blocks relax to normal text. Pure CSS on
-   :last-child, no markup change.
+   carries a vertical hot→cold temperature: its bottom (the newest line, at the
+   writing head) glows hot in --ai-a and cools upward through --ai-b to settled
+   --fg. As the block grows, older lines rise into the cold zone — the text
+   "cools with the writing head", the block-level echo of the per-word token
+   cooldown. As each block finishes and the next begins, :last-child moves on
+   and the settled block relaxes to normal text. Pure CSS, no markup change.
 
    .stream-caret / *::after — a small glowing accent dot riding the tip of the
    stream, the inline "the AI is here" indicator. Both reveals share it. */
@@ -4823,38 +4825,39 @@ input[type=number] { -moz-appearance: textfield; }
   }
 }
 
-/* Newest-block sheen. Excludes DrylCodeBlock (.code-block) — clipping a code
-   surface to its text would erase its chrome. The gradient is mostly --fg with
-   a travelling accent band, so text stays readable while the band sweeps.
+/* Newest-block cooldown. Excludes DrylCodeBlock (.code-block) — clipping a code
+   surface to its text would erase its chrome. A vertical hot→cold gradient is
+   anchored to the block box (0deg = bottom→top): the bottom (newest line, at
+   the writing head) is hot --ai-a, cooling through --ai-b to settled --fg for
+   the upper (older) lines. A short one-line block reads warm throughout; a tall
+   one has most of its body cold with only the fresh bottom glowing.
 
-   The background is background-clip:text with transparent fill, so ANY glyph
-   the gradient image does not cover renders fully transparent (invisible). The
-   image is 260% of the block, so it MUST tile (background-repeat: repeat) —
-   with no-repeat, sweeping background-position pushes the oversized image off
-   the block and leaves the trailing text uncovered → invisible, while the tip
-   caret (anchored after the full text) floats out past the visible edge. Both
-   gradient ends are --fg, so tiling is seamless. The keyframes travel exactly
-   one image width (162.5% of position units = one 260% tile), so the loop is
-   perfectly seamless — the band sweeps once per cycle with no restart jump. */
+   The gradient covers the box 1:1 (background-size 100% 100%, no-repeat), so
+   EVERY glyph is painted and nothing goes transparent — the invisibility /
+   caret-drift trap of an oversized swept image (see the 2.4.1 sheen fix) can't
+   arise, because background-position is never animated. Instead the hot zone
+   just breathes in brightness (stream-cooldown) so the glow stays alive between
+   token bursts, while the actual cooling is driven by the text growing: each
+   line rises out of the hot bottom into the cold body as the writing head
+   descends. Colour comes only from the AI accent tokens + --fg. */
 .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
 .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
   background-image: linear-gradient(
-    100deg,
-    var(--fg) 0%, var(--fg) 38%,
-    var(--ai-a) 47%, var(--ai-b) 55%,
-    var(--fg) 64%, var(--fg) 100%);
-  background-size: 260% 100%;
-  background-repeat: repeat;
+    0deg,
+    var(--ai-a) 0%, var(--ai-b) 22%,
+    var(--fg) 58%, var(--fg) 100%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   -webkit-background-clip: text;
           background-clip: text;
   -webkit-text-fill-color: transparent;
           color: transparent;
-  animation: stream-sheen 2.2s var(--ease-in-out) infinite;
+  animation: stream-cooldown var(--dur-slow) var(--ease-in-out) infinite alternate;
 }
 
-@keyframes stream-sheen {
-  from { background-position: 162.5% 0; }
-  to   { background-position: 0 0; }
+@keyframes stream-cooldown {
+  from { filter: brightness(1); }
+  to   { filter: brightness(1.12); }
 }
 
 .stream-caret,
@@ -4886,7 +4889,7 @@ input[type=number] { -moz-appearance: textfield; }
   .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
   .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
     animation: none;
-    /* Drop the clip so text returns to its normal colour, no half-swept band. */
+    /* Drop the clip so text returns to its normal colour, no frozen hot zone. */
     -webkit-text-fill-color: currentColor;
             color: var(--fg-muted);
     background-image: none;

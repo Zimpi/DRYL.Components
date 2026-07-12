@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.5.0] — 2026-07-12
+
+### Changed
+- Streaming Markdown reveal — the newest-block treatment is now a **hot→cold cooldown** instead of a travelling gradient sweep, bringing the per-word `.stream-token` cooldown to block level. The newest top-level block carries a vertical temperature gradient anchored to its box (`0deg`): its bottom line — at the writing head — glows hot in `--ai-a`, cooling upward through `--ai-b` to settled `--fg`. As the block grows, older lines rise out of the hot zone, so the text visibly "cools with the writing head"; a short one-line block reads warm throughout. The hot zone breathes gently in brightness (`stream-cooldown`, `--dur-slow`/`--ease-in-out`) to stay alive between token bursts. Because the gradient covers the block 1:1 and `background-position` is never animated, the invisibility/caret-drift trap of the old oversized swept image (2.4.1) cannot arise. Colour comes only from the AI accent tokens + `--fg`; `prefers-reduced-motion` keeps it static and readable. Applies to `DrylMarkdown` and Markdown `DrylMessage` bubbles; no API change
+
 ## [2.4.3] — 2026-07-12
 
 ### Fixed
