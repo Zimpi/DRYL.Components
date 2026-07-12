@@ -14,6 +14,38 @@ Version bump guide:
 
 ## [Unreleased]
 
+> AI-aura redesign — core + AI-streaming surfaces landed. The remaining hosts
+> (inputs, charts, table, misc; button/tab) still show the new look but are not
+> yet wired for the `Aura` variant switch / graceful exit; that rollout, the
+> version bump and the release are handled as a follow-up (see
+> `docs/superpowers/specs/2026-07-12-ai-aura-rollout-handoff.md`).
+
+### Added
+- `AiAura` enum (`Comet` / `Aurora`) and a shared **`Aura`** parameter on
+  AI-aware components and `DrylAiScope`. Selects the aura variant and is
+  scope-propagated, so a whole subtree can switch to the calmer **Aurora** for
+  dense AI pages. Defaults to `Comet` (bold travelling comet); leaving it unset
+  inherits the surrounding scope
+- `DrylAuraElements` — shared child markup for an AI aura (comet ring, breathing
+  glow, one-shot Generated wash), driven by the new `AuraLifecycle`
+- New CSS tokens `--ai-core` (the comet's theme-aware specular head) and
+  `--ai-strength` (light-mode aura-presence multiplier)
+
+### Changed
+- **AI aura, redesigned** — the shared `.ai-aura*` primitive now reads by state
+  *character*, not just speed. Comet (default): an even, aspect-independent base
+  saum (fixing the patchy long edges wide surfaces used to show) plus a luminous
+  travelling comet, with per-state colour weighting (Thinking violet-dominant,
+  Streaming cyan) and a directional Streaming sheen. Aurora: a soft flowing edge
+  field. `Generated` now rests as a calm afterglow (the comet retires) so a
+  surface can hold an "AI was here" trace without dropping to `None`; leaving AI
+  mode dissolves the aura over `--dur-slow` instead of snapping. Colour comes
+  only from the AI accent tokens; `prefers-reduced-motion` keeps it static.
+  Applies to every AI-aware surface
+- `DrylMarkdown` — now inherits the shared AI-aware base, so it resolves `Ai`
+  and `Aura` from a surrounding `DrylAiScope` (it previously honoured only an
+  explicit `Ai`)
+
 ## [2.5.0] — 2026-07-12
 
 ### Changed

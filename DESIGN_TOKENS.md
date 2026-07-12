@@ -161,6 +161,8 @@ DRYL's theming system is built on a small set of **seed variables**. You only se
 | `--accent-b` | `#22d3ee`        | Secondary accent seed (cyan by default).                        |
 | `--ai-a`     | (= `--accent-a`) | AI accent primary seed. Defaults to the brand accent; set it to diverge AI surfaces from the UI accent. |
 | `--ai-b`     | (= `--accent-b`) | AI accent secondary seed. Same opt-in divergence rule as `--ai-a`. |
+| `--ai-core`  | `#eef3ff` (dark) | The aura comet's specular head — the hottest point. Mode-dependent: near-white on dark, a saturated accent core on light (white would be invisible on a light surface). |
+| `--ai-strength` | `1` (dark) / `1.7` (light) | Aura-presence multiplier applied to the base saum + halo alphas, so translucent accents still read on a bright ground. |
 | `--success`  | `#34d399`        | Semantic seed — success.                                        |
 | `--warning`  | `#fbbf24`        | Semantic seed — warning.                                        |
 | `--danger`   | `#f87171`        | Semantic seed — danger / destructive.                           |
@@ -176,8 +178,8 @@ You never write these directly. They are generated from the seeds inside `dryl.c
 | `--glow-accent`     | `--accent-a` / `--accent-b` | Primary button hover glow, hero emphasis.            |
 | `--glow-soft`       | `--accent-a` / `--accent-b` | Ambient lighting behind a section.                   |
 | Body ambient glow   | `--accent-a` / `--accent-b` | The subtle background halo on the page root.         |
-| `.ai-aura-ring`     | `--ai-a` / `--ai-b`       | Rotating gradient border on AI-active surfaces.        |
-| `.ai-aura-glow`     | `--ai-a` / `--ai-b`       | Breathing box-shadow behind AI-active surfaces.        |
+| `.ai-aura-ring`     | `--ai-a` / `--ai-b` / `--ai-core` | Even base saum + a travelling comet (Comet variant) or a flowing edge field (Aurora variant) on AI-active surfaces. |
+| `.ai-aura-glow`     | `--ai-a` / `--ai-b`       | Breathing box-shadow halo behind AI-active surfaces.   |
 
 ### How seed changes transition
 
@@ -349,58 +351,70 @@ AI is a first-class state of the UI in DRYL. The system has **one** ambient voca
 | State            | Visual signal                                            | When the consumer sets it                                  |
 | ---------------- | -------------------------------------------------------- | ---------------------------------------------------------- |
 | `AiState.None`       | No AI styling.                                           | Default. Surface renders normally.                         |
-| `AiState.Active`     | Slow rotating gradient ring, breathing accent glow.      | Persistent AI surface (chat panel, model-backed card).     |
-| `AiState.Thinking`   | Fast pulse on ring and glow.                             | A tool call is in flight.                                  |
-| `AiState.Streaming`  | Moderate pulse; content updates incrementally.           | Tokens are arriving from the model.                        |
-| `AiState.Generated`  | One-shot accent wash + soft lift, then settles.          | Reveal moment immediately after a generation completes.    |
+| `AiState.Active`     | Even saum + a slow travelling comet; gentle breathing halo. | Persistent AI surface (chat panel, model-backed card).  |
+| `AiState.Thinking`   | Violet-dominant, fast comet + tight fast halo pulse.     | A tool call is in flight.                                  |
+| `AiState.Streaming`  | Cyan-dominant comet + a directional sheen sweeping in reading direction. | Tokens are arriving from the model.       |
+| `AiState.Generated`  | One-shot bloom + soft lift, then the comet retires to a calm afterglow. | Reveal moment right after generation completes.  |
+
+The **variant** is orthogonal to the state — the `Aura` parameter (`AiAura`):
+`Comet` (default, an even saum + a luminous travelling comet) or `Aurora` (a
+soft, blurred, flowing edge field for dense AI pages). Both share the same
+states, colour weighting and Generated reveal.
 
 ### CSS primitives
 
 | Class               | Role                                                                                                  |
 | ------------------- | ----------------------------------------------------------------------------------------------------- |
 | `.ai-aura`          | Marker on the host. Sets `position: relative; isolation: isolate;` so the children below can layer.   |
-| `.ai-aura-ring`     | Rotating conic-gradient border (`--accent-a` ↔ `--accent-b`). Driven by `@property --ai-aura-angle`.   |
-| `.ai-aura-glow`     | Breathing box-shadow glow behind the host (`--accent-line` + violet/cyan rings).                       |
-| `.ai-aura-wash`     | One-shot gradient sweep used only with `.ai-generated`. Internally clipped to the host's bounds.       |
-| `.ai-thinking`      | Modifier on `.ai-aura`: ring 1.8s, glow 1.4s.                                                          |
-| `.ai-streaming`     | Modifier on `.ai-aura`: ring 3s, glow 2.6s.                                                            |
-| `.ai-generated`     | Modifier on `.ai-aura`: triggers the wash + a one-shot lift on the host.                               |
+| `.ai-aura--aurora`  | Variant modifier on the host: swaps the comet ring for the soft Aurora edge field.                    |
+| `.ai-aura--out`     | Applied by the host during the graceful exit; dissolves the aura over `--dur-slow` instead of snapping. |
+| `.ai-aura-ring`     | Even base saum (`--ai-a` ↔ `--ai-b`) + a travelling comet with an `--ai-core` specular head (its `::before`). Comet position is driven by `@property --ai-aura-angle`. |
+| `.ai-aura-glow`     | Breathing box-shadow halo behind the host; its `::before` carries the Streaming sheen sweep.          |
+| `.ai-aura-wash`     | One-shot Generated bloom; rendered only while `.ai-generated`.                                         |
+| `.ai-thinking` / `.ai-streaming` / `.ai-generated` | State modifiers on `.ai-aura`: reset a handful of CSS vars (colour weighting, comet/halo speed, sheen). |
 | `.ai-indicator`     | Standalone status pill (`DrylAiIndicator`) — pulsing sparkle + shimmer sweep, adapts speed to state.   |
+
+The ring/glow/wash markup is emitted by the shared `<DrylAuraElements/>` component,
+driven by an `AuraLifecycle` (which keeps the aura mounted for one `--dur-slow`
+beat after leaving AI mode so it can fade out). The host-class combination is built
+by `AiAuraCss.Append(classes, aura, variant)`.
 
 ### Custom property
 
 | Token                | Type      | Initial | Use                                                       |
 | -------------------- | --------- | ------- | --------------------------------------------------------- |
-| `--ai-aura-angle`    | `<angle>` | `0deg`  | Registered via `@property`. Animated to rotate the ring's conic-gradient without rotating its bounding box. |
+| `--ai-aura-angle`    | `<angle>` | `0deg`  | Registered via `@property`. Animated to travel the comet head around the perimeter without rotating its bounding box. |
 
 ### Durations
 
-AI mode is the one place where ambient (looping) animations exceed the standard `--dur-fast / --dur-med / --dur-slow` scale — the same way `.aurora` drifts over 22 seconds. These long, continuous values are intentional:
+AI mode is the one place where ambient (looping) animations exceed the standard `--dur-fast / --dur-med / --dur-slow` scale — the same way `.aurora` drifts over 22 seconds. These long, continuous values are intentional (set per state via CSS vars):
 
 | Animation        | Duration | Easing           |
 | ---------------- | -------- | ---------------- |
-| Ring rotation (Active)    | 6s    | `linear`         |
-| Ring rotation (Thinking)  | 1.8s  | `linear`         |
-| Ring rotation (Streaming) | 3s    | `linear`         |
-| Glow breathe (Active)     | 4s    | `--ease-in-out`  |
-| Glow breathe (Thinking)   | 1.4s  | `--ease-in-out`  |
-| Glow breathe (Streaming)  | 2.6s  | `--ease-in-out`  |
-| Wash sweep (Generated)    | 900ms | `--ease-out`     |
+| Comet orbit (Active / Thinking / Streaming / Generated) | 9s / 3.2s / 5s / 6s | `linear` |
+| Halo breathe (Active / Thinking / Streaming / Generated) | 6s / 1.6s / 2.6s / 5s | `--ease-in-out` |
+| Streaming sheen sweep     | 2.4s  | `--ease-in-out`  |
+| Generated bloom + lift    | 900ms / 720ms | `--ease-out` |
+| Comet afterglow retire    | 1.1s (800ms delay) | `--ease-out` |
+| Graceful exit dissolve    | `--dur-slow` (420ms) | `--ease-out` |
 | Indicator pulse / shimmer | 2.4s / 3.6s (Active), 1s / 1.4s (Thinking), 1.6s / 2.2s (Streaming) | `--ease-in-out` |
 
-All animations are suppressed under `prefers-reduced-motion: reduce` — the ring stays as a static gradient with reduced opacity.
+All animations are suppressed under `prefers-reduced-motion: reduce` — the aura stays as a static even saum with the travelling comet hidden.
 
 ### Recipe
 
+Prefer the component wiring: on the host root add the classes from
+`AiAuraCss.Append(...)` and drop `<DrylAuraElements Aura="_aura" GenTick="_genTick" />`
+as the first child (see `COMPONENT_PATTERNS.md`). The raw markup it produces is:
+
 ```html
-<div class="glass-card ai-aura ai-thinking">
+<div class="glass-card ai-aura ai-thinking">   <!-- + ai-aura--aurora for the Aurora variant -->
     <div class="ai-aura-ring"></div>
     <div class="ai-aura-glow"></div>
+    <!-- <div class="ai-aura-wash"></div> only while .ai-generated -->
     <!-- content -->
 </div>
 ```
-
-For the Generated reveal, add a sibling `<div class="ai-aura-wash"></div>` while `.ai-generated` is active (re-key it to replay on every transition).
 
 > **Don't invent new AI states, animations, or colors.** If you need something that doesn't fit, propose extending the primitives above in `dryl.css` — same rule as every other token.
 
