@@ -14,6 +14,21 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.8.0] — 2026-07-13
+
+### Added
+- `DrylReconnectModal` — Drop-in, on-brand replacement for Blazor Server's default
+  reconnect overlay. Renders the framework's `#components-reconnect-modal` element and
+  drives all three states (reconnecting / failed / rejected, incl. .NET 9 `retrying` &
+  `paused`) with pure CSS keyed on the framework state classes — so it works while the
+  circuit is down. Glassy, animated (enter + exit, spring-glide card, live spinner),
+  correct in both color modes, honours `prefers-reduced-motion`. Every message is an
+  overridable parameter (`ReconnectingText`, `FailedText`, `RejectedText`,
+  `RetryButtonText`, `ReloadButtonText`, `AttemptLabel`, `NextAttemptLabel`,
+  `SecondsSuffix`) plus `ShowAttemptCounter` for the live `Attempt X / Y` counter.
+- `dryl.css` — New `--z-reconnect` layering token (above every other layer) so the
+  reconnect overlay always wins.
+
 ## [2.7.1] — 2026-07-13
 
 ### Fixed

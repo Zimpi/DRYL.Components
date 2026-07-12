@@ -1,0 +1,199 @@
+/*  DrylReconnectModal — scoped styles.
+
+    Visibility and every transition are keyed ENTIRELY on the state classes
+    Blazor's own JS toggles on #components-reconnect-modal at runtime. There is
+    no Blazor state here (the circuit is down during a reconnect), so nothing in
+    this file may depend on a re-render — it is pure CSS. The scope attribute
+    survives the framework's class toggling, so these selectors keep matching.
+
+      (no class) / components-reconnect-hide → hidden  (base)
+      components-reconnect-show|retrying|paused → reconnecting
+      components-reconnect-failed             → failed
+      components-reconnect-rejected           → rejected
+*/
+
+.reconnect-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-reconnect);
+    display: grid;
+    place-items: center;
+    padding: var(--sp-5);
+    background: var(--backdrop);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
+
+    /* Hidden by default and on `hide`; the active states below reveal it.
+       Transitioning `visibility` (a discrete property) gives a real fade-OUT:
+       it stays visible for the duration, then flips hidden — enter AND exit. */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity var(--dur-med) var(--ease-out),
+                visibility var(--dur-med) var(--ease-out);
+}
+
+.reconnect-overlay.components-reconnect-show,
+.reconnect-overlay.components-reconnect-retrying,
+.reconnect-overlay.components-reconnect-paused,
+.reconnect-overlay.components-reconnect-failed,
+.reconnect-overlay.components-reconnect-rejected {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* ── Card ───────────────────────────────────────────────── */
+.reconnect-card {
+    position: relative;
+    width: min(400px, 100%);
+    padding: var(--sp-6) var(--sp-6) var(--sp-5);
+    border-radius: var(--r-lg);
+    background: var(--panel-grad);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow-lg),
+                0 0 80px color-mix(in srgb, var(--accent-a) 25%, transparent);
+    color: var(--fg);
+    text-align: center;
+
+    /* Glides up + settles as the overlay reveals (spring). */
+    transform: translateY(14px) scale(0.97);
+    transition: transform var(--dur-slow) var(--ease-spring);
+}
+
+.reconnect-overlay.components-reconnect-show .reconnect-card,
+.reconnect-overlay.components-reconnect-retrying .reconnect-card,
+.reconnect-overlay.components-reconnect-paused .reconnect-card,
+.reconnect-overlay.components-reconnect-failed .reconnect-card,
+.reconnect-overlay.components-reconnect-rejected .reconnect-card {
+    transform: translateY(0) scale(1);
+}
+
+/* ── State blocks — one shown at a time by the parent class ── */
+.reconnect-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+    animation: reconnect-rise var(--dur-med) var(--ease-spring) both;
+}
+
+.reconnect-overlay.components-reconnect-show .reconnect-reconnecting,
+.reconnect-overlay.components-reconnect-retrying .reconnect-reconnecting,
+.reconnect-overlay.components-reconnect-paused .reconnect-reconnecting,
+.reconnect-overlay.components-reconnect-failed .reconnect-failed,
+.reconnect-overlay.components-reconnect-rejected .reconnect-rejected {
+    display: flex;
+}
+
+/* ── Reconnecting spinner ───────────────────────────────── */
+.reconnect-spinner {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    display: inline-grid;
+    place-items: center;
+    margin-bottom: var(--sp-1);
+}
+.reconnect-spinner-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid var(--accent-soft);
+    border-top-color: var(--accent-a);
+    border-right-color: var(--accent-b);
+    animation: reconnect-spin 0.9s linear infinite;
+}
+.reconnect-spinner-core {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-grad);
+    box-shadow: var(--glow-accent);
+    animation: reconnect-breathe 1.6s var(--ease-in-out) infinite;
+}
+
+/* ── Failed / rejected glyphs ───────────────────────────── */
+.reconnect-glyph {
+    display: inline-grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    margin-bottom: var(--sp-1);
+    border: 1px solid var(--line);
+}
+.reconnect-glyph-warn {
+    color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    border-color: color-mix(in srgb, var(--warning) 32%, transparent);
+}
+.reconnect-glyph-danger {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+}
+
+/* ── Text ───────────────────────────────────────────────── */
+.reconnect-text {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+    line-height: 1.5;
+}
+.reconnect-counter {
+    margin: 0;
+    font-size: 12px;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+}
+.reconnect-counter-sep {
+    opacity: 0.5;
+    margin: 0 2px;
+}
+/* Only the framework fills these spans, and only during an actual reconnect.
+   Until then (or if a version leaves them blank) hide the whole counter line so
+   it never reads a bare "Attempt  /". */
+.reconnect-counter:has(#components-reconnect-current-attempt:empty) {
+    display: none;
+}
+.reconnect-next {
+    margin: 0;
+    font-size: 12px;
+    color: var(--fg-dim);
+    font-variant-numeric: tabular-nums;
+}
+/* The framework only fills the seconds span in some states — hide the whole
+   line while it is empty so it never reads "Next try in s". */
+.reconnect-next:has(#components-seconds-to-next-attempt:empty) {
+    display: none;
+}
+
+.reconnect-action {
+    margin-top: var(--sp-2);
+}
+
+/* ── Keyframes (names are global under CSS isolation — kept unique) ── */
+@keyframes reconnect-spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes reconnect-breathe {
+    0%, 100% { opacity: 0.55; transform: scale(0.8); }
+    50%      { opacity: 1;    transform: scale(1); }
+}
+@keyframes reconnect-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Reduced motion — fully usable with motion off. The spinner keeps a slow
+      rotation because it IS the "still working" signal; everything decorative
+      (card glide, breathing core, rise) is dropped. ─────────── */
+@media (prefers-reduced-motion: reduce) {
+    .reconnect-overlay { transition: opacity var(--dur-med) var(--ease-out); }
+    .reconnect-card { transform: none; transition: none; }
+    .reconnect-state { animation: none; }
+    .reconnect-spinner-ring { animation-duration: 1.8s; }
+    .reconnect-spinner-core { animation: none; opacity: 1; }
+}
