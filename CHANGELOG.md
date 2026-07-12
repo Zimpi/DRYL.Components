@@ -14,6 +14,16 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.4.2] — 2026-07-12
+
+### Changed
+- Plain-text streaming reveal — freshly arrived words now ignite with an Aurora **cooldown glow**: each word lights up in the theme's start accent (`--ai-a`, "hot"), shifts to the end accent (`--ai-b`) as it sharpens, then the glow dies to nothing. Because words mount one after another behind the moving caret, it reads as a short glowing trail cooling in the cursor's wake. Colour comes only from the AI accent tokens, so it follows whatever the active theme derives; timing reuses the existing `--dur-slow` / `--ease-out` reveal (no new motion), and `prefers-reduced-motion` keeps it glowless. Layered onto the existing `.stream-token` blur reveal — no API change
+
+## [2.4.1] — 2026-07-12
+
+### Fixed
+- Streaming Markdown sheen — the newest-block reveal no longer makes trailing text vanish during fast streaming. The 260%-wide gradient was `no-repeat`, so as the sheen swept, `background-position` pushed the oversized image off the block and left the trailing text uncovered; with `background-clip:text` + transparent fill those glyphs rendered fully invisible, and the tip caret (anchored after the full text) floated out past the visible edge. The gradient now tiles (`background-repeat: repeat`, seamless since both ends are `--fg`) and the keyframes travel exactly one tile, so text stays fully visible and the caret sits at the true writing head throughout the sweep
+
 ## [2.4.0] — 2026-07-12
 
 ### Added

@@ -4778,15 +4778,64 @@ input[type=number] { -moz-appearance: textfield; }
   animation-delay: calc(var(--stream-i, 0) * 30ms);
 }
 
+/* Cooldown glow: a freshly arrived word ignites in the theme's start accent
+   (--ai-a, "hot") — the glyph itself is tinted and blooms — then visibly cools
+   to the end accent (--ai-b) and settles to normal text (--fg) as the glow dies.
+   Words mount one after another behind the moving caret, so it reads as a short
+   glowing trail cooling in the cursor's wake. Colour comes only from the AI
+   accent tokens, so it follows whatever the active theme derives — never a
+   hardcoded hue. Same --dur-slow / --ease-out as the reveal (no new motion).
+
+   The reveal (opacity 0→1, blur 5→0) finishes early, in the first ~30%, so the
+   hot phase is seen on a fully-visible word — opacity/blur would otherwise dim
+   the glow exactly when it should be brightest. Every keyframe keeps two shadow
+   layers so text-shadow interpolates cleanly; the settled word ends glowless. */
 @keyframes stream-token-in {
-  from { opacity: 0; filter: blur(5px); }
-  60%  { opacity: 1; }
-  to   { opacity: 1; filter: blur(0); }
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    color: var(--ai-a);
+    text-shadow:
+      0 0 8px  color-mix(in srgb, var(--ai-a) 75%, transparent),
+      0 0 18px color-mix(in srgb, var(--ai-a) 45%, transparent);
+  }
+  30% {
+    opacity: 1;
+    filter: blur(0);
+    color: var(--ai-a);
+    text-shadow:
+      0 0 8px  color-mix(in srgb, var(--ai-a) 75%, transparent),
+      0 0 18px color-mix(in srgb, var(--ai-a) 45%, transparent);
+  }
+  65% {
+    color: var(--ai-b);
+    text-shadow:
+      0 0 6px  color-mix(in srgb, var(--ai-b) 42%, transparent),
+      0 0 13px color-mix(in srgb, var(--ai-b) 20%, transparent);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    color: var(--fg);
+    text-shadow:
+      0 0 0 transparent,
+      0 0 0 transparent;
+  }
 }
 
 /* Newest-block sheen. Excludes DrylCodeBlock (.code-block) — clipping a code
    surface to its text would erase its chrome. The gradient is mostly --fg with
-   a travelling accent band, so text stays readable while the band sweeps. */
+   a travelling accent band, so text stays readable while the band sweeps.
+
+   The background is background-clip:text with transparent fill, so ANY glyph
+   the gradient image does not cover renders fully transparent (invisible). The
+   image is 260% of the block, so it MUST tile (background-repeat: repeat) —
+   with no-repeat, sweeping background-position pushes the oversized image off
+   the block and leaves the trailing text uncovered → invisible, while the tip
+   caret (anchored after the full text) floats out past the visible edge. Both
+   gradient ends are --fg, so tiling is seamless. The keyframes travel exactly
+   one image width (162.5% of position units = one 260% tile), so the loop is
+   perfectly seamless — the band sweeps once per cycle with no restart jump. */
 .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
 .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
   background-image: linear-gradient(
@@ -4795,7 +4844,7 @@ input[type=number] { -moz-appearance: textfield; }
     var(--ai-a) 47%, var(--ai-b) 55%,
     var(--fg) 64%, var(--fg) 100%);
   background-size: 260% 100%;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   -webkit-background-clip: text;
           background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -4804,8 +4853,8 @@ input[type=number] { -moz-appearance: textfield; }
 }
 
 @keyframes stream-sheen {
-  from { background-position: 130% 0; }
-  to   { background-position: -130% 0; }
+  from { background-position: 162.5% 0; }
+  to   { background-position: 0 0; }
 }
 
 .stream-caret,
