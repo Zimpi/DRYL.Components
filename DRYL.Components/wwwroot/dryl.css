@@ -162,6 +162,8 @@
      because the accent-gradient fill they sit on doesn't change with mode. */
   --edge-hi:         rgba(255, 255, 255, 0.06);
   --edge-hi-strong:  rgba(255, 255, 255, 0.18);
+  --ai-core:         #eef3ff;  /* hottest point of the AI aura (comet specular head) — near-white on dark ground; light copies use a saturated accent core */
+  --ai-strength:     1;        /* aura presence multiplier — light copies raise it because translucent accents wash out on a bright ground */
   --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
   --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
   --shimmer:         rgba(255, 255, 255, 0.22);
@@ -295,6 +297,8 @@
     --aurora-opacity: 0.5;
     --edge-hi:         rgba(255, 255, 255, 0.85);
     --edge-hi-strong:  rgba(255, 255, 255, 0.95);
+    --ai-core:         color-mix(in srgb, var(--ai-a) 82%, #000 18%);
+    --ai-strength:     1.7;
     --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
     --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
     --shimmer:         rgba(255, 255, 255, 0.8);
@@ -366,6 +370,8 @@
   --aurora-opacity: 0.5;
   --edge-hi:         rgba(255, 255, 255, 0.85);
   --edge-hi-strong:  rgba(255, 255, 255, 0.95);
+  --ai-core:         color-mix(in srgb, var(--ai-a) 82%, #000 18%);
+  --ai-strength:     1.7;
   --sheen-grad:      linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.15));
   --sheen-grad-soft: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
   --shimmer:         rgba(255, 255, 255, 0.8);
@@ -933,6 +939,14 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-radius: var(--r-lg);
   padding: var(--sp-3);
   background: var(--glass-1);
+}
+
+/* AI mode on the rating stars — a radius + inline-flex box so the ring/glow
+   trace the stars as a contained pill instead of a square that overflows them. */
+.rating-wrapper.ai-aura {
+  display: inline-flex;
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
 }
 
 /* AI mode on buttons — additive: variant's solid/glass background stays intact
@@ -3986,46 +4000,92 @@ body.dryl-scroll-locked { overflow: hidden; }
      .ai-generated  — one-shot reveal after generation completes
 */
 
-/* Registered angle property — required so the browser can interpolate the
-   conic-gradient rotation. Without @property, --ai-aura-angle would be
-   treated as a string and the animation would step instead of sweep. */
-@property --ai-aura-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
+/* Registered angle property — required so the browser interpolates the conic
+   sweep (a comet head travelling the perimeter) instead of stepping. */
+@property --ai-aura-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 
+/* ── Host + per-state design tokens ──────────────────────────────────────
+   Every AI-aware surface sets .ai-aura (+ an optional state class). The state
+   classes only reset a handful of CSS vars; the ring / glow / wash read them,
+   so both aura variants (Comet default, .ai-aura--aurora) share ONE colour +
+   motion language and differ only in how the ring paints. Base .ai-aura (no
+   state class) == Active. --ai-hot / --ai-cool bias only between the themed
+   --ai-a / --ai-b (no new hues); --ai-core is the specular head (theme-aware). */
 .ai-aura {
   position: relative;
   isolation: isolate;
+  --ai-hot: var(--ai-a);
+  --ai-cool: var(--ai-b);
+  --aura-base: 26%;          /* even base-saum accent strength   */
+  --aura-halo: 26px;         /* halo blur radius                 */
+  --aura-halo-a: 18%;        /* halo inner-colour strength       */
+  --aura-comet-dur: 9s;      /* comet orbit period               */
+  --aura-halo-dur: 6s;       /* halo breathing period            */
+  --aura-drift-dur: 12s;     /* aurora field drift period        */
+  --aura-sheen: none;        /* directional sheen (Streaming)    */
+}
+.ai-aura.ai-thinking {       /* concentrating — violet-dominant, fast & tight */
+  --ai-hot: var(--ai-a); --ai-cool: var(--ai-a);
+  --aura-base: 34%; --aura-halo: 20px; --aura-halo-a: 30%;
+  --aura-comet-dur: 3.2s; --aura-halo-dur: 1.6s; --aura-drift-dur: 4s;
+}
+.ai-aura.ai-streaming {      /* output flowing — cyan-dominant, directional */
+  --ai-hot: var(--ai-b); --ai-cool: var(--ai-b);
+  --aura-base: 28%; --aura-halo: 34px; --aura-halo-a: 22%;
+  --aura-comet-dur: 5s; --aura-halo-dur: 2.6s; --aura-drift-dur: 6s;
+  --aura-sheen: block;
+}
+.ai-aura.ai-generated {      /* done — calm, carries the one-shot bloom */
+  --aura-base: 40%; --aura-halo: 30px; --aura-halo-a: 26%;
+  --aura-comet-dur: 6s; --aura-halo-dur: 5s; --aura-drift-dur: 5s;
 }
 
-/* Rotating conic-gradient border — the box stays static; only the gradient sweeps. */
+/* ── COMET (default) ── even base saum + a travelling specular comet ────── */
+
+/* Even, aspect-independent base saum: a themed hairline via a linear (not
+   conic) gradient, so wide surfaces never go patchy on the long edges. */
 .ai-aura-ring {
   position: absolute;
-  inset: -1px;
+  inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(
-    from var(--ai-aura-angle, 0deg),
-    var(--ai-a),
-    var(--ai-b),
-    var(--ai-a),
-    var(--ai-b),
-    var(--ai-a)
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
+  background: linear-gradient(150deg,
+    color-mix(in srgb, var(--ai-hot) calc(var(--aura-base) * var(--ai-strength)), transparent),
+    color-mix(in srgb, var(--ai-cool) calc(var(--aura-base) * var(--ai-strength)), transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
   pointer-events: none;
-  z-index: 4;
-  opacity: 0.7;
-  animation: ai-aura-rotate 6s linear infinite;
+  z-index: 2;
+}
+/* The comet: a masked-border conic with one bright, localized arc that orbits —
+   a long glowing tail building to a specular white head. The chained drop-shadows
+   let the head bloom (white core + wider cool halo) past the 1px border. */
+.ai-aura-ring::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+  background: conic-gradient(from var(--ai-aura-angle),
+    transparent 0deg 284deg,
+    color-mix(in srgb, var(--ai-hot) 60%, transparent) 318deg,
+    color-mix(in srgb, var(--ai-cool) 95%, transparent) 343deg,
+    var(--ai-core) 351deg,
+    color-mix(in srgb, var(--ai-cool) 55%, transparent) 356deg,
+    transparent 360deg);
+  filter:
+    drop-shadow(0 0 6px color-mix(in srgb, var(--ai-core) 78%, transparent))
+    drop-shadow(0 0 13px color-mix(in srgb, var(--ai-cool) 45%, transparent));
+  animation: ai-aura-rotate var(--aura-comet-dur) linear infinite;
 }
 
-/* Breathing accent glow behind the host */
+/* Breathing halo behind the host. */
 .ai-aura-glow {
   position: absolute;
   inset: 0;
@@ -4033,75 +4093,106 @@ body.dryl-scroll-locked { overflow: hidden; }
   pointer-events: none;
   z-index: -1;
   box-shadow:
-    0 0 0 1px var(--accent-line),
-    0 0 24px color-mix(in srgb, var(--ai-a) 25%, transparent),
-    0 0 56px color-mix(in srgb, var(--ai-b) 15%, transparent);
-  animation: ai-aura-breathe 4s var(--ease-in-out) infinite;
+    0 0 0 1px color-mix(in srgb, var(--ai-hot) calc(34% * var(--ai-strength)), transparent),
+    0 0 var(--aura-halo) color-mix(in srgb, var(--ai-hot) calc(var(--aura-halo-a) * var(--ai-strength)), transparent),
+    0 0 calc(var(--aura-halo) * 2.2) color-mix(in srgb, var(--ai-cool) calc(12% * var(--ai-strength)), transparent);
+  animation: ai-aura-breathe var(--aura-halo-dur) var(--ease-in-out) infinite;
+}
+/* Streaming: a directional sheen sweeping in reading direction, clipped to the
+   host's rounded box (background-position move — no overflow container needed). */
+.ai-aura-glow::before {
+  content: '';
+  display: var(--aura-sheen, none);
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(100deg,
+    transparent 38%,
+    color-mix(in srgb, var(--ai-b) 26%, transparent) 50%,
+    transparent 62%);
+  background-size: 220% 100%;
+  animation: ai-aura-sheen 2.4s var(--ease-in-out) infinite;
 }
 
-@keyframes ai-aura-rotate { to { --ai-aura-angle: 360deg; } }
-@keyframes ai-aura-breathe {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+@keyframes ai-aura-rotate  { to { --ai-aura-angle: 360deg; } }
+@keyframes ai-aura-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes ai-aura-sheen      { 0% { background-position: -30% 0; } 55%, 100% { background-position: 130% 0; } }
+
+/* ── AURORA (variant) ── soft, blurred, flowing edge field; no travelling head.
+   Calm enough to show many at once. Same states + colour weighting; only the
+   ring paint changes (halo, sheen and bloom are shared with Comet). */
+.ai-aura--aurora .ai-aura-ring {
+  inset: -2px;
+  padding: 2.5px;
+  background:
+    radial-gradient(58% 130% at 18% 0%,  color-mix(in srgb, var(--ai-hot) 92%, transparent), transparent 62%),
+    radial-gradient(58% 130% at 82% 100%, color-mix(in srgb, var(--ai-cool) 92%, transparent), transparent 62%),
+    radial-gradient(90% 150% at 50% 50%, color-mix(in srgb, var(--ai-hot) calc(34% * var(--ai-strength)), transparent), transparent 72%);
+  background-size: 200% 100%, 200% 100%, 200% 100%;
+  filter: blur(1.5px);
+  animation: ai-aura-drift var(--aura-drift-dur) var(--ease-in-out) infinite;
+}
+.ai-aura--aurora .ai-aura-ring::before { content: none; }
+@keyframes ai-aura-drift {
+  0%   { background-position: 0% 0, 100% 0, 0 0; }
+  50%  { background-position: 100% 0, 0% 0, 100% 0; }
+  100% { background-position: 0% 0, 100% 0, 0 0; }
 }
 
-/* Thinking — fast pulse */
-.ai-aura.ai-thinking .ai-aura-ring  { animation-duration: 1.8s; opacity: 1; }
-.ai-aura.ai-thinking .ai-aura-glow  { animation-duration: 1.4s; }
-
-/* Streaming — slightly faster than idle, slower than thinking */
-.ai-aura.ai-streaming .ai-aura-ring { animation-duration: 3s; opacity: 0.9; }
-.ai-aura.ai-streaming .ai-aura-glow { animation-duration: 2.6s; }
-
-/* Generated — one-shot reveal: subtle lift + a gradient wash sweep */
+/* ── Generated one-shot ── gentle lift + a bright bloom flashing inward from the
+   edge, then settling. Render <div class="ai-aura-wash"></div> only while Generated. */
 .ai-aura.ai-generated { animation: ai-generated-lift 720ms var(--ease-out) both; }
-.ai-aura.ai-generated .ai-aura-ring { opacity: 1; }
-
 @keyframes ai-generated-lift {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Optional sweep — render <div class="ai-aura-wash"></div> inside .ai-generated host.
-   The wash element itself is a static clip container; ::before holds the animated
-   gradient. This keeps the sweep visually inside the card's rounded bounds. */
 .ai-aura-wash {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
   z-index: 3;
-  overflow: hidden;
 }
-.ai-aura-wash::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--ai-a) 18%, transparent) 40%,
-    color-mix(in srgb, var(--ai-b) 18%, transparent) 60%,
-    transparent 100%
-  );
-  transform: translateX(-100%);
+.ai-aura.ai-generated .ai-aura-wash {
   opacity: 0;
+  box-shadow:
+    inset 0 0 0 1px var(--ai-core),
+    inset 0 0 22px color-mix(in srgb, var(--ai-hot) 26%, transparent),
+    0 0 30px color-mix(in srgb, var(--ai-hot) 34%, transparent);
+  animation: ai-aura-bloom 900ms var(--ease-out) both;
 }
-.ai-aura.ai-generated .ai-aura-wash::before {
-  animation: ai-aura-wash 900ms var(--ease-out) both;
+@keyframes ai-aura-bloom {
+  0%   { opacity: 0; transform: scale(1.012); }
+  28%  { opacity: 0.95; }
+  100% { opacity: 0; transform: scale(1); }
 }
-@keyframes ai-aura-wash {
-  0%   { transform: translateX(-100%); opacity: 0; }
-  20%  { opacity: 1; }
-  100% { transform: translateX(100%); opacity: 0; }
+
+/* Afterglow — once Generated has bloomed, the travelling comet retires, leaving a
+   calm static saum + gently breathing halo: a non-distracting "AI was here" trace
+   a surface can rest in indefinitely (no need to drop to None). */
+.ai-aura.ai-generated .ai-aura-ring::before {
+  animation:
+    ai-aura-rotate var(--aura-comet-dur) linear infinite,
+    ai-comet-retire 1100ms var(--ease-out) 800ms forwards;
+}
+@keyframes ai-comet-retire { to { opacity: 0; } }
+
+/* Graceful exit — when a surface leaves AI mode the host keeps the aura mounted
+   for one --dur-slow beat with .ai-aura--out, dissolving the border + halo instead
+   of snapping the DOM away (rule 2.12: mounts AND unmounts animate). */
+.ai-aura--out .ai-aura-ring,
+.ai-aura--out .ai-aura-glow {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-aura-ring,
-  .ai-aura-glow,
-  .ai-aura-wash::before,
+  .ai-aura-ring, .ai-aura-ring::before,
+  .ai-aura-glow, .ai-aura-glow::before, .ai-aura-wash,
   .ai-aura.ai-generated { animation: none; }
-  .ai-aura-ring { opacity: 0.6; }
+  /* keep the calm, even static saum; hide the now-frozen travelling comet */
+  .ai-aura-ring::before { opacity: 0; }
 }
 
 /* ============== EXPANSION PANELS ============== */

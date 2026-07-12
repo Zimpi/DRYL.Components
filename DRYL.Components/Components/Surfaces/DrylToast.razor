@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@implements IDisposable
 @using DRYL.Components.Toasts
 
 @*  ─────────────────────────────────────────────────────────
@@ -22,15 +23,7 @@
      aria-live="@AriaLive"
      @attributes="AdditionalAttributes">
 
-    @if (EffectiveAi != AiState.None)
-    {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-glow"></div>
-        @if (EffectiveAi == AiState.Generated)
-        {
-            <div class="ai-aura-wash" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     @if (!string.IsNullOrEmpty(ResolvedIcon))
     {
@@ -99,6 +92,10 @@
     /// <summary>AI ambient state. Defaults to <see cref="AiState.None"/>.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Defaults to <see cref="AiAura.Comet"/> (toasts render outside
+    /// any <c>DrylAiScope</c>, so the variant is set explicitly rather than inherited).</summary>
+    [Parameter] public AiAura Aura { get; set; } = AiAura.Comet;
+
     /// <summary>If true (set by the provider during exit), plays the exit animation.</summary>
     [Parameter] public bool IsLeaving { get; set; }
 
@@ -117,6 +114,7 @@
 
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
     private AiState EffectiveAi => Ai != AiState.None ? Ai : (Instance?.Ai ?? AiState.None);
 
@@ -155,7 +153,10 @@
             _genTick++;
         }
         _prevAi = current;
+        _aura.Sync(current, () => InvokeAsync(StateHasChanged));
     }
+
+    public void Dispose() => _aura.Dispose();
 
     private Task HandleClose()
     {
@@ -188,14 +189,7 @@
                 classes.Add(Instance.Options.Class);
             }
 
-            var ai = EffectiveAi;
-            if (ai != AiState.None) classes.Add("ai-aura");
-            switch (ai)
-            {
-                case AiState.Thinking:  classes.Add("ai-thinking");  break;
-                case AiState.Streaming: classes.Add("ai-streaming"); break;
-                case AiState.Generated: classes.Add("ai-generated"); break;
-            }
+            DRYL.Components.Ai.AiAuraCss.Append(classes, _aura, Aura);
             if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }

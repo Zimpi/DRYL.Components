@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using DRYL.Components.Ai;
 
 namespace DRYL.Components;
 
@@ -8,7 +9,7 @@ namespace DRYL.Components;
 /// derive via <see cref="DrylCartesianChartBase"/>, <see cref="DrylDonutChart"/>
 /// derives directly.
 /// </summary>
-public abstract class DrylChartBase : DrylAiAware
+public abstract class DrylChartBase : DrylAiAware, IDisposable
 {
     /// <summary>Chart height in pixels. Width always fills the container.</summary>
     [Parameter] public int Height { get; set; } = 260;
@@ -38,6 +39,14 @@ public abstract class DrylChartBase : DrylAiAware
     /// <summary>Re-key counter for the one-shot Generated wash.</summary>
     protected int GenTick { get; private set; }
 
+    /// <summary>
+    /// Aura mount lifecycle shared by the whole chart family — keeps the ring/glow
+    /// mounted for one <c>--dur-slow</c> beat after leaving AI mode so it dissolves
+    /// instead of snapping. Bind it from the chart markup:
+    /// <c>&lt;DrylAuraElements Aura="AuraFx" GenTick="GenTick" /&gt;</c>.
+    /// </summary>
+    protected readonly AuraLifecycle AuraFx = new();
+
     private AiState _prevAi = AiState.None;
 
     protected override void OnParametersSet()
@@ -46,7 +55,10 @@ public abstract class DrylChartBase : DrylAiAware
         // one-shot animation replays on every completion.
         if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) GenTick++;
         _prevAi = EffectiveAi;
+        AuraFx.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
     }
+
+    public void Dispose() => AuraFx.Dispose();
 
     /// <summary>Invariant-culture number for SVG/CSS interpolation.</summary>
     protected static string Inv(double v) => Internal.ChartMath.F(v);
@@ -70,13 +82,7 @@ public abstract class DrylChartBase : DrylAiAware
     protected string RootCss(string baseClass)
     {
         var classes = new List<string> { baseClass };
-        if (EffectiveAi != AiState.None) classes.Add("ai-aura");
-        switch (EffectiveAi)
-        {
-            case AiState.Thinking:  classes.Add("ai-thinking");  break;
-            case AiState.Streaming: classes.Add("ai-streaming"); break;
-            case AiState.Generated: classes.Add("ai-generated"); break;
-        }
+        AiAuraCss.Append(classes, AuraFx, EffectiveAura);
         if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
         return string.Join(' ', classes);
     }

@@ -30,11 +30,11 @@
      style="@VtStyle"
      data-vt-depth="@VtDepthMarker"
      @attributes="AdditionalAttributes">
-    @if (EffectiveAi != AiState.None)
+    @if (_aura.Present)
     {
         <div class="ai-aura-ring"></div>
         <div class="ai-aura-glow"></div>
-        @if (EffectiveAi == AiState.Generated)
+        @if (_aura.RenderState == AiState.Generated && !_aura.Exiting)
         {
             <div class="ai-aura-wash" @key="_genTick"></div>
         }
@@ -110,6 +110,7 @@
     private bool _depthTracked;
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
@@ -120,6 +121,10 @@
             _genTick++;
         }
         _prevAi = EffectiveAi;
+
+        // Keep the aura mounted (and fading) for one beat after leaving AI mode so it
+        // dissolves rather than snapping away.
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
     }
 
     private bool VtDepth =>
@@ -162,12 +167,17 @@
             {
                 classes.Add("spotlight-card");
             }
-            if (EffectiveAi != AiState.None) classes.Add("ai-aura");
-            switch (EffectiveAi)
+            if (_aura.Present)
             {
-                case AiState.Thinking:  classes.Add("ai-thinking");  break;
-                case AiState.Streaming: classes.Add("ai-streaming"); break;
-                case AiState.Generated: classes.Add("ai-generated"); break;
+                classes.Add("ai-aura");
+                if (EffectiveAura == AiAura.Aurora) classes.Add("ai-aura--aurora");
+                if (_aura.Exiting) classes.Add("ai-aura--out");
+                switch (_aura.RenderState)
+                {
+                    case AiState.Thinking:  classes.Add("ai-thinking");  break;
+                    case AiState.Streaming: classes.Add("ai-streaming"); break;
+                    case AiState.Generated: classes.Add("ai-generated"); break;
+                }
             }
             if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
@@ -193,6 +203,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        _aura.Dispose();
+
         // Only call into JS if a listener was actually attached (i.e. we ran past
         // first render in the browser). Guards against the static prerender pass
         // where no JS runtime / DOM element exists.

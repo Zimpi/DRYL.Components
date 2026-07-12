@@ -41,6 +41,13 @@
     /// </summary>
     [Parameter] public AiState? State { get; set; }
 
+    /// <summary>
+    /// Aura variant broadcast to every AI-aware descendant that does not pin its own
+    /// <c>Aura</c>. Leave <c>null</c> to let descendants fall back to <see cref="AiAura.Comet"/>;
+    /// set <see cref="AiAura.Aurora"/> once here to calm a whole dense subtree.
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
     /// <summary>Content whose AI-aware descendants inherit the scope state.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -64,7 +71,7 @@
             ?? (_service is not null && Key is not null ? _service.GetState(Key) : AiState.None);
 
         // Always a fresh instance so the CascadingValue notifies subscribers on change.
-        _scope = new AiScope { Key = Key, State = state };
+        _scope = new AiScope { Key = Key, State = state, Aura = Aura };
     }
 
     private void OnServiceChanged(string key)

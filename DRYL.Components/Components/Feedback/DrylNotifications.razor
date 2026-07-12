@@ -168,6 +168,20 @@
     /// <summary>Extra CSS class(es) merged onto the notifications anchor's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
+    /// <summary>
+    /// AI aura variant applied to AI-provenance notification items. Leave <c>null</c> to
+    /// inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).
+    /// Note: each item's AI <em>state</em> comes from its own <see cref="DrylNotification.Ai"/>
+    /// and is fixed for the item's lifetime (items are added/removed, never transitioned),
+    /// so there is no per-item graceful exit — only the variant is scoped here.
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     private bool _open;
     private IDrylNotificationService? _service;
 
@@ -227,14 +241,18 @@
     private static string IconFor(DrylNotification n) =>
         !string.IsNullOrEmpty(n.Icon) ? n.Icon! : (n.Ai != AiState.None ? "Sparkle" : "Bell");
 
-    private static string? AuraClass(DrylNotification n) => n.Ai switch
+    private string? AuraClass(DrylNotification n)
     {
-        AiState.None => null,
-        AiState.Thinking => "ai-aura ai-thinking",
-        AiState.Streaming => "ai-aura ai-streaming",
-        AiState.Generated => "ai-aura ai-generated",
-        _ => "ai-aura"
-    };
+        if (n.Ai == AiState.None) return null;
+        var variant = EffectiveAura == AiAura.Aurora ? "ai-aura ai-aura--aurora" : "ai-aura";
+        return n.Ai switch
+        {
+            AiState.Thinking  => $"{variant} ai-thinking",
+            AiState.Streaming => $"{variant} ai-streaming",
+            AiState.Generated => $"{variant} ai-generated",
+            _ => variant
+        };
+    }
 
     // Relative "x ago" label; falls back to an absolute date past a week. InvariantCulture so the
     // month abbreviation is locale-stable (see the SVG/number locale guidance in the repo).

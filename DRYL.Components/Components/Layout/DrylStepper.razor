@@ -40,16 +40,8 @@
                  @onclick="() => ActivateStep(step)"
                  @key="step.InternalId">
 
-                @* AI aura primitives on the header when AI is active *@
-                @if (step.Ai != AiState.None)
-                {
-                    <div class="ai-aura-ring"></div>
-                    <div class="ai-aura-glow"></div>
-                    @if (step.Ai == AiState.Generated)
-                    {
-                        <div class="ai-aura-wash" @key="step.GenTick"></div>
-                    }
-                }
+                @* AI aura primitives on the header — driven by the step's own lifecycle *@
+                <DrylAuraElements Aura="step.AuraFx" GenTick="step.GenTick" />
 
                 @* Indicator circle *@
                 <div class="@IndicatorCss(step, isActive)">
@@ -208,13 +200,7 @@
         if (step.Disabled)                      parts.Add("is-disabled");
         if (step.StepState == StepState.Completed) parts.Add("is-completed");
         if (step.StepState == StepState.Error)     parts.Add("is-error");
-        if (step.Ai != AiState.None)            parts.Add("ai-aura");
-        switch (step.Ai)
-        {
-            case AiState.Thinking:  parts.Add("ai-thinking");  break;
-            case AiState.Streaming: parts.Add("ai-streaming"); break;
-            case AiState.Generated: parts.Add("ai-generated"); break;
-        }
+        AiAuraCss.Append(parts, step.AuraFx, step.EffectiveAura);
         return string.Join(' ', parts);
     }
 

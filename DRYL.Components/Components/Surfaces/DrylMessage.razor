@@ -1,5 +1,6 @@
 @namespace DRYL.Components
 @inherits DrylAiAware
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylMessage — a single chat bubble inside a DrylChat.
@@ -58,15 +59,7 @@ else
             }
 
             <div class="@BubbleCssClass">
-                @if (EffectiveAi != AiState.None)
-                {
-                    <div class="ai-aura-ring"></div>
-                    <div class="ai-aura-glow"></div>
-                    @if (EffectiveAi == AiState.Generated)
-                    {
-                        <div class="ai-aura-wash" @key="_genTick"></div>
-                    }
-                }
+                <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
                 @if (Typing)
                 {
@@ -159,6 +152,7 @@ else
 
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
     private readonly List<(string Text, int Stagger)> _streamTokens = new();
     private string _streamSeen = "";
@@ -167,8 +161,11 @@ else
     {
         if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
         TrackPlainStream();
     }
+
+    public void Dispose() => _aura.Dispose();
 
     // Plain-text streaming reveal (server-side, no JS): accumulate the delta of
     // each Text update as word tokens so only the freshly arrived words mount as
@@ -235,16 +232,7 @@ else
         {
             var parts = new List<string> { "chat-bubble" };
             parts.Add(Role == MessageRole.User ? "chat-bubble--user" : "chat-bubble--assistant");
-            if (EffectiveAi != AiState.None)
-            {
-                parts.Add("ai-aura");
-                switch (EffectiveAi)
-                {
-                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
-                    case AiState.Streaming: parts.Add("ai-streaming"); break;
-                    case AiState.Generated: parts.Add("ai-generated"); break;
-                }
-            }
+            DRYL.Components.Ai.AiAuraCss.Append(parts, _aura, EffectiveAura);
             return string.Join(' ', parts);
         }
     }

@@ -1,5 +1,6 @@
 @namespace DRYL.Components
 @inherits DrylAiAware
+@implements IDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
@@ -25,15 +26,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCssClass" style="--chat-height: @Height" @attributes="AdditionalAttributes">
-    @if (EffectiveAi != AiState.None)
-    {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-glow"></div>
-        @if (EffectiveAi == AiState.Generated)
-        {
-            <div class="ai-aura-wash" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     <div class="chat-scroll" @ref="_scrollRef" role="log" aria-live="polite" aria-label="@AriaLabel">
         @ChildContent
@@ -76,12 +69,16 @@
     private ElementReference _scrollRef;
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
         if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
     }
+
+    public void Dispose() => _aura.Dispose();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -97,16 +94,7 @@
         get
         {
             var parts = new List<string> { "chat" };
-            if (EffectiveAi != AiState.None)
-            {
-                parts.Add("ai-aura");
-                switch (EffectiveAi)
-                {
-                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
-                    case AiState.Streaming: parts.Add("ai-streaming"); break;
-                    case AiState.Generated: parts.Add("ai-generated"); break;
-                }
-            }
+            DRYL.Components.Ai.AiAuraCss.Append(parts, _aura, EffectiveAura);
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }

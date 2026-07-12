@@ -158,9 +158,51 @@ public class DrylTableTests : BunitContext
 
         var styles = cut.FindAll("tbody tr").Select(tr => tr.GetAttribute("style")).ToList();
         Assert.Equal(3, styles.Count);
-        Assert.Contains("view-transition-name: tbl-row-Charlie", styles[0]);
-        Assert.Contains("view-transition-name: tbl-row-Alice", styles[1]);
-        Assert.Contains("view-transition-name: tbl-row-Bob", styles[2]);
+        // Names are prefixed with a per-instance scope (t + 8 hex) so they stay
+        // document-globally unique across multiple morph-enabled tables.
+        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Charlie", styles[0]!);
+        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Alice", styles[1]!);
+        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Bob", styles[2]!);
+    }
+
+    [Fact]
+    public void View_transition_names_are_scoped_per_table_instance()
+    {
+        var a = RenderTable(ps => ps
+            .Add(p => p.Reorderable, true).Add(p => p.AnimateReorder, true)
+            .Add(p => p.RowIdSelector, (Person p) => p.Name));
+        var b = RenderTable(ps => ps
+            .Add(p => p.Reorderable, true).Add(p => p.AnimateReorder, true)
+            .Add(p => p.RowIdSelector, (Person p) => p.Name));
+
+        string Scope(IRenderedComponent<DrylTable<Person>> c) =>
+            System.Text.RegularExpressions.Regex
+                .Match(c.FindAll("tbody tr")[0].GetAttribute("style")!, @"t[0-9a-f]{8}").Value;
+
+        // Same row id, different tables → different scope prefix, so no duplicate name.
+        Assert.NotEqual(Scope(a), Scope(b));
+    }
+
+    [Fact]
+    public void Ai_streaming_gives_rows_a_view_transition_name_without_AnimateReorder()
+    {
+        // The streaming glide is auto-on under Ai=Streaming on a plain client list —
+        // rows must carry a morph name even though AnimateReorder is off.
+        var cut = RenderTable(ps => ps
+            .Add(p => p.Ai, AiState.Streaming)
+            .Add(p => p.RowIdSelector, (Person p) => p.Name));
+
+        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Charlie",
+            cut.FindAll("tbody tr")[0].GetAttribute("style")!);
+    }
+
+    [Fact]
+    public void Ai_none_leaves_rows_without_a_view_transition_name()
+    {
+        var cut = RenderTable(ps => ps.Add(p => p.RowIdSelector, (Person p) => p.Name));
+
+        foreach (var tr in cut.FindAll("tbody tr"))
+            Assert.DoesNotContain("view-transition-name", tr.GetAttribute("style") ?? "");
     }
 
     [Fact]
@@ -171,8 +213,8 @@ public class DrylTableTests : BunitContext
             .Add(p => p.AnimateReorder, true)
             .Add(p => p.RowIdSelector, (Person p) => $"{p.Name} v/2"));
 
-        Assert.Contains("view-transition-name: tbl-row-Charlie_v_2",
-            cut.FindAll("tbody tr")[0].GetAttribute("style"));
+        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Charlie_v_2",
+            cut.FindAll("tbody tr")[0].GetAttribute("style")!);
     }
 
     [Fact]

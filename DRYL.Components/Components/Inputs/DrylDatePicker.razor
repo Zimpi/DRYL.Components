@@ -1,5 +1,6 @@
 @namespace DRYL.Components
 @inherits InputBase<DateOnly?>
+@implements IDisposable
 @inject IJSRuntime JS
 
 @*  ─────────────────────────────────────────────────────────
@@ -41,15 +42,7 @@
                  OnClose="HandleClosed">
         <TriggerContent>
             <div class="@WrapperCssClass">
-                @if (Ai != AiState.None)
-                {
-                    <div class="ai-aura-ring"></div>
-                    <div class="ai-aura-glow"></div>
-                    @if (Ai == AiState.Generated)
-                    {
-                        <div class="ai-aura-wash" @key="_genTick"></div>
-                    }
-                }
+                <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
                 <input id="@_id"
                        type="text"
@@ -183,6 +176,14 @@
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     /// <summary>Earliest selectable date (inclusive).</summary>
     [Parameter] public DateOnly? Min { get; set; }
 
@@ -219,6 +220,7 @@
 
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly AuraLifecycle _aura = new();
     private DateOnly? _rangeModeDummy; // satisfies InputBase's ValueExpression requirement in Range mode
 
     public override Task SetParametersAsync(ParameterView parameters)
@@ -237,10 +239,13 @@
         base.OnParametersSet();
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
 
         if (!_isOpen && CurrentValue.HasValue)
             _viewMonth = new DateOnly(CurrentValue.Value.Year, CurrentValue.Value.Month, 1);
     }
+
+    public void Dispose() => _aura.Dispose();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -472,13 +477,7 @@
         get
         {
             var classes = new List<string> { "input-wrapper" };
-            if (Ai != AiState.None) classes.Add("ai-aura");
-            switch (Ai)
-            {
-                case AiState.Thinking:  classes.Add("ai-thinking");  break;
-                case AiState.Streaming: classes.Add("ai-streaming"); break;
-                case AiState.Generated: classes.Add("ai-generated"); break;
-            }
+            AiAuraCss.Append(classes, _aura, EffectiveAura);
             return string.Join(' ', classes);
         }
     }

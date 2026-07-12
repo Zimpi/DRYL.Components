@@ -37,15 +37,7 @@
     }
 
     <div class="@WrapperCssClass">
-        @if (Ai != AiState.None)
-        {
-            <div class="ai-aura-ring"></div>
-            <div class="ai-aura-glow"></div>
-            @if (Ai == AiState.Generated)
-            {
-                <div class="ai-aura-wash" @key="_genTick"></div>
-            }
-        }
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
         @if (!string.IsNullOrEmpty(LeadingIcon))
         {
@@ -107,6 +99,14 @@
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     /// <summary>Optional DrylIcon name rendered in the leading (left) slot.</summary>
     [Parameter] public string? LeadingIcon { get; set; }
 
@@ -126,6 +126,7 @@
     private string? _attachedPattern;
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly AuraLifecycle _aura = new();
 
     private string ActivePattern =>
         Mask == MaskType.Custom ? (CustomPattern ?? string.Empty) : Patterns[Mask];
@@ -146,6 +147,7 @@
         base.OnParametersSet();
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -186,13 +188,7 @@
         {
             var cls = new List<string> { "input-wrapper" };
             if (!string.IsNullOrEmpty(LeadingIcon)) cls.Add("has-leading-icon");
-            if (Ai != AiState.None) cls.Add("ai-aura");
-            switch (Ai)
-            {
-                case AiState.Thinking:  cls.Add("ai-thinking");  break;
-                case AiState.Streaming: cls.Add("ai-streaming"); break;
-                case AiState.Generated: cls.Add("ai-generated"); break;
-            }
+            AiAuraCss.Append(cls, _aura, EffectiveAura);
             return string.Join(' ', cls);
         }
     }
@@ -221,6 +217,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _aura.Dispose();
         if (_jsReady)
         {
             try { await JS.InvokeVoidAsync("dryl.inputmask.detach", _inputEl); }

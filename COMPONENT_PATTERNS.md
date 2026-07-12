@@ -264,26 +264,22 @@ Inputs that participate in `EditForm` extend `InputBase<T>`:
 
 ## AI-aware components
 
-Any component whose surface can be driven by an AI (a card filled by a tool call, a textarea bound to a streaming completion, a table whose rows are populated by a model) opts in to AI mode by accepting a single parameter:
+Any component whose surface can be driven by an AI (a card filled by a tool call, a textarea bound to a streaming completion, a table whose rows are populated by a model) opts into AI mode by accepting two shared parameters — the state and the aura variant:
 
 ```csharp
-/// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
-[Parameter] public AiState Ai { get; set; } = AiState.None;
+// Inherit DrylAiAware to get both parameters + scope resolution for free:
+//   @inherits DrylAiAware        →  Ai (AiState), Aura (AiAura?), EffectiveAi, EffectiveAura
+// The InputBase<T> family (which can't change base) replicates them inline:
+//   [CascadingParameter] AiScope? Scope; [Parameter] AiState Ai; [Parameter] AiAura? Aura;
+//   AiState EffectiveAi   => AiScope.Resolve(Ai, Scope);
+//   AiAura  EffectiveAura => AiScope.ResolveAura(Aura, Scope);
 ```
 
-The render template adds the AI primitives **only when `Ai != AiState.None`** so the default cost is exactly zero — no extra DOM, no animations, no perf hit for consumers that don't use AI:
+The aura is emitted by the shared `<DrylAuraElements/>` component and an `AuraLifecycle`, so it mounts only when needed **and animates out** on the way to `None`. The host builds its classes with `AiAuraCss.Append(...)`:
 
 ```razor
 <div class="@CssClass" @attributes="AdditionalAttributes">
-    @if (Ai != AiState.None)
-    {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-glow"></div>
-        @if (Ai == AiState.Generated)
-        {
-            <div class="ai-aura-wash" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
     @ChildContent
 </div>
 ```
@@ -291,37 +287,39 @@ The render template adds the AI primitives **only when `Ai != AiState.None`** so
 ```csharp
 private AiState _prevAi = AiState.None;
 private int _genTick;
+private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
 protected override void OnParametersSet()
 {
-    // Re-key the wash element each time we transition into Generated so the
-    // one-shot animation replays on every completion.
-    if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-    _prevAi = Ai;
+    // Re-key the wash so the one-shot Generated bloom replays on every completion.
+    if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+    _prevAi = EffectiveAi;
+    // Keep the aura mounted (fading) for one beat after leaving AI mode.
+    _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
 }
+
+public void Dispose() => _aura.Dispose();   // @implements IDisposable
 
 private string CssClass
 {
     get
     {
         var classes = new List<string> { /* …existing classes… */ };
-        if (Ai != AiState.None) classes.Add("ai-aura");
-        switch (Ai)
-        {
-            case AiState.Thinking:  classes.Add("ai-thinking");  break;
-            case AiState.Streaming: classes.Add("ai-streaming"); break;
-            case AiState.Generated: classes.Add("ai-generated"); break;
-        }
+        DRYL.Components.Ai.AiAuraCss.Append(classes, _aura, EffectiveAura);
         return string.Join(' ', classes);
     }
 }
 ```
 
+`AiAuraCss.Append` adds `ai-aura` (+ `ai-aura--aurora`, `ai-aura--out`, and the state class) only while the aura is present, so the default cost is still zero DOM/animation for `None`.
+
 ### Rules
 
-- **Off by default.** `Ai` always defaults to `AiState.None`. Existing call sites must see zero change.
-- **No new visuals.** Use the existing CSS primitives (`.ai-aura*`, `.ai-indicator`) verbatim. If a state needs a new look, extend `dryl.css` first — don't fork the styling inside a component.
-- **Re-key on `Generated`.** The one-shot wash only re-fires if its DOM node is fresh. Use the `_genTick` pattern above (or `@key`) to force a new node on every transition into `Generated`.
+- **Off by default.** `Ai` defaults to `AiState.None` and `Aura` to `null` (→ `Comet`). Existing call sites must see zero API change.
+- **One vocabulary, two levers.** Use `AiState` (the state) and `AiAura` (the variant) verbatim — never a per-component AI enum. If a state needs a new look, extend `dryl.css` first — don't fork the styling inside a component.
+- **Resolve through the scope.** Drive the markup from `EffectiveAi` / `EffectiveAura`, not the raw parameters, so a surrounding `DrylAiScope` (state *and* `Aura`) is honoured.
+- **Animate the exit.** Never gate the aura on `EffectiveAi != None` directly — gate on `_aura.Present` (via `DrylAuraElements`) so leaving AI mode dissolves instead of snapping (rule 2.12).
+- **Re-key on `Generated`.** The one-shot bloom only re-fires with a fresh DOM node — keep the `_genTick` pattern.
 - **Pair with `DrylAiIndicator`** for status feedback. Don't roll your own status pill inside the component — compose them.
 - **Accessibility.** When the AI state itself is the *only* signal a screen-reader user gets that something is happening, expose it via `aria-live="polite"` on a status element (this is how `DrylAiIndicator` works). Decorative AI styling on a surface that already has its own label needs no extra ARIA.
 

@@ -14,6 +14,73 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.7.0] — 2026-07-12
+
+### Changed
+- `DrylTable` — Under `Ai=Streaming`/`Generated` on a plain client-side list, a
+  streaming insert now wraps its view rebuild in a same-document view transition:
+  the surrounding rows **glide** down to make room for the newly-arrived rows
+  instead of snapping, while the new rows keep their accent-flash entry. Reuses the
+  existing `RowIdSelector` for the per-row morph identity and the shared
+  `::view-transition-group` glide vocabulary — no new API. Rapid successive inserts
+  coalesce (an in-flight transition is not interrupted). Falls back to the previous
+  flash-only entry without the View Transition API, under `prefers-reduced-motion`,
+  during prerender, and when `Virtualize`/`GroupBy`/`DataProvider` is set
+
+### Fixed
+- `DrylTable` — Row `view-transition-name`s are now scoped per table instance, so two
+  morph-enabled tables on the same page (e.g. `AnimateReorder` + AI streaming) no longer
+  collide on a shared row id and abort the transition with a duplicate-name error
+
+## [2.6.0] — 2026-07-12
+
+### Added
+- `AiAura` enum (`Comet` / `Aurora`) and a shared **`Aura`** parameter on
+  AI-aware components and `DrylAiScope`. Selects the aura variant and is
+  scope-propagated, so a whole subtree can switch to the calmer **Aurora** for
+  dense AI pages. Defaults to `Comet` (bold travelling comet); leaving it unset
+  inherits the surrounding scope
+- `DrylAuraElements` — shared child markup for an AI aura (comet ring, breathing
+  glow, one-shot Generated wash), driven by the new `AuraLifecycle`
+- New CSS tokens `--ai-core` (the comet's theme-aware specular head) and
+  `--ai-strength` (light-mode aura-presence multiplier)
+- `Aura` parameter added across the remaining AI-aware hosts (see Changed) —
+  `DrylInputText`, `DrylInputNumber`, `DrylInputPassword`, `DrylInputMask`,
+  `DrylInputOtp`, `DrylTextarea`, `DrylSelect`, `DrylMultiSelect`,
+  `DrylAutocomplete`, `DrylChipInput`, `DrylDatePicker`, `DrylTimePicker`,
+  `DrylSlider`, `DrylRadioGroup`, `DrylRating`, `DrylFileUpload`, `DrylDialog`,
+  `DrylChatComposer`, `DrylTable`, `DrylStat`, `DrylImage`, `DrylCodeBlock`,
+  `DrylTimelineItem`, `DrylDonutChart`, `DrylLineChart`, `DrylBarChart`,
+  `DrylAreaChart`, `DrylExpansion`, `DrylStepper`/`DrylStep`,
+  `DrylCommandPalette`, `DrylAlert`, `DrylEmptyState`, `DrylProgress`,
+  `DrylSpinner`, `DrylSkeleton`, `DrylNotifications`, `DrylErrorBoundary`
+
+### Changed
+- **AI aura, redesigned** — the shared `.ai-aura*` primitive now reads by state
+  *character*, not just speed. Comet (default): an even, aspect-independent base
+  saum (fixing the patchy long edges wide surfaces used to show) plus a luminous
+  travelling comet, with per-state colour weighting (Thinking violet-dominant,
+  Streaming cyan) and a directional Streaming sheen. Aurora: a soft flowing edge
+  field. `Generated` now rests as a calm afterglow (the comet retires) so a
+  surface can hold an "AI was here" trace without dropping to `None`; leaving AI
+  mode dissolves the aura over `--dur-slow` instead of snapping. Colour comes
+  only from the AI accent tokens; `prefers-reduced-motion` keeps it static.
+  Applies to every AI-aware surface
+- **`Aura` variant + graceful exit now on every AI-aware host** — completes the
+  redesign rollout: each host drives its aura through the shared `AuraLifecycle`
+  (so leaving AI mode dissolves instead of snapping) and honours the `Aura`
+  variant from an explicit parameter or a surrounding `DrylAiScope`. `DrylRating`
+  now renders the full ring/glow (a new `.rating-wrapper.ai-aura` radius traces
+  the stars as a pill). Off by default (`Ai="AiState.None"`) — existing call
+  sites are unchanged. Special cases kept intentionally: `DrylButton` / `DrylTab`
+  keep their compact conic ring and ignore `Aura` (Aurora is meaningless at that
+  size); `DrylNotifications` scopes the variant per AI-provenance item (its state
+  is fixed per item, so there is no per-item exit); `DrylImage` keeps its bespoke
+  per-state treatment while gaining the variant + graceful exit
+- `DrylMarkdown` — now inherits the shared AI-aware base, so it resolves `Ai`
+  and `Aura` from a surrounding `DrylAiScope` (it previously honoured only an
+  explicit `Ai`)
+
 ## [2.5.0] — 2026-07-12
 
 ### Changed

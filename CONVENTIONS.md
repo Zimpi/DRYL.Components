@@ -52,6 +52,15 @@ library already follows — see `CLAUDE.md` for the design-system rules and
 - The opt-in AI parameter is always named **`Ai`**, type `AiState`, default
   **`AiState.None`**. Never a per-component AI enum or a differently named
   parameter. See `CLAUDE.md` §2.10.
+- The aura-variant parameter is always named **`Aura`**, type `AiAura`
+  (`Comet` / `Aurora`). It is **nullable** (`AiAura?`, default `null`) so it can
+  inherit a surrounding `DrylAiScope`; the effective default is `AiAura.Comet`.
+  Resolve it via `AiScope.ResolveAura(Aura, Scope)` (mirrors `EffectiveAi`).
+  A host whose AI state is intrinsically explicit (e.g. `DrylToolCall`, which
+  uses `State`) still exposes `Aura` and resolves it from the scope for the
+  variant only. Surfaces that render a fixed size where the variant is
+  meaningless (e.g. toasts outside any scope) may take a non-nullable
+  `AiAura Aura = AiAura.Comet` instead.
 
 ## 5. Slots
 

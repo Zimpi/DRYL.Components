@@ -16,15 +16,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@WrapperCssClass">
-    @if (Ai != AiState.None)
-    {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-glow"></div>
-        @if (Ai == AiState.Generated)
-        {
-            <div class="ai-aura-wash" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     <textarea @ref="_ref"
               class="chat-composer-input"
@@ -64,16 +56,26 @@
     /// <summary>AI ambient state — wraps the composer in the gradient ring.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     private ElementReference _ref;
     private DotNetObjectReference<DrylChatComposer>? _dotnetRef;
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private bool _attached;
+    private readonly AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -116,22 +118,14 @@
         get
         {
             var parts = new List<string> { "chat-composer" };
-            if (Ai != AiState.None)
-            {
-                parts.Add("ai-aura");
-                switch (Ai)
-                {
-                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
-                    case AiState.Streaming: parts.Add("ai-streaming"); break;
-                    case AiState.Generated: parts.Add("ai-generated"); break;
-                }
-            }
+            AiAuraCss.Append(parts, _aura, EffectiveAura);
             return string.Join(' ', parts);
         }
     }
 
     public async ValueTask DisposeAsync()
     {
+        _aura.Dispose();
         if (_attached)
         {
             try { await JS.InvokeVoidAsync("dryl.chat.detachComposer", _ref); }
