@@ -82,7 +82,14 @@
         _segments.Clear();
         if (string.IsNullOrEmpty(Content)) return;
 
-        var document = Markdown.Parse(Content, _pipeline);
+        // Streaming re-parses the accumulated text on every chunk, and a chunk
+        // boundary can split a UTF-16 surrogate pair (e.g. mid-emoji), leaving a
+        // lone surrogate at the tail. Markdig's AutoIdentifier (from advanced
+        // extensions) urilizes heading text through ICU normalization, which
+        // throws ArgumentException("invalid Unicode code points") on an unpaired
+        // surrogate. Drop unpaired surrogates so the partial parse stays valid;
+        // the next chunk delivers the pair and the character renders normally.
+        var document = Markdown.Parse(StripLoneSurrogates(Content!), _pipeline);
 
         var sb = new StringBuilder();
         using var writer = new StringWriter(sb);
@@ -112,6 +119,43 @@
         }
 
         FlushHtml();
+    }
+
+    // Returns the string with any unpaired UTF-16 surrogate removed (a valid
+    // high+low pair is kept intact). Allocation-free when the input is already
+    // well-formed, which is the overwhelmingly common case.
+    private static string StripLoneSurrogates(string s)
+    {
+        var hasSurrogate = false;
+        for (var i = 0; i < s.Length; i++)
+        {
+            if (char.IsSurrogate(s[i])) { hasSurrogate = true; break; }
+        }
+        if (!hasSurrogate) return s;
+
+        var sb = new StringBuilder(s.Length);
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (char.IsHighSurrogate(c))
+            {
+                if (i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+                {
+                    sb.Append(c);
+                    sb.Append(s[++i]);
+                }
+                // else: unpaired high surrogate — drop it
+            }
+            else if (char.IsLowSurrogate(c))
+            {
+                // unpaired low surrogate — drop it
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
     }
 
     private string RootCssClass

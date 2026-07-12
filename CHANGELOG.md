@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.4.3] — 2026-07-12
+
+### Fixed
+- `DrylMarkdown` — streaming Markdown no longer crashes the circuit when a token-stream chunk boundary splits a UTF-16 surrogate pair (e.g. mid-emoji). The accumulated text is re-parsed on every chunk, and a lone surrogate at the tail made Markdig's AutoIdentifier (advanced extensions) throw `ArgumentException: String contains invalid Unicode code points` during ICU normalization of heading slugs. `DrylMarkdown` now strips unpaired surrogates before parsing (allocation-free when the text is already well-formed); the next chunk delivers the pair and the character renders normally
+
 ## [2.4.2] — 2026-07-12
 
 ### Changed
