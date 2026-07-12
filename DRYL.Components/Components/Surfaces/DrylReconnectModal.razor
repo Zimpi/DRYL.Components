@@ -1,0 +1,135 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylReconnectModal — a drop-in, on-brand replacement for
+    Blazor Server's default reconnect overlay.
+
+    Place it ONCE, near the end of your layout (e.g. MainLayout
+    or App.razor's <body>):
+
+        <DrylReconnectModal />
+
+    It renders the single element the framework looks for by id
+    (`components-reconnect-modal`). Blazor's own JS then toggles
+    the state classes on it at runtime:
+
+        components-reconnect-show      → reconnecting
+        components-reconnect-retrying  → reconnecting  (.NET 9+)
+        components-reconnect-paused    → reconnecting  (.NET 9+)
+        components-reconnect-failed    → failed  → Blazor.reconnect()
+        components-reconnect-rejected  → rejected → location.reload()
+        components-reconnect-hide      → connected (overlay fades out)
+
+    Everything visible is driven purely by CSS keyed on those
+    classes — there is NO Blazor state here, because during a
+    reconnect the SignalR circuit is DOWN and no C# runs. For the
+    same reason the two action buttons are plain <button> elements
+    with a NATIVE onclick (a DrylButton's EventCallback would never
+    fire on a dead circuit). This is the one deliberate exception to
+    "always use the component" — documented and unavoidable.
+    ───────────────────────────────────────────────────────── *@
+
+<div id="components-reconnect-modal"
+     class="@CssClass"
+     role="alertdialog"
+     aria-modal="true"
+     aria-labelledby="dryl-reconnect-label"
+     @attributes="AdditionalAttributes">
+
+    <div class="reconnect-card">
+
+        @* ── Reconnecting (show / retrying / paused) ────────── *@
+        <div class="reconnect-state reconnect-reconnecting" aria-live="polite">
+            <span class="reconnect-spinner" aria-hidden="true">
+                <span class="reconnect-spinner-ring"></span>
+                <span class="reconnect-spinner-core"></span>
+            </span>
+            <p id="dryl-reconnect-label" class="reconnect-text">@ReconnectingText</p>
+            @if (ShowAttemptCounter)
+            {
+                <p class="reconnect-counter">
+                    @AttemptLabel
+                    <span id="components-reconnect-current-attempt"></span>
+                    <span class="reconnect-counter-sep">/</span>
+                    <span id="components-reconnect-max-retries"></span>
+                </p>
+                <p class="reconnect-next">
+                    @NextAttemptLabel
+                    <span id="components-seconds-to-next-attempt"></span>@SecondsSuffix
+                </p>
+            }
+        </div>
+
+        @* ── Failed (retry available) ───────────────────────── *@
+        <div class="reconnect-state reconnect-failed" role="alert">
+            <span class="reconnect-glyph reconnect-glyph-warn" aria-hidden="true">
+                <DrylIcon Name="Alert" Size="20" />
+            </span>
+            <p class="reconnect-text">@FailedText</p>
+            @* Native onclick — the circuit is dead, so this must be plain DOM/JS. *@
+            <button type="button" class="btn btn-primary reconnect-action" onclick="Blazor.reconnect()">
+                @RetryButtonText
+            </button>
+        </div>
+
+        @* ── Rejected (state lost → reload) ─────────────────── *@
+        <div class="reconnect-state reconnect-rejected" role="alert">
+            <span class="reconnect-glyph reconnect-glyph-danger" aria-hidden="true">
+                <DrylIcon Name="Server" Size="20" />
+            </span>
+            <p class="reconnect-text">@RejectedText</p>
+            <button type="button" class="btn btn-primary reconnect-action" onclick="location.reload()">
+                @ReloadButtonText
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    /// <summary>Message shown while the client is trying to re-establish the connection.</summary>
+    [Parameter] public string ReconnectingText { get; set; } = "Reconnecting to the server…";
+
+    /// <summary>Message shown when the reconnection attempts have failed (retry is still possible).</summary>
+    [Parameter] public string FailedText { get; set; } = "We couldn't reconnect. The server may be unavailable.";
+
+    /// <summary>Message shown when the server rejected the connection and the session was lost.</summary>
+    [Parameter] public string RejectedText { get; set; } = "Your session has expired.";
+
+    /// <summary>Label of the button that retries the connection in the <c>failed</c> state.</summary>
+    [Parameter] public string RetryButtonText { get; set; } = "Retry now";
+
+    /// <summary>Label of the button that reloads the page in the <c>rejected</c> state.</summary>
+    [Parameter] public string ReloadButtonText { get; set; } = "Reload page";
+
+    /// <summary>
+    /// If <c>true</c> (default) the reconnecting state shows a live
+    /// "Attempt X / Y" counter and a "next try in Ns" line, filled in by the
+    /// framework. Set to <c>false</c> to hide the counter entirely.
+    /// </summary>
+    [Parameter] public bool ShowAttemptCounter { get; set; } = true;
+
+    /// <summary>Leading text of the attempt counter (before the current attempt number).</summary>
+    [Parameter] public string AttemptLabel { get; set; } = "Attempt";
+
+    /// <summary>Leading text of the "next attempt" line (before the seconds value).</summary>
+    [Parameter] public string NextAttemptLabel { get; set; } = "Next try in";
+
+    /// <summary>Suffix appended after the seconds value on the "next attempt" line (e.g. "s").</summary>
+    [Parameter] public string SecondsSuffix { get; set; } = "s";
+
+    /// <summary>
+    /// Extra CSS class(es) merged onto the overlay's own classes. Because Blazor
+    /// matches attribute names case-insensitively, a consumer-supplied
+    /// <c>class="..."</c> also binds here and is merged in — it does not clobber
+    /// the component's identity classes.
+    /// </summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes applied to the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class) ? "reconnect-overlay" : $"reconnect-overlay {Class}";
+}

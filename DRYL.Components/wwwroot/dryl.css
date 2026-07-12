@@ -149,6 +149,7 @@
   --z-modal:   100;
   --z-popover: 150;
   --z-toast:   200;
+  --z-reconnect: 1000; /* DrylReconnectModal — above every other layer; the circuit is down, this must win */
 
   /* App chrome dimensions — consumed by .topbar / .sidebar / .app-shell.
      Overridable per layout via inline custom properties (DrylLayout.SidebarWidth). */
