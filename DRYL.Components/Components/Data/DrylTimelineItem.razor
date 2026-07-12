@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylTimelineItem — a single event inside a DrylTimeline.
@@ -11,15 +12,7 @@
 <div class="timeline-item @Class" role="listitem" @attributes="AdditionalAttributes">
     <div class="timeline-gutter">
         <div class="@MarkerCssClass">
-            @if (Ai != AiState.None)
-            {
-                <div class="ai-aura-ring"></div>
-                <div class="ai-aura-glow"></div>
-                @if (Ai == AiState.Generated)
-                {
-                    <div class="ai-aura-wash" @key="_genTick"></div>
-                }
-            }
+            <DrylAuraElements Aura="_aura" GenTick="_genTick" />
             @if (!string.IsNullOrEmpty(Icon))
             {
                 <DrylIcon Name="@Icon" Size="13" />
@@ -72,6 +65,14 @@
     /// <summary>AI ambient state — wraps the marker in the gradient aura.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
@@ -81,12 +82,16 @@
 
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
+
+    public void Dispose() => _aura.Dispose();
 
     private string MarkerCssClass
     {
@@ -101,16 +106,7 @@
                 TimelineVariant.Danger  => "timeline-marker--danger",
                 _ => "timeline-marker--default"
             });
-            if (Ai != AiState.None)
-            {
-                parts.Add("ai-aura");
-                switch (Ai)
-                {
-                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
-                    case AiState.Streaming: parts.Add("ai-streaming"); break;
-                    case AiState.Generated: parts.Add("ai-generated"); break;
-                }
-            }
+            AiAuraCss.Append(parts, _aura, EffectiveAura);
             return string.Join(' ', parts);
         }
     }

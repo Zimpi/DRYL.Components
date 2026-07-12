@@ -33,15 +33,7 @@
             {
                 var idx = i;
                 <div class="@BoxWrapClass">
-                    @if (Ai != AiState.None)
-                    {
-                        <div class="ai-aura-ring"></div>
-                        <div class="ai-aura-glow"></div>
-                        @if (Ai == AiState.Generated)
-                        {
-                            <div class="ai-aura-wash" @key="@($"gen-{idx}-{_genTick}")"></div>
-                        }
-                    }
+                    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
                     <input @key="@($"otp-{idx}")"
                            class="@BoxCssClass"
                            type="text"
@@ -92,6 +84,14 @@
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     private readonly string _labelId  = $"dryl-otp-lbl-{Guid.NewGuid():N}";
     private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
     private ElementReference _container;
@@ -100,6 +100,7 @@
     private string[] _chars = [];
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly AuraLifecycle _aura = new();
 
     public override Task SetParametersAsync(ParameterView parameters)
     {
@@ -121,6 +122,7 @@
         }
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -180,14 +182,15 @@
     private bool HasValidationError =>
         EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
 
-    private string BoxWrapClass => Ai switch
+    private string BoxWrapClass
     {
-        AiState.Thinking  => "otp-box-wrap ai-aura ai-thinking",
-        AiState.Streaming => "otp-box-wrap ai-aura ai-streaming",
-        AiState.Generated => "otp-box-wrap ai-aura ai-generated",
-        AiState.Active    => "otp-box-wrap ai-aura",
-        _                 => "otp-box-wrap",
-    };
+        get
+        {
+            var parts = new List<string> { "otp-box-wrap" };
+            AiAuraCss.Append(parts, _aura, EffectiveAura);
+            return string.Join(' ', parts);
+        }
+    }
 
     private string BoxCssClass
     {
@@ -211,6 +214,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        _aura.Dispose();
         if (_jsReady)
         {
             try { await JS.InvokeVoidAsync("dryl.otp.detach", _container); }

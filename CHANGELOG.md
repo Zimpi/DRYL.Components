@@ -14,11 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-> AI-aura redesign — core + AI-streaming surfaces landed. The remaining hosts
-> (inputs, charts, table, misc; button/tab) still show the new look but are not
-> yet wired for the `Aura` variant switch / graceful exit; that rollout, the
-> version bump and the release are handled as a follow-up (see
-> `docs/superpowers/specs/2026-07-12-ai-aura-rollout-handoff.md`).
+## [2.6.0] — 2026-07-12
 
 ### Added
 - `AiAura` enum (`Comet` / `Aurora`) and a shared **`Aura`** parameter on
@@ -30,6 +26,16 @@ Version bump guide:
   glow, one-shot Generated wash), driven by the new `AuraLifecycle`
 - New CSS tokens `--ai-core` (the comet's theme-aware specular head) and
   `--ai-strength` (light-mode aura-presence multiplier)
+- `Aura` parameter added across the remaining AI-aware hosts (see Changed) —
+  `DrylInputText`, `DrylInputNumber`, `DrylInputPassword`, `DrylInputMask`,
+  `DrylInputOtp`, `DrylTextarea`, `DrylSelect`, `DrylMultiSelect`,
+  `DrylAutocomplete`, `DrylChipInput`, `DrylDatePicker`, `DrylTimePicker`,
+  `DrylSlider`, `DrylRadioGroup`, `DrylRating`, `DrylFileUpload`, `DrylDialog`,
+  `DrylChatComposer`, `DrylTable`, `DrylStat`, `DrylImage`, `DrylCodeBlock`,
+  `DrylTimelineItem`, `DrylDonutChart`, `DrylLineChart`, `DrylBarChart`,
+  `DrylAreaChart`, `DrylExpansion`, `DrylStepper`/`DrylStep`,
+  `DrylCommandPalette`, `DrylAlert`, `DrylEmptyState`, `DrylProgress`,
+  `DrylSpinner`, `DrylSkeleton`, `DrylNotifications`, `DrylErrorBoundary`
 
 ### Changed
 - **AI aura, redesigned** — the shared `.ai-aura*` primitive now reads by state
@@ -42,6 +48,17 @@ Version bump guide:
   mode dissolves the aura over `--dur-slow` instead of snapping. Colour comes
   only from the AI accent tokens; `prefers-reduced-motion` keeps it static.
   Applies to every AI-aware surface
+- **`Aura` variant + graceful exit now on every AI-aware host** — completes the
+  redesign rollout: each host drives its aura through the shared `AuraLifecycle`
+  (so leaving AI mode dissolves instead of snapping) and honours the `Aura`
+  variant from an explicit parameter or a surrounding `DrylAiScope`. `DrylRating`
+  now renders the full ring/glow (a new `.rating-wrapper.ai-aura` radius traces
+  the stars as a pill). Off by default (`Ai="AiState.None"`) — existing call
+  sites are unchanged. Special cases kept intentionally: `DrylButton` / `DrylTab`
+  keep their compact conic ring and ignore `Aura` (Aurora is meaningless at that
+  size); `DrylNotifications` scopes the variant per AI-provenance item (its state
+  is fixed per item, so there is no per-item exit); `DrylImage` keeps its bespoke
+  per-state treatment while gaining the variant + graceful exit
 - `DrylMarkdown` — now inherits the shared AI-aware base, so it resolves `Ai`
   and `Aura` from a surrounding `DrylAiScope` (it previously honoured only an
   explicit `Ai`)

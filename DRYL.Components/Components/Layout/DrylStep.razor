@@ -43,6 +43,15 @@
     /// <summary>AI ambient state — adds a rotating gradient ring around the step header.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private DRYL.Components.Ai.AiScope? AiScopeContext { get; set; }
+
+    /// <summary>Resolved aura variant — read by the parent <see cref="DrylStepper"/>.</summary>
+    internal AiAura EffectiveAura => AiScope.ResolveAura(Aura, AiScopeContext);
+
     /// <summary>Body content rendered by the parent <see cref="DrylStepper"/> when this step is active.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -50,6 +59,9 @@
 
     /// <summary>Tick counter for the Generated wash animation — read by the parent.</summary>
     internal int GenTick { get; private set; }
+
+    /// <summary>Aura mount lifecycle (graceful exit) — read by the parent to draw the ring.</summary>
+    internal readonly AuraLifecycle AuraFx = new();
 
     private bool _registered;
     private AiState _prevAi = AiState.None;
@@ -83,6 +95,10 @@
         if (Ai == AiState.Generated && _prevAi != AiState.Generated)
             GenTick++;
 
+        // The step renders no DOM of its own — the aura lives on the parent's header,
+        // so the graceful-exit re-render must re-render the parent, not this step.
+        AuraFx.Sync(Ai, () => InvokeAsync(() => Parent?.NotifyStepChanged()));
+
         if (Ai          != _prevAi
             || StepState    != _prevState
             || Disabled     != _prevDisabled
@@ -98,5 +114,9 @@
         }
     }
 
-    public void Dispose() => Parent?.UnregisterStep(this);
+    public void Dispose()
+    {
+        AuraFx.Dispose();
+        Parent?.UnregisterStep(this);
+    }
 }

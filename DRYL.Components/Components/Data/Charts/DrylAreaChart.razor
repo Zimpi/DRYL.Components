@@ -19,15 +19,7 @@
                 AriaLabel="@SummaryLabel"
                 AdditionalAttributes="@AdditionalAttributes">
         <Aura>
-            @if (EffectiveAi != AiState.None)
-            {
-                <div class="ai-aura-ring"></div>
-                <div class="ai-aura-glow"></div>
-                @if (EffectiveAi == AiState.Generated)
-                {
-                    <div class="ai-aura-wash" @key="GenTick"></div>
-                }
-            }
+            <DrylAuraElements Aura="AuraFx" GenTick="GenTick" />
         </Aura>
         <Marks>
             <svg class="chart-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">

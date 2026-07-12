@@ -941,6 +941,14 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   background: var(--glass-1);
 }
 
+/* AI mode on the rating stars — a radius + inline-flex box so the ring/glow
+   trace the stars as a contained pill instead of a square that overflows them. */
+.rating-wrapper.ai-aura {
+  display: inline-flex;
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+}
+
 /* AI mode on buttons — additive: variant's solid/glass background stays intact
    underneath, a rotating gradient ring traces the button via ::before. No
    wash, no breathing glow — at button size, the ring alone is enough signal. */

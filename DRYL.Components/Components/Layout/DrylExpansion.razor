@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylExpansion — collapsible glass panel.
@@ -22,15 +23,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@CssClass" @attributes="AdditionalAttributes">
-    @if (Ai != AiState.None)
-    {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-glow"></div>
-        @if (Ai == AiState.Generated)
-        {
-            <div class="ai-aura-wash" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     <button type="button"
             class="expansion-header"
@@ -89,6 +82,14 @@
     /// <summary>AI ambient state — adds rotating gradient border, glow, and reveal wash.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    [CascadingParameter] private AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
     /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
@@ -100,13 +101,17 @@
     private readonly string _bodyId = $"expansion-body-{Guid.NewGuid():N}";
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
         _isOpen = Open;
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
+
+    public void Dispose() => _aura.Dispose();
 
     private async Task Toggle()
     {
@@ -126,13 +131,7 @@
             var classes = new List<string> { "expansion" };
             if (_isOpen) classes.Add("is-open");
             if (Disabled) classes.Add("is-disabled");
-            if (Ai != AiState.None) classes.Add("ai-aura");
-            switch (Ai)
-            {
-                case AiState.Thinking:  classes.Add("ai-thinking");  break;
-                case AiState.Streaming: classes.Add("ai-streaming"); break;
-                case AiState.Generated: classes.Add("ai-generated"); break;
-            }
+            AiAuraCss.Append(classes, _aura, EffectiveAura);
             if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }

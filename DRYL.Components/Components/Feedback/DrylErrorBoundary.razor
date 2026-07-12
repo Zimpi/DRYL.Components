@@ -45,6 +45,7 @@
             <DrylAlert Kind="DrylAlert.AlertKind.Danger"
                        Title="@Title"
                        Ai="@Ai"
+                       Aura="@Aura"
                        Class="@Class"
                        @attributes="AdditionalAttributes">
                 <div class="errbnd-body">
@@ -129,6 +130,12 @@
     /// shared aura vocabulary. Default <see cref="AiState.None"/>.
     /// </summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// AI aura variant forwarded to the fallback surface. Leave <c>null</c> to inherit a
+    /// surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
 
     /// <summary>
     /// Maximum number of errors the underlying boundary tolerates before it stops recovering.
