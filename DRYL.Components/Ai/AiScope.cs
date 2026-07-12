@@ -19,6 +19,12 @@ public sealed class AiScope
     public AiState State { get; init; }
 
     /// <summary>
+    /// The aura variant broadcast to descendants, or <c>null</c> when the scope does not
+    /// pin one (descendants then fall back to <see cref="AiAura.Comet"/>).
+    /// </summary>
+    public AiAura? Aura { get; init; }
+
+    /// <summary>
     /// Resolve the effective state for a component. An explicit
     /// <paramref name="explicitAi"/> (anything other than <see cref="AiState.None"/>)
     /// always wins; otherwise the surrounding <paramref name="scope"/>'s state is
@@ -26,4 +32,14 @@ public sealed class AiScope
     /// </summary>
     public static AiState Resolve(AiState explicitAi, AiScope? scope) =>
         explicitAi != AiState.None ? explicitAi : (scope?.State ?? AiState.None);
+
+    /// <summary>
+    /// Resolve the effective aura variant for a component. An explicit
+    /// <paramref name="explicitAura"/> always wins; otherwise the surrounding
+    /// <paramref name="scope"/>'s variant is inherited; otherwise defaults to
+    /// <see cref="AiAura.Comet"/>. Unlike <see cref="Resolve(AiState, AiScope?)"/> there is
+    /// no "off" sentinel — <c>Comet</c> is a real default, so the opt-out is <c>null</c>.
+    /// </summary>
+    public static AiAura ResolveAura(AiAura? explicitAura, AiScope? scope) =>
+        explicitAura ?? scope?.Aura ?? AiAura.Comet;
 }

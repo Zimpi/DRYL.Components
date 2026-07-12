@@ -22,6 +22,13 @@ public abstract class DrylAiAware : ComponentBase
     /// </summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
+    /// <summary>
+    /// AI aura variant for this component. Leave <c>null</c> to inherit a surrounding
+    /// <c>DrylAiScope</c> (ultimately defaulting to <see cref="AiAura.Comet"/>); set it to
+    /// pin a variant. An explicit value always wins over the scope.
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
     /// <summary>The surrounding AI scope, if any. Supplied by <c>DrylAiScope</c>.</summary>
     [CascadingParameter] protected DRYL.Components.Ai.AiScope? Scope { get; set; }
 
@@ -30,4 +37,10 @@ public abstract class DrylAiAware : ComponentBase
     /// <see cref="Scope"/> state, otherwise <see cref="AiState.None"/>.
     /// </summary>
     protected AiState EffectiveAi => DRYL.Components.Ai.AiScope.Resolve(Ai, Scope);
+
+    /// <summary>
+    /// The aura variant to render: explicit <see cref="Aura"/> when set, otherwise the
+    /// inherited <see cref="Scope"/> variant, otherwise <see cref="AiAura.Comet"/>.
+    /// </summary>
+    protected AiAura EffectiveAura => DRYL.Components.Ai.AiScope.ResolveAura(Aura, Scope);
 }

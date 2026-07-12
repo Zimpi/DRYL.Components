@@ -1,4 +1,6 @@
 @namespace DRYL.Components
+@inherits DrylAiAware
+@implements IDisposable
 @using Markdig
 @using Markdig.Syntax
 @using System.Text
@@ -18,11 +20,11 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCssClass" @attributes="AdditionalAttributes">
-    @if (Ai != AiState.None)
+    @if (_aura.Present)
     {
         <div class="ai-aura-ring"></div>
         <div class="ai-aura-glow"></div>
-        @if (Ai == AiState.Generated)
+        @if (_aura.RenderState == AiState.Generated && !_aura.Exiting)
         {
             <div class="ai-aura-wash" @key="_genTick"></div>
         }
@@ -47,8 +49,8 @@
     /// <summary>The Markdown source to render.</summary>
     [Parameter] public string? Content { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
-    [Parameter] public AiState Ai { get; set; } = AiState.None;
+    // AI ambient state (Ai) and aura variant (Aura) are inherited from DrylAiAware; both
+    // resolve against a surrounding DrylAiScope via EffectiveAi / EffectiveAura.
 
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]
@@ -67,15 +69,21 @@
     private readonly List<Segment> _segments = new();
     private AiState _prevAi = AiState.None;
     private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
     private readonly record struct Segment(bool IsCode, string Text, string? Language);
 
     protected override void OnParametersSet()
     {
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
+        // Keep the aura mounted (and fading) for one beat after leaving AI mode so it
+        // dissolves rather than snapping away when a completion settles back to None.
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
         BuildSegments();
     }
+
+    public void Dispose() => _aura.Dispose();
 
     private void BuildSegments()
     {
@@ -163,10 +171,12 @@
         get
         {
             var parts = new List<string> { "md" };
-            if (Ai != AiState.None)
+            if (_aura.Present)
             {
                 parts.Add("ai-aura");
-                switch (Ai)
+                if (EffectiveAura == AiAura.Aurora) parts.Add("ai-aura--aurora");
+                if (_aura.Exiting) parts.Add("ai-aura--out");
+                switch (_aura.RenderState)
                 {
                     case AiState.Thinking:  parts.Add("ai-thinking");  break;
                     case AiState.Streaming: parts.Add("ai-streaming"); break;
