@@ -1567,7 +1567,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
     display: none;
   }
   .topbar { padding: 0 16px; }
-  .main   { padding: 24px 16px 64px; }
+  .main-inner { padding: 24px 16px 64px; }
 }
 
 .brand {
@@ -1877,17 +1877,24 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 .main {
-  padding: 40px 48px 80px;
-  max-width: 1400px;
-  /* Center the capped column inside its grid track — otherwise wide
-     viewports pile all the leftover space onto the right edge. */
-  margin-inline: auto;
-  width: 100%;
   /* The only scroll region inside the app shell: the sidebar and top bar are
-     fixed, page content scrolls here. min-height:0 lets this grid row shrink
-     below its content so overflow-y can actually take effect. */
+     fixed, page content scrolls here. It spans the full grid track so its
+     scrollbar sits flush at the viewport edge — the reading-width cap lives on
+     .main-inner, never on the scroll container itself. (A max-width here would
+     make .main narrower than its track on wide viewports and centre it, so the
+     scrollbar would float inward "in the middle of the page".) min-height:0
+     lets this grid row shrink below its content so overflow-y can take effect. */
+  width: 100%;
   min-height: 0;
   overflow-y: auto;
+}
+/* Inner column — caps the reading width and centres it inside the full-width
+   scroll region. Padding lives here (not on .main) so the scrollbar stays flush
+   against the viewport edge instead of hugging the padded content box. */
+.main-inner {
+  max-width: 1400px;
+  margin-inline: auto;
+  padding: 40px 48px 80px;
 }
 
 /* ============== KBD / CODE ============== */

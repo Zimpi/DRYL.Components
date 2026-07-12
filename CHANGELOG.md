@@ -14,6 +14,17 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.7.1] — 2026-07-13
+
+### Fixed
+- `DrylMainContent` — The app-shell scroll region no longer parks its vertical
+  scrollbar "in the middle of the page" on wide viewports. `.main` was both the
+  scroll container **and** width-capped (`max-width`) + centred, so on viewports
+  wider than the cap its scrollbar floated inward from the right edge. The scroll
+  container now spans the full grid track and the reading-width cap moved to a new
+  inner `.main-inner` wrapper, so the scrollbar sits flush at the viewport edge on
+  every page. No API change
+
 ## [2.7.0] — 2026-07-12
 
 ### Changed
