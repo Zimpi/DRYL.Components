@@ -14,6 +14,24 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.7.0] — 2026-07-12
+
+### Changed
+- `DrylTable` — Under `Ai=Streaming`/`Generated` on a plain client-side list, a
+  streaming insert now wraps its view rebuild in a same-document view transition:
+  the surrounding rows **glide** down to make room for the newly-arrived rows
+  instead of snapping, while the new rows keep their accent-flash entry. Reuses the
+  existing `RowIdSelector` for the per-row morph identity and the shared
+  `::view-transition-group` glide vocabulary — no new API. Rapid successive inserts
+  coalesce (an in-flight transition is not interrupted). Falls back to the previous
+  flash-only entry without the View Transition API, under `prefers-reduced-motion`,
+  during prerender, and when `Virtualize`/`GroupBy`/`DataProvider` is set
+
+### Fixed
+- `DrylTable` — Row `view-transition-name`s are now scoped per table instance, so two
+  morph-enabled tables on the same page (e.g. `AnimateReorder` + AI streaming) no longer
+  collide on a shared row id and abort the transition with a duplicate-name error
+
 ## [2.6.0] — 2026-07-12
 
 ### Added

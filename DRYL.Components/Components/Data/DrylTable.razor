@@ -797,6 +797,12 @@
     /// AI ambient state for the table. <see cref="AiState.Streaming"/> and
     /// <see cref="AiState.Generated"/> additionally make newly-inserted rows
     /// fade in with an accent flash so users can see what the model just added.
+    /// On a plain client-side list (not <see cref="Virtualize"/>, <see cref="GroupBy"/>
+    /// or <see cref="DataProvider"/>) the insert is wrapped in a same-document view
+    /// transition, so the surrounding rows <em>glide</em> down to make room instead of
+    /// snapping. Rows need a stable identity for the morph — see <see cref="RowIdSelector"/>.
+    /// Falls back to the flash-only entry in browsers without the View Transition API,
+    /// under <c>prefers-reduced-motion</c>, and during prerender.
     /// </summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
@@ -851,6 +857,7 @@
     private int? _pendingFocusGrip;
     private ElementReference _rootEl;
     private DrylViewTransition? _rowTransition;
+    private bool _rowTransitionBusy;
 
     // Inline editing — one row at a time. _editBuffer is the item handed to the column
     // EditTemplates: a clone when CloneRow is set (so cancel reverts), otherwise the live item.
@@ -922,8 +929,27 @@
     private bool AnimateReorderActive =>
         AnimateReorder && !Virtualize && GroupBy is null && DataProvider is null;
 
+    // Streaming inserts glide the same way: existing rows slide down to make room while
+    // the freshly-added rows fade in, instead of the surrounding rows snapping into place.
+    // Auto-on under AI streaming on a plain client list — no opt-in, mirroring the
+    // always-on CSS row-enter (.tbl-row--ai-enter). Falls back to that CSS when the
+    // browser can't do view transitions (dryl.viewTransition.start handles that).
+    private bool StreamGlideActive =>
+        (Ai == AiState.Streaming || Ai == AiState.Generated)
+        && !Virtualize && GroupBy is null && DataProvider is null;
+
+    // Rows carry a view-transition-name whenever either morph mode could run, so the
+    // ::view-transition-group morph has stable per-row targets to glide between.
+    private bool VtMorphActive => AnimateReorderActive || StreamGlideActive;
+
+    // Per-instance scope so view-transition-names stay document-globally unique when
+    // several morph-enabled tables share a page — RowVtId only guarantees uniqueness
+    // within one table, but the name must be unique across the whole document or the
+    // browser aborts the transition ("duplicate view-transition-name").
+    private readonly string _vtScope = "t" + Guid.NewGuid().ToString("N")[..8];
+
     private string? RowVtStyle(TItem item) =>
-        AnimateReorderActive ? $"view-transition-name: tbl-row-{RowVtId(item)}" : null;
+        VtMorphActive ? $"view-transition-name: {_vtScope}-row-{RowVtId(item)}" : null;
 
     private string RowVtId(TItem item)
     {
@@ -948,20 +974,31 @@
 
     // Wraps a view mutation in a view transition when active; otherwise applies it
     // directly. The service guarantees the mutation runs even if the JS side never
-    // calls back (prerender, disconnected circuit, test renderer).
+    // calls back (prerender, disconnected circuit, test renderer). When a transition
+    // is already in flight (rapid successive streaming updates), the next mutation
+    // coalesces onto a direct apply rather than fighting the running morph — view
+    // transitions serialise, so overlapping starts would only skip anyway.
     private async Task RunRowTransitionAsync(Func<Task> mutate)
     {
-        if (!AnimateReorderActive)
+        if (!VtMorphActive || _rowTransitionBusy)
         {
             await mutate();
             return;
         }
         _rowTransition ??= new DrylViewTransition(JS);
-        await _rowTransition.RunAsync(async () =>
+        _rowTransitionBusy = true;
+        try
         {
-            await mutate();
-            StateHasChanged();
-        });
+            await _rowTransition.RunAsync(async () =>
+            {
+                await mutate();
+                StateHasChanged();
+            });
+        }
+        finally
+        {
+            _rowTransitionBusy = false;
+        }
     }
 
     // Inline editing only makes sense over a client-side list; a DataProvider owns its own rows.
@@ -1080,7 +1117,15 @@
         if (itemsChanged || _columnsDirty)
         {
             _columnsDirty = false;
-            await RebuildViewAsync();
+            // While streaming, wrap the rebuild in a view transition so newly-arrived
+            // rows slide their neighbours down instead of snapping — but only when the
+            // incoming Items actually carry rows we haven't rendered yet, so a fresh
+            // reference with no new content doesn't pay for a no-op morph. Column-only
+            // rebuilds never morph.
+            if (itemsChanged && StreamGlideActive && HasNewRows())
+                await RunRowTransitionAsync(RebuildViewAsync);
+            else
+                await RebuildViewAsync();
         }
 
         // Editing a row that's no longer in the current view (its Items entry was removed) would
@@ -1594,6 +1639,13 @@
 
     private bool ShowAiEnter(TItem item) =>
         (Ai == AiState.Streaming || Ai == AiState.Generated) && !_seenItems.Contains(item);
+
+    // True when the incoming Items carry at least one row we haven't rendered yet —
+    // the signal that a streaming insert is worth morphing. Compared against the
+    // last-rendered set (_seenItems, refreshed in OnAfterRenderAsync), so a re-handed
+    // reference with unchanged content reports false and skips the transition.
+    private bool HasNewRows() =>
+        Items is not null && Items.Any(i => !_seenItems.Contains(i));
 
     private string RowCssClass(TItem item, int rowIndex)
     {
