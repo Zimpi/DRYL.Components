@@ -1,0 +1,38 @@
+@namespace DRYL.Components
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAuraElements — the shared child markup for an AI aura
+    (rotating comet ring, breathing glow, one-shot Generated wash).
+    Drop it as the first child of any AI-aware host, driven by the
+    host's AuraLifecycle; pair it with AiAuraCss.Append(...) which
+    puts the matching ai-aura* classes on the host root.
+
+      <div class="@RootCssClass">
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+        …content…
+      </div>
+
+    Rendering while the lifecycle is Present (live or fading out) keeps
+    the aura in the DOM for its graceful exit.
+    ───────────────────────────────────────────────────────── *@
+
+@if (Aura.Present)
+{
+    <div class="ai-aura-ring"></div>
+    <div class="ai-aura-glow"></div>
+    @if (Aura.RenderState == AiState.Generated && !Aura.Exiting)
+    {
+        <div class="ai-aura-wash" @key="GenTick"></div>
+    }
+}
+
+@code {
+    /// <summary>The host's aura lifecycle (mount state + fade-out coordination).</summary>
+    [Parameter, EditorRequired] public DRYL.Components.Ai.AuraLifecycle Aura { get; set; } = default!;
+
+    /// <summary>
+    /// A counter the host bumps each time it (re-)enters Generated, so the one-shot wash
+    /// re-keys and its bloom animation replays.
+    /// </summary>
+    [Parameter] public int GenTick { get; set; }
+}

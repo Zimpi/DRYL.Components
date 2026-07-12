@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylToolCall — visualises a single agent tool / function call:
@@ -23,15 +24,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCssClass" @attributes="AdditionalAttributes">
-    @if (State != AiState.None)
-    {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-glow"></div>
-        @if (State == AiState.Generated)
-        {
-            <div class="ai-aura-wash" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     <button type="button"
             class="tool-call-head"
@@ -93,6 +86,18 @@
     /// </summary>
     [Parameter] public AiState State { get; set; } = AiState.None;
 
+    /// <summary>
+    /// AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c>
+    /// (ultimately <see cref="AiAura.Comet"/>); the tool-call <see cref="State"/> stays
+    /// explicit and is never taken from the scope.
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>The surrounding AI scope, if any (used only to resolve the aura variant).</summary>
+    [CascadingParameter] private DRYL.Components.Ai.AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => DRYL.Components.Ai.AiScope.ResolveAura(Aura, Scope);
+
     /// <summary>Initial expanded state of the body. Default <c>false</c>.</summary>
     [Parameter] public bool DefaultExpanded { get; set; }
 
@@ -108,6 +113,7 @@
     private bool _initialised;
     private AiState _prevState = AiState.None;
     private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
@@ -118,7 +124,10 @@
         }
         if (State == AiState.Generated && _prevState != AiState.Generated) _genTick++;
         _prevState = State;
+        _aura.Sync(State, () => InvokeAsync(StateHasChanged));
     }
+
+    public void Dispose() => _aura.Dispose();
 
     private void Toggle() => _expanded = !_expanded;
 
@@ -136,16 +145,7 @@
         get
         {
             var parts = new List<string> { "tool-call" };
-            if (State != AiState.None)
-            {
-                parts.Add("ai-aura");
-                switch (State)
-                {
-                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
-                    case AiState.Streaming: parts.Add("ai-streaming"); break;
-                    case AiState.Generated: parts.Add("ai-generated"); break;
-                }
-            }
+            DRYL.Components.Ai.AiAuraCss.Append(parts, _aura, EffectiveAura);
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }
