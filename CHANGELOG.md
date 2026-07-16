@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.8.3] — 2026-07-16
+
+### Fixed
+- `DrylMarkdown` — Leaving AI mode no longer snaps the layout: the glass panel
+  (padding + background) that AI mode adds now glides in and out over
+  `--dur-slow`, so after the aura's `--out` dissolve the text settles back into
+  the bare layout instead of jumping. Honours `prefers-reduced-motion`.
+
 ## [2.8.2] — 2026-07-16
 
 ### Fixed

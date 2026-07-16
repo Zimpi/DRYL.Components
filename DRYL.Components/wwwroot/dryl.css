@@ -4897,7 +4897,18 @@ input[type=number] { -moz-appearance: textfield; }
    (not component-scoped) because the HTML is injected via MarkupString
    and therefore carries no CSS-isolation attribute.
    ───────────────────────────────────────────────────────── */
-.md { position: relative; }
+.md {
+  position: relative;
+  /* AI mode adds padding + glass (below); transitioning them on the base class
+     makes both edges glide — the panel inflates when the aura mounts and, after
+     the .ai-aura--out beat unmounts it, deflates over one --dur-slow instead of
+     snapping the text back to the bare layout (rule 2.12). */
+  background: transparent;
+  border-radius: var(--r-lg);
+  padding: 0;
+  transition: padding var(--dur-slow) var(--ease-out),
+              background-color var(--dur-slow) var(--ease-out);
+}
 
 /* In AI mode the rotating ring uses border-radius:inherit and the glow draws a
    1px outline — with a bare .md (no radius, no surface) that resolves to a sharp
@@ -4905,8 +4916,11 @@ input[type=number] { -moz-appearance: textfield; }
    the ring frames a proper panel, mirroring DrylRating / DrylEmptyState. */
 .md.ai-aura {
   background: var(--glass-1);
-  border-radius: var(--r-lg);
   padding: var(--sp-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md { transition: none; }
 }
 
 .md-content {
