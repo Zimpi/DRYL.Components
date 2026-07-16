@@ -950,39 +950,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding: var(--sp-2);
 }
 
-/* AI mode on buttons — additive: variant's solid/glass background stays intact
-   underneath, a rotating gradient ring traces the button via ::before. No
-   wash, no breathing glow — at button size, the ring alone is enough signal. */
-.btn.ai-aura::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  padding: 2px;
-  background: conic-gradient(
-    from var(--ai-aura-angle, 0deg),
-    var(--accent-a),
-    var(--accent-b),
-    var(--accent-a),
-    var(--accent-b),
-    var(--accent-a)
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.85;
-  animation: ai-aura-rotate 6s linear infinite;
-}
-.btn.ai-aura.ai-thinking::before  { animation-duration: 1.8s; opacity: 1; }
-.btn.ai-aura.ai-streaming::before { animation-duration: 3s; }
-.btn.ai-aura.ai-generated::before { animation-duration: 4s; opacity: 1; }
+/* AI mode on buttons uses the shared aura vocabulary (.ai-aura-ring / -glow / -wash
+   via <DrylAuraElements>), same as every other host — no button-specific ring. The
+   button carries no overflow:hidden and is position:relative + isolate, so the
+   default primitive sizing traces its rounded box and glows outside it untouched. */
 
 @media (prefers-reduced-motion: reduce) {
-  .btn.ai-aura::before { animation: none; opacity: 0.6; }
   .btn:not(.btn-ghost)::after { display: none; }
   .btn .btn-ico-lead,
   .btn .btn-ico-trail { transition: none; }
@@ -997,6 +970,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   pointer-events: none;
   transition: color var(--dur-med) var(--ease-out);
 }
+/* Vertically center any absolutely-positioned input icon — the leading glyph and,
+   crucially, the trailing spinner. Without an explicit top the trailing element
+   resolves its static position at the wrapper's baseline and sinks to the bottom.
+   line-height:0 collapses wrapper spans (e.g. the spinner's positioning span) to
+   their content height so the centering isn't skewed by inline baseline slack. */
+.input-wrapper .input-icon { top: 50%; transform: translateY(-50%); line-height: 0; }
 .input-wrapper:focus-within .input-icon,
 .tbl-search:focus-within .input-icon { color: var(--fg-muted); }
 .input-wrapper .input-icon-leading  { left: 12px; }
@@ -1307,6 +1286,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    glass as it warps (depth cue). */
 .dg-sheen {
   z-index: 1;
+  /* Overscan the gloss well past its max parallax travel so its own rectangular
+     edge never slides into view as a hard seam near a corner. The parent clips
+     the overflow back to the card's rounded shape (overflow:hidden + radius). */
+  inset: -32px;
   background: linear-gradient(155deg, color-mix(in srgb, var(--depth-edge-strong) 44%, transparent), transparent 45%);
   mix-blend-mode: screen;
   opacity: 0.7;

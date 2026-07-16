@@ -1,5 +1,6 @@
 @namespace DRYL.Components
 @inherits DrylAiAware
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylButton — primary action component.
@@ -29,6 +30,8 @@
         aria-pressed="@AriaPressed"
         @onclick="HandleClick"
         @attributes="AdditionalAttributes">
+
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     @if (Loading)
     {
@@ -85,8 +88,9 @@
     /// <summary>Button label content.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    // AI ambient state (the Ai parameter) is inherited from DrylAiAware and adds a
-    // rotating gradient ring; it resolves against a surrounding DrylAiScope.
+    // AI ambient state (the Ai parameter) is inherited from DrylAiAware; it engages the
+    // shared aura vocabulary (rotating comet ring, breathing glow, one-shot Generated
+    // wash) and resolves against a surrounding DrylAiScope.
 
     /// <summary>
     /// Extra CSS class(es) merged onto the button's own classes. Because Blazor
@@ -99,6 +103,21 @@
     /// <summary>Pass-through HTML attributes (e.g. data-*).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
+
+    protected override void OnParametersSet()
+    {
+        // Re-key the one-shot Generated wash each time the consumer re-enters Generated.
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
+
+        // Keep the aura mounted (and fading) for one beat after leaving AI mode so it
+        // dissolves rather than snapping away.
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
+    }
 
     private string CssClass
     {
@@ -120,16 +139,11 @@
             };
             var iconOnly = ChildContent is null ? "btn-icon" : string.Empty;
             var pressed = Pressed == true ? "btn--active" : string.Empty;
-            var aiAura = EffectiveAi != AiState.None ? "ai-aura" : string.Empty;
-            var aiMod = EffectiveAi switch
-            {
-                AiState.Thinking  => "ai-thinking",
-                AiState.Streaming => "ai-streaming",
-                AiState.Generated => "ai-generated",
-                _ => string.Empty
-            };
-            return string.Join(' ', new[] { "btn", variant, size, iconOnly, pressed, aiAura, aiMod, Class }
-                                 .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+            var classes = new List<string> { "btn", variant, size, iconOnly, pressed };
+            DRYL.Components.Ai.AiAuraCss.Append(classes, _aura, EffectiveAura);
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
+            return string.Join(' ', classes.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }
 
@@ -138,6 +152,8 @@
 
     private Task HandleClick(MouseEventArgs e) =>
         Disabled || Loading ? Task.CompletedTask : OnClick.InvokeAsync(e);
+
+    public void Dispose() => _aura.Dispose();
 
     public enum ButtonVariant { Primary, Secondary, Ghost, Danger }
     public enum ButtonSize    { Small, Medium, Large }

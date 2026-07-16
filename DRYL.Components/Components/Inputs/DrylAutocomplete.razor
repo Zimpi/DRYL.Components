@@ -82,7 +82,13 @@
 
                 @if (_isLoading)
                 {
-                    <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" Class="input-icon input-icon-trailing" />
+                    @* Positioning classes live on a neutral span: DrylSpinner's scoped
+                       .spinner-wrap rule (position:relative) would out-cascade the global
+                       .input-wrapper .input-icon (position:absolute) when the scoped
+                       bundle loads after dryl.css, dropping the spinner into flex flow. *@
+                    <span class="input-icon input-icon-trailing">
+                        <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" />
+                    </span>
                 }
             </div>
         </TriggerContent>

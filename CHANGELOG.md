@@ -14,6 +14,30 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.8.1] — 2026-07-13
+
+### Fixed
+- `DrylAutocomplete` — The async-search loading spinner no longer sinks to the
+  bottom-right corner of the field. Two-part fix: absolutely-positioned input
+  icons now center vertically (`.input-wrapper .input-icon` gains `top: 50%` +
+  `translateY(-50%)`), and the spinner's positioning classes moved off the
+  `DrylSpinner` root onto a neutral wrapper `<span>` — the spinner's scoped
+  `.spinner-wrap` rule (`position: relative`, equal specificity, later-loading
+  scoped bundle) was overriding the global `position: absolute`, pushing the
+  spinner out of the field regardless of the centering fix.
+- `DrylCard` — The 3D `Depth` warp no longer shows hard rectangular seams inside
+  the card when the pointer nears a corner. The gloss (`.dg-sheen`) is now
+  overscanned past its parallax travel and clipped back to the rounded card, so
+  its own edge never slides into view.
+- `DrylButton` — AI mode now uses the shared aura vocabulary (`.ai-aura-ring` /
+  `-glow` / `-wash` via `DrylAuraElements` + `AuraLifecycle`) like every other
+  host, replacing the old bespoke rotating-ring. Buttons now match the redesigned
+  AI aura, gain graceful enter/exit and the `Aura` variant, and re-key the
+  one-shot Generated wash.
+- `DrylSegmentedControl` — The selected-segment glow is now theme-aware. The
+  hardcoded violet `rgba(124, 92, 255, …)` halo was replaced with the themed
+  `var(--accent-a)`, so it follows `DrylThemeProvider` accents and both color modes.
+
 ## [2.8.0] — 2026-07-13
 
 ### Added
