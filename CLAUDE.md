@@ -86,7 +86,7 @@ DRYL has zero npm packages, zero JS frameworks layered on top. If a component ne
 DRYL has **one** AI vocabulary. Every AI-aware component re-uses it; no component invents its own.
 
 - Use the shared `AiState` enum (`None / Active / Thinking / Streaming / Generated`). Do not add per-component states like `Loading`, `Generating`, `AiBusy`.
-- The visual is delivered by the existing CSS primitives in `dryl.css`: `.ai-aura` + `.ai-aura-ring` + `.ai-aura-glow` + (optional) `.ai-aura-wash`, plus `.ai-indicator` for status pills.
+- The visual is delivered by the existing CSS primitives in `dryl.css`: `.ai-aura` + `.ai-aura-ring` + `.ai-aura-comet` + `.ai-aura-glow` + (optional) `.ai-aura-wash`, plus `.ai-indicator` for status pills.
 - The opt-in parameter is always named `Ai` (of type `AiState`) and defaults to `AiState.None`. AI mode must be **off by default** so existing consumers see no change.
 - Never invent a new AI animation, color, gradient, or duration. If you think you need one, propose adding it to `dryl.css` and ask the maintainer — same rule as 2.1.
 - Components that semantically can't host AI mode (e.g. `DrylBadge`, `DrylToggle`) do not get an `Ai` parameter. Don't add it "just in case".

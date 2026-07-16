@@ -48,6 +48,10 @@
                     @key="tab.InternalId"
                     @onclick="() => ActivateAsync(tab)"
                     @onkeydown="(e) => OnTabKeyDown(e, tab)">
+                @if (tab.Ai != AiState.None)
+                {
+                    <span class="tab-comet" aria-hidden="true"></span>
+                }
                 @if (!string.IsNullOrEmpty(tab.Icon))
                 {
                     <DrylIcon Name="@tab.Icon" Size="14" Class="tab-icon" />

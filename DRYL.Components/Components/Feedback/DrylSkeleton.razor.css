@@ -106,16 +106,19 @@
     min-width:      0;
 }
 
-/* ─── Shimmer stagger — lines shimmer at offset phases ──────── */
-.skel-text-block     .skel:nth-child(2) { animation-delay: 0.12s; }
-.skel-text-block     .skel:nth-child(3) { animation-delay: 0.24s; }
-.skel-text-block     .skel:nth-child(4) { animation-delay: 0.36s; }
-.skel-text-block     .skel:nth-child(5) { animation-delay: 0.48s; }
-.skel-text-block     .skel:nth-child(6) { animation-delay: 0.60s; }
-.skel-card-header-text .skel:nth-child(2) { animation-delay: 0.10s; }
+/* ─── Shimmer stagger — lines shimmer at offset phases ────────
+   The shimmer lives on the .skel::before strip (transform-driven,
+   compositor-friendly — see the primitive in dryl.css), so every
+   duration/delay/gradient mutation targets the pseudo, not the host. */
+.skel-text-block     .skel:nth-child(2)::before { animation-delay: 0.12s; }
+.skel-text-block     .skel:nth-child(3)::before { animation-delay: 0.24s; }
+.skel-text-block     .skel:nth-child(4)::before { animation-delay: 0.36s; }
+.skel-text-block     .skel:nth-child(5)::before { animation-delay: 0.48s; }
+.skel-text-block     .skel:nth-child(6)::before { animation-delay: 0.60s; }
+.skel-card-header-text .skel:nth-child(2)::before { animation-delay: 0.10s; }
 
 /* ─── AI state: Thinking — faster shimmer ──────────────────── */
-.skel-wrap.ai-aura.ai-thinking .skel {
+.skel-wrap.ai-aura.ai-thinking .skel::before {
     animation-duration: 0.8s;
 }
 
@@ -124,15 +127,21 @@
    communicating that AI content is actively flowing into these
    placeholder blocks. Uses --accent-a / --accent-b values only
    (no new colors invented, per CLAUDE.md §2.10 and §2.1).
+   Host gets the gradient's edge tint as base; the sliding strip
+   carries the gradient (40% tile = the primitive's 200%-of-host
+   geometry on the 500%-wide strip).
    ─────────────────────────────────────────────────────────── */
 .skel-wrap.ai-aura.ai-streaming .skel {
+    background: rgba(124, 92, 255, 0.06);
+}
+.skel-wrap.ai-aura.ai-streaming .skel::before {
     background: linear-gradient(
         90deg,
         rgba(124, 92, 255, 0.06) 0%,
         rgba(34, 211, 238, 0.18) 50%,
         rgba(124, 92, 255, 0.06) 100%
     );
-    background-size: 200% 100%;
+    background-size: 40% 100%;
     animation-duration: 1.2s;
 }
 
@@ -148,9 +157,9 @@
 
 /* ─── Reduced motion ────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-    .skel-wrap.ai-aura.ai-thinking .skel  { animation-duration: inherit; }
-    .skel-wrap.ai-aura.ai-streaming .skel { animation-duration: inherit; background-size: 200% 100%; }
+    .skel-wrap.ai-aura.ai-thinking .skel::before  { animation-duration: 1.4s; }
+    .skel-wrap.ai-aura.ai-streaming .skel::before { animation-duration: 1.4s; }
     .skel-wrap.ai-aura.ai-generated .skel { animation: none; opacity: 0.25; }
-    .skel-text-block     .skel,
-    .skel-card-header-text .skel          { animation-delay: 0s; }
+    .skel-text-block     .skel::before,
+    .skel-card-header-text .skel::before          { animation-delay: 0s; }
 }

@@ -14,6 +14,40 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.8.2] — 2026-07-16
+
+### Fixed
+- **AI aura performance** — The comet no longer animates the registered
+  `--ai-aura-angle` custom property (which repainted the conic gradient and
+  re-ran both drop-shadows on the main thread every frame, for every visible
+  aura — the main cause of the "laggy" feel on mid-range machines). The comet
+  is now a dedicated `.ai-aura-comet` element: a static masked + bloom-filtered
+  wrapper whose oversized conic square rotates via a compositor `transform`.
+  Same vocabulary, same states, zero per-frame paint. Measured on the docs AI
+  page under 8× CPU throttling: main-thread frame time freed almost entirely;
+  frame rate up ~50 % overall. Side effect: the specular head's bloom (always
+  intended per the design comment) now actually renders past the 1px border —
+  previously the mask clipped most of it away.
+- `DrylTabs` — The per-tab AI ring uses the same compositor-driven comet
+  (new internal `.tab-comet` child) instead of the angle-animated `::before`.
+- **Streaming sheen, Aurora drift, `.skel` shimmer** — All remaining
+  `background-position` loop animations (paint per frame) replaced with
+  oversized gradient strips sliding via `transform`/`translate` on the
+  compositor: `.ai-aura-glow::before` (sheen), the Aurora variant's edge field
+  (now two counter-phased strips on the ring's pseudos), and the skeleton
+  shimmer (now on `.skel::before`; `DrylSkeleton`'s state mutations follow).
+- **Retired comets stop costing** — After the Generated afterglow retires the
+  comet, it now ends `visibility: hidden` so the compositor stops drawing the
+  (invisible) spinning surface for the rest of the surface's life.
+- **Page aurora** — `blur(70px) saturate(140%)` moved from the `.aurora`
+  container onto the individual orbs, so the GPU re-filters three small
+  cached orb layers instead of one oversized container surface every frame
+  of the drift.
+
+### Changed
+- `--ai-aura-angle` is now legacy: still registered (consumer CSS reading it
+  keeps resolving) but no longer animated by the library.
+
 ## [2.8.1] — 2026-07-13
 
 ### Fixed

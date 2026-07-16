@@ -178,7 +178,8 @@ You never write these directly. They are generated from the seeds inside `dryl.c
 | `--glow-accent`     | `--accent-a` / `--accent-b` | Primary button hover glow, hero emphasis.            |
 | `--glow-soft`       | `--accent-a` / `--accent-b` | Ambient lighting behind a section.                   |
 | Body ambient glow   | `--accent-a` / `--accent-b` | The subtle background halo on the page root.         |
-| `.ai-aura-ring`     | `--ai-a` / `--ai-b` / `--ai-core` | Even base saum + a travelling comet (Comet variant) or a flowing edge field (Aurora variant) on AI-active surfaces. |
+| `.ai-aura-ring`     | `--ai-a` / `--ai-b`       | Even base saum (Comet variant) or a flowing edge field (Aurora variant) on AI-active surfaces. |
+| `.ai-aura-comet`    | `--ai-a` / `--ai-b` / `--ai-core` | The travelling comet with specular head + bloom (Comet variant). |
 | `.ai-aura-glow`     | `--ai-a` / `--ai-b`       | Breathing box-shadow halo behind AI-active surfaces.   |
 
 ### How seed changes transition
@@ -368,13 +369,14 @@ states, colour weighting and Generated reveal.
 | `.ai-aura`          | Marker on the host. Sets `position: relative; isolation: isolate;` so the children below can layer.   |
 | `.ai-aura--aurora`  | Variant modifier on the host: swaps the comet ring for the soft Aurora edge field.                    |
 | `.ai-aura--out`     | Applied by the host during the graceful exit; dissolves the aura over `--dur-slow` instead of snapping. |
-| `.ai-aura-ring`     | Even base saum (`--ai-a` ↔ `--ai-b`) + a travelling comet with an `--ai-core` specular head (its `::before`). Comet position is driven by `@property --ai-aura-angle`. |
-| `.ai-aura-glow`     | Breathing box-shadow halo behind the host; its `::before` carries the Streaming sheen sweep.          |
+| `.ai-aura-ring`     | Even base saum (`--ai-a` ↔ `--ai-b`). In the Aurora variant its `::before`/`::after` carry the drifting edge-field strips. |
+| `.ai-aura-comet`    | The travelling comet with the `--ai-core` specular head: a static masked + bloom-filtered wrapper whose oversized conic `::before` square rotates via transform — the spin runs on the compositor, never repainting per frame. |
+| `.ai-aura-glow`     | Breathing box-shadow halo behind the host; its `::before` carries the Streaming sheen sweep (an oversized strip sliding via transform). |
 | `.ai-aura-wash`     | One-shot Generated bloom; rendered only while `.ai-generated`.                                         |
 | `.ai-thinking` / `.ai-streaming` / `.ai-generated` | State modifiers on `.ai-aura`: reset a handful of CSS vars (colour weighting, comet/halo speed, sheen). |
 | `.ai-indicator`     | Standalone status pill (`DrylAiIndicator`) — pulsing sparkle + shimmer sweep, adapts speed to state.   |
 
-The ring/glow/wash markup is emitted by the shared `<DrylAuraElements/>` component,
+The ring/comet/glow/wash markup is emitted by the shared `<DrylAuraElements/>` component,
 driven by an `AuraLifecycle` (which keeps the aura mounted for one `--dur-slow`
 beat after leaving AI mode so it can fade out). The host-class combination is built
 by `AiAuraCss.Append(classes, aura, variant)`.
@@ -383,7 +385,7 @@ by `AiAuraCss.Append(classes, aura, variant)`.
 
 | Token                | Type      | Initial | Use                                                       |
 | -------------------- | --------- | ------- | --------------------------------------------------------- |
-| `--ai-aura-angle`    | `<angle>` | `0deg`  | Registered via `@property`. Animated to travel the comet head around the perimeter without rotating its bounding box. |
+| `--ai-aura-angle`    | `<angle>` | `0deg`  | Legacy — the comet now travels via a compositor transform on `.ai-aura-comet::before` instead of animating this angle (which repainted the conic every frame on the main thread). Still registered so consumer CSS reading it keeps resolving. |
 
 ### Durations
 
@@ -410,6 +412,7 @@ as the first child (see `COMPONENT_PATTERNS.md`). The raw markup it produces is:
 ```html
 <div class="glass-card ai-aura ai-thinking">   <!-- + ai-aura--aurora for the Aurora variant -->
     <div class="ai-aura-ring"></div>
+    <div class="ai-aura-comet"></div>
     <div class="ai-aura-glow"></div>
     <!-- <div class="ai-aura-wash"></div> only while .ai-generated -->
     <!-- content -->
