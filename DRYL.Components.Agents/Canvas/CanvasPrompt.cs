@@ -42,4 +42,21 @@ internal static class CanvasPrompt
     /// <summary>Builds the full create-artifact prompt: <see cref="SchemaText"/> + the brief (+ optional title).</summary>
     internal static string CreatePrompt(string brief, string? title) =>
         $"{SchemaText}\n\nBuild a new artifact{(title is null ? "" : $" titled \"{title}\"")} for this request:\n{brief}";
+
+    /// <summary>Builds the full update-artifact prompt: <see cref="SchemaText"/> + the current spec + a
+    /// closed set of patch ops the model may emit against it, + the brief.</summary>
+    internal static string UpdatePrompt(string brief, string currentSpecJson) =>
+        SchemaText + """
+
+
+            You UPDATE the existing artifact below. Output ONLY: { "ops": [Op, …] }
+            Op is one of:
+            - { "op": "setProps", "id": string, "props": object }  — shallow-merge props into the node
+            - { "op": "insert", "parent": string, "index": number, "node": Node }
+            - { "op": "remove", "id": string }
+            - { "op": "move", "id": string, "parent": string, "index": number }
+            Use existing ids; new nodes get fresh unique ids. Emit the smallest op set that fulfils the request.
+
+            Current artifact:
+            """ + currentSpecJson + "\n\nRequest:\n" + brief;
 }

@@ -143,13 +143,14 @@ public class DrylCanvasToolsCreateTests
     }
 
     [Fact]
-    public void UpdateArtifact_tool_is_registered_but_not_yet_in_All()
+    public void UpdateArtifact_tool_is_registered_and_included_in_All()
     {
         var run = new DrylCanvasRun();
         var tools = DrylCanvasTools.CreateReplay(run, (_, _) => Script("{}"));
 
         Assert.Equal("update_artifact", tools.UpdateArtifact.Name);
-        Assert.Single(tools.All);
-        Assert.Same(tools.CreateArtifact, tools.All[0]);
+        Assert.Equal(2, tools.All.Count);
+        Assert.Contains(tools.CreateArtifact, tools.All);
+        Assert.Contains(tools.UpdateArtifact, tools.All);
     }
 }

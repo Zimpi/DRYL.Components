@@ -11,6 +11,9 @@ namespace DRYL.Components.Agents;
 /// structured-streaming sub-generation. Hand <see cref="All"/> to the chat agent.</summary>
 public sealed class DrylCanvasTools
 {
+    // One op per beat so the user sees a choreography, not a jump (cadence like DrylAgentAttachments).
+    private const int OpStaggerMs = 260;
+
     private readonly DrylCanvasRun _run;
     private readonly Func<string, CancellationToken, IAsyncEnumerable<string>> _generate;
 
@@ -26,8 +29,11 @@ public sealed class DrylCanvasTools
             "the generator sees only this brief, nothing else from the conversation. Use this once per " +
             "distinct artifact.");
         UpdateArtifact = AIFunctionFactory.Create(UpdateArtifactImpl, "update_artifact",
-            "Update the current artifact in place. Not available yet.");
-        All = new List<AITool> { CreateArtifact };
+            "Update the current artifact in place — patch props, insert, remove or move nodes. Put ALL " +
+            "concrete data and numbers the update needs into the brief; the generator sees only this " +
+            "brief plus the current artifact, nothing else from the conversation. Requires an artifact " +
+            "already created via create_artifact.");
+        All = new List<AITool> { CreateArtifact, UpdateArtifact };
     }
 
     /// <summary>Create the tools; <paramref name="generator"/> runs the artifact generations
@@ -45,13 +51,12 @@ public sealed class DrylCanvasTools
     /// generation and progressively fills <see cref="DrylCanvasRun.Spec"/> as it streams.</summary>
     public AITool CreateArtifact { get; }
 
-    /// <summary>Update-artifact tool (<c>update_artifact</c>): patches the current artifact in place.
-    /// Registered as a placeholder — its implementation ships in Task 6 and currently throws
-    /// <see cref="NotImplementedException"/>. Not yet included in <see cref="All"/>.</summary>
+    /// <summary>Update-artifact tool (<c>update_artifact</c>): runs a structured-streaming patch
+    /// generation against the current <see cref="DrylCanvasRun.Spec"/> and applies its ops in place,
+    /// staggered one per beat, as they become safe to apply (see <see cref="UpdateArtifactImpl"/>).</summary>
     public AITool UpdateArtifact { get; }
 
-    /// <summary>The tool set to hand to the chat agent. Only <see cref="CreateArtifact"/> until
-    /// <see cref="UpdateArtifact"/> lands in Task 6.</summary>
+    /// <summary>The tool set to hand to the chat agent: <see cref="CreateArtifact"/> and <see cref="UpdateArtifact"/>.</summary>
     public IList<AITool> All { get; }
 
     private async Task<string> CreateArtifactImpl(
@@ -94,9 +99,57 @@ public sealed class DrylCanvasTools
         }
     }
 
-    private static string UpdateArtifactImpl(
-        [Description("What to change on the current artifact, and why.")] string instructions) =>
-        throw new NotImplementedException("update_artifact ships in Task 6.");
+    /// <summary>
+    /// Runs a structured-streaming patch generation against the current spec and applies its ops
+    /// to <see cref="DrylCanvasRun.Spec"/> as they stream in. An op may still be truncated mid-stream
+    /// (its JSON not yet complete), so only ops strictly before the last parsed one are safe to apply
+    /// while streaming; the remainder (including that last op) applies once the stream ends and the
+    /// full op list is known.
+    /// </summary>
+    private async Task<string> UpdateArtifactImpl(
+        [Description("What should change, incl. any new data needed.")] string brief,
+        CancellationToken ct = default)
+    {
+        if (_run.Spec?.Root is null)
+            return "There is no artifact yet — call create_artifact first.";
+        _run.BeginGeneration();
+        var reader = new PartialJsonReader<CanvasPatchDoc>(CanvasJson.Options);
+        var applied = 0;
+        var skipped = new List<string>();
+        try
+        {
+            var current = JsonSerializer.Serialize(_run.Spec, CanvasJson.Options);
+            await foreach (var delta in _generate(CanvasPrompt.UpdatePrompt(brief, current), ct))
+            {
+                var ops = reader.Append(delta)?.Ops;
+                while (ops is not null && applied < ops.Count - 1)   // last op may still be truncated
+                    await ApplyStaggeredAsync(ops[applied++], skipped, ct);
+            }
+            var final = JsonSerializer.Deserialize<CanvasPatchDoc>(reader.Buffer, CanvasJson.Options)?.Ops
+                        ?? new List<CanvasOp>();
+            while (applied < final.Count)
+                await ApplyStaggeredAsync(final[applied++], skipped, ct);
+            _run.CompleteGeneration();
+            var receipt = $"Artifact updated: {applied - skipped.Count} changes applied.";
+            return skipped.Count == 0 ? receipt
+                : receipt + $" {skipped.Count} ops skipped: " + string.Join(" ", skipped.Take(3));
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _run.FailGeneration(ex);
+            return "Artifact update failed: " + ex.Message;
+        }
+    }
+
+    /// <summary>Applies one op via <see cref="DrylCanvasRun.ApplyOp"/>; on success, waits
+    /// <see cref="OpStaggerMs"/> so the user sees each change land as its own beat. A skipped op
+    /// (unknown id, invalid props, …) is recorded but does not pause the choreography.</summary>
+    private async Task ApplyStaggeredAsync(CanvasOp op, List<string> skipped, CancellationToken ct)
+    {
+        if (_run.ApplyOp(op) is { } reason) skipped.Add(reason);
+        else await Task.Delay(OpStaggerMs, ct);
+    }
 
     private static void Walk(CanvasNode n, Action<CanvasNode> visit)
     {
