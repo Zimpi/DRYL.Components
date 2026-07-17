@@ -33,7 +33,7 @@ public sealed class DrylCanvasRun : DrylRunBase
     /// <summary>
     /// Applies one patch op to the live <see cref="Spec"/> via <see cref="CanvasPatcher"/>, tracking the
     /// affected id in <see cref="ChangedIds"/> on success. Returns null on success, otherwise a
-    /// model-facing skip reason; never throws.
+    /// model-facing skip reason; never throws. Raises OnChange only when the op succeeds.
     /// </summary>
     internal string? ApplyOp(CanvasOp op)
     {
@@ -52,9 +52,10 @@ public sealed class DrylCanvasRun : DrylRunBase
                     if (op.Node?.Id is not null) _changedIds.Add(op.Node.Id);
                     break;
             }
+
+            Raise();
         }
 
-        Raise();
         return reason;
     }
 

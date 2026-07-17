@@ -86,6 +86,18 @@ public class DrylCanvasRunTests
     }
 
     [Fact]
+    public void ApplyOp_null_spec_does_not_raise_onchange()
+    {
+        var run = new DrylCanvasRun();
+        var changes = 0;
+        run.OnChange += () => changes++;
+
+        run.ApplyOp(new CanvasOp { Op = "setProps", Id = "a" });
+
+        Assert.Equal(0, changes);
+    }
+
+    [Fact]
     public void ApplyOp_setProps_routes_to_patcher_and_records_changed_id()
     {
         var run = new DrylCanvasRun();
@@ -157,6 +169,19 @@ public class DrylCanvasRunTests
 
         Assert.NotNull(reason);
         Assert.Empty(run.ChangedIds);
+    }
+
+    [Fact]
+    public void ApplyOp_failure_does_not_raise_onchange()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Spec());
+        var changes = 0;
+        run.OnChange += () => changes++;
+
+        run.ApplyOp(new CanvasOp { Op = "setProps", Id = "zzz" });
+
+        Assert.Equal(0, changes);
     }
 
     // ---- CompleteGeneration ----
