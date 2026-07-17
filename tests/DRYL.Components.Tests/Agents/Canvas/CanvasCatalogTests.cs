@@ -1,0 +1,265 @@
+using System.Text.Json;
+using DRYL.Components.Agents;
+using Xunit;
+
+namespace DRYL.Components.Tests.Agents.Canvas;
+
+public class CanvasCatalogTests
+{
+    private static CanvasNode Node(string type, string propsJson, params CanvasNode[] children) => new()
+    {
+        Id = "n1", Type = type,
+        Props = JsonSerializer.Deserialize<JsonElement>(propsJson),
+        Children = children.Length == 0 ? null : children.ToList(),
+    };
+
+    private static CanvasNode NodeNoProps(string type, params CanvasNode[] children) => new()
+    {
+        Id = "n1", Type = type,
+        Props = null,
+        Children = children.Length == 0 ? null : children.ToList(),
+    };
+
+    // ---- generic shape ----
+
+    [Fact] public void Valid_stat_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("stat", """{ "label": "Revenue", "value": "48k" }""")));
+
+    [Fact] public void Unknown_type_is_rejected() =>
+        Assert.Contains("not in the canvas catalog", CanvasCatalog.Validate(Node("hologram", "{}")));
+
+    [Fact] public void Children_on_leaf_are_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("stat",
+            """{ "label": "a", "value": "b" }""", Node("divider", "{}"))));
+
+    [Fact] public void Empty_id_is_rejected()
+    {
+        var node = Node("divider", "{}");
+        node.Id = "";
+        Assert.NotNull(CanvasCatalog.Validate(node));
+    }
+
+    [Fact] public void Missing_props_is_treated_as_empty_object() =>
+        Assert.Null(CanvasCatalog.Validate(NodeNoProps("divider")));
+
+    [Fact] public void Container_without_children_is_valid() =>
+        Assert.Null(CanvasCatalog.Validate(NodeNoProps("stack")));
+
+    [Fact] public void Malformed_props_shape_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("grid", """{ "columns": "two" }""")));
+
+    // ---- stack ----
+
+    [Fact] public void Stack_valid_gap_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("stack", """{ "gap": "md" }""")));
+
+    [Fact] public void Stack_invalid_gap_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("stack", """{ "gap": "huge" }""")));
+
+    // ---- grid ----
+
+    [Fact] public void Grid_valid_columns_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("grid", """{ "columns": 2 }""")));
+
+    [Fact] public void Grid_columns_out_of_range_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("grid", """{ "columns": 0 }""")));
+
+    [Fact] public void Grid_columns_above_max_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("grid", """{ "columns": 5 }""")));
+
+    // ---- card ----
+
+    [Fact] public void Card_with_no_required_props_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("card", """{ "title": "Overview" }""")));
+
+    [Fact] public void Card_with_no_props_at_all_passes() =>
+        Assert.Null(CanvasCatalog.Validate(NodeNoProps("card")));
+
+    // ---- tabs ----
+
+    [Fact] public void Tabs_matching_labels_and_children_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("tabs",
+            """{ "labels": ["A", "B"] }""", Node("divider", "{}"), Node("divider", "{}"))));
+
+    [Fact] public void Tabs_label_child_mismatch_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("tabs",
+            """{ "labels": ["A", "B"] }""", Node("divider", "{}"))));
+
+    [Fact] public void Tabs_empty_labels_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("tabs", """{ "labels": [] }""")));
+
+    // ---- divider ----
+
+    [Fact] public void Divider_needs_no_props() =>
+        Assert.Null(CanvasCatalog.Validate(Node("divider", "{}")));
+
+    // ---- markdown ----
+
+    [Fact] public void Markdown_with_content_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("markdown", """{ "content": "**hi**" }""")));
+
+    [Fact] public void Markdown_without_content_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("markdown", "{}")));
+
+    // ---- stat ----
+
+    [Fact] public void Stat_missing_value_is_rejected() =>
+        Assert.Contains("value", CanvasCatalog.Validate(Node("stat", """{ "label": "Revenue", "value": "" }""")));
+
+    [Fact] public void Stat_missing_label_is_rejected() =>
+        Assert.Contains("label", CanvasCatalog.Validate(Node("stat", """{ "label": "", "value": "1" }""")));
+
+    [Fact] public void Stat_invalid_direction_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("stat",
+            """{ "label": "Revenue", "value": "1", "direction": "sideways" }""")));
+
+    [Fact] public void Stat_valid_direction_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("stat",
+            """{ "label": "Revenue", "value": "1", "direction": "up" }""")));
+
+    // ---- badge ----
+
+    [Fact] public void Badge_valid_kind_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("badge", """{ "text": "New", "kind": "success" }""")));
+
+    [Fact] public void Badge_without_text_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("badge", "{}")));
+
+    [Fact] public void Badge_invalid_kind_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("badge", """{ "text": "New", "kind": "sparkly" }""")));
+
+    // ---- progress ----
+
+    [Fact] public void Progress_in_range_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("progress", """{ "value": 42 }""")));
+
+    [Fact] public void Progress_out_of_range_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("progress", """{ "value": 120 }""")));
+
+    [Fact] public void Progress_negative_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("progress", """{ "value": -5 }""")));
+
+    // ---- table ----
+
+    [Fact] public void Table_valid_rows_pass() =>
+        Assert.Null(CanvasCatalog.Validate(Node("table",
+            """{ "columns": ["A", "B"], "rows": [["1", "2"], ["3", "4"]] }""")));
+
+    [Fact] public void Table_without_columns_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("table", """{ "columns": [] }""")));
+
+    [Fact] public void Table_row_cell_mismatch_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("table",
+            """{ "columns": ["A", "B"], "rows": [["1"]] }""")));
+
+    [Fact] public void Table_too_many_rows_is_rejected()
+    {
+        var rows = string.Join(",", Enumerable.Repeat("""["1"]""", 31));
+        Assert.NotNull(CanvasCatalog.Validate(Node("table",
+            $$"""{ "columns": ["A"], "rows": [{{rows}}] }""")));
+    }
+
+    // ---- timeline ----
+
+    [Fact] public void Timeline_valid_events_pass() =>
+        Assert.Null(CanvasCatalog.Validate(Node("timeline",
+            """{ "events": [ { "title": "Order placed" } ] }""")));
+
+    [Fact] public void Timeline_without_events_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("timeline", "{}")));
+
+    // ---- charts ----
+
+    [Fact] public void Chart_validation_is_delegated() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("lineChart",
+            """{ "labels": ["Jan"], "series": [] }""")));   // empty series → CartesianChartArgs error
+
+    [Fact] public void LineChart_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("lineChart",
+            """{ "labels": ["Jan"], "series": [ { "name": "Rev", "data": [1] } ] }""")));
+
+    [Fact] public void AreaChart_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("areaChart",
+            """{ "labels": ["Jan"], "series": [ { "name": "Rev", "data": [1] } ] }""")));
+
+    [Fact] public void BarChart_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("barChart",
+            """{ "labels": ["Jan"], "series": [ { "name": "Rev", "data": [1] } ] }""")));
+
+    [Fact] public void DonutChart_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("donutChart",
+            """{ "segments": [ { "label": "A", "value": 1 } ] }""")));
+
+    [Fact] public void DonutChart_invalid_is_delegated() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("donutChart", """{ "segments": [] }""")));
+
+    // ---- inputText / select / slider / toggle ----
+
+    [Fact] public void InputText_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("inputText", """{ "name": "email", "label": "Email" }""")));
+
+    [Fact] public void InputText_without_name_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("inputText", """{ "label": "Email" }""")));
+
+    [Fact] public void Select_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("select",
+            """{ "name": "plan", "label": "Plan", "options": ["A", "B"] }""")));
+
+    [Fact] public void Select_without_options_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("select", """{ "name": "plan", "label": "Plan" }""")));
+
+    [Fact] public void Slider_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("slider",
+            """{ "name": "n", "label": "L", "min": 0, "max": 10 }""")));
+
+    [Fact] public void Slider_needs_min_below_max() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("slider",
+            """{ "name": "n", "label": "L", "min": 5, "max": 5 }""")));
+
+    [Fact] public void Toggle_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("toggle", """{ "name": "n", "label": "L" }""")));
+
+    [Fact] public void Toggle_without_label_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("toggle", """{ "name": "n" }""")));
+
+    // ---- button ----
+
+    [Fact] public void Button_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("button", """{ "label": "Go", "intent": "submit" }""")));
+
+    [Fact] public void Button_needs_intent() =>
+        Assert.Contains("intent", CanvasCatalog.Validate(Node("button", """{ "label": "Go" }""")));
+
+    [Fact] public void Button_invalid_kind_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("button",
+            """{ "label": "Go", "intent": "submit", "kind": "fancy" }""")));
+
+    // ---- classification ----
+
+    [Fact] public void Interactive_and_container_classification()
+    {
+        Assert.True(CanvasCatalog.IsContainer("grid"));
+        Assert.True(CanvasCatalog.IsContainer("stack"));
+        Assert.True(CanvasCatalog.IsContainer("card"));
+        Assert.True(CanvasCatalog.IsContainer("tabs"));
+        Assert.False(CanvasCatalog.IsContainer("stat"));
+        Assert.True(CanvasCatalog.IsInteractive("toggle"));
+        Assert.True(CanvasCatalog.IsInteractive("inputText"));
+        Assert.True(CanvasCatalog.IsInteractive("select"));
+        Assert.True(CanvasCatalog.IsInteractive("slider"));
+        Assert.False(CanvasCatalog.IsInteractive("button"));
+    }
+
+    [Fact] public void IsKnownType_covers_the_catalog()
+    {
+        foreach (var type in new[]
+                 {
+                     "stack", "grid", "card", "tabs", "divider", "markdown", "stat", "badge", "progress",
+                     "table", "timeline", "lineChart", "areaChart", "barChart", "donutChart",
+                     "inputText", "select", "slider", "toggle", "button",
+                 })
+            Assert.True(CanvasCatalog.IsKnownType(type), $"'{type}' should be known");
+
+        Assert.False(CanvasCatalog.IsKnownType("hologram"));
+    }
+}
