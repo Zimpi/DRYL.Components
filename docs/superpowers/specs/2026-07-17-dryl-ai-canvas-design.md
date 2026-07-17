@@ -2,7 +2,7 @@
 
 **Datum:** 2026-07-17
 **Status:** Entwurf, vom Maintainer im Brainstorming abgesegnet
-**Paket:** `DRYL.Components.Agents` → Release **0.4.0** (MINOR)
+**Paket:** `DRYL.Components.Agents` → Release **0.6.0** (MINOR; Stand bei Planerstellung: 0.5.0)
 
 ## 1. Was es ist
 
@@ -187,10 +187,10 @@ Dazu wenige bUnit-Rendertests: Knoten erscheint, Fallback-Karte, `aria-live`.
 
 ## 10. Versionierung
 
-- Agents-Paket → **0.4.0**. Achtung: `publish.yml` veröffentlicht das Agents-Paket **nicht**;
-  Release läuft separat wie bei 0.2.0/0.3.0.
-- Kern-Bibliothek (`DRYL.Components`) bleibt unberührt, solange keine neuen Primitives nötig
-  werden.
+- Agents-Paket → **0.6.0**. Achtung: `publish.yml` veröffentlicht das Agents-Paket **nicht**;
+  Release läuft separat wie bei den Vorversionen.
+- Kern-Bibliothek (`DRYL.Components`) bekommt **eine** neue Motion-Primitive
+  (`dryl.motion.autoFlip` für den Move-Glide) → Kern-MINOR-Bump.
 
 ## 11. Bewusst NICHT in V1 (YAGNI)
 
