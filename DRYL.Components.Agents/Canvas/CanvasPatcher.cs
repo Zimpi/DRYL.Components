@@ -64,8 +64,12 @@ public static class CanvasPatcher
         if (subtreeError is not null)
             return subtreeError;
 
+        var newIds = new HashSet<string>(StringComparer.Ordinal);
+        var internalDuplicate = CollectIdsOrFindDuplicate(op.Node, newIds);
+        if (internalDuplicate is not null)
+            return $"op 'insert': node ids within the inserted subtree must be unique ('{internalDuplicate}' appears twice).";
+
         var existingIds = CollectIds(spec.Root);
-        var newIds = CollectIds(op.Node);
         var duplicate = newIds.FirstOrDefault(existingIds.Contains);
         if (duplicate is not null)
             return $"op 'insert': id '{duplicate}' already exists in the spec.";
@@ -73,6 +77,14 @@ public static class CanvasPatcher
         parent.Children ??= new List<CanvasNode>();
         var index = Math.Clamp(op.Index ?? parent.Children.Count, 0, parent.Children.Count);
         parent.Children.Insert(index, op.Node);
+
+        var parentError = CanvasCatalog.Validate(parent);
+        if (parentError is not null)
+        {
+            parent.Children.RemoveAt(index);
+            return parentError;
+        }
+
         return null;
     }
 
@@ -114,11 +126,23 @@ public static class CanvasPatcher
             return $"op 'move': node '{op.Id}' cannot be moved into its own subtree.";
 
         var oldParent = FindParent(spec, op.Id);
-        oldParent!.Children!.Remove(node);
+        var oldIndex = oldParent!.Children!.IndexOf(node);
+        oldParent.Children.RemoveAt(oldIndex);
 
         newParent.Children ??= new List<CanvasNode>();
         var index = Math.Clamp(op.Index ?? newParent.Children.Count, 0, newParent.Children.Count);
         newParent.Children.Insert(index, node);
+
+        var newParentError = CanvasCatalog.Validate(newParent);
+        var oldParentError = CanvasCatalog.Validate(oldParent);
+        var error = newParentError ?? oldParentError;
+        if (error is not null)
+        {
+            newParent.Children.Remove(node);
+            oldParent.Children.Insert(oldIndex, node);
+            return error;
+        }
+
         return null;
     }
 
@@ -189,6 +213,24 @@ public static class CanvasPatcher
         if (node.Children is null) return;
         foreach (var child in node.Children)
             CollectIds(child, ids);
+    }
+
+    /// <summary>
+    /// Collects every id of <paramref name="node"/>'s subtree into <paramref name="ids"/>. Returns the
+    /// first id found to repeat WITHIN the subtree itself (independent of any pre-existing spec ids), or
+    /// <c>null</c> if all ids within the subtree are unique.
+    /// </summary>
+    private static string? CollectIdsOrFindDuplicate(CanvasNode node, HashSet<string> ids)
+    {
+        if (!ids.Add(node.Id))
+            return node.Id;
+        if (node.Children is null) return null;
+        foreach (var child in node.Children)
+        {
+            var duplicate = CollectIdsOrFindDuplicate(child, ids);
+            if (duplicate is not null) return duplicate;
+        }
+        return null;
     }
 
     // ---- JsonElement <-> JsonNode ----
