@@ -1,0 +1,62 @@
+/*  DrylAiCanvas — artifact host surface. Tokens only; the glass-card base
+    (background, border, radius, backdrop-filter) comes from dryl.css. */
+
+.ai-canvas {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.canvas-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+.canvas-title {
+    color: var(--fg);
+    font-weight: 600;
+}
+
+.canvas-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    padding: var(--sp-4);
+    overflow: auto;
+}
+
+/* Visually hidden, but still announced by screen readers (1px clip pattern). */
+.canvas-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* CanvasNodeView renders these inside child components — reach them with ::deep. */
+::deep .canvas-node {
+    min-width: 0;
+}
+
+::deep .canvas-card-title {
+    color: var(--fg);
+    font-weight: 600;
+    margin-bottom: var(--sp-2);
+}
+
+::deep .canvas-waiting {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--fg-dim);
+    font-size: 13px;
+}

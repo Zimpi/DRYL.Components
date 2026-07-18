@@ -1,0 +1,358 @@
+@namespace DRYL.Components.Agents
+@using System.Text
+@using System.Text.Json
+@using DRYL.Components.Agents.Tools
+
+@*  ─────────────────────────────────────────────────────────
+    CanvasNodeView — the recursive renderer for one canvas node.
+
+    Every node maps to a curated DRYL component (see CanvasCatalog).
+    Each node is wrapped in a DrylPresence keyed by its stable id so
+    it glides in on mount and plays its exit animation on removal;
+    the `data-cid` attribute is the FLIP move anchor for the JS layer.
+
+    Nodes that don't yet validate (still streaming, or malformed props)
+    render a skeleton placeholder with a "waiting for {type}…" caption —
+    the same visual for both the in-flight and the invalid state.
+
+    The shared pieces (Run, Form, intent callback) arrive as cascading
+    values from DrylAiCanvas and flow down to child views automatically.
+    ───────────────────────────────────────────────────────── *@
+
+<DrylPresence @key="Node.Id"
+              Visible="@(!Node.Removing)"
+              Appear
+              Transition="PresenceTransition.SlideUp"
+              Speed="PresenceSpeed.Slow"
+              OnExited="PurgeSelf">
+    <div class="canvas-node" data-cid="@Node.Id">
+        @{
+            var error = CanvasCatalog.Validate(Node);
+        }
+        @if (error is not null)
+        {
+            <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" Ai="AiState.Streaming" />
+            <span class="canvas-waiting">@($"waiting for {Node.Type}…")</span>
+        }
+        else
+        {
+            switch (Node.Type)
+            {
+                case "stack":
+                {
+                    var p = Props<StackNodeProps>();
+                    <DrylStack Gap="MapGap(p?.Gap)">
+                        @RenderChildren
+                    </DrylStack>
+                    break;
+                }
+
+                case "grid":
+                {
+                    var p = Props<GridNodeProps>();
+                    <DrylGrid Columns="p!.Columns">
+                        @RenderChildren
+                    </DrylGrid>
+                    break;
+                }
+
+                case "card":
+                {
+                    var p = Props<CardNodeProps>();
+                    <DrylCard>
+                        @if (!string.IsNullOrWhiteSpace(p?.Title))
+                        {
+                            <div class="canvas-card-title">@p!.Title</div>
+                        }
+                        @RenderChildren
+                    </DrylCard>
+                    break;
+                }
+
+                case "tabs":
+                {
+                    var p = Props<TabsNodeProps>();
+                    var labels = p!.Labels!;
+                    var children = Node.Children!;
+                    <DrylTabs>
+                        @for (var i = 0; i < labels.Count; i++)
+                        {
+                            var idx = i;                 // capture per-iteration for the fragment
+                            var child = children[idx];
+                            <DrylTab Label="@labels[idx]">
+                                <CanvasNodeView @key="child.Id" Node="child" />
+                            </DrylTab>
+                        }
+                    </DrylTabs>
+                    break;
+                }
+
+                case "divider":
+                    <DrylDivider />
+                    break;
+
+                case "markdown":
+                {
+                    var p = Props<MarkdownNodeProps>();
+                    <DrylMarkdown Content="@p!.Content" />
+                    break;
+                }
+
+                case "stat":
+                {
+                    var p = Props<StatSpec>();
+                    <DrylStat Label="@p!.Label" Value="@p.Value" Delta="@p.Delta"
+                              Direction="@p.ParsedDirection" Ai="AiState.Generated" />
+                    break;
+                }
+
+                case "badge":
+                {
+                    var p = Props<BadgeNodeProps>();
+                    <DrylBadge Kind="MapBadge(p!.Kind)">@p.Text</DrylBadge>
+                    break;
+                }
+
+                case "progress":
+                {
+                    var p = Props<ProgressNodeProps>();
+                    var hasLabel = !string.IsNullOrWhiteSpace(p!.Label);
+                    <DrylProgress Value="p.Value" Max="100" ShowLabel="hasLabel" LabelText="@p.Label" />
+                    break;
+                }
+
+                case "table":
+                {
+                    var p = Props<TableNodeProps>();
+                    <DrylMarkdown Content="@BuildTable(p!)" />
+                    break;
+                }
+
+                case "timeline":
+                {
+                    var p = Props<TimelineArgs>();
+                    <DrylTimeline>
+                        @foreach (var e in p!.Events!)
+                        {
+                            @if (string.IsNullOrWhiteSpace(e.Text))
+                            {
+                                <DrylTimelineItem Title="@e.Title" Timestamp="@e.Timestamp" Variant="@e.ParsedVariant" />
+                            }
+                            else
+                            {
+                                <DrylTimelineItem Title="@e.Title" Timestamp="@e.Timestamp" Variant="@e.ParsedVariant">
+                                    @e.Text
+                                </DrylTimelineItem>
+                            }
+                        }
+                    </DrylTimeline>
+                    break;
+                }
+
+                case "lineChart":
+                {
+                    var p = Props<CartesianChartArgs>();
+                    <DrylLineChart Labels="@p!.Labels" Series="@ToSeries(p)" ValueFormat="@p.ValueFormat"
+                                   Smooth ShowMarkers Ai="AiState.Generated" />
+                    break;
+                }
+
+                case "areaChart":
+                {
+                    var p = Props<CartesianChartArgs>();
+                    <DrylAreaChart Labels="@p!.Labels" Series="@ToSeries(p)" ValueFormat="@p.ValueFormat"
+                                   Smooth Ai="AiState.Generated" />
+                    break;
+                }
+
+                case "barChart":
+                {
+                    var p = Props<CartesianChartArgs>();
+                    <DrylBarChart Labels="@p!.Labels" Series="@ToSeries(p)" ValueFormat="@p.ValueFormat"
+                                  Stacked="@p.Stacked" Ai="AiState.Generated" />
+                    break;
+                }
+
+                case "donutChart":
+                {
+                    var p = Props<DonutChartArgs>();
+                    <DrylDonutChart Segments="@ToSegments(p!)" ValueFormat="@p!.ValueFormat" Ai="AiState.Generated" />
+                    break;
+                }
+
+                case "inputText":
+                {
+                    var p = Props<InputTextNodeProps>();
+                    var name = p!.Name!;
+                    <DrylInputText Label="@p.Label" Placeholder="@p.Placeholder"
+                                   Value="@(Form.Get<string>(name))"
+                                   ValueChanged="@(v => Form.Set(name, v))" />
+                    break;
+                }
+
+                case "select":
+                {
+                    var p = Props<SelectNodeProps>();
+                    var name = p!.Name!;
+                    <DrylSelect Label="@p.Label" Items="@ToItems(p.Options!)"
+                                Value="@(Form.Get<string>(name))"
+                                ValueChanged="@(v => Form.Set(name, v))"
+                                Ai="AiState.None" />
+                    break;
+                }
+
+                case "slider":
+                {
+                    var p = Props<SliderNodeProps>();
+                    var name = p!.Name!;
+                    <DrylSlider Label="@p.Label" Min="p.Min" Max="p.Max" Step="@(p.Step ?? 1)"
+                                Value="@(Form.Get<double>(name))"
+                                ValueChanged="@(v => Form.Set(name, v))" />
+                    break;
+                }
+
+                case "toggle":
+                {
+                    var p = Props<ToggleNodeProps>();
+                    var name = p!.Name!;
+                    <DrylToggle Label="@p.Label"
+                                Value="@(Form.Get<bool>(name))"
+                                ValueChanged="@(v => Form.Set(name, v))" />
+                    break;
+                }
+
+                case "button":
+                {
+                    var p = Props<ButtonNodeProps>();
+                    var intent = p!.Intent!;
+                    <DrylButton Variant="MapButtonVariant(p.Kind)" OnClick="@(_ => RaiseIntent(intent))">
+                        @p.Label
+                    </DrylButton>
+                    break;
+                }
+            }
+        }
+    </div>
+</DrylPresence>
+
+@code {
+    /// <summary>The node to render. Its <see cref="CanvasNode.Type"/> selects the mapped component.</summary>
+    [Parameter, EditorRequired] public CanvasNode Node { get; set; } = default!;
+
+    [CascadingParameter] internal DrylCanvasRun Run { get; set; } = default!;
+    [CascadingParameter] internal CanvasFormState Form { get; set; } = default!;
+    [CascadingParameter(Name = "CanvasIntent")] internal EventCallback<CanvasInteraction> OnIntent { get; set; }
+
+    private bool _seeded;
+
+    protected override void OnParametersSet() => SeedFormOnce();
+
+    // Interactive nodes seed their form value from the node's `value` prop exactly once,
+    // and only when the field has no value yet — so a later re-render (or a patch to an
+    // unrelated prop) never clobbers what the user has typed.
+    private void SeedFormOnce()
+    {
+        if (_seeded) return;
+        _seeded = true;
+        if (!CanvasCatalog.IsInteractive(Node.Type)) return;
+
+        switch (Node.Type)
+        {
+            case "inputText":
+                if (Props<InputTextNodeProps>() is { Name: { } tn, Value: { } tv }) Seed(tn, tv);
+                break;
+            case "select":
+                if (Props<SelectNodeProps>() is { Name: { } sn, Value: { } sv }) Seed(sn, sv);
+                break;
+            case "slider":
+                if (Props<SliderNodeProps>() is { Name: { } rn, Value: { } rv }) Seed(rn, rv);
+                break;
+            case "toggle":
+                if (Props<ToggleNodeProps>() is { Name: { } gn, Value: { } gv }) Seed(gn, gv);
+                break;
+        }
+    }
+
+    private void Seed(string name, object value)
+    {
+        if (Form.Get(name) is null) Form.Set(name, value);
+    }
+
+    private RenderFragment RenderChildren => builder =>
+    {
+        var i = 0;
+        foreach (var child in Node.Children ?? Enumerable.Empty<CanvasNode>())
+        {
+            builder.OpenComponent<CanvasNodeView>(i++);
+            builder.SetKey(child.Id);
+            builder.AddComponentParameter(1, nameof(Node), child);
+            builder.CloseComponent();
+        }
+    };
+
+    private async Task RaiseIntent(string intent) =>
+        await OnIntent.InvokeAsync(new CanvasInteraction(intent, Node.Id, Form.Snapshot()));
+
+    private Task PurgeSelf()
+    {
+        Run.Purge(Node.Id);
+        return Task.CompletedTask;
+    }
+
+    private T? Props<T>() where T : class
+    {
+        var json = Node.Props is { } p && p.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
+            ? p.GetRawText()
+            : "{}";
+        DisplayJson.TryParse<T>(json, out var value);
+        return value;
+    }
+
+    private static DrylStack.StackGap MapGap(string? gap) => gap switch
+    {
+        "sm" => DrylStack.StackGap.Sm,
+        "lg" => DrylStack.StackGap.Lg,
+        _ => DrylStack.StackGap.Md,
+    };
+
+    private static DrylBadge.BadgeKind MapBadge(string? kind) => kind switch
+    {
+        "success" => DrylBadge.BadgeKind.Success,
+        "warning" => DrylBadge.BadgeKind.Warning,
+        "danger" => DrylBadge.BadgeKind.Danger,
+        _ => DrylBadge.BadgeKind.Neutral,
+    };
+
+    private static DrylButton.ButtonVariant MapButtonVariant(string? kind) => kind switch
+    {
+        "secondary" => DrylButton.ButtonVariant.Secondary,
+        _ => DrylButton.ButtonVariant.Primary,
+    };
+
+    private static IReadOnlyList<ChartSeries> ToSeries(CartesianChartArgs a) =>
+        a.Series!.Select(s => new ChartSeries(s.Name, s.Data!)).ToList();
+
+    private static IReadOnlyList<ChartSegment> ToSegments(DonutChartArgs a) =>
+        a.Segments!.Select(s => new ChartSegment(s.Label, s.Value)).ToList();
+
+    private static IReadOnlyList<SelectItem> ToItems(IReadOnlyList<string> options) =>
+        options.Select(o => new SelectItem(o, o)).ToList();
+
+    // Renders the node's columns/rows as a GitHub-flavoured Markdown pipe table so AI-authored
+    // string data goes through DrylMarkdown rather than the strongly-typed generic DrylTable<T>.
+    private static string BuildTable(TableNodeProps p)
+    {
+        var sb = new StringBuilder();
+        sb.Append("| ").Append(string.Join(" | ", p.Columns!.Select(EscapeCell))).Append(" |\n");
+        sb.Append("| ").Append(string.Join(" | ", p.Columns!.Select(_ => "---"))).Append(" |\n");
+        if (p.Rows is not null)
+        {
+            foreach (var row in p.Rows)
+                sb.Append("| ").Append(string.Join(" | ", row.Select(EscapeCell))).Append(" |\n");
+        }
+        return sb.ToString();
+    }
+
+    private static string EscapeCell(string cell) =>
+        (cell ?? string.Empty).Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ");
+}
