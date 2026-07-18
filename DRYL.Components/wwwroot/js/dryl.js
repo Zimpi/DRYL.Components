@@ -1025,11 +1025,18 @@ window.dryl.table = {
  *   Reveal — observe/unobserve drive an IntersectionObserver that adds
  *     .is-revealed when an element scrolls into view, with optional
  *     per-child stagger. Carries DrylReveal.
+ *
+ *   FLIP glide — autoFlip/stopAutoFlip watch a root's [data-cid]
+ *     descendants and, whenever a mutation moves one, invert the
+ *     position delta into a transform then let it transition back to
+ *     identity (First-Last-Invert-Play). Compositor-only (transform),
+ *     reduced-motion aware. Powers DrylAiCanvas artifact reflows.
  * ────────────────────────────────────────────────────────── */
 window.dryl.motion = (() => {
     const _exit   = new WeakMap(); // wrapper el -> animationend handler
     const _ind    = new WeakMap(); // container  -> { ro }
     const _reveal = new WeakMap(); // wrapper el -> { io }
+    const _flip   = new WeakMap(); // root el    -> MutationObserver
 
     const reduced = () => window.dryl.reduced();
 
@@ -1140,7 +1147,54 @@ window.dryl.motion = (() => {
         if (s) { s.io.disconnect(); _reveal.delete(el); }
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve };
+    /* ---- FLIP glide -------------------------------------------------
+     * autoFlip(root) remembers the rect of every [data-cid] descendant;
+     * whenever a child-list mutation under root changes their layout
+     * positions, the delta between the remembered and new rect is
+     * applied as an inverted transform, then released on the next frame
+     * so the element glides (transform-only) back to its new identity
+     * position over the fixed --dur-med/--ease-spring vocabulary.
+     * Reduced-motion users get the plain, unanimated reflow (no-op).
+     * ---------------------------------------------------------------- */
+    function autoFlip(root) {
+        if (!root || _flip.has(root)) return;
+        if (reduced()) return;
+
+        const rects = new Map();
+        const capture = () => {
+            rects.clear();
+            for (const el of root.querySelectorAll('[data-cid]'))
+                rects.set(el.getAttribute('data-cid'), el.getBoundingClientRect());
+        };
+        const play = () => {
+            for (const el of root.querySelectorAll('[data-cid]')) {
+                const prev = rects.get(el.getAttribute('data-cid'));
+                if (!prev) continue;
+                const now = el.getBoundingClientRect();
+                const dx = prev.left - now.left, dy = prev.top - now.top;
+                if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+                el.style.transition = 'none';
+                el.style.transform = `translate(${dx}px, ${dy}px)`;
+                requestAnimationFrame(() => {
+                    el.style.transition = 'transform var(--dur-med) var(--ease-spring)';
+                    el.style.transform = '';
+                    el.addEventListener('transitionend', () => { el.style.transition = ''; }, { once: true });
+                });
+            }
+            capture();
+        };
+        const observer = new MutationObserver(() => play());
+        observer.observe(root, { childList: true, subtree: true, attributes: false });
+        capture();
+        _flip.set(root, observer);
+    }
+
+    function stopAutoFlip(root) {
+        const observer = root && _flip.get(root);
+        if (observer) { observer.disconnect(); _flip.delete(root); }
+    }
+
+    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip };
 })();
 
 /* ──────────────────────────────────────────────────────────

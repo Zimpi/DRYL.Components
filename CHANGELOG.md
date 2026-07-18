@@ -14,6 +14,13 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.9.0] — 2026-07-18
+
+### Added
+- `dryl.motion` — New `autoFlip`/`stopAutoFlip` primitive: FLIP position-glide
+  for `[data-cid]` children (powers `DrylAiCanvas` move ops); reduced-motion
+  aware, transform-only.
+
 ## [2.8.3] — 2026-07-16
 
 ### Fixed

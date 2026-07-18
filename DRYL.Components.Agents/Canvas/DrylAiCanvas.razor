@@ -1,6 +1,7 @@
 @namespace DRYL.Components.Agents
 @using DRYL.Components.Ai
-@implements IDisposable
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylAiCanvas — renders an AI-built artifact (a DrylCanvasRun)
@@ -69,8 +70,10 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    // The body element — Task 9 attaches the FLIP/move JS to it. Declared now so the ref exists.
+    // The body element — dryl.motion.autoFlip watches its [data-cid] children so
+    // artifact reflows (nodes appearing/reordering) glide instead of snapping.
     private ElementReference _bodyEl;
+    private bool _flipAttached; // prerender guard — set only after a successful interop call
 
     private DrylCanvasRun? _subscribed;
     private CanvasFormState _form = new();
@@ -83,6 +86,17 @@
 
     protected override void OnInitialized() =>
         _intentCallback = EventCallback.Factory.Create<CanvasInteraction>(this, i => OnInteraction.InvokeAsync(i));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.motion.autoFlip", _bodyEl);
+            _flipAttached = true;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+    }
 
     protected override void OnParametersSet()
     {
@@ -152,9 +166,16 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
         _aura.Dispose();
+
+        if (_flipAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.stopAutoFlip", _bodyEl); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
     }
 }
