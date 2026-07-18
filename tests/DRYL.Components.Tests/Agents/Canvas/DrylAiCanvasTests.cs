@@ -35,6 +35,22 @@ public class DrylAiCanvasTests : BunitContext
     }
 
     [Fact]
+    public void Chart_node_renders_its_title_caption()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"c1","type":"lineChart","props":{"title":"Umsatz nach Monat","labels":["Jan"],
+                    "series":[{"name":"2025","data":[1]}]}}]}}
+            """));
+
+        var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
+
+        var caption = cut.Find(".canvas-chart-title");
+        Assert.Equal("Umsatz nach Monat", caption.TextContent);
+    }
+
+    [Fact]
     public void Invalid_node_renders_skeleton_fallback()
     {
         var run = new DrylCanvasRun();

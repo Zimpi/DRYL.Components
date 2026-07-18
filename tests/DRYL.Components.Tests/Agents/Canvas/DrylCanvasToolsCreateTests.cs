@@ -79,6 +79,30 @@ public class DrylCanvasToolsCreateTests
         Assert.Contains("must be between 0 and 100", receipt);
     }
 
+    // ---- malformed stream tail (real-model behavior) ----
+
+    [Fact]
+    public async Task Create_completes_from_last_snapshot_when_stream_tail_is_malformed()
+    {
+        var run = new DrylCanvasRun();
+        // A real local model produced exactly this failure mode: a complete artifact
+        // followed by one stray closing bracket that breaks the strict final parse.
+        var full = """
+            {"title":"T","root":{"id":"root","type":"stack","children":[
+            {"id":"a","type":"stat","props":{"label":"L","value":"1"}}]}}
+            """;
+
+        var tools = DrylCanvasTools.CreateReplay(run, (_, _) => Script(full, "]"));
+
+        var receipt = await InvokeAsync(tools.CreateArtifact, "show one stat");
+
+        Assert.Equal(AiState.Generated, run.State);
+        Assert.Null(run.Error);
+        Assert.Single(run.Spec!.Root!.Children!);
+        Assert.Contains("2 elements", receipt);
+        Assert.Contains("malformed", receipt);
+    }
+
     // ---- generator throws ----
 
     [Fact]

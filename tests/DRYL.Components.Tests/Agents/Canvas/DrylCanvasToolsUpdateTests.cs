@@ -30,6 +30,29 @@ public class DrylCanvasToolsUpdateTests
         }
     }
 
+    // ---- malformed stream tail (real-model behavior) ----
+
+    [Fact]
+    public async Task Update_applies_last_parsed_ops_when_stream_tail_is_malformed()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Spec());
+
+        // Complete op list followed by a stray bracket — the strict final parse fails,
+        // but the ops the tolerant reader already parsed must still land.
+        var full = """{"ops":[{"op":"setProps","id":"a","props":{"value":"11"}}]}""";
+
+        var tools = DrylCanvasTools.CreateReplay(run, (_, _) => Script(full, "]"));
+
+        var receipt = await InvokeAsync(tools.UpdateArtifact, "bump a");
+
+        Assert.Equal(AiState.Generated, run.State);
+        Assert.Null(run.Error);
+        Assert.Equal("11", run.Spec!.Root!.Children![0].Props!.Value.GetProperty("value").GetString());
+        Assert.Contains("1 changes applied", receipt);
+        Assert.Contains("malformed", receipt);
+    }
+
     // ---- staged application: only ops strictly before the last parsed one apply mid-stream ----
 
     [Fact]

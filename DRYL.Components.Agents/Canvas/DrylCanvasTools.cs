@@ -68,12 +68,27 @@ public sealed class DrylCanvasTools
         var reader = new PartialJsonReader<CanvasSpec>(CanvasJson.Options);
         try
         {
+            CanvasSpec? last = null;
             await foreach (var delta in _generate(CanvasPrompt.CreatePrompt(brief, title), ct))
             {
                 var snapshot = reader.Append(delta);
-                if (snapshot is not null) _run.ApplySnapshot(snapshot);
+                if (snapshot is not null) _run.ApplySnapshot(last = snapshot);
             }
-            var final = JsonSerializer.Deserialize<CanvasSpec>(reader.Buffer, CanvasJson.Options);
+            CanvasSpec? final;
+            string? recovery = null;
+            try
+            {
+                final = JsonSerializer.Deserialize<CanvasSpec>(reader.Buffer, CanvasJson.Options);
+            }
+            catch (JsonException)
+            {
+                // Real models occasionally fumble the closing brackets. The tolerant reader kept
+                // the last well-formed snapshot — complete from that instead of tearing down an
+                // artifact the user has already watched stream in.
+                final = last;
+                recovery = " Note: the generated JSON ended malformed; the artifact was completed "
+                         + "from the last valid snapshot.";
+            }
             if (final?.Root is null)
                 throw new InvalidOperationException("generator returned no artifact root");
 
@@ -86,7 +101,7 @@ public sealed class DrylCanvasTools
                 if (CanvasCatalog.Validate(n) is { } e) problems.Add(e);
             });
             _run.CompleteGeneration(final);
-            var receipt = $"Artifact created: {nodes} elements, {interactive} inputs.";
+            var receipt = $"Artifact created: {nodes} elements, {interactive} inputs." + recovery;
             return problems.Count == 0 ? receipt
                 : receipt + " Some elements were invalid and are shown as placeholders — fix via update_artifact: "
                   + string.Join(" ", problems.Take(3));
@@ -118,19 +133,34 @@ public sealed class DrylCanvasTools
         var skipped = new List<string>();
         try
         {
+            List<CanvasOp>? lastOps = null;
             var current = JsonSerializer.Serialize(_run.Spec, CanvasJson.Options);
             await foreach (var delta in _generate(CanvasPrompt.UpdatePrompt(brief, current), ct))
             {
                 var ops = reader.Append(delta)?.Ops;
+                if (ops is not null) lastOps = ops;
                 while (ops is not null && applied < ops.Count - 1)   // last op may still be truncated
                     await ApplyStaggeredAsync(ops[applied++], skipped, ct);
             }
-            var final = JsonSerializer.Deserialize<CanvasPatchDoc>(reader.Buffer, CanvasJson.Options)?.Ops
+            List<CanvasOp> final;
+            string? recovery = null;
+            try
+            {
+                final = JsonSerializer.Deserialize<CanvasPatchDoc>(reader.Buffer, CanvasJson.Options)?.Ops
                         ?? new List<CanvasOp>();
+            }
+            catch (JsonException)
+            {
+                // Same tolerance as the create path: a malformed stream tail falls back to the last
+                // op list the tolerant reader parsed. A trailing half-parsed op is safe to attempt —
+                // ApplyOp validates and skips anything incoherent.
+                final = lastOps ?? new List<CanvasOp>();
+                recovery = " Note: the generated JSON ended malformed; trailing ops may have been dropped.";
+            }
             while (applied < final.Count)
                 await ApplyStaggeredAsync(final[applied++], skipped, ct);
             _run.CompleteGeneration();
-            var receipt = $"Artifact updated: {applied - skipped.Count} changes applied.";
+            var receipt = $"Artifact updated: {applied - skipped.Count} changes applied." + recovery;
             return skipped.Count == 0 ? receipt
                 : receipt + $" {skipped.Count} ops skipped: " + string.Join(" ", skipped.Take(3));
         }

@@ -48,7 +48,8 @@
     min-width: 0;
 }
 
-::deep .canvas-card-title {
+::deep .canvas-card-title,
+::deep .canvas-chart-title {
     color: var(--fg);
     font-weight: 600;
     margin-bottom: var(--sp-2);
