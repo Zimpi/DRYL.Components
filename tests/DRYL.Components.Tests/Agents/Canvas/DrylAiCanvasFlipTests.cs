@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
@@ -28,12 +29,12 @@ public class DrylAiCanvasFlipTests : BunitContext
     }
 
     [Fact]
-    public void StopAutoFlip_is_invoked_on_dispose()
+    public async Task StopAutoFlip_is_invoked_on_dispose()
     {
         var run = new DrylCanvasRun();
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
 
-        cut.InvokeAsync(() => cut.Instance.DisposeAsync());
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync());
 
         Assert.NotEmpty(JSInterop.Invocations["dryl.motion.stopAutoFlip"]);
     }

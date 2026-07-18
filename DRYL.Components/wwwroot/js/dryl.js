@@ -1167,10 +1167,21 @@ window.dryl.motion = (() => {
                 rects.set(el.getAttribute('data-cid'), el.getBoundingClientRect());
         };
         const play = () => {
-            for (const el of root.querySelectorAll('[data-cid]')) {
-                const prev = rects.get(el.getAttribute('data-cid'));
+            const els = Array.from(root.querySelectorAll('[data-cid]'));
+            // Pass 1: measure every element's current rect BEFORE any style is
+            // written. This becomes the next baseline — capturing it later (after
+            // the invert transforms below are applied) would re-read the visually
+            // cancelled-out pre-mutation position and poison future deltas.
+            const nextRects = new Map();
+            for (const el of els)
+                nextRects.set(el.getAttribute('data-cid'), el.getBoundingClientRect());
+            // Pass 2: invert old-vs-next deltas into a transform and play it back
+            // to identity. No getBoundingClientRect calls occur in this pass.
+            for (const el of els) {
+                const cid = el.getAttribute('data-cid');
+                const prev = rects.get(cid);
                 if (!prev) continue;
-                const now = el.getBoundingClientRect();
+                const now = nextRects.get(cid);
                 const dx = prev.left - now.left, dy = prev.top - now.top;
                 if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
                 el.style.transition = 'none';
@@ -1181,7 +1192,8 @@ window.dryl.motion = (() => {
                     el.addEventListener('transitionend', () => { el.style.transition = ''; }, { once: true });
                 });
             }
-            capture();
+            rects.clear();
+            for (const [cid, r] of nextRects) rects.set(cid, r);
         };
         const observer = new MutationObserver(() => play());
         observer.observe(root, { childList: true, subtree: true, attributes: false });
