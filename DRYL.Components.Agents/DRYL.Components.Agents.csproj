@@ -12,7 +12,8 @@
 
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
-    <PackageReleaseNotes>Experimental 0.5.0. See CHANGELOG.md.</PackageReleaseNotes>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>See CHANGELOG.md at https://github.com/Zimpi/DRYL.Components/blob/main/CHANGELOG.md</PackageReleaseNotes>
 
     <IsPackable>true</IsPackable>
     <IncludeSymbols>true</IncludeSymbols>
@@ -31,6 +32,8 @@
 
   <ItemGroup>
     <None Include="PACKAGE.md" Pack="true" PackagePath="\" />
+    <!-- Reuse the core package icon so the NuGet listing matches DRYL.Components. -->
+    <None Include="..\DRYL.Components\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- During development reference the core by project; the pack emits a NuGet

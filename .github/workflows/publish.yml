@@ -1,14 +1,20 @@
 name: Publish
 
-# Continuous delivery for DRYL.Components.
+# Continuous delivery for the DRYL packages.
 #
-# On every push to main we read <Version> from DRYL.Components.csproj.
-# If no tag v<Version> exists yet, we build, test, pack and publish that
-# version to nuget.org, then create the tag and a GitHub Release.
+# Two packages ship independently from this one workflow:
+#   * DRYL.Components         — version in DRYL.Components/DRYL.Components.csproj,
+#                               released under the tag  v<version>
+#   * DRYL.Components.Agents  — version in DRYL.Components.Agents/DRYL.Components.Agents.csproj,
+#                               released under the tag  agents-v<version>
 #
-# The version is owned in the .csproj (bumped in the same commit as the change:
-# feature -> minor, bugfix -> patch, breaking -> major). A push that does not
-# change the version finds the tag already present and is a clean no-op.
+# On every push to main we read <Version> from each csproj. For each package, if
+# no matching tag exists yet, we pack that version, publish it to nuget.org, then
+# create the tag and a GitHub Release. Each package is evaluated on its own — one
+# push can publish the core, the agents package, both, or neither (a no-op).
+#
+# The version of each package is owned in its own .csproj (bumped in the same
+# commit as the change: feature -> minor, bugfix -> patch, breaking -> major).
 #
 # NOTE: publishing happens *inline* here, not by pushing a tag that triggers
 # another workflow — a tag pushed with the default GITHUB_TOKEN does not fire
@@ -16,7 +22,8 @@ name: Publish
 # silently publish nothing.
 #
 # Uses Trusted Publishing (OIDC) — no API key secret required. Configure the
-# Trusted Publisher on nuget.org:
+# Trusted Publisher on nuget.org (one policy covers both packages because they
+# publish from this same workflow file):
 #   Owner -> Trusted Publishing -> GitHub Actions
 #   Repository: DRYL.Components   Workflow File: publish.yml
 
@@ -32,47 +39,69 @@ concurrency:
 
 jobs:
   check:
-    name: Check version
+    name: Check versions
     runs-on: ubuntu-latest
     outputs:
-      should_publish: ${{ steps.decide.outputs.should_publish }}
-      version: ${{ steps.read.outputs.version }}
+      core_should_publish: ${{ steps.decide.outputs.core_should_publish }}
+      core_version: ${{ steps.read.outputs.core_version }}
+      agents_should_publish: ${{ steps.decide.outputs.agents_should_publish }}
+      agents_version: ${{ steps.read.outputs.agents_version }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Read version from csproj
+      - name: Read versions from csproj
         id: read
         run: |
-          version=$(grep -oPm1 '(?<=<Version>)[^<]+' DRYL.Components/DRYL.Components.csproj)
-          if [ -z "$version" ]; then
+          core=$(grep -oPm1 '(?<=<Version>)[^<]+' DRYL.Components/DRYL.Components.csproj)
+          agents=$(grep -oPm1 '(?<=<Version>)[^<]+' DRYL.Components.Agents/DRYL.Components.Agents.csproj)
+          if [ -z "$core" ]; then
             echo "::error::Could not read <Version> from DRYL.Components/DRYL.Components.csproj"
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Version in csproj: $version"
+          if [ -z "$agents" ]; then
+            echo "::error::Could not read <Version> from DRYL.Components.Agents/DRYL.Components.Agents.csproj"
+            exit 1
+          fi
+          echo "core_version=$core" >> "$GITHUB_OUTPUT"
+          echo "agents_version=$agents" >> "$GITHUB_OUTPUT"
+          echo "Core version:   $core"
+          echo "Agents version: $agents"
 
       - name: Decide whether to publish
         id: decide
         run: |
-          tag="v${{ steps.read.outputs.version }}"
-          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists — nothing to publish."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          core_tag="v${{ steps.read.outputs.core_version }}"
+          agents_tag="agents-v${{ steps.read.outputs.agents_version }}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$core_tag" >/dev/null 2>&1; then
+            echo "Tag $core_tag already exists — core is up to date."
+            echo "core_should_publish=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Tag $tag is new — will publish."
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "Tag $core_tag is new — will publish DRYL.Components."
+            echo "core_should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$agents_tag" >/dev/null 2>&1; then
+            echo "Tag $agents_tag already exists — agents is up to date."
+            echo "agents_should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $agents_tag is new — will publish DRYL.Components.Agents."
+            echo "agents_should_publish=true" >> "$GITHUB_OUTPUT"
           fi
 
   publish:
     name: Pack & Publish
     needs: check
-    if: needs.check.outputs.should_publish == 'true'
+    if: needs.check.outputs.core_should_publish == 'true' || needs.check.outputs.agents_should_publish == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # create the tag + GitHub Release
+      contents: write   # create the tags + GitHub Releases
       id-token: write   # required for OIDC trusted publishing
     env:
-      VERSION: ${{ needs.check.outputs.version }}
+      CORE_VERSION: ${{ needs.check.outputs.core_version }}
+      AGENTS_VERSION: ${{ needs.check.outputs.agents_version }}
+      CORE_PUBLISH: ${{ needs.check.outputs.core_should_publish }}
+      AGENTS_PUBLISH: ${{ needs.check.outputs.agents_should_publish }}
     steps:
       - uses: actions/checkout@v7
 
@@ -88,17 +117,24 @@ jobs:
         run: dotnet restore DRYL.slnx
 
       - name: Build
-        run: dotnet build DRYL.slnx -c Release --no-restore -p:Version=$VERSION
+        run: dotnet build DRYL.slnx -c Release --no-restore
 
       - name: Test
         run: dotnet test DRYL.slnx -c Release --no-build --verbosity normal
 
-      - name: Pack
+      - name: Pack DRYL.Components
+        if: env.CORE_PUBLISH == 'true'
         run: >
           dotnet pack DRYL.Components/DRYL.Components.csproj
           -c Release --no-build
-          -p:Version=$VERSION
-          -o artifacts
+          -o artifacts/core
+
+      - name: Pack DRYL.Components.Agents
+        if: env.AGENTS_PUBLISH == 'true'
+        run: >
+          dotnet pack DRYL.Components.Agents/DRYL.Components.Agents.csproj
+          -c Release --no-build
+          -o artifacts/agents
 
       - name: NuGet login (OIDC)
         uses: NuGet/login@v1
@@ -106,24 +142,52 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
-      - name: Push to nuget.org
+      - name: Push DRYL.Components to nuget.org
+        if: env.CORE_PUBLISH == 'true'
         run: >
-          dotnet nuget push "artifacts/*.nupkg"
+          dotnet nuget push "artifacts/core/*.nupkg"
           --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
 
-      - name: Tag the release
-        run: |
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
+      - name: Push DRYL.Components.Agents to nuget.org
+        if: env.AGENTS_PUBLISH == 'true'
+        run: >
+          dotnet nuget push "artifacts/agents/*.nupkg"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
 
-      - name: Create GitHub Release
+      - name: Tag the core release
+        if: env.CORE_PUBLISH == 'true'
+        run: |
+          git tag "v$CORE_VERSION"
+          git push origin "v$CORE_VERSION"
+
+      - name: Tag the agents release
+        if: env.AGENTS_PUBLISH == 'true'
+        run: |
+          git tag "agents-v$AGENTS_VERSION"
+          git push origin "agents-v$AGENTS_VERSION"
+
+      - name: Create GitHub Release (DRYL.Components)
+        if: env.CORE_PUBLISH == 'true'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ env.VERSION }}
-          name: DRYL.Components ${{ env.VERSION }}
+          tag_name: v${{ env.CORE_VERSION }}
+          name: DRYL.Components ${{ env.CORE_VERSION }}
           generate_release_notes: true
           files: |
-            artifacts/*.nupkg
-            artifacts/*.snupkg
+            artifacts/core/*.nupkg
+            artifacts/core/*.snupkg
+
+      - name: Create GitHub Release (DRYL.Components.Agents)
+        if: env.AGENTS_PUBLISH == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: agents-v${{ env.AGENTS_VERSION }}
+          name: DRYL.Components.Agents ${{ env.AGENTS_VERSION }}
+          generate_release_notes: true
+          files: |
+            artifacts/agents/*.nupkg
+            artifacts/agents/*.snupkg
