@@ -1025,11 +1025,18 @@ window.dryl.table = {
  *   Reveal — observe/unobserve drive an IntersectionObserver that adds
  *     .is-revealed when an element scrolls into view, with optional
  *     per-child stagger. Carries DrylReveal.
+ *
+ *   FLIP glide — autoFlip/stopAutoFlip watch a root's [data-cid]
+ *     descendants and, whenever a mutation moves one, invert the
+ *     position delta into a transform then let it transition back to
+ *     identity (First-Last-Invert-Play). Compositor-only (transform),
+ *     reduced-motion aware. Powers DrylAiCanvas artifact reflows.
  * ────────────────────────────────────────────────────────── */
 window.dryl.motion = (() => {
     const _exit   = new WeakMap(); // wrapper el -> animationend handler
     const _ind    = new WeakMap(); // container  -> { ro }
     const _reveal = new WeakMap(); // wrapper el -> { io }
+    const _flip   = new WeakMap(); // root el    -> MutationObserver
 
     const reduced = () => window.dryl.reduced();
 
@@ -1140,7 +1147,121 @@ window.dryl.motion = (() => {
         if (s) { s.io.disconnect(); _reveal.delete(el); }
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve };
+    /* ---- FLIP glide -------------------------------------------------
+     * autoFlip(root) remembers the position of every [data-cid] descendant
+     * (root-relative, scroll- and in-flight-transform-compensated); when a
+     * STRUCTURAL mutation (a [data-cid] node added/removed/moved) changes
+     * their layout, the delta is applied as an inverted transform and
+     * released after one forced reflow, so the element glides
+     * (transform-only) back to its new identity position over the fixed
+     * --dur-med/--ease-spring vocabulary. Non-structural mutations (chart
+     * SVG redraws, aura elements, tooltips) never replay the glide.
+     * Reduced-motion users get the plain, unanimated reflow (no-op).
+     * ---------------------------------------------------------------- */
+    function autoFlip(root) {
+        if (!root || _flip.has(root)) return;
+        if (reduced()) return;
+
+        // Baselines are stored relative to the node's nearest [data-cid] ancestor
+        // (canvas nodes nest!). Local deltas mean: when a card glides, its children
+        // ride along on the card's transform instead of each being inverted again
+        // (a root-relative scheme double-moves every descendant of a moved node).
+        // They are also scroll- and in-flight-transform-compensated, so neither
+        // scrolling nor a half-finished enter/glide animation reads as movement.
+        let rects = new Map();
+        const anchorOf = (el) => {
+            for (let n = el.parentElement; n && n !== root; n = n.parentElement)
+                if (n.hasAttribute('data-cid')) return n;
+            return root;
+        };
+        const measure = () => {
+            const out = new Map();
+            for (const el of root.querySelectorAll('[data-cid]')) {
+                const anchor = anchorOf(el);
+                const r = el.getBoundingClientRect();
+                const rA = anchor.getBoundingClientRect();
+                // Sum the transforms between el (inclusive) and its anchor
+                // (exclusive) — our own glide plus any presence-enter wrapper —
+                // so the stored position is the true layout slot, not the
+                // visually interpolated mid-animation frame.
+                let tx = 0, ty = 0;
+                for (let n = el; n && n !== anchor; n = n.parentElement) {
+                    const t = getComputedStyle(n).transform;
+                    if (t && t !== 'none') { const m = new DOMMatrixReadOnly(t); tx += m.e; ty += m.f; }
+                }
+                out.set(el.getAttribute('data-cid'), {
+                    el,
+                    left: r.left - tx - rA.left + (anchor === root ? root.scrollLeft : 0),
+                    top: r.top - ty - rA.top + (anchor === root ? root.scrollTop : 0),
+                    tx, ty,
+                });
+            }
+            return out;
+        };
+        let settle = 0;
+        const play = () => {
+            // Pass 1: measure everything BEFORE any style is written.
+            const next = measure();
+            // Pass 2: invert old-vs-next deltas. The glide starts from the node's
+            // current visual position (layout delta + any in-flight offset) so an
+            // interrupted glide continues seamlessly instead of restarting.
+            const moved = [];
+            for (const [cid, now] of next) {
+                const prev = rects.get(cid);
+                if (!prev) continue;
+                const dx = prev.left + now.tx - now.left;
+                const dy = prev.top + now.ty - now.top;
+                if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+                now.el.style.transition = 'none';
+                now.el.style.transform = `translate(${dx}px, ${dy}px)`;
+                moved.push(now.el);
+            }
+            if (moved.length) {
+                void root.offsetWidth; // commit the inverted transforms in one reflow…
+                for (const el of moved) {
+                    // …then release them, still pre-paint, so the transition
+                    // provably starts from the inverted position (a rAF release
+                    // races the style flush and can skip the glide entirely).
+                    el.style.transition = 'transform var(--dur-med) var(--ease-spring)';
+                    el.style.transform = '';
+                    el.addEventListener('transitionend', () => { el.style.transition = ''; }, { once: true });
+                }
+            }
+            rects = next;
+            // Re-baseline once everything is at rest: a measurement taken while
+            // an enter animation was mid-flight would otherwise stay poisoned
+            // until the next structural change glides every node at once.
+            clearTimeout(settle);
+            settle = setTimeout(() => { rects = measure(); }, 600);
+        };
+        // Only structural changes to the artifact tree replay the glide — a chart
+        // redrawing its SVG internals, an aura element or a tooltip must not
+        // re-invert every node on the canvas (that constant replay reads as
+        // flicker). Check the fragment root itself first: querySelector never
+        // matches the root of an added/removed fragment.
+        const structural = (muts) => {
+            for (const m of muts) {
+                for (const list of [m.addedNodes, m.removedNodes]) {
+                    for (const n of list) {
+                        if (n.nodeType === 1 && (n.matches('[data-cid]') || n.querySelector('[data-cid]')))
+                            return true;
+                    }
+                }
+            }
+            return false;
+        };
+        const observer = new MutationObserver((muts) => { if (structural(muts)) play(); });
+        observer.observe(root, { childList: true, subtree: true, attributes: false });
+        rects = measure();
+        _flip.set(root, { observer, dispose: () => clearTimeout(settle) });
+    }
+
+    function stopAutoFlip(root) {
+        const s = root && _flip.get(root);
+        if (s) { s.observer.disconnect(); s.dispose(); _flip.delete(root); }
+    }
+
+    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip };
 })();
 
 /* ──────────────────────────────────────────────────────────

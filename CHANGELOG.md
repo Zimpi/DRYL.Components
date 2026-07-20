@@ -14,6 +14,20 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DrylAiCanvas` — (Agents 0.6.0) Interactive chat artifacts: the AI builds and iterates a live, fully interactive composition of DRYL components next to the chat — streaming in node by node, morphing in place on updates (staged patch ops + FLIP glide), with button intents and input values routed back as structured `CanvasInteraction` events via `OnInteraction`
+- `DrylCanvasTools` — (Agents) `create_artifact` / `update_artifact` chat-agent tools; each call runs a dedicated structured-streaming sub-generation (raw JSON deltas → progressive `CanvasSpec` snapshots, patch ops applied one per beat) against a consumer-supplied generator agent, plus a `CreateReplay` seam for demos/tests without a live model
+- `DrylCanvasRun` — (Agents) Observable canvas handle atop `DrylRunBase`: live `Spec`, completed `Round` count, `ChangedIds` of the latest ops; a failed generation surfaces via `Error` without killing the canvas
+- `CanvasInteraction` / `CanvasFormState` — (Agents) A click inside the artifact carries its intent plus a snapshot of every input value; `ToPromptMessage()` turns it into the next chat turn
+- Canvas catalog — (Agents) Curated 19-type node vocabulary (stack/grid/card/tabs, markdown, stat, badge, progress, table, timeline, four chart types, four inputs, button, divider) with per-node validate-and-fallback: invalid nodes render as skeleton placeholders and the model gets a corrective tool result
+
+## [2.9.0] — 2026-07-18
+
+### Added
+- `dryl.motion` — New `autoFlip`/`stopAutoFlip` primitive: FLIP position-glide
+  for `[data-cid]` children (powers `DrylAiCanvas` move ops); reduced-motion
+  aware, transform-only.
+
 ## [2.8.3] — 2026-07-16
 
 ### Fixed
