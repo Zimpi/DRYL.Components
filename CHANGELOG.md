@@ -14,12 +14,19 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.10.0] — 2026-07-22
+
 ### Added
+- `DrylToolCallGroup` — New core component that collapses a run of agent tool calls into one quiet, gently-pulsing summary row instead of a heavy stack of cards; while a call runs it live-tickers the active tool name (calm Aurora aura), once settled it reads "N tool calls · Done", and it expands via a grid-rows disclosure to the individual `DrylToolCall` cards. Auto-expands when a tool errors so failures are never hidden.
 - `DrylAiCanvas` — (Agents 0.6.0) Interactive chat artifacts: the AI builds and iterates a live, fully interactive composition of DRYL components next to the chat — streaming in node by node, morphing in place on updates (staged patch ops + FLIP glide), with button intents and input values routed back as structured `CanvasInteraction` events via `OnInteraction`
 - `DrylCanvasTools` — (Agents) `create_artifact` / `update_artifact` chat-agent tools; each call runs a dedicated structured-streaming sub-generation (raw JSON deltas → progressive `CanvasSpec` snapshots, patch ops applied one per beat) against a consumer-supplied generator agent, plus a `CreateReplay` seam for demos/tests without a live model
 - `DrylCanvasRun` — (Agents) Observable canvas handle atop `DrylRunBase`: live `Spec`, completed `Round` count, `ChangedIds` of the latest ops; a failed generation surfaces via `Error` without killing the canvas
 - `CanvasInteraction` / `CanvasFormState` — (Agents) A click inside the artifact carries its intent plus a snapshot of every input value; `ToPromptMessage()` turns it into the next chat turn
 - Canvas catalog — (Agents) Curated 19-type node vocabulary (stack/grid/card/tabs, markdown, stat, badge, progress, table, timeline, four chart types, four inputs, button, divider) with per-node validate-and-fallback: invalid nodes render as skeleton placeholders and the model gets a corrective tool result
+
+### Changed
+- `DrylMessage` — Composite assistant bubbles (tool calls + text + usage) now carry a consistent vertical rhythm between their stacked blocks; single-block text/markdown bubbles are visually unchanged.
+- `DrylAgentToolCalls` — (Agents 0.7.0) No longer stacks every tool call as a full card; wraps them in the new `DrylToolCallGroup` so a long agent turn reads as one calm, expandable summary that tickers the running tool.
 
 ## [2.9.0] — 2026-07-18
 

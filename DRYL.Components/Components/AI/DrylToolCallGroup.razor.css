@@ -1,0 +1,89 @@
+/* DrylToolCallGroup — quiet, collapsible summary over a stack of tool calls. */
+
+.tool-group {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--glass-1);
+}
+
+.tool-group--error {
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.tool-group-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--fg-muted);
+    font: inherit;
+    border-radius: var(--r-md);
+    transition: color var(--dur-fast) var(--ease-out);
+}
+.tool-group-head:hover { color: var(--fg); }
+.tool-group-head:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-line);
+}
+
+.tool-group-icon {
+    display: inline-flex;
+    color: var(--accent-b);
+    flex: none;
+}
+
+.tool-group-label {
+    font-size: 13px;
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+/* Live ticker: the running tool's name reads as code, like the cards below. */
+.tool-group-label--ticker {
+    font-family: var(--font-mono);
+    color: var(--fg);
+}
+
+.tool-group-status {
+    margin-left: auto;
+    flex: none;
+}
+
+.tool-group-chevron {
+    display: inline-flex;
+    color: var(--fg-dim);
+    flex: none;
+    transition: transform var(--dur-med) var(--ease-in-out);
+}
+.tool-group-chevron--open { transform: rotate(180deg); }
+
+/* Disclosure: animate the track, never squeeze the content (DrylExpansion trick). */
+.tool-group-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--dur-med) var(--ease-in-out);
+}
+.tool-group.is-open .tool-group-body { grid-template-rows: 1fr; }
+
+.tool-group-body-inner { overflow: hidden; }
+
+.tool-group-body-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-2) var(--sp-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tool-group-body { transition: none; }
+    .tool-group-chevron { transition: none; }
+}

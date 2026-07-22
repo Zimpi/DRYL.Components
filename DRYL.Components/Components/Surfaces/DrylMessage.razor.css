@@ -40,6 +40,13 @@
     overflow-wrap: anywhere;
 }
 
+/* Vertical rhythm between stacked blocks in a composite bubble (tool calls / text /
+   usage). Fires only between siblings, so a plain single-block bubble is untouched.
+   ::deep because the stacked blocks are rendered by the consumer (ChildContent) or by
+   child components, so they don't carry this component's scope — the rule must reach
+   past the scope boundary while staying anchored to our own .chat-bubble-content. */
+.chat-bubble-content ::deep > * + * { margin-top: var(--sp-3); }
+
 .chat-bubble--assistant {
     background: var(--glass-2);
     border: 1px solid var(--line);

@@ -1,18 +1,32 @@
 @namespace DRYL.Components.Agents
 @implements IDisposable
 
-@*  Thin wrapper: renders the agent run's tool calls using the core DrylToolCall. *@
+@*  Thin wrapper: collapses the agent run's tool calls into a single quiet,
+    gently-pulsing DrylToolCallGroup summary that expands to the individual
+    DrylToolCall cards. Summary data (count, active tool, overall state, error)
+    is derived from the run and handed to the group explicitly. *@
 
 @if (Run is not null)
 {
-    foreach (var t in Visible)
+    var visible = Visible.ToList();
+    if (visible.Count > 0)
     {
-        <DrylToolCall @key="t.CallId"
-                      ToolName="@t.ToolName"
-                      Arguments="@t.Arguments"
-                      Result="@t.Result"
-                      Error="@t.Error"
-                      State="@t.State" />
+        var active = visible.FirstOrDefault(t => t.State is AiState.Thinking or AiState.Streaming);
+
+        <DrylToolCallGroup Count="visible.Count"
+                           ActiveLabel="@active?.ToolName"
+                           State="@(active?.State ?? AiState.None)"
+                           HasError="@visible.Any(t => !string.IsNullOrEmpty(t.Error))">
+            @foreach (var t in visible)
+            {
+                <DrylToolCall @key="t.CallId"
+                              ToolName="@t.ToolName"
+                              Arguments="@t.Arguments"
+                              Result="@t.Result"
+                              Error="@t.Error"
+                              State="@t.State" />
+            }
+        </DrylToolCallGroup>
     }
 }
 

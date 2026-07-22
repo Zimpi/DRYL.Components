@@ -61,38 +61,44 @@ else
             <div class="@BubbleCssClass">
                 <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
-                @if (Typing)
-                {
-                    <span class="chat-typing" aria-label="Assistant is typing">
-                        <span></span><span></span><span></span>
-                    </span>
-                }
-                else if (Markdown && Text is not null)
-                {
-                    @* The bubble itself already hosts the ai-aura ring/glow above — passing
-                       EffectiveAi into DrylMarkdown too would wrap the text a second time in
-                       its own glass surface + ring, reading as a nested duplicate box. *@
-                    <DrylMarkdown Content="@Text" />
-                }
-                else if (Text is not null)
-                {
-                    @if (_streamTokens.Count > 0)
+                @* Composite assistant turns stack several blocks in one bubble (tool calls,
+                   text, usage). This wrapper gives them a vertical rhythm without touching the
+                   absolutely-positioned aura elements above it; a single-block bubble is
+                   unaffected (the sibling-gap rule only fires between stacked children). *@
+                <div class="chat-bubble-content">
+                    @if (Typing)
                     {
-                        @* Plain-text streaming: each freshly arrived word mounts as its own
-                           keyed-by-position .stream-token span and blur-materializes in;
-                           .stream-text::after draws the glowing caret at the tip. Whitespace
-                           lives inside the token text, so no markup whitespace between spans. *@
-                        <span class="stream-text">@foreach (var t in _streamTokens){<span class="stream-token" style="--stream-i:@t.Stagger">@t.Text</span>}</span>
+                        <span class="chat-typing" aria-label="Assistant is typing">
+                            <span></span><span></span><span></span>
+                        </span>
+                    }
+                    else if (Markdown && Text is not null)
+                    {
+                        @* The bubble itself already hosts the ai-aura ring/glow above — passing
+                           EffectiveAi into DrylMarkdown too would wrap the text a second time in
+                           its own glass surface + ring, reading as a nested duplicate box. *@
+                        <DrylMarkdown Content="@Text" />
+                    }
+                    else if (Text is not null)
+                    {
+                        @if (_streamTokens.Count > 0)
+                        {
+                            @* Plain-text streaming: each freshly arrived word mounts as its own
+                               keyed-by-position .stream-token span and blur-materializes in;
+                               .stream-text::after draws the glowing caret at the tip. Whitespace
+                               lives inside the token text, so no markup whitespace between spans. *@
+                            <span class="stream-text">@foreach (var t in _streamTokens){<span class="stream-token" style="--stream-i:@t.Stagger">@t.Text</span>}</span>
+                        }
+                        else
+                        {
+                            @Text
+                        }
                     }
                     else
                     {
-                        @Text
+                        @ChildContent
                     }
-                }
-                else
-                {
-                    @ChildContent
-                }
+                </div>
             </div>
         </div>
     </div>
