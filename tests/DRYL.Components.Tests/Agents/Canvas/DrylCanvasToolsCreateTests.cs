@@ -43,8 +43,9 @@ public class DrylCanvasToolsCreateTests
 
         var receipt = await InvokeAsync(tools.CreateArtifact, "show one stat");
 
-        // Intermediate snapshot was observed: first with 0 children, growing to 1.
-        Assert.Contains(0, childCounts);
+        // Intermediate state was observed: the root is revealed before its single child streams in
+        // (no children yet), and the stat is flushed on completion — one node revealed at a time.
+        Assert.Contains(childCounts, c => c is null or 0);
         Assert.Single(run.Spec!.Root!.Children!);
 
         Assert.Equal(AiState.Generated, run.State);

@@ -104,6 +104,12 @@ public static class JsonPartialRepair
             while (p >= 0 && char.IsWhiteSpace(t[p])) p--;
             if (p >= 0 && !IsCompleteValue(token))
             {
+                // Shrink-then-grow guard: an incomplete number (e.g. "12." while "12.5" streams)
+                // would otherwise drop the whole field, making it flicker value -> null -> value.
+                // Keep the longest complete numeric prefix instead so the field never regresses.
+                var prefix = LongestNumericPrefix(token);
+                if (prefix.Length > 0) return t[..start] + prefix;
+
                 if (t[p] == ':') return DropKeyBefore(p, t);          // object value -> drop key too
                 if (t[p] == ',') return t[..p].TrimEnd();             // array element -> drop with comma
                 if (t[p] == '[') return t[..(p + 1)];                 // first array element -> keep '['
@@ -127,6 +133,20 @@ public static class JsonPartialRepair
         while (idx >= 0 && char.IsWhiteSpace(t[idx])) idx--;
         if (idx >= 0 && t[idx] == ',') idx--;
         return t[..(idx + 1)].TrimEnd();
+    }
+
+    // Longest prefix of a value token that is itself a complete number, or "" if none.
+    // Turns an in-progress "12." / "12.5e" into the stable "12" / "12.5".
+    private static string LongestNumericPrefix(string token)
+    {
+        for (var len = token.Length; len > 0; len--)
+        {
+            if (char.IsDigit(token[len - 1]) &&
+                double.TryParse(token.AsSpan(0, len), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out _))
+                return token[..len];
+        }
+        return "";
     }
 
     private static bool IsValueChar(char c) =>

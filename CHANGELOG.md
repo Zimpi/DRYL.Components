@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DrylAiGenerate<T>` — (Agents 0.8.0) New `ThrottleMs` parameter (default 66 ≈ 15fps): fast token bursts are coalesced to this budget so structured streaming no longer fires one Blazor Server re-render (and full re-parse) per token, bounding circuit/SignalR load; a slow stream still renders every token and the final snapshot always renders. Set `0` to render on every token.
+- `PartialJsonReader<T>` — (Agents 0.8.0) New `AppendRaw` / `Snapshot` split so buffering (cheap, per token) is decoupled from repair+deserialize (per render frame); `Snapshot` is memoized to skip re-parsing an unchanged buffer. `Append` still works as before.
+
+### Fixed
+- `PartialJsonReader<T>` — (Agents 0.8.0) An incomplete trailing number no longer flickers its field value → `null` → value mid-stream (e.g. while `12.5` streams as `12` / `12.` / `12.5`): the repair keeps the longest complete numeric prefix instead of dropping the field.
+- `DrylAiCanvas` — (Agents 0.8.0) `create_artifact` streaming no longer flickers as the artifact fills in. Instead of replacing the whole spec and re-rendering the half-parsed tree on every token, the canvas now reveals one **complete** node at a time (recursively, leaf level): within each container the still-streaming last child is withheld — a leaf until it finishes, a container as an empty shell that fills — and already-revealed nodes keep their instance (frozen) so settled parts don't re-render or replay their reveal animation. Each finished element fades in on its own, matching the `update_artifact` choreography.
+
 ## [2.10.0] — 2026-07-22
 
 ### Added

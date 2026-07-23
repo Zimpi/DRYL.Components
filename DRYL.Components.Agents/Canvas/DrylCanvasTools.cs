@@ -64,7 +64,7 @@ public sealed class DrylCanvasTools
         [Description("Short artifact title.")] string? title = null,
         CancellationToken ct = default)
     {
-        _run.BeginGeneration();
+        _run.BeginCreate();
         var reader = new PartialJsonReader<CanvasSpec>(CanvasJson.Options);
         try
         {
@@ -72,7 +72,7 @@ public sealed class DrylCanvasTools
             await foreach (var delta in _generate(CanvasPrompt.CreatePrompt(brief, title), ct))
             {
                 var snapshot = reader.Append(delta);
-                if (snapshot is not null) _run.ApplySnapshot(last = snapshot);
+                if (snapshot is not null) _run.RevealSnapshot(last = snapshot);
             }
             CanvasSpec? final;
             string? recovery = null;
@@ -100,7 +100,7 @@ public sealed class DrylCanvasTools
                 if (CanvasCatalog.IsInteractive(n.Type)) interactive++;
                 if (CanvasCatalog.Validate(n) is { } e) problems.Add(e);
             });
-            _run.CompleteGeneration(final);
+            _run.CompleteReveal(final);
             var receipt = $"Artifact created: {nodes} elements, {interactive} inputs." + recovery;
             return problems.Count == 0 ? receipt
                 : receipt + " Some elements were invalid and are shown as placeholders — fix via update_artifact: "

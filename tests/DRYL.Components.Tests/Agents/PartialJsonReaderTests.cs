@@ -10,6 +10,11 @@ public class PartialJsonReaderTests
         public List<string> Steps { get; set; } = new();
     }
 
+    public sealed class Priced
+    {
+        public double? Price { get; set; }
+    }
+
     [Fact]
     public void Surfaces_partial_title_character_by_character()
     {
@@ -42,5 +47,30 @@ public class PartialJsonReaderTests
         var before = r.Current!.Title;
         r.Append(",\\");                          // garbage-ish continuation
         Assert.Equal(before, r.Current!.Title);   // never regress to null
+    }
+
+    [Fact]
+    public void Does_not_regress_a_number_field_to_null_mid_token()
+    {
+        var r = new PartialJsonReader<Priced>();
+        r.Append("{\"price\":12");        // complete-so-far -> 12
+        Assert.Equal(12, r.Current!.Price);
+
+        r.Append(".");                     // "12." is an incomplete number token…
+        Assert.Equal(12, r.Current!.Price); // …but the field must NOT flicker back to null
+
+        r.Append("5");                     // -> 12.5
+        Assert.Equal(12.5, r.Current!.Price);
+    }
+
+    [Fact]
+    public void AppendRaw_defers_parsing_until_Snapshot()
+    {
+        var r = new PartialJsonReader<Recipe>();
+        r.AppendRaw("{\"title\":\"Pan");
+        r.AppendRaw("cakes\"");
+
+        Assert.Equal("{\"title\":\"Pancakes\"", r.Buffer);
+        Assert.Equal("Pancakes", r.Snapshot()!.Title);
     }
 }

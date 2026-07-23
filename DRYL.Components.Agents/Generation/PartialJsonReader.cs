@@ -21,6 +21,7 @@ public sealed class PartialJsonReader<T>
     private readonly JsonSerializerOptions _options;
     private readonly StringBuilder _buffer = new();
     private T? _last;
+    private int _parsedLength = -1;
 
     /// <summary>Creates the reader, optionally with custom serializer options.</summary>
     public PartialJsonReader(JsonSerializerOptions? options = null) => _options = options ?? Default;
@@ -31,10 +32,22 @@ public sealed class PartialJsonReader<T>
     /// <summary>The most recent successfully-parsed snapshot (may be partial), or <c>null</c>.</summary>
     public T? Current => _last;
 
-    /// <summary>Append a chunk and return the current best snapshot.</summary>
-    public T? Append(string chunk)
+    /// <summary>
+    /// Append a chunk to the buffer without parsing. Cheap — call once per streamed token,
+    /// then call <see cref="Snapshot"/> only when you actually need to render (see throttling
+    /// in <c>DrylAiGenerate</c>). Parsing the whole buffer per token is the costly part.
+    /// </summary>
+    public void AppendRaw(string chunk) => _buffer.Append(chunk);
+
+    /// <summary>
+    /// Repair and deserialize the current buffer into the best partial snapshot. Memoized:
+    /// re-parses only when the buffer has grown since the last call, otherwise returns the
+    /// cached snapshot. On a parse failure it holds the last good snapshot.
+    /// </summary>
+    public T? Snapshot()
     {
-        _buffer.Append(chunk);
+        if (_buffer.Length == _parsedLength) return _last;
+        _parsedLength = _buffer.Length;
         try
         {
             var repaired = JsonPartialRepair.Close(_buffer.ToString());
@@ -46,5 +59,12 @@ public sealed class PartialJsonReader<T>
             // hold last good
         }
         return _last;
+    }
+
+    /// <summary>Append a chunk and return the current best snapshot (buffer + parse in one call).</summary>
+    public T? Append(string chunk)
+    {
+        AppendRaw(chunk);
+        return Snapshot();
     }
 }

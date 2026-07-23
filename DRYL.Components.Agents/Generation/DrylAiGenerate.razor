@@ -27,6 +27,13 @@
     /// <summary>State to settle to after the Generated reveal. Default <see cref="AiState.None"/>.</summary>
     [Parameter] public AiState SettleTo { get; set; } = AiState.None;
 
+    /// <summary>
+    /// Minimum milliseconds between streaming re-renders. Fast token bursts are coalesced to this
+    /// budget (a slow stream still renders every token, and the final snapshot always renders), which
+    /// keeps the Blazor Server render/SignalR load bounded. <c>0</c> renders on every token. Default 66 (~15fps).
+    /// </summary>
+    [Parameter] public int ThrottleMs { get; set; } = 66;
+
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
     private const int SettleDelayMs = 1200;
@@ -62,16 +69,33 @@
 
         try
         {
+            // Coalesce fast token bursts: buffer every token (cheap), but re-render + re-parse
+            // at most once per ThrottleMs. A slow stream still renders each token because the
+            // budget has elapsed; the tail is always flushed after the loop.
+            var lastRender = System.Diagnostics.Stopwatch.GetTimestamp();
+            var dirty = false;
+
             await foreach (var token in Source.WithCancellation(ct))
             {
-                var value = reader.Append(token);
-                Apply(AiState.Streaming, value, complete: false, raw: reader.Buffer);
+                reader.AppendRaw(token);
+                dirty = true;
+
+                if (ThrottleMs <= 0 ||
+                    System.Diagnostics.Stopwatch.GetElapsedTime(lastRender).TotalMilliseconds >= ThrottleMs)
+                {
+                    Apply(AiState.Streaming, reader.Snapshot(), complete: false, raw: reader.Buffer);
+                    lastRender = System.Diagnostics.Stopwatch.GetTimestamp();
+                    dirty = false;
+                }
             }
+
+            if (dirty)
+                Apply(AiState.Streaming, reader.Snapshot(), complete: false, raw: reader.Buffer);
         }
         catch (OperationCanceledException) { return; }
         catch { Apply(AiState.None, _snapshot.Value, complete: false, raw: _snapshot.Raw); return; }
 
-        Apply(AiState.Generated, reader.Current, complete: true, raw: reader.Buffer);
+        Apply(AiState.Generated, reader.Snapshot(), complete: true, raw: reader.Buffer);
 
         try { await Task.Delay(SettleDelayMs, ct); }
         catch (OperationCanceledException) { return; }

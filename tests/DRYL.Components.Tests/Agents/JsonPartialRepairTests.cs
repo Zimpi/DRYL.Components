@@ -40,9 +40,20 @@ public class JsonPartialRepairTests
     }
 
     [Fact]
-    public void Half_written_number_value_is_dropped()
+    public void Half_written_number_keeps_its_complete_numeric_prefix()
     {
+        // "12." is incomplete, but dropping the field would flicker price -> null -> value as
+        // the rest streams in. The repair keeps the stable prefix "12" instead (shrink-guard).
         using var doc = Parse("""{"name":"x","price":12.""");
+        Assert.Equal("x", doc.RootElement.GetProperty("name").GetString());
+        Assert.Equal(12, doc.RootElement.GetProperty("price").GetInt32());
+    }
+
+    [Fact]
+    public void Number_with_no_complete_prefix_is_still_dropped()
+    {
+        // A bare sign / decimal point has no complete numeric prefix yet — drop the field.
+        using var doc = Parse("""{"name":"x","price":-""");
         Assert.Equal("x", doc.RootElement.GetProperty("name").GetString());
         Assert.False(doc.RootElement.TryGetProperty("price", out _));
     }

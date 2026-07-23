@@ -30,6 +30,58 @@ public sealed class DrylCanvasRun : DrylRunBase
         Raise();
     }
 
+    private bool _revealStarted;
+
+    /// <summary>
+    /// Starts a create generation. Unlike <see cref="BeginGeneration"/> alone, the next
+    /// <see cref="RevealSnapshot"/> begins a fresh, empty live tree — a create replaces whatever artifact was
+    /// there before. <see cref="Spec"/> is deliberately left untouched here (still <c>null</c> before the very
+    /// first artifact): the tree is only swapped once the first snapshot actually arrives, so a consumer that
+    /// keys create-vs-update on <c>Spec is null</c> still sees "no artifact yet" until generation produces one.
+    /// </summary>
+    internal void BeginCreate()
+    {
+        _revealStarted = false;
+        BeginGeneration();
+    }
+
+    /// <summary>
+    /// Create-streaming: incrementally reveals only the fully-streamed nodes of <paramref name="snapshot"/>
+    /// into the live <see cref="Spec"/> (see <see cref="CanvasStreamReveal"/>). Raises only when a new node
+    /// is revealed, so the artifact fades in element by element instead of flickering as a half-parsed tree.
+    /// The first reveal of a generation starts from a fresh empty tree.
+    /// </summary>
+    internal void RevealSnapshot(CanvasSpec snapshot)
+    {
+        if (!_revealStarted)
+        {
+            Spec = new CanvasSpec();
+            _revealStarted = true;
+        }
+
+        if (CanvasStreamReveal.Reveal(Spec!, snapshot, streamDone: false))
+            Raise();
+    }
+
+    /// <summary>
+    /// Create path completion: flushes <paramref name="final"/> into the live tree — revealing the last
+    /// node each level was still withholding while keeping every already-revealed instance frozen — then
+    /// bumps <see cref="Round"/> and settles at <see cref="AiState.Generated"/>.
+    /// </summary>
+    internal void CompleteReveal(CanvasSpec final)
+    {
+        if (!_revealStarted)
+        {
+            Spec = new CanvasSpec();
+            _revealStarted = true;
+        }
+
+        CanvasStreamReveal.Reveal(Spec!, final, streamDone: true);
+        Round++;
+        State = AiState.Generated;
+        Raise();
+    }
+
     /// <summary>
     /// Applies one patch op to the live <see cref="Spec"/> via <see cref="CanvasPatcher"/>, tracking the
     /// affected id in <see cref="ChangedIds"/> on success. Returns null on success, otherwise a
