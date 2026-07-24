@@ -48,6 +48,7 @@ internal static class CanvasStreamReveal
         else if (!streamDone && PropsDiffer(live.Root.Props, snapRoot.Props))
         {
             live.Root.Props = snapRoot.Props;
+            live.Root.Version++;
             changed = true;
         }
 
@@ -75,6 +76,7 @@ internal static class CanvasStreamReveal
             if (existing is null)
             {
                 liveParent.Children.Add(s);   // freeze the whole complete subtree by reference
+                liveParent.Version++;
                 changed = true;
             }
             else
@@ -97,11 +99,13 @@ internal static class CanvasStreamReveal
                 {
                     liveTail = Shell(tail);
                     liveParent.Children.Add(liveTail);
+                    liveParent.Version++;
                     changed = true;
                 }
                 else if (PropsDiffer(liveTail.Props, tail.Props))
                 {
                     liveTail.Props = tail.Props;
+                    liveTail.Version++;
                     changed = true;
                 }
 

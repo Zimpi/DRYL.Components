@@ -128,4 +128,72 @@ public class CanvasVersionTests
         Assert.Empty(grp.Children!);
         Assert.Equal(grpV + 1, grp.Version);
     }
+
+    [Fact]
+    public void Reveal_adding_a_child_bumps_the_live_parent()
+    {
+        var live = new CanvasSpec();
+        CanvasStreamReveal.Reveal(live, Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"d2","type":"divider"}]}}
+            """), streamDone: false);
+        var root = live.Root!;
+        Assert.Single(root.Children!);   // d2 (streaming tail leaf) is withheld
+        var v = root.Version;
+
+        CanvasStreamReveal.Reveal(live, Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"d2","type":"divider"},
+                {"id":"d3","type":"divider"}]}}
+            """), streamDone: false);
+
+        Assert.Equal(2, root.Children!.Count);
+        Assert.Equal(v + 1, root.Version);
+    }
+
+    [Fact]
+    public void Reveal_updating_tail_props_bumps_the_live_tail()
+    {
+        var live = new CanvasSpec();
+        CanvasStreamReveal.Reveal(live, Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"c1","type":"card","props":{"title":"A"},"children":[]}]}}
+            """), streamDone: false);
+        var tail = live.Root!.Children![1];
+        var v = tail.Version;
+
+        CanvasStreamReveal.Reveal(live, Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"c1","type":"card","props":{"title":"AB"},"children":[]}]}}
+            """), streamDone: false);
+
+        Assert.Equal(v + 1, tail.Version);
+        Assert.Equal("AB", tail.Props!.Value.GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public void Reveal_updating_root_props_bumps_the_root()
+    {
+        var live = new CanvasSpec();
+        CanvasStreamReveal.Reveal(live, Parse("""
+            {"root":{"id":"root","type":"stack","props":{"gap":"sm"},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"d2","type":"divider"}]}}
+            """), streamDone: false);
+        var root = live.Root!;
+        var v = root.Version;
+
+        // Same children, only the root's props change -> exactly one bump.
+        CanvasStreamReveal.Reveal(live, Parse("""
+            {"root":{"id":"root","type":"stack","props":{"gap":"md"},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"d2","type":"divider"}]}}
+            """), streamDone: false);
+
+        Assert.Equal(v + 1, root.Version);
+    }
 }
