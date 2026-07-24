@@ -14,9 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.10.1] — 2026-07-24
+
 ### Added
 - `DrylAiGenerate<T>` — (Agents 0.8.0) New `ThrottleMs` parameter (default 66 ≈ 15fps): fast token bursts are coalesced to this budget so structured streaming no longer fires one Blazor Server re-render (and full re-parse) per token, bounding circuit/SignalR load; a slow stream still renders every token and the final snapshot always renders. Set `0` to render on every token.
 - `PartialJsonReader<T>` — (Agents 0.8.0) New `AppendRaw` / `Snapshot` split so buffering (cheap, per token) is decoupled from repair+deserialize (per render frame); `Snapshot` is memoized to skip re-parsing an unchanged buffer. `Append` still works as before.
+
+### Changed
+- `DrylAiCanvas` — (Agents 0.8.1) Canvas nodes memoize catalog validation and props deserialization on a new internal mutation stamp (`CanvasNode.Version`, bumped by patcher/reveal/purge): JSON parsing and validation now run only when a node actually changes, not on every render — during create streaming this removes O(nodes × deltas) re-parses.
+- `DrylMarkdown` — Unchanged `Content` no longer re-parses through Markdig on every parent render; the parse runs only when the content actually changes.
 
 ### Fixed
 - `PartialJsonReader<T>` — (Agents 0.8.0) An incomplete trailing number no longer flickers its field value → `null` → value mid-stream (e.g. while `12.5` streams as `12` / `12.` / `12.5`): the repair keeps the longest complete numeric prefix instead of dropping the field.
