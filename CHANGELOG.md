@@ -14,6 +14,19 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.10.2] — 2026-07-25
+
+### Changed
+- Canvas prompt — (Agents 0.8.2) `valueFormat` is now documented as a `{value}` display template with examples, and duplicate node ids in a generated artifact are reported back to the model in the create receipt so it can repair them via `update_artifact`.
+
+### Fixed
+- `DrylLineChart` / `DrylBarChart` / `DrylAreaChart` / `DrylDonutChart` — `ValueFormat` now supports `{value}` templates (e.g. `"€{value} Tsd"`, `"{value}%"`, optional inner .NET format `"{value:0.0}"`) in addition to plain .NET format strings; AI-authored templates no longer render the literal `{value}` placeholder into axes and tooltips.
+- `DrylDonutChart` — The tooltip/aria-label percentage is always plain-formatted, so a percent-style `ValueFormat` no longer produces duplicated `%` signs.
+- `DrylAiCanvas` — (Agents 0.8.2) Nodes that stay invalid after a generation settles now show a compact error placeholder with the catalog's corrective message instead of an endless "waiting…" skeleton (the skeleton remains while streaming).
+- `DrylAiCanvas` — (Agents 0.8.2) Cancelling a generation mid-stream settles the run back to idle instead of leaving the canvas stuck in "Building".
+- `DrylAiCanvas` — (Agents 0.8.2) A fresh `create_artifact` resets the interactive form state, so a recycled field name no longer shows the previous artifact's user input over the new AI-provided value.
+- `DrylAiCanvas` — (Agents 0.8.2) A container revealed as a streaming shell (and the root) now has its props final-synced when the stream completes — e.g. a card title that finished late now lands.
+
 ## [2.10.1] — 2026-07-24
 
 ### Added
