@@ -162,6 +162,7 @@ public sealed class DrylCanvasRun : DrylRunBase
             if (node.Children[i].Id == id)
             {
                 node.Children.RemoveAt(i);
+                node.Version++;
                 return true;
             }
         }

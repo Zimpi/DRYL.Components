@@ -114,4 +114,18 @@ public class CanvasVersionTests
         Assert.Equal(g1V + 1, g1.Version);
         Assert.Equal(g2V + 1, g2.Version);
     }
+
+    [Fact]
+    public void Purge_bumps_the_parent()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Spec());
+        var grp = run.Spec!.Root!.Children![1];
+        var grpV = grp.Version;
+
+        run.Purge("b");
+
+        Assert.Empty(grp.Children!);
+        Assert.Equal(grpV + 1, grp.Version);
+    }
 }
