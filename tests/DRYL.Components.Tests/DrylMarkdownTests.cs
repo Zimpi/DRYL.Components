@@ -71,4 +71,17 @@ public class DrylMarkdownTests : BunitContext
         Assert.Null(ex);
         Assert.Contains("12%", cut.Markup);
     }
+
+    [Fact]
+    public void Unchanged_content_is_not_reparsed()
+    {
+        var cut = Render<DrylMarkdown>(ps => ps.Add(p => p.Content, "# Hi"));
+        var count = cut.Instance.ParseCount;
+
+        cut.Render(ps => ps.Add(p => p.Content, "# Hi"));
+        Assert.Equal(count, cut.Instance.ParseCount);
+
+        cut.Render(ps => ps.Add(p => p.Content, "# Hi there"));
+        Assert.Equal(count + 1, cut.Instance.ParseCount);
+    }
 }

@@ -68,6 +68,12 @@
         .Build();
 
     private readonly List<Segment> _segments = new();
+    private string? _lastContent;
+    private int _parseCount;
+
+    /// <summary>Total Markdig parses performed — test seam for the content memo.</summary>
+    internal int ParseCount => _parseCount;
+
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
@@ -81,7 +87,11 @@
         // Keep the aura mounted (and fading) for one beat after leaving AI mode so it
         // dissolves rather than snapping away when a completion settles back to None.
         _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
-        BuildSegments();
+        if (Content != _lastContent)
+        {
+            _lastContent = Content;
+            BuildSegments();
+        }
     }
 
     public void Dispose() => _aura.Dispose();
@@ -98,6 +108,7 @@
         // throws ArgumentException("invalid Unicode code points") on an unpaired
         // surrogate. Drop unpaired surrogates so the partial parse stays valid;
         // the next chunk delivers the pair and the character renders normally.
+        _parseCount++;
         var document = Markdown.Parse(StripLoneSurrogates(Content!), _pipeline);
 
         var sb = new StringBuilder();
