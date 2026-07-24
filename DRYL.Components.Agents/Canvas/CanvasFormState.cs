@@ -32,6 +32,14 @@ public sealed class CanvasFormState
     /// <summary>Returns a defensive copy of all current values.</summary>
     public IReadOnlyDictionary<string, object?> Snapshot() => new Dictionary<string, object?>(_values);
 
+    /// <summary>Removes all values and fires <see cref="OnChanged"/>. Internal — the canvas
+    /// calls this when a fresh artifact begins (see DrylCanvasRun.ArtifactEpoch).</summary>
+    internal void Clear()
+    {
+        _values.Clear();
+        OnChanged?.Invoke();
+    }
+
     /// <summary>Fired whenever a value is set via <see cref="Set"/>.</summary>
     public event Action? OnChanged;
 }

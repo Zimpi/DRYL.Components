@@ -223,6 +223,30 @@ public class DrylAiCanvasTests : BunitContext
     }
 
     [Fact]
+    public void Fresh_create_resets_form_state_and_reseeds_values()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"i1","type":"inputText","props":{"name":"region","label":"Region","value":"DE"}}]}}
+            """));
+        var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
+        Assert.Equal("DE", cut.Find("input").GetAttribute("value"));
+
+        cut.Find("input").Input("FR");   // user overwrites the seeded value
+
+        // Second artifact: SAME node id and field name, different AI-provided value.
+        cut.InvokeAsync(() => run.BeginCreate());
+        cut.InvokeAsync(() => run.RevealSnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"i1","type":"inputText","props":{"name":"region","label":"Region","value":"IT"}},
+                {"id":"d1","type":"divider"}]}}
+            """)));
+
+        cut.WaitForAssertion(() => Assert.Equal("IT", cut.Find("input").GetAttribute("value")));
+    }
+
+    [Fact]
     public void Tabs_shell_renders_once_its_children_stream_in()
     {
         var run = new DrylCanvasRun();

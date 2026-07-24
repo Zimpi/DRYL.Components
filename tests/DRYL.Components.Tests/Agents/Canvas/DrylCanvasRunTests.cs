@@ -265,6 +265,19 @@ public class DrylCanvasRunTests
         Assert.Null(run.Error);
     }
 
+    // ---- ArtifactEpoch ----
+
+    [Fact]
+    public void BeginCreate_bumps_the_artifact_epoch()
+    {
+        var run = new DrylCanvasRun();
+        var e0 = run.ArtifactEpoch;
+
+        run.BeginCreate();
+
+        Assert.Equal(e0 + 1, run.ArtifactEpoch);
+    }
+
     // ---- Purge ----
 
     [Fact]

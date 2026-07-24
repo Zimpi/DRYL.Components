@@ -269,7 +269,7 @@
     [CascadingParameter] internal CanvasFormState Form { get; set; } = default!;
     [CascadingParameter(Name = "CanvasIntent")] internal EventCallback<CanvasInteraction> OnIntent { get; set; }
 
-    private bool _seeded;
+    private CanvasNode? _seededNode;
 
     // Parse + validate only on mutation: the patcher/reveal layers bump
     // CanvasNode.Version on every successful change (own props or children list),
@@ -294,13 +294,16 @@
 
     protected override void OnParametersSet() => SeedFormOnce();
 
-    // Interactive nodes seed their form value from the node's `value` prop exactly once,
-    // and only when the field has no value yet — so a later re-render (or a patch to an
-    // unrelated prop) never clobbers what the user has typed.
+    // Interactive nodes seed their form value from the node's `value` prop, and only when
+    // the field has no value yet — so a later re-render (or a patch to an unrelated prop)
+    // never clobbers what the user has typed.
+    // Seed once per node INSTANCE: Blazor reuses this view across whole-tree
+    // replacements (same trap as the memo identity check), so a bool flag would
+    // suppress seeding for a new artifact's node with a recycled id.
     private void SeedFormOnce()
     {
-        if (_seeded) return;
-        _seeded = true;
+        if (ReferenceEquals(_seededNode, Node)) return;
+        _seededNode = Node;
         if (!CanvasCatalog.IsInteractive(Node.Type)) return;
 
         switch (Node.Type)

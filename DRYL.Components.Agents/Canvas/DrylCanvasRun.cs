@@ -31,6 +31,11 @@ public sealed class DrylCanvasRun : DrylRunBase
     }
 
     private bool _revealStarted;
+    private int _artifactEpoch;
+
+    /// <summary>Monotonic counter bumped by every <see cref="BeginCreate"/> — the canvas watches
+    /// it to reset interactive form state for a fresh artifact.</summary>
+    internal int ArtifactEpoch => _artifactEpoch;
 
     /// <summary>
     /// Starts a create generation. Unlike <see cref="BeginGeneration"/> alone, the next
@@ -41,6 +46,7 @@ public sealed class DrylCanvasRun : DrylRunBase
     /// </summary>
     internal void BeginCreate()
     {
+        _artifactEpoch++;
         _revealStarted = false;
         BeginGeneration();
     }
