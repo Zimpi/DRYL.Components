@@ -61,3 +61,14 @@
     color: var(--fg-dim);
     font-size: 13px;
 }
+
+/* Settled-but-invalid node: a quiet, honest placeholder instead of an endless
+   "waiting…" skeleton. The text is the catalog's corrective message. */
+::deep .canvas-invalid {
+    display: block;
+    padding: var(--sp-3);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-md);
+    color: var(--fg-dim);
+    font-size: 13px;
+}

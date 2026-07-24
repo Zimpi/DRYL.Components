@@ -11,9 +11,10 @@
     it glides in on mount and plays its exit animation on removal;
     the `data-cid` attribute is the FLIP move anchor for the JS layer.
 
-    Nodes that don't yet validate (still streaming, or malformed props)
-    render a skeleton placeholder with a "waiting for {type}…" caption —
-    the same visual for both the in-flight and the invalid state.
+    Nodes that don't yet validate while the run is streaming render a skeleton
+    placeholder with a "waiting for {type}…" caption; once the run has settled
+    (Generated / None) an invalid node is finished-broken and shows a compact
+    .canvas-invalid placeholder carrying the catalog's corrective message.
 
     The shared pieces (Run, Form, intent callback) arrive as cascading
     values from DrylAiCanvas and flow down to child views automatically.
@@ -32,8 +33,16 @@
         }
         @if (error is not null)
         {
-            <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" Ai="AiState.Streaming" />
-            <span class="canvas-waiting">@($"waiting for {Node.Type}…")</span>
+            @if (Run.State is AiState.Streaming or AiState.Thinking)
+            {
+                <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" Ai="AiState.Streaming" />
+                <span class="canvas-waiting">@($"waiting for {Node.Type}…")</span>
+            }
+            else
+            {
+                @* Settled and still invalid — finished-broken, not loading. *@
+                <span class="canvas-invalid">@error</span>
+            }
         }
         else
         {

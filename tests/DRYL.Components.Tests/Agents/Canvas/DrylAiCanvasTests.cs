@@ -51,19 +51,43 @@ public class DrylAiCanvasTests : BunitContext
     }
 
     [Fact]
-    public void Invalid_node_renders_skeleton_fallback()
+    public void Invalid_node_renders_skeleton_fallback_while_streaming()
     {
         var run = new DrylCanvasRun();
-        // A stat with no value fails CanvasCatalog.Validate → same state as "still streaming".
-        run.ApplySnapshot(Parse("""
-            {"root":{"id":"root","type":"stack","children":[
-                {"id":"bad","type":"stat","props":{"label":"only a label"}}]}}
+        run.BeginCreate();
+        // An invalid node in the complete zone (a later sibling follows) mid-stream:
+        // still shown as the "waiting" skeleton.
+        run.RevealSnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"bad","type":"stat","props":{"label":"only a label"}},
+                {"id":"ok","type":"divider"}]}}
             """));
 
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
 
         Assert.Contains("waiting for stat", cut.Markup);
         Assert.NotEmpty(cut.FindAll(".skel-wrap"));
+        Assert.Empty(cut.FindAll(".canvas-invalid"));
+    }
+
+    [Fact]
+    public void Invalid_node_shows_error_placeholder_once_settled()
+    {
+        var run = new DrylCanvasRun();
+        // A completed create settles the run at AiState.Generated with the final spec —
+        // an invalid node is finished-broken, not streaming. (A bare ApplySnapshot would
+        // NOT do: a fresh run starts at AiState.Thinking, which is still "in flight".)
+        run.BeginCreate();
+        run.CompleteReveal(Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"bad","type":"stat","props":{"label":"only a label"}}]}}
+            """));
+
+        var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
+
+        Assert.Empty(cut.FindAll(".canvas-waiting"));
+        var placeholder = cut.Find(".canvas-invalid");
+        Assert.Contains("value must be non-empty", placeholder.TextContent);
     }
 
     [Fact]
