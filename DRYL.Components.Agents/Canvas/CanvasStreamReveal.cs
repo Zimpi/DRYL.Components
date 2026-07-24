@@ -45,7 +45,7 @@ internal static class CanvasStreamReveal
             live.Root = Shell(snapRoot);
             changed = true;
         }
-        else if (!streamDone && PropsDiffer(live.Root.Props, snapRoot.Props))
+        else if (PropsDiffer(live.Root.Props, snapRoot.Props))
         {
             live.Root.Props = snapRoot.Props;
             live.Root.Version++;
@@ -81,8 +81,17 @@ internal static class CanvasStreamReveal
             }
             else
             {
-                // A container we had shown as a still-filling shell has now completed: flush any child it
-                // was still withholding, then it is sealed (this recursion is idempotent thereafter).
+                // A container we had shown as a still-filling shell has now completed:
+                // its own props may have finished growing since the shell was seeded —
+                // sync them (a reference-frozen node is the same instance as s, so
+                // PropsDiffer is false there and this is a no-op).
+                if (PropsDiffer(existing.Props, s.Props))
+                {
+                    existing.Props = s.Props;
+                    existing.Version++;
+                    changed = true;
+                }
+                // …then flush any child it was still withholding; sealed thereafter.
                 changed |= RevealChildren(existing, s, streamDone: true);
             }
         }

@@ -201,4 +201,54 @@ public class CanvasStreamRevealTests
         run.RevealSnapshot(Spec("""{"title":"Sales Q3","root":{"id":"root","type":"stack","children":[]}}"""));
         Assert.Equal("Sales Q3", run.Spec!.Title);
     }
+
+    // ---- a former shell's own props final-sync when it enters the complete zone ----
+
+    [Fact]
+    public void Complete_zone_syncs_props_of_a_former_shell()
+    {
+        var run = new DrylCanvasRun();
+        run.BeginCreate();
+
+        // c1 is the streaming tail container -> revealed as a shell with partial props.
+        run.RevealSnapshot(Spec("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"c1","type":"card","props":{"title":"A"},"children":[]}]}}
+            """));
+
+        // A later sibling starts -> c1 becomes complete; its props finished growing meanwhile.
+        run.RevealSnapshot(Spec("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"c1","type":"card","props":{"title":"AB"},"children":[
+                    {"id":"x","type":"divider"}]},
+                {"id":"d2","type":"divider"}]}}
+            """));
+
+        var c1 = Child(run, "c1")!;
+        Assert.Equal("AB", c1.Props!.Value.GetProperty("title").GetString());
+    }
+
+    // ---- the done flush syncs root props too ----
+
+    [Fact]
+    public void Done_flush_syncs_root_props()
+    {
+        var run = new DrylCanvasRun();
+        run.BeginCreate();
+        run.RevealSnapshot(Spec("""
+            {"root":{"id":"root","type":"stack","props":{"gap":"sm"},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"d2","type":"divider"}]}}
+            """));
+
+        run.CompleteReveal(Spec("""
+            {"root":{"id":"root","type":"stack","props":{"gap":"lg"},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"d2","type":"divider"}]}}
+            """));
+
+        Assert.Equal("lg", run.Spec!.Root!.Props!.Value.GetProperty("gap").GetString());
+    }
 }
