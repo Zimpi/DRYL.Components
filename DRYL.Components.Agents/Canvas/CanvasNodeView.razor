@@ -266,13 +266,17 @@
     // CanvasNode.Version on every successful change (own props or children list),
     // so an unchanged stamp means both memos are still valid.
     private int _memoVersion = -1;
+    private CanvasNode? _memoNode;
     private string? _memoError;
     private Type? _memoPropsType;
     private object? _memoProps;
 
     private void EnsureMemo()
     {
-        if (_memoVersion == Node.Version) return;
+        // Identity AND stamp: Blazor reuses this view for a different node instance
+        // (whole-tree replacement recycles ids), so the stamp alone is not a safe key.
+        if (ReferenceEquals(_memoNode, Node) && _memoVersion == Node.Version) return;
+        _memoNode = Node;
         _memoVersion = Node.Version;
         _memoError = CanvasCatalog.Validate(Node);
         _memoProps = null;

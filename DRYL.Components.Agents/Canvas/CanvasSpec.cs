@@ -40,6 +40,6 @@ public sealed class CanvasNode
 
     /// <summary>Transient mutation stamp — bumped by every successful patcher/reveal/purge
     /// mutation touching this node (own props or its children list). Renderers memoize
-    /// parse + validation work on it. Never serialized.</summary>
+    /// parse + validation work on node instance identity PLUS this stamp. Never serialized.</summary>
     [JsonIgnore] internal int Version { get; set; }
 }

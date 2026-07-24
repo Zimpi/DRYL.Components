@@ -175,6 +175,30 @@ public class DrylAiCanvasTests : BunitContext
     }
 
     [Fact]
+    public void Replaced_tree_with_same_ids_renders_new_content()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"m","type":"markdown","props":{"content":"Old Q2 text"}}]}}
+            """));
+        var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
+        Assert.Contains("Old Q2 text", cut.Markup);
+
+        // Whole-tree replacement (second create) — same ids, same (zero) version stamps.
+        cut.InvokeAsync(() => run.ApplySnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"m","type":"markdown","props":{"content":"New Q3 text"}}]}}
+            """)));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("New Q3 text", cut.Markup);
+            Assert.DoesNotContain("Old Q2 text", cut.Markup);
+        });
+    }
+
+    [Fact]
     public void Tabs_shell_renders_once_its_children_stream_in()
     {
         var run = new DrylCanvasRun();

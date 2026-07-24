@@ -25,6 +25,7 @@ Version bump guide:
 - `DrylMarkdown` — Unchanged `Content` no longer re-parses through Markdig on every parent render; the parse runs only when the content actually changes.
 
 ### Fixed
+- `DrylAiCanvas` — (Agents 0.8.1) A second `create_artifact` whose tree reuses node ids from the previous artifact no longer renders the old artifact's content: the canvas node's parse/validation memo now keys on node instance identity in addition to the `CanvasNode.Version` stamp, so Blazor's component reuse across whole-tree replacements cannot hit a stale memo.
 - `PartialJsonReader<T>` — (Agents 0.8.0) An incomplete trailing number no longer flickers its field value → `null` → value mid-stream (e.g. while `12.5` streams as `12` / `12.` / `12.5`): the repair keeps the longest complete numeric prefix instead of dropping the field.
 - `DrylAiCanvas` — (Agents 0.8.0) `create_artifact` streaming no longer flickers as the artifact fills in. Instead of replacing the whole spec and re-rendering the half-parsed tree on every token, the canvas now reveals one **complete** node at a time (recursively, leaf level): within each container the still-streaming last child is withheld — a leaf until it finishes, a container as an empty shell that fills — and already-revealed nodes keep their instance (frozen) so settled parts don't re-render or replay their reveal animation. Each finished element fades in on its own, matching the `update_artifact` choreography.
 
