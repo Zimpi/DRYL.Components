@@ -109,7 +109,7 @@ public sealed class DrylCanvasTools
                 : receipt + " Some elements were invalid and are shown as placeholders — fix via update_artifact: "
                   + string.Join(" ", problems.Take(3));
         }
-        catch (OperationCanceledException) { throw; }
+        catch (OperationCanceledException) { _run.CancelGeneration(); throw; }
         catch (Exception ex)
         {
             _run.FailGeneration(ex);
@@ -167,7 +167,7 @@ public sealed class DrylCanvasTools
             return skipped.Count == 0 ? receipt
                 : receipt + $" {skipped.Count} ops skipped: " + string.Join(" ", skipped.Take(3));
         }
-        catch (OperationCanceledException) { throw; }
+        catch (OperationCanceledException) { _run.CancelGeneration(); throw; }
         catch (Exception ex)
         {
             _run.FailGeneration(ex);

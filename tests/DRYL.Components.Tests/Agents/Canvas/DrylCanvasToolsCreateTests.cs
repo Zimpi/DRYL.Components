@@ -175,6 +175,7 @@ public class DrylCanvasToolsCreateTests
             () => fn.InvokeAsync(new AIFunctionArguments(args!)).AsTask());
 
         Assert.Null(run.Error);
+        Assert.Equal(AiState.None, run.State);   // settled, not stuck "Building"
     }
 
     // ---- registration ----

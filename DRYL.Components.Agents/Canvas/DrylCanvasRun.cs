@@ -141,6 +141,16 @@ public sealed class DrylCanvasRun : DrylRunBase
     }
 
     /// <summary>
+    /// Settles a cancelled generation: state returns to <see cref="AiState.None"/> without an
+    /// error — the artifact stays as it was and a later generation may continue.
+    /// </summary>
+    internal void CancelGeneration()
+    {
+        State = AiState.None;
+        Raise();
+    }
+
+    /// <summary>
     /// Drops a node (already flagged <see cref="CanvasNode.Removing"/>) from its parent's children
     /// once its exit animation has finished. Unknown or root ids are a no-op — an exit animation may
     /// race a fresh create.

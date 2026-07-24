@@ -155,4 +155,31 @@ public class DrylCanvasToolsUpdateTests
         Assert.True(node.Removing);
         Assert.Equal(AiState.Generated, run.State);
     }
+
+    [Fact]
+    public async Task Update_rethrows_cancellation_and_settles_the_run()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(System.Text.Json.JsonSerializer.Deserialize<CanvasSpec>(
+            """{"root":{"id":"root","type":"stack","children":[]}}""", CanvasJson.Options)!);
+
+        static async IAsyncEnumerable<string> Cancelling()
+        {
+            await Task.Yield();
+            throw new OperationCanceledException();
+#pragma warning disable CS0162
+            yield break;
+#pragma warning restore CS0162
+        }
+
+        var tools = DrylCanvasTools.CreateReplay(run, (_, _) => Cancelling());
+        var fn = (AIFunction)tools.UpdateArtifact;
+        var args = new Dictionary<string, object?> { ["brief"] = "anything" };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => fn.InvokeAsync(new AIFunctionArguments(args!)).AsTask());
+
+        Assert.Null(run.Error);
+        Assert.Equal(AiState.None, run.State);
+    }
 }
