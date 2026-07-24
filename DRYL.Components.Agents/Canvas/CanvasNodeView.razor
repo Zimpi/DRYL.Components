@@ -27,7 +27,8 @@
               OnExited="PurgeSelf">
     <div class="canvas-node" data-cid="@Node.Id">
         @{
-            var error = CanvasCatalog.Validate(Node);
+            EnsureMemo();
+            var error = _memoError;
         }
         @if (error is not null)
         {
@@ -261,6 +262,23 @@
 
     private bool _seeded;
 
+    // Parse + validate only on mutation: the patcher/reveal layers bump
+    // CanvasNode.Version on every successful change (own props or children list),
+    // so an unchanged stamp means both memos are still valid.
+    private int _memoVersion = -1;
+    private string? _memoError;
+    private Type? _memoPropsType;
+    private object? _memoProps;
+
+    private void EnsureMemo()
+    {
+        if (_memoVersion == Node.Version) return;
+        _memoVersion = Node.Version;
+        _memoError = CanvasCatalog.Validate(Node);
+        _memoProps = null;
+        _memoPropsType = null;
+    }
+
     protected override void OnParametersSet() => SeedFormOnce();
 
     // Interactive nodes seed their form value from the node's `value` prop exactly once,
@@ -317,10 +335,15 @@
 
     private T? Props<T>() where T : class
     {
+        EnsureMemo();
+        if (_memoPropsType == typeof(T)) return (T?)_memoProps;
+
         var json = Node.Props is { } p && p.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             ? p.GetRawText()
             : "{}";
         DisplayJson.TryParse<T>(json, out var value);
+        _memoProps = value;
+        _memoPropsType = typeof(T);
         return value;
     }
 

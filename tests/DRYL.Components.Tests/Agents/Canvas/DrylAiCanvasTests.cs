@@ -153,4 +153,56 @@ public class DrylAiCanvasTests : BunitContext
             Assert.Single(spec.Root!.Children!); // only "a" remains after Purge
         });
     }
+
+    [Fact]
+    public void Patched_node_renders_its_new_props()
+    {
+        var run = new DrylCanvasRun();
+        run.ApplySnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"s1","type":"stat","props":{"label":"Revenue","value":"€10k"}}]}}
+            """));
+        var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
+        Assert.Contains("€10k", cut.Markup);
+
+        cut.InvokeAsync(() => run.ApplyOp(new CanvasOp
+        {
+            Op = "setProps", Id = "s1",
+            Props = JsonSerializer.Deserialize<JsonElement>("""{ "value": "€12k" }"""),
+        }));
+
+        cut.WaitForAssertion(() => Assert.Contains("€12k", cut.Markup));
+    }
+
+    [Fact]
+    public void Tabs_shell_renders_once_its_children_stream_in()
+    {
+        var run = new DrylCanvasRun();
+        run.BeginCreate();
+        // The streaming tail is a tabs shell whose labels are known but whose
+        // children have not started -> invalid (labels.Count != children.Count),
+        // shown as a "waiting" skeleton.
+        run.RevealSnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"t","type":"tabs","props":{"labels":["One","Two"]},"children":[]}]}}
+            """));
+        var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
+        Assert.Contains("waiting for tabs", cut.Markup);
+
+        cut.InvokeAsync(() => run.RevealSnapshot(Parse("""
+            {"root":{"id":"root","type":"stack","props":{},"children":[
+                {"id":"d1","type":"divider"},
+                {"id":"t","type":"tabs","props":{"labels":["One","Two"]},"children":[
+                    {"id":"t1","type":"divider"},
+                    {"id":"t2","type":"divider"}]},
+                {"id":"d2","type":"divider"}]}}
+            """)));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll(".canvas-waiting"));
+            Assert.Contains("One", cut.Markup);
+        });
+    }
 }
