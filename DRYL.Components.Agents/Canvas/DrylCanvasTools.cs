@@ -93,11 +93,14 @@ public sealed class DrylCanvasTools
                 throw new InvalidOperationException("generator returned no artifact root");
 
             var problems = new List<string>();
+            var seenIds = new HashSet<string>(StringComparer.Ordinal);
             int nodes = 0, interactive = 0;
             Walk(final.Root, n =>
             {
                 nodes++;
                 if (CanvasCatalog.IsInteractive(n.Type)) interactive++;
+                if (!seenIds.Add(n.Id))
+                    problems.Add($"duplicate id '{n.Id}' — ids must be unique across the artifact.");
                 if (CanvasCatalog.Validate(n) is { } e) problems.Add(e);
             });
             _run.CompleteReveal(final);

@@ -27,8 +27,8 @@ internal static class CanvasPrompt
         - progress { "value": number 0..100, "label": string? }
         - table { "columns": string[], "rows": string[][] } — max 30 rows.
         - timeline { "events": [{ "title": string, "timestamp": string?, "text": string?, "kind": "default"|"success"|"warning"|"danger"? }] }
-        - lineChart|areaChart|barChart { "title": string?, "labels": string[], "series": [{ "name": string, "data": number[] }], "valueFormat": string? } — one value per label.
-        - donutChart { "title": string?, "segments": [{ "label": string, "value": number }], "valueFormat": string? } — max 6 segments.
+        - lineChart|areaChart|barChart { "title": string?, "labels": string[], "series": [{ "name": string, "data": number[] }], "valueFormat": string? } — one value per label. "valueFormat" is a display template: put {value} where the number goes, e.g. "€{value} Tsd" or "{value}%".
+        - donutChart { "title": string?, "segments": [{ "label": string, "value": number }], "valueFormat": string? } — max 6 segments. Same {value} display template for "valueFormat".
         - inputText { "name": string, "label": string, "placeholder": string?, "value": string? }
         - select { "name": string, "label": string, "options": string[], "value": string? }
         - slider { "name": string, "label": string, "min": number, "max": number, "step": number?, "value": number? }

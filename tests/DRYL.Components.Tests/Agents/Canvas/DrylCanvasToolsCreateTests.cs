@@ -80,6 +80,26 @@ public class DrylCanvasToolsCreateTests
         Assert.Contains("must be between 0 and 100", receipt);
     }
 
+    // ---- duplicate ids in final spec ----
+
+    [Fact]
+    public async Task Create_reports_duplicate_ids_in_receipt()
+    {
+        var run = new DrylCanvasRun();
+        var full = """
+            {"title":"T","root":{"id":"root","type":"stack","children":[
+            {"id":"a","type":"stat","props":{"label":"L","value":"1"}},
+            {"id":"a","type":"divider"}]}}
+            """;
+
+        var tools = DrylCanvasTools.CreateReplay(run, (_, _) => Script(full));
+
+        var receipt = await InvokeAsync(tools.CreateArtifact, "dup ids");
+
+        Assert.Equal(AiState.Generated, run.State);
+        Assert.Contains("duplicate id 'a'", receipt);
+    }
+
     // ---- malformed stream tail (real-model behavior) ----
 
     [Fact]
