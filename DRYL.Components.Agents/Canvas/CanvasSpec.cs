@@ -37,4 +37,9 @@ public sealed class CanvasNode
 
     /// <summary>Transient exit flag: node plays its exit animation, then is purged. Never serialized.</summary>
     [JsonIgnore] public bool Removing { get; set; }
+
+    /// <summary>Transient mutation stamp — bumped by every successful patcher/reveal/purge
+    /// mutation touching this node (own props or its children list). Renderers memoize
+    /// parse + validation work on it. Never serialized.</summary>
+    [JsonIgnore] internal int Version { get; set; }
 }

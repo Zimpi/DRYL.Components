@@ -44,6 +44,7 @@ public static class CanvasPatcher
             return error;
         }
 
+        node.Version++;
         return null;
     }
 
@@ -85,6 +86,7 @@ public static class CanvasPatcher
             return parentError;
         }
 
+        parent.Version++;
         return null;
     }
 
@@ -100,6 +102,7 @@ public static class CanvasPatcher
             return $"op 'remove': no node with id '{op.Id}'.";
 
         node.Removing = true;
+        node.Version++;
         return null;
     }
 
@@ -143,6 +146,8 @@ public static class CanvasPatcher
             return error;
         }
 
+        oldParent.Version++;
+        newParent.Version++;
         return null;
     }
 
