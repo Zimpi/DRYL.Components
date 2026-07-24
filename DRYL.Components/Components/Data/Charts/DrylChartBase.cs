@@ -21,8 +21,10 @@ public abstract class DrylChartBase : DrylAiAware, IDisposable
     [Parameter] public bool? ShowLegend { get; set; }
 
     /// <summary>
-    /// .NET format string for axis ticks and tooltip values (e.g. "N0", "C0").
-    /// Display values are intentionally culture-aware.
+    /// Display format for axis ticks and tooltip values: either a .NET format string
+    /// (e.g. "N0", "C0") or a template with a <c>{value}</c> placeholder where the number
+    /// goes (e.g. "€{value} Tsd", "{value}%"), optionally with an inner .NET format
+    /// ("{value:0.0}"). Display values are intentionally culture-aware.
     /// </summary>
     [Parameter] public string? ValueFormat { get; set; }
 
@@ -63,9 +65,30 @@ public abstract class DrylChartBase : DrylAiAware, IDisposable
     /// <summary>Invariant-culture number for SVG/CSS interpolation.</summary>
     protected static string Inv(double v) => Internal.ChartMath.F(v);
 
-    /// <summary>Culture-aware display value for ticks and tooltips.</summary>
-    protected string FormatValue(double v) =>
-        ValueFormat is null ? v.ToString("0.##") : v.ToString(ValueFormat);
+    /// <summary>Culture-aware display value for ticks and tooltips — see <see cref="ValueFormat"/>.</summary>
+    protected string FormatValue(double v)
+    {
+        if (ValueFormat is null) return v.ToString("0.##");
+
+        var i = ValueFormat.IndexOf("{value", StringComparison.Ordinal);
+        if (i < 0) return v.ToString(ValueFormat);
+
+        var rest = ValueFormat.AsSpan(i + 6);
+        var end = rest.IndexOf('}');
+        if (end < 0) return v.ToString(ValueFormat);            // no closing brace — not a template
+
+        var inner = "0.##";
+        if (end > 0)
+        {
+            if (rest[0] != ':') return v.ToString(ValueFormat); // "{valueX}" — not our placeholder
+            inner = rest.Slice(1, end - 1).ToString();
+        }
+
+        return string.Concat(
+            ValueFormat.AsSpan(0, i),
+            v.ToString(inner),
+            ValueFormat.AsSpan(i + 6 + end + 1));
+    }
 
     /// <summary>
     /// Palette color for a series/segment. <paramref name="slot"/> is the 1-based

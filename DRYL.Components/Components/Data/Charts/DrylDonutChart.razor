@@ -41,6 +41,7 @@
                 var (lx, ly) = ChartMath.Polar(50, 50, ROuter * 0.75, mid);
                 var (dx, dy) = ChartMath.Polar(0, 0, 2, mid);
                 var pct = seg.Value / total * 100;
+                var pctText = Math.Round(pct).ToString("0.##");
                 var idx = n++;
                 angle += span;
                 <div class="donut-slice">
@@ -49,7 +50,7 @@
                               fill="@SlotColor(seg.ColorSlot, pos)"
                               tabindex="0"
                               role="img"
-                              aria-label="@($"{seg.Label}: {FormatValue(seg.Value)} ({FormatValue(Math.Round(pct))} %)")"
+                              aria-label="@($"{seg.Label}: {FormatValue(seg.Value)} ({pctText} %)")"
                               style="--dx:@(Inv(dx))px;--dy:@(Inv(dy))px;--i:@idx" />
                     </svg>
                     <div class="chart-tip donut-tip"
@@ -58,7 +59,7 @@
                         <div class="chart-tip-row">
                             <span class="chart-swatch" style="background:@SlotColor(seg.ColorSlot, pos)"></span>
                             <span class="chart-tip-name">@seg.Label</span>
-                            <span class="chart-tip-value">@FormatValue(seg.Value) · @FormatValue(Math.Round(pct)) %</span>
+                            <span class="chart-tip-value">@FormatValue(seg.Value) · @pctText %</span>
                         </div>
                     </div>
                 </div>

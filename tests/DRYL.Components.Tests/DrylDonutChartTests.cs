@@ -82,4 +82,15 @@ public class DrylDonutChartTests : BunitContext
         var d = cut.Find(".donut-slice path").GetAttribute("d")!;
         Assert.Contains("A0,0", d);
     }
+
+    [Fact]
+    public void Percent_value_format_does_not_duplicate_percent_signs()
+    {
+        var cut = Render<DrylDonutChart>(ps => ps
+            .Add(p => p.Segments, new[] { new ChartSegment("A", 80), new ChartSegment("B", 20) })
+            .Add(p => p.ValueFormat, "{value}%"));
+
+        var label = cut.Find(".donut-slice path").GetAttribute("aria-label");
+        Assert.Equal("A: 80% (80 %)", label);
+    }
 }
