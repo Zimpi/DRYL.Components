@@ -19,14 +19,16 @@ public sealed class DrylCanvasTools
     private readonly DrylCanvasRun _run;
     private readonly Func<string, CancellationToken, IAsyncEnumerable<string>> _generate;
     private readonly ICanvasDataService? _data;
+    private readonly ICanvasActionService? _actions;
 
     private DrylCanvasTools(
         DrylCanvasRun run, Func<string, CancellationToken, IAsyncEnumerable<string>> generate,
-        ICanvasDataService? data)
+        ICanvasDataService? data, ICanvasActionService? actions)
     {
         _run = run;
         _generate = generate;
         _data = data;
+        _actions = actions;
 
         CreateArtifact = AIFunctionFactory.Create(CreateArtifactImpl, "create_artifact",
             "Create a live visual artifact next to the chat — a card, chart, table or form the user " +
@@ -43,16 +45,22 @@ public sealed class DrylCanvasTools
 
     /// <summary>Create the tools; <paramref name="generator"/> runs the artifact generations
     /// (a fresh session per call — generations are stateless, the current spec travels in the prompt).</summary>
+    /// <param name="run">The run the generations write into.</param>
+    /// <param name="generator">The artifact generator agent.</param>
+    /// <param name="data">Registered host data sources the model may bind nodes to.</param>
+    /// <param name="actions">Registered host actions the model may wire buttons to. It can place
+    /// and label them; it can never trigger one — only a user press runs a command.</param>
     public static DrylCanvasTools Create(DrylCanvasRun run, AIAgent generator,
-                                        ICanvasDataService? data = null) =>
-        new(run, LiveGenerate(generator), data);
+                                        ICanvasDataService? data = null,
+                                        ICanvasActionService? actions = null) =>
+        new(run, LiveGenerate(generator), data, actions);
 
     /// <summary>Replay/demo/test seam: like <see cref="Create"/>, but generations come from
     /// <paramref name="generate"/> (prompt → raw JSON delta stream) instead of a live agent.</summary>
     public static DrylCanvasTools CreateReplay(
         DrylCanvasRun run, Func<string, CancellationToken, IAsyncEnumerable<string>> generate,
-        ICanvasDataService? data = null) =>
-        new(run, generate, data);
+        ICanvasDataService? data = null, ICanvasActionService? actions = null) =>
+        new(run, generate, data, actions);
 
     /// <summary>Create-artifact tool (<c>create_artifact</c>): runs a fresh structured-streaming
     /// generation and progressively fills <see cref="DrylCanvasRun.Spec"/> as it streams.</summary>
@@ -79,7 +87,8 @@ public sealed class DrylCanvasTools
             // Read the width per call, not per tool instance: the canvas may have been resized,
             // rotated or expanded to fullscreen since the last generation.
             await foreach (var delta in _generate(
-                CanvasPrompt.CreatePrompt(brief, title, _run.AvailableWidth, _data?.Descriptors), ct))
+                CanvasPrompt.CreatePrompt(brief, title, _run.AvailableWidth,
+                                          _data?.Descriptors, _actions?.Descriptors), ct))
             {
                 var snapshot = reader.Append(delta);
                 if (snapshot is not null) _run.RevealSnapshot(last = snapshot);
@@ -153,7 +162,8 @@ public sealed class DrylCanvasTools
             List<CanvasOp>? lastOps = null;
             var current = JsonSerializer.Serialize(_run.Spec, CanvasJson.Options);
             await foreach (var delta in _generate(
-                CanvasPrompt.UpdatePrompt(brief, current, _run.AvailableWidth, _data?.Descriptors), ct))
+                CanvasPrompt.UpdatePrompt(brief, current, _run.AvailableWidth,
+                                          _data?.Descriptors, _actions?.Descriptors), ct))
             {
                 var ops = reader.Append(delta)?.Ops;
                 if (ops is not null) lastOps = ops;
@@ -182,9 +192,8 @@ public sealed class DrylCanvasTools
             // The patcher validates each op's own shape; the binding check needs the finished
             // tree, because a $field may point at a node the same patch just inserted.
             var problems = new List<string>();
-            if (_data is not null && _run.Spec?.Root is { } root)
+            if (_run.Spec?.Root is { } root && ValidationContext(root) is { } context)
             {
-                var context = ValidationContext(root);
                 Walk(root, n =>
                 {
                     if (CanvasCatalog.Validate(n, context) is { } e) problems.Add(e);
@@ -195,7 +204,7 @@ public sealed class DrylCanvasTools
             if (skipped.Count > 0)
                 receipt += $" {skipped.Count} ops skipped: " + string.Join(" ", skipped.Take(3));
             if (problems.Count > 0)
-                receipt += " Some data bindings are invalid and render as placeholders — fix via "
+                receipt += " Some bindings are invalid and render as placeholders — fix via "
                          + "update_artifact: " + string.Join(" ", problems.Take(3));
             return receipt;
         }
@@ -216,14 +225,15 @@ public sealed class DrylCanvasTools
         else await Task.Delay(OpStaggerMs, ct);
     }
 
-    /// <summary>The binding-validation context for one artifact, or null when no data sources
-    /// are registered — in which case validation stays exactly as it was (A2).</summary>
+    /// <summary>The binding-validation context for one artifact, or null when neither data sources
+    /// nor actions are registered — in which case validation stays exactly as it was.</summary>
     private CanvasValidationContext? ValidationContext(CanvasNode? root) =>
-        _data is null || _data.Descriptors.Count == 0
+        (_data?.Descriptors.Count ?? 0) == 0 && (_actions?.Descriptors.Count ?? 0) == 0
             ? null
             : new CanvasValidationContext
             {
-                Sources = _data.Descriptors,
+                Sources = _data?.Descriptors ?? Array.Empty<CanvasDataDescriptor>(),
+                Actions = _actions?.Descriptors ?? Array.Empty<CanvasActionDescriptor>(),
                 FieldNames = CanvasValidationContext.FieldNamesOf(root),
             };
 

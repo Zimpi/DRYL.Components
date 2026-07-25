@@ -33,6 +33,7 @@
             Epoch="@(Run?.ArtifactEpoch ?? 0)"
             Pulse="Run?.Pulse"
             OnInteraction="OnInteraction"
+            OnAction="OnAction"
             OnPurge="HandlePurge"
             OnWidthChanged="HandleWidth"
             AllowExpand="AllowExpand"
@@ -53,6 +54,10 @@
     /// <summary>Raised when the user triggers a button intent inside the artifact.
     /// Send <c>interaction.ToPromptMessage()</c> as the next chat turn to route it to the AI.</summary>
     [Parameter] public EventCallback<CanvasInteraction> OnInteraction { get; set; }
+
+    /// <summary>Raised after every completed action button in the artifact — successful or not.
+    /// The canvas has already applied the result (patch, refresh, toast, inline error) by then.</summary>
+    [Parameter] public EventCallback<CanvasActionOutcome> OnAction { get; set; }
 
     /// <summary>
     /// Whether the header offers an expand-to-fullscreen button. The expanded canvas is an

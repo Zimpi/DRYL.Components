@@ -35,7 +35,7 @@ internal static class CanvasPrompt
         - select { "name": string, "label": string, "options": string[], "value": string? }
         - slider { "name": string, "label": string, "min": number, "max": number, "step": number?, "value": number? }
         - toggle { "name": string, "label": string, "value": boolean? }
-        - button { "label": string, "intent": string, "kind": "primary"|"secondary"? } — "intent" is a short
+        - button { "label": string, "intent": string, "kind": "primary"|"secondary"|"danger"? } — "intent" is a short
           machine-readable action id; clicking sends the intent plus all current input values back to you.
         Interactive nodes (inputText/select/slider/toggle) each need a unique "name".
         Prefer charts and stats over prose for numbers. Keep the artifact focused.
@@ -83,18 +83,21 @@ internal static class CanvasPrompt
     }
 
     /// <summary>Builds the full create-artifact prompt: <see cref="SchemaText"/> + the layout budget for
-    /// <paramref name="width"/> + the data source block (empty when nothing is registered, A2) +
-    /// the brief (+ optional title).</summary>
+    /// <paramref name="width"/> + the data source block + the action block (both empty when nothing is
+    /// registered, so an app that uses neither sees the contract it always saw) + the brief
+    /// (+ optional title).</summary>
     internal static string CreatePrompt(string brief, string? title, int? width = null,
-                                       IReadOnlyList<CanvasDataDescriptor>? sources = null) =>
-        $"{SchemaText}\n{LayoutBudget(width)}{CanvasDataPrompt.Block(sources)}\nBuild a new artifact{(title is null ? "" : $" titled \"{title}\"")} for this request:\n{brief}";
+                                       IReadOnlyList<CanvasDataDescriptor>? sources = null,
+                                       IReadOnlyList<CanvasActionDescriptor>? actions = null) =>
+        $"{SchemaText}\n{LayoutBudget(width)}{CanvasDataPrompt.Block(sources)}{CanvasActionPrompt.Block(actions)}\nBuild a new artifact{(title is null ? "" : $" titled \"{title}\"")} for this request:\n{brief}";
 
     /// <summary>Builds the full update-artifact prompt: <see cref="SchemaText"/> + the layout budget for
-    /// <paramref name="width"/> + the data source block + the current spec + a closed set of patch ops
-    /// the model may emit against it, + the brief.</summary>
+    /// <paramref name="width"/> + the data source block + the action block + the current spec + a closed
+    /// set of patch ops the model may emit against it, + the brief.</summary>
     internal static string UpdatePrompt(string brief, string currentSpecJson, int? width = null,
-                                       IReadOnlyList<CanvasDataDescriptor>? sources = null) =>
-        SchemaText + LayoutBudget(width) + CanvasDataPrompt.Block(sources) + """
+                                       IReadOnlyList<CanvasDataDescriptor>? sources = null,
+                                       IReadOnlyList<CanvasActionDescriptor>? actions = null) =>
+        SchemaText + LayoutBudget(width) + CanvasDataPrompt.Block(sources) + CanvasActionPrompt.Block(actions) + """
 
 
             You UPDATE the existing artifact below. Output ONLY: { "ops": [Op, …] }
