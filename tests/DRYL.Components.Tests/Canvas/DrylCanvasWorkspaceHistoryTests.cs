@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bunit;
 using DRYL.Components.Canvas;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace DRYL.Components.Tests.Canvas;
@@ -140,5 +141,45 @@ public class DrylCanvasWorkspaceHistoryTests : BunitContext
         cut.FindAll(".ws-version")[2].Click();      // oldest
 
         Assert.Equal("v1", ws.Active!.Spec!.Title);
+    }
+
+    [Fact]
+    public async Task AutoSave_writes_the_workspace_to_the_registered_store()
+    {
+        var store = new InMemoryCanvasDocumentStore();
+        Services.AddSingleton<ICanvasDocumentStore>(store);
+
+        var ws = OneView("v1");
+        string? savedId = null;
+
+        Render<DrylCanvasWorkspace>(p => p
+            .Add(x => x.Workspace, ws)
+            .Add(x => x.ShowHistory, true)
+            .Add(x => x.AutoSave, true)
+            .Add(x => x.AutoSaveDelayMs, 0)
+            .Add(x => x.DocumentTitle, "My dashboard")
+            .Add(x => x.DocumentIdChanged, (string id) => savedId = id)
+            .Add(x => x.Revision, 1));
+
+        for (var i = 0; i < 50 && savedId is null; i++) await Task.Delay(20);
+
+        Assert.NotNull(savedId);
+        var list = await store.ListAsync();
+        Assert.Single(list);
+        Assert.Equal("My dashboard", list[0].Title);
+    }
+
+    [Fact]
+    public void AutoSave_without_a_registered_store_is_a_no_op()
+    {
+        var ws = OneView("v1");
+
+        var ex = Record.Exception(() => Render<DrylCanvasWorkspace>(p => p
+            .Add(x => x.Workspace, ws)
+            .Add(x => x.AutoSave, true)
+            .Add(x => x.AutoSaveDelayMs, 0)
+            .Add(x => x.Revision, 1)));
+
+        Assert.Null(ex);
     }
 }

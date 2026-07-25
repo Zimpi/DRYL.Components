@@ -3,6 +3,7 @@
 @using DRYL.Components.Motion
 @inject IJSRuntime JS
 @inject IDrylViewTransition ViewTransition
+@inject IServiceProvider Services
 @implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -143,7 +144,7 @@
             }
             else
             {
-                <DrylCanvas Spec="active.Spec" EmptyText="@EmptyText" />
+                <DrylCanvas @ref="_bodyCanvas" Spec="active.Spec" EmptyText="@EmptyText" />
             }
         }
         else
@@ -178,6 +179,25 @@
     /// <summary>Label for the next committed version — typically the prompt that produced it.</summary>
     [Parameter] public string? RevisionLabel { get; set; }
 
+    /// <summary>Whether a settled revision is written to the registered <c>ICanvasDocumentStore</c>
+    /// after a short pause. Default false; without a registered store it does nothing.</summary>
+    [Parameter] public bool AutoSave { get; set; }
+
+    /// <summary>How long to wait after the last revision before saving, in milliseconds. Default 1500.</summary>
+    [Parameter] public int AutoSaveDelayMs { get; set; } = 1500;
+
+    /// <summary>The document autosave writes to. Null until the first save mints one.</summary>
+    [Parameter] public string? DocumentId { get; set; }
+
+    /// <summary>Reports the id the store assigned on the first save.</summary>
+    [Parameter] public EventCallback<string> DocumentIdChanged { get; set; }
+
+    /// <summary>Title stored with the document; defaults to the active view's title.</summary>
+    [Parameter] public string? DocumentTitle { get; set; }
+
+    /// <summary>Raised after every successful autosave.</summary>
+    [Parameter] public EventCallback<CanvasDocumentInfo> OnSaved { get; set; }
+
     /// <summary>Text shown while there is nothing to show.</summary>
     [Parameter] public string? EmptyText { get; set; } = "Ask the assistant to open one.";
 
@@ -198,6 +218,8 @@
     private bool _versionsOpen;
     private int _lastRevision;
     private string? _announcement;
+    private CancellationTokenSource? _saveDebounce;
+    private DrylCanvas? _bodyCanvas;
 
     // History needs the bar even for a single view — one artifact still deserves an undo.
     private bool ShowBar =>
@@ -219,6 +241,7 @@
         {
             _lastRevision = Revision;
             Workspace?.Commit(RevisionLabel ?? FormattableString.Invariant($"Version {Revision}"));
+            ScheduleSave();
         }
     }
 
@@ -279,6 +302,50 @@
         StateHasChanged();
     }
 
+    // Debounced with a CancellationTokenSource rather than a Timer: it cancels cleanly in
+    // DisposeAsync and needs no separate elapsed handler.
+    private void ScheduleSave()
+    {
+        if (!AutoSave || Workspace is null) return;
+        if (Services.GetService(typeof(ICanvasDocumentStore)) is not ICanvasDocumentStore store) return;
+
+        _saveDebounce?.Cancel();
+        _saveDebounce?.Dispose();
+        var cts = new CancellationTokenSource();
+        _saveDebounce = cts;
+
+        _ = SaveAfterDelayAsync(store, cts.Token);
+    }
+
+    private async Task SaveAfterDelayAsync(ICanvasDocumentStore store, CancellationToken ct)
+    {
+        try
+        {
+            if (AutoSaveDelayMs > 0) await Task.Delay(AutoSaveDelayMs, ct);
+            if (ct.IsCancellationRequested || Workspace is null) return;
+
+            var doc = CanvasDocument.Capture(Workspace, DocumentTitle, _bodyCanvas?.Context.Form);
+            doc.Id = DocumentId;
+            var id = await store.SaveAsync(doc, ct);
+
+            if (ct.IsCancellationRequested) return;
+            if (DocumentId != id)
+            {
+                DocumentId = id;
+                await InvokeAsync(() => DocumentIdChanged.InvokeAsync(id));
+            }
+
+            await InvokeAsync(() => OnSaved.InvokeAsync(
+                new CanvasDocumentInfo(id, doc.Title ?? "Canvas", doc.SavedAt, doc.Views?.Count ?? 0)));
+        }
+        catch (OperationCanceledException) { /* superseded by a newer revision, or disposed */ }
+        catch (Exception)
+        {
+            // A broken store must never take a running dashboard down — the same stance the
+            // node-level binding error takes.
+        }
+    }
+
     private async Task OnKeyDownAsync(KeyboardEventArgs e, CanvasView view)
     {
         if (Workspace is null) return;
@@ -330,6 +397,9 @@
 
     public async ValueTask DisposeAsync()
     {
+        _saveDebounce?.Cancel();
+        _saveDebounce?.Dispose();
+
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
 
         if (_inkAttached)
