@@ -135,6 +135,18 @@ public class CanvasCatalogRenderTests : BunitContext
         Assert.Empty(cut.FindAll(".tbl-footer"));
     }
 
+    // The CSS width floor that keeps a narrow canvas scrolling sideways instead of squeezing
+    // cells reads the column count from this custom property — so the count must reach the DOM.
+    [Fact]
+    public void DataGrid_publishes_its_column_count_for_the_width_floor()
+    {
+        var cut = RenderSpec("""
+            {"id":"g","type":"dataGrid","props":{"columns":["A","B","C"],"rows":[["1","2","3"]]}}
+            """);
+
+        Assert.Contains("--canvas-grid-cols: 3", cut.Find(".canvas-grid").GetAttribute("style"));
+    }
+
     [Fact]
     public void DataGrid_sorts_on_header_click()
     {

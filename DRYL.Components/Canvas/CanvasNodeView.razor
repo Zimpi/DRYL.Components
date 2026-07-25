@@ -220,24 +220,28 @@
                     var pageSize = p.PageSize ?? 10;
                     // Paging only when it has something to page — a footer under three rows is noise.
                     var effectivePageSize = pageSize > 0 && rows.Count > pageSize ? pageSize : 0;
-                    <DrylTable TItem="CanvasGridRow" Items="@rows"
-                               ShowToolbar="@searchable" Searchable="@searchable"
-                               PageSize="@effectivePageSize"
-                               AriaLabel="Data grid"
-                               RowIdSelector="@(r => r.Index)">
-                        <Columns>
-                            @for (var i = 0; i < p.Columns!.Count; i++)
-                            {
-                                var idx = i;             // capture per-iteration for the expression
-                                <DrylColumn TItem="CanvasGridRow"
-                                            ColumnKey="@($"c{idx}")" Title="@p.Columns[idx]"
-                                            Field="@(r => r.Cell(idx))"
-                                            Sortable="@sortable" Searchable="@searchable"
-                                            Filterable="@filterable"
-                                            FilterType="@(filterable ? ColumnFilterType.Select : ColumnFilterType.Auto)" />
-                            }
-                        </Columns>
-                    </DrylTable>
+                    @*  The column count drives a per-column width floor, so a grid on a narrow
+                        canvas scrolls sideways instead of squeezing cells to one glyph a line. *@
+                    <div class="canvas-grid" style="--canvas-grid-cols: @p.Columns!.Count;">
+                        <DrylTable TItem="CanvasGridRow" Items="@rows"
+                                   ShowToolbar="@searchable" Searchable="@searchable"
+                                   PageSize="@effectivePageSize"
+                                   AriaLabel="Data grid"
+                                   RowIdSelector="@(r => r.Index)">
+                            <Columns>
+                                @for (var i = 0; i < p.Columns.Count; i++)
+                                {
+                                    var idx = i;             // capture per-iteration for the expression
+                                    <DrylColumn TItem="CanvasGridRow"
+                                                ColumnKey="@($"c{idx}")" Title="@p.Columns[idx]"
+                                                Field="@(r => r.Cell(idx))"
+                                                Sortable="@sortable" Searchable="@searchable"
+                                                Filterable="@filterable"
+                                                FilterType="@(filterable ? ColumnFilterType.Select : ColumnFilterType.Auto)" />
+                                }
+                            </Columns>
+                        </DrylTable>
+                    </div>
                     break;
                 }
 

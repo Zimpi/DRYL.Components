@@ -148,6 +148,13 @@
     min-width: 0;
 }
 
+/* dataGrid — the table would rather shrink than overflow (.tbl is width:100%), which on a narrow
+   canvas wraps a cell to one glyph per line. A per-column floor makes .tbl-wrap's own horizontal
+   scroll engage instead; the column count arrives as an inline --canvas-grid-cols. */
+::deep .canvas-grid .tbl {
+    min-width: calc(var(--canvas-grid-cols, 1) * 110px);
+}
+
 /* list — secondary text line inside a canvas list item. */
 ::deep .canvas-list-text {
     display: block;
