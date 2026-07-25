@@ -129,7 +129,10 @@
         // a second create_artifact replaced the artifact wholesale; morph old into new instead
         // of letting the old tree vanish untransitioned. The very first artifact has no "old"
         // picture worth morphing, so it keeps the node-by-node reveal choreography.
-        var swap = _renderedSpec is not null && !ReferenceEquals(_renderedSpec, Run?.Spec);
+        // Except when the swap came from a view switch: DrylCanvasWorkspace owns that morph, and
+        // nesting two view transitions loses one of the mutations.
+        var switched = Run?.ConsumeSwapMorphSuppression() == true;
+        var swap = !switched && _renderedSpec is not null && !ReferenceEquals(_renderedSpec, Run?.Spec);
 
         SyncRunState();
 

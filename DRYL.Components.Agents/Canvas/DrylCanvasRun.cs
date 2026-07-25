@@ -15,8 +15,62 @@ public sealed class DrylCanvasRun : DrylRunBase
     /// </summary>
     public CanvasPulseTracker Pulse { get; } = new();
 
-    /// <summary>The live spec (progressively richer as generations complete), or null before the first one.</summary>
-    public CanvasSpec? Spec { get; private set; }
+    private CanvasSpec? _spec;
+    private CanvasWorkspace? _workspace;
+    private string? _lastActiveId;
+    private bool _suppressSwapMorph;
+
+    /// <summary>
+    /// The live spec (progressively richer as generations complete), or null before the first one.
+    /// Bound to a workspace (see <see cref="UseWorkspace"/>) this is the active view's spec — a
+    /// generation always fills the view the user is looking at.
+    /// </summary>
+    public CanvasSpec? Spec
+    {
+        get => _workspace is null ? _spec : _workspace.Active?.Spec;
+        private set
+        {
+            if (_workspace is null) { _spec = value; return; }
+            // A create without a preceding open_view still needs somewhere to land.
+            var view = _workspace.Active ?? _workspace.Open("Artifact");
+            view.Spec = value;
+        }
+    }
+
+    /// <summary>
+    /// Binds the run to a workspace: from here on <see cref="Spec"/> reads and writes the active
+    /// view's spec, and switching views resets the interactive form state — a different artifact
+    /// must not inherit the previous one's field values.
+    /// </summary>
+    public void UseWorkspace(CanvasWorkspace workspace)
+    {
+        ArgumentNullException.ThrowIfNull(workspace);
+        if (ReferenceEquals(_workspace, workspace)) return;
+
+        if (_workspace is not null) _workspace.OnChange -= HandleWorkspaceChanged;
+        _workspace = workspace;
+        _lastActiveId = workspace.ActiveId;
+        _workspace.OnChange += HandleWorkspaceChanged;
+    }
+
+    private void HandleWorkspaceChanged()
+    {
+        if (_lastActiveId == _workspace!.ActiveId) return;
+        _lastActiveId = _workspace.ActiveId;
+
+        _artifactEpoch++;           // the other view's artifact owns its own form values
+        _suppressSwapMorph = true;  // DrylCanvasWorkspace already morphs this switch
+        Raise();
+    }
+
+    /// <summary>Reads and clears the "this spec swap was a view switch" flag — the workspace has
+    /// already run that morph, and two nested view transitions lose one of the mutations.</summary>
+    internal bool ConsumeSwapMorphSuppression()
+    {
+        var suppress = _suppressSwapMorph;
+        _suppressSwapMorph = false;
+        return suppress;
+    }
 
     /// <summary>The number of completed create/update generations.</summary>
     public int Round { get; private set; }
