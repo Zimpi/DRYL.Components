@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 
 namespace DRYL.Components.Canvas;
@@ -291,55 +290,19 @@ public sealed class CanvasDataBinder : IAsyncDisposable
 
     // ---- parameter resolution ----
 
+    // The reference syntax is shared with action args (CanvasArgs) — the model is told it is the
+    // same syntax in both places, so there must be exactly one implementation of it.
     private (string Key, JsonElement? Params, HashSet<string> Fields) Resolve(CanvasDataBinding binding)
     {
-        var fields = new HashSet<string>(StringComparer.Ordinal);
-        JsonElement? resolved = null;
-
-        if (binding.Params is { ValueKind: JsonValueKind.Object } raw)
-        {
-            var obj = new JsonObject();
-            foreach (var p in raw.EnumerateObject())
-            {
-                if (FieldReference(p.Value) is { } field)
-                {
-                    fields.Add(field);
-                    obj[p.Name] = ToNode(_form.Get(field));
-                }
-                else
-                {
-                    obj[p.Name] = JsonNode.Parse(p.Value.GetRawText());
-                }
-            }
-            resolved = JsonSerializer.SerializeToElement(obj);
-        }
-
+        var resolved = CanvasArgs.Resolve(binding.Params, _form, out var fields);
         return (CanvasDataKey.Of(binding.Source!, resolved), resolved, fields);
     }
 
     /// <summary>The field name of a <c>{ "$field": "…" }</c> reference, or <c>null</c> for a literal.</summary>
-    internal static string? FieldReference(JsonElement value) =>
-        value.ValueKind == JsonValueKind.Object &&
-        value.TryGetProperty("$field", out var f) &&
-        f.ValueKind == JsonValueKind.String
-            ? f.GetString()
-            : null;
+    internal static string? FieldReference(JsonElement value) => CanvasArgs.FieldReference(value);
 
     internal static bool HasFieldReference(CanvasDataBinding binding) =>
-        binding.Params is { ValueKind: JsonValueKind.Object } p &&
-        p.EnumerateObject().Any(x => FieldReference(x.Value) is not null);
-
-    private static JsonNode? ToNode(object? value) => value switch
-    {
-        null => null,
-        string s => JsonValue.Create(s),
-        bool b => JsonValue.Create(b),
-        double d => JsonValue.Create(d),
-        int i => JsonValue.Create(i),
-        long l => JsonValue.Create(l),
-        decimal m => JsonValue.Create(m),
-        _ => JsonValue.Create(Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)),
-    };
+        CanvasArgs.HasFieldReference(binding.Params);
 
     /// <summary>The interval in seconds, or <c>null</c> for manual refresh. Values below the
     /// five-second floor are lifted to it (the validator says so in the receipt).</summary>
