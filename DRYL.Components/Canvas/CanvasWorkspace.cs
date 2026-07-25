@@ -21,6 +21,9 @@ public sealed class CanvasView
     /// <summary>The artifact this view shows, or null while it is still empty.</summary>
     public CanvasSpec? Spec { get; set; }
 
+    /// <summary>This view's version history — snapshots taken by <see cref="CanvasWorkspace.Commit"/>.</summary>
+    public CanvasHistory History { get; } = new();
+
     /// <summary>True while the chip plays its exit animation; the bar calls
     /// <see cref="CanvasWorkspace.Remove"/> when that animation ends.</summary>
     public bool Removing { get; internal set; }
@@ -126,6 +129,52 @@ public sealed class CanvasWorkspace
         _views.Clear();
         ActiveId = null;
         OnChange?.Invoke();
+    }
+
+    /// <summary>True when the active view has an earlier snapshot to go back to.</summary>
+    public bool CanUndo => Active?.History.CanUndo == true;
+
+    /// <summary>True when the active view's undo can be taken back.</summary>
+    public bool CanRedo => Active?.History.CanRedo == true;
+
+    /// <summary>
+    /// Records the active view's current spec as a version. A snapshot that changed nothing is
+    /// dropped, so committing generously is free.
+    /// </summary>
+    /// <param name="label">What produced this state, e.g. the prompt that was sent.</param>
+    /// <returns>True when a version was recorded.</returns>
+    public bool Commit(string label)
+    {
+        if (Active is not { } view) return false;
+        if (!view.History.Record(view.Spec, label)) return false;
+
+        OnChange?.Invoke();
+        return true;
+    }
+
+    /// <summary>Puts the active view's previous version back. False when there is none.</summary>
+    public bool Undo() => Apply(v => v.History.Undo());
+
+    /// <summary>Takes the last undo back. False when there is nothing to redo.</summary>
+    public bool Redo() => Apply(v => v.History.Redo());
+
+    /// <summary>Puts version <paramref name="index"/> of the active view back. False when unknown.</summary>
+    /// <param name="index">Index into the active view's <see cref="CanvasHistory.Entries"/>.</param>
+    public bool RestoreVersion(int index) => Apply(v => v.History.Restore(index));
+
+    // The three history verbs differ only in which snapshot they ask for. A move the history
+    // refused leaves the view — and the cursor — exactly where it was.
+    private bool Apply(Func<CanvasView, CanvasSpec?> move)
+    {
+        if (Active is not { } view) return false;
+
+        var before = view.History.Position;
+        var spec = move(view);
+        if (view.History.Position == before) return false;
+
+        view.Spec = spec;
+        OnChange?.Invoke();
+        return true;
     }
 
     // The nearest view that is not itself on its way out: right first, then left.
