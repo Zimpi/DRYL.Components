@@ -514,7 +514,7 @@ public static class CanvasCatalog
         "stat" or "badge" or "progress" => "scalar",
         "lineChart" or "areaChart" or "barChart" => "series",
         "donutChart" => "segments",
-        "table" => "rows",
+        "table" or "dataGrid" or "list" or "keyValue" => "rows",
         _ => "no data at all — it cannot be bound",
     };
 

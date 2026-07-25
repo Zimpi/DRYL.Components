@@ -13,13 +13,22 @@ internal static class CanvasDataMapper
     /// <summary>The catalog's row ceiling — a <c>table</c> renders at most this many rows.</summary>
     internal const int MaxTableRows = 30;
 
+    /// <summary>A bound <c>dataGrid</c> renders at most this many rows.</summary>
+    internal const int MaxGridRows = 1000;
+
+    /// <summary>A bound <c>list</c> renders at most this many items.</summary>
+    internal const int MaxListItems = 50;
+
+    /// <summary>A bound <c>keyValue</c> renders at most this many pairs.</summary>
+    internal const int MaxKeyValuePairs = 20;
+
     /// <summary>The node types each shape may be bound to.</summary>
     public static bool Allows(CanvasDataShape shape, string nodeType) => shape switch
     {
         CanvasDataShape.Scalar => nodeType is "stat" or "badge" or "progress",
         CanvasDataShape.Series => nodeType is "lineChart" or "areaChart" or "barChart",
         CanvasDataShape.Segments => nodeType is "donutChart",
-        CanvasDataShape.Rows => nodeType is "table",
+        CanvasDataShape.Rows => nodeType is "table" or "dataGrid" or "list" or "keyValue",
         _ => false,
     };
 
@@ -29,7 +38,7 @@ internal static class CanvasDataMapper
         CanvasDataShape.Scalar => "stat, badge or progress",
         CanvasDataShape.Series => "lineChart, areaChart or barChart",
         CanvasDataShape.Segments => "donutChart",
-        CanvasDataShape.Rows => "table",
+        CanvasDataShape.Rows => "table, dataGrid, list or keyValue",
         _ => "nothing",
     };
 
@@ -51,7 +60,9 @@ internal static class CanvasDataMapper
         CanvasDataShape.Scalar => CanvasData.Scalar(0, "0"),
         CanvasDataShape.Series => CanvasData.Series(new[] { "—" }, ("—", new[] { 0d })),
         CanvasDataShape.Segments => CanvasData.Segments(new[] { ("—", 1d) }),
-        _ => CanvasData.Rows(new[] { "—" }, new[] { new[] { "—" } }),
+        // Two columns, so a keyValue stand-in passes authoring-time validation; a real source
+        // with a different column count still errors at bind time, inline at the node.
+        _ => CanvasData.Rows(new[] { "—", "—" }, new[] { new[] { "—", "—" } }),
     };
 
     /// <summary>
@@ -115,15 +126,60 @@ internal static class CanvasDataMapper
                 break;
 
             case CanvasRowData rows:
-                props["columns"] = new JsonArray(rows.Columns.Select(c => (JsonNode?)JsonValue.Create(c)).ToArray());
-                var kept = rows.Rows;
-                if (kept.Count > MaxTableRows)
+                switch (nodeType)
                 {
-                    kept = kept.Take(MaxTableRows).ToList();
-                    truncated = true;
+                    case "table" or "dataGrid":
+                    {
+                        var cap = nodeType == "table" ? MaxTableRows : MaxGridRows;
+                        props["columns"] = new JsonArray(rows.Columns.Select(c => (JsonNode?)JsonValue.Create(c)).ToArray());
+                        var kept = rows.Rows;
+                        if (kept.Count > cap)
+                        {
+                            kept = kept.Take(cap).ToList();
+                            truncated = true;
+                        }
+                        props["rows"] = new JsonArray(kept.Select(r => (JsonNode?)new JsonArray(
+                            r.Select(c => (JsonNode?)JsonValue.Create(c ?? string.Empty)).ToArray())).ToArray());
+                        break;
+                    }
+                    case "list":
+                    {
+                        var kept = rows.Rows;
+                        if (kept.Count > MaxListItems)
+                        {
+                            kept = kept.Take(MaxListItems).ToList();
+                            truncated = true;
+                        }
+                        props["items"] = new JsonArray(kept.Select(r =>
+                        {
+                            var item = new JsonObject { ["title"] = r.Count > 0 ? r[0] : string.Empty };
+                            if (r.Count > 1 && !string.IsNullOrEmpty(r[1])) item["text"] = r[1];
+                            return (JsonNode?)item;
+                        }).ToArray());
+                        break;
+                    }
+                    case "keyValue":
+                    {
+                        if (rows.Columns.Count != 2)
+                        {
+                            error = FormattableString.Invariant(
+                                $"a keyValue needs a 2-column rows source — this source returns {rows.Columns.Count} columns.");
+                            return baseProps;
+                        }
+                        var kept = rows.Rows;
+                        if (kept.Count > MaxKeyValuePairs)
+                        {
+                            kept = kept.Take(MaxKeyValuePairs).ToList();
+                            truncated = true;
+                        }
+                        props["pairs"] = new JsonArray(kept.Select(r => (JsonNode?)new JsonObject
+                        {
+                            ["key"] = r.Count > 0 ? r[0] : string.Empty,
+                            ["value"] = r.Count > 1 ? r[1] : string.Empty,
+                        }).ToArray());
+                        break;
+                    }
                 }
-                props["rows"] = new JsonArray(kept.Select(r => (JsonNode?)new JsonArray(
-                    r.Select(c => (JsonNode?)JsonValue.Create(c ?? string.Empty)).ToArray())).ToArray());
                 break;
         }
 
