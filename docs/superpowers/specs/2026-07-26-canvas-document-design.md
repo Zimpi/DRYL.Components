@@ -105,7 +105,9 @@ public CanvasDocument AsTemplate(string title);
 - **`TryFromJson`** ist die einzige erlaubte Eingangstür. Fehlertexte englisch wie überall in der
   Bibliothek, adressiert an den Host (nicht an ein Modell):
   - malformed JSON → `"The document could not be read: it is not valid JSON."`
-  - `Schema <= 0` → `"The document has no schema version."`
+  - `Schema <= 0` → `"The document has no schema version."` (nur ein *explizites* `"schema": 0`;
+    ein fehlendes Feld fällt auf `CurrentSchema` zurück — ein handgebautes Dokument ist per
+    Definition aktuell)
   - `Schema > CurrentSchema` → `"This document was written by a newer version of DRYL (schema {n}, this build reads up to {CurrentSchema})."`
   - Views leer/null → `"The document contains no views."`
   Ältere Schemaversionen: solange `Schema <= CurrentSchema`, wird gelesen. Es gibt heute nur
