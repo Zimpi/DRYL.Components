@@ -132,6 +132,120 @@ internal sealed class CanvasStatProps
     };
 }
 
+/// <summary>One tile of a <c>kpi</c> node.</summary>
+internal sealed class CanvasKpiItemProps
+{
+    /// <summary>Short metric label, e.g. 'Revenue'.</summary>
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>The headline value, pre-formatted as text.</summary>
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>Optional change indicator text, e.g. '+12.4%'.</summary>
+    public string? Delta { get; set; }
+
+    /// <summary>Trend direction of the delta: 'up', 'down' or 'neutral'.</summary>
+    public string? Direction { get; set; }
+
+    internal DeltaDirection ParsedDirection => Direction?.ToLowerInvariant() switch
+    {
+        "up" => DeltaDirection.Up,
+        "down" => DeltaDirection.Down,
+        "neutral" => DeltaDirection.Neutral,
+        _ => DeltaDirection.None,
+    };
+}
+
+/// <summary>Props of the <c>kpi</c> node — a row of compact stats.</summary>
+internal sealed class CanvasKpiProps
+{
+    /// <summary>The tiles, 1–6.</summary>
+    public IReadOnlyList<CanvasKpiItemProps>? Items { get; set; }
+
+    /// <summary>Null when valid; otherwise a corrective, model-facing error sentence.</summary>
+    public string? Validate()
+    {
+        if (Items is null || Items.Count == 0)
+            return "items must contain at least one item.";
+        if (Items.Count > 6)
+            return "at most 6 items are supported — aggregate the rest.";
+        foreach (var i in Items)
+        {
+            if (string.IsNullOrWhiteSpace(i.Label)) return "every item needs a non-empty label.";
+            if (string.IsNullOrWhiteSpace(i.Value)) return "every item needs a non-empty value.";
+            if (i.Direction is not (null or "up" or "down" or "neutral"))
+                return $"direction '{i.Direction}' is invalid — use 'up', 'down' or 'neutral'.";
+        }
+        return null;
+    }
+}
+
+/// <summary>One entry of a <c>list</c> node.</summary>
+internal sealed class CanvasListItemProps
+{
+    /// <summary>Title line of the entry.</summary>
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>Optional secondary text below the title.</summary>
+    public string? Text { get; set; }
+
+    /// <summary>Optional DrylIcon name; unknown names render no icon.</summary>
+    public string? Icon { get; set; }
+}
+
+/// <summary>Props of the <c>list</c> node — a vertical repeater.</summary>
+internal sealed class CanvasListProps
+{
+    /// <summary>The entries, 1–50.</summary>
+    public IReadOnlyList<CanvasListItemProps>? Items { get; set; }
+
+    /// <summary>Null when valid; otherwise a corrective, model-facing error sentence.</summary>
+    public string? Validate()
+    {
+        if (Items is null || Items.Count == 0)
+            return "items must contain at least one item.";
+        if (Items.Count > 50)
+            return "at most 50 items are supported — aggregate or paginate the rest.";
+        foreach (var i in Items)
+            if (string.IsNullOrWhiteSpace(i.Title)) return "every item needs a non-empty title.";
+        return null;
+    }
+}
+
+/// <summary>One pair of a <c>keyValue</c> node.</summary>
+internal sealed class CanvasKeyValuePairProps
+{
+    /// <summary>The term / label.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The value text.</summary>
+    public string Value { get; set; } = string.Empty;
+}
+
+/// <summary>Props of the <c>keyValue</c> node — label/value pairs.</summary>
+internal sealed class CanvasKeyValueProps
+{
+    /// <summary>The pairs, 1–20.</summary>
+    public IReadOnlyList<CanvasKeyValuePairProps>? Pairs { get; set; }
+
+    /// <summary>Layout columns: 1 (default) or 2.</summary>
+    public int? Columns { get; set; }
+
+    /// <summary>Null when valid; otherwise a corrective, model-facing error sentence.</summary>
+    public string? Validate()
+    {
+        if (Pairs is null || Pairs.Count == 0)
+            return "pairs must contain at least one pair.";
+        if (Pairs.Count > 20)
+            return "at most 20 pairs are supported.";
+        if (Columns is not (null or 1 or 2))
+            return FormattableString.Invariant($"columns must be 1 or 2 (was {Columns}).");
+        foreach (var p in Pairs)
+            if (string.IsNullOrWhiteSpace(p.Key)) return "every pair needs a non-empty key.";
+        return null;
+    }
+}
+
 /// <summary>One event of a <c>timeline</c> node.</summary>
 internal sealed class CanvasTimelineEventProps
 {

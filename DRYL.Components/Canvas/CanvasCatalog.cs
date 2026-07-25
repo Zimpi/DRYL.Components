@@ -24,6 +24,7 @@ public static class CanvasCatalog
         "stack", "grid", "card", "tabs", "divider", "markdown", "stat", "badge", "progress", "table",
         "timeline", "lineChart", "areaChart", "barChart", "donutChart",
         "inputText", "select", "slider", "toggle", "button",
+        "kpi", "list", "keyValue", "image", "code", "emptyState",
     };
 
     /// <summary>True when <paramref name="type"/> is a recognized catalog entry.</summary>
@@ -193,6 +194,58 @@ public static class CanvasCatalog
             {
                 if (!TryProps<CanvasDonutProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 return Prefix(node, p!.Validate());
+            }
+
+            case "kpi":
+            {
+                if (!TryProps<CanvasKpiProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                return Prefix(node, p!.Validate());
+            }
+
+            case "list":
+            {
+                if (!TryProps<CanvasListProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                return Prefix(node, p!.Validate());
+            }
+
+            case "keyValue":
+            {
+                if (!TryProps<CanvasKeyValueProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                return Prefix(node, p!.Validate());
+            }
+
+            case "image":
+            {
+                if (!TryProps<ImageNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.Src))
+                    return Err(node, "src must be non-empty.");
+                if (!p.Src.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                    && !p.Src.StartsWith('/')
+                    && !p.Src.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                    return Err(node, "src must start with https://, / or data:image/ — other schemes are not allowed.");
+                if (string.IsNullOrWhiteSpace(p.Alt))
+                    return Err(node, "alt must be non-empty — describe the image.");
+                if (p.Ratio is not (null or "auto" or "1:1" or "16:9" or "21:9"))
+                    return Err(node, $"ratio '{p.Ratio}' is invalid — use 'auto', '1:1', '16:9' or '21:9'.");
+                if (p.Fit is not (null or "cover" or "contain"))
+                    return Err(node, $"fit '{p.Fit}' is invalid — use 'cover' or 'contain'.");
+                return null;
+            }
+
+            case "code":
+            {
+                if (!TryProps<CodeNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.Code))
+                    return Err(node, "code must be non-empty.");
+                return null;
+            }
+
+            case "emptyState":
+            {
+                if (!TryProps<EmptyStateNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.Title))
+                    return Err(node, "title must be non-empty.");
+                return null;
             }
 
             case "inputText":
@@ -606,6 +659,51 @@ internal sealed class ToggleNodeProps
 
     /// <summary>Current on/off value.</summary>
     public bool? Value { get; set; }
+}
+
+/// <summary>Props of the <c>image</c> leaf.</summary>
+internal sealed class ImageNodeProps
+{
+    /// <summary>Image URL — must start with https://, / or data:image/.</summary>
+    public string? Src { get; set; }
+
+    /// <summary>Alt text — required, accessibility is not optional.</summary>
+    public string? Alt { get; set; }
+
+    /// <summary>Aspect ratio: 'auto' (default), '1:1', '16:9' or '21:9'.</summary>
+    public string? Ratio { get; set; }
+
+    /// <summary>Object-fit: 'cover' (default) or 'contain'.</summary>
+    public string? Fit { get; set; }
+
+    /// <summary>Optional caption line below the image.</summary>
+    public string? Caption { get; set; }
+}
+
+/// <summary>Props of the <c>code</c> leaf.</summary>
+internal sealed class CodeNodeProps
+{
+    /// <summary>The source text to render.</summary>
+    public string? Code { get; set; }
+
+    /// <summary>Optional language hint for highlighting.</summary>
+    public string? Language { get; set; }
+
+    /// <summary>Show line numbers. Default false.</summary>
+    public bool? LineNumbers { get; set; }
+}
+
+/// <summary>Props of the <c>emptyState</c> leaf.</summary>
+internal sealed class EmptyStateNodeProps
+{
+    /// <summary>Headline, e.g. 'Nothing here yet'.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>Optional supporting text.</summary>
+    public string? Description { get; set; }
+
+    /// <summary>Optional DrylIcon name; unknown names fall back to the default icon.</summary>
+    public string? Icon { get; set; }
 }
 
 /// <summary>Props of the <c>button</c> leaf.</summary>
