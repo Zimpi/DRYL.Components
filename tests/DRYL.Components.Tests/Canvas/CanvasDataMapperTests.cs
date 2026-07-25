@@ -39,6 +39,59 @@ public class CanvasDataMapperTests
     }
 
     [Fact]
+    public void Rows_fill_a_dataGrid_and_cap_at_1000()
+    {
+        var data = CanvasData.Rows(new[] { "A" }, Enumerable.Range(0, 1200).Select(i => new[] { $"{i}" }));
+        var props = Map("dataGrid", "{}", data, out var error, out var truncated);
+        Assert.Null(error);
+        Assert.True(truncated);
+        Assert.Equal(1000, props.GetProperty("rows").GetArrayLength());
+    }
+
+    [Fact]
+    public void Rows_fill_a_list_with_title_and_text()
+    {
+        var data = CanvasData.Rows(new[] { "Titel", "Text" }, new[] { new[] { "Auftrag", "offen" } });
+        var props = Map("list", "{}", data, out var error, out _);
+        Assert.Null(error);
+        var item = props.GetProperty("items")[0];
+        Assert.Equal("Auftrag", item.GetProperty("title").GetString());
+        Assert.Equal("offen", item.GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public void Rows_with_one_column_fill_a_list_without_text()
+    {
+        var data = CanvasData.Rows(new[] { "Titel" }, new[] { new[] { "Auftrag" } });
+        var props = Map("list", "{}", data, out var error, out _);
+        Assert.Null(error);
+        Assert.False(props.GetProperty("items")[0].TryGetProperty("text", out _));
+    }
+
+    [Fact]
+    public void Rows_fill_keyValue_pairs()
+    {
+        var data = CanvasData.Rows(new[] { "K", "V" }, new[] { new[] { "Status", "offen" } });
+        var props = Map("keyValue", "{}", data, out var error, out _);
+        Assert.Null(error);
+        var pair = props.GetProperty("pairs")[0];
+        Assert.Equal("Status", pair.GetProperty("key").GetString());
+        Assert.Equal("offen", pair.GetProperty("value").GetString());
+    }
+
+    [Fact]
+    public void Rows_with_three_columns_cannot_fill_keyValue()
+    {
+        var data = CanvasData.Rows(new[] { "A", "B", "C" }, new[] { new[] { "1", "2", "3" } });
+        CanvasDataMapper.Apply("keyValue", Props("{}"), data, out var error, out _);
+        Assert.Contains("2-column", error);
+    }
+
+    [Fact]
+    public void Rows_sample_has_two_columns() =>
+        Assert.Equal(2, ((CanvasRowData)CanvasDataMapper.Sample(CanvasDataShape.Rows)).Columns.Count);
+
+    [Fact]
     public void A_text_only_scalar_cannot_fill_a_progress()
     {
         CanvasDataMapper.Apply("progress", Props("{}"), CanvasData.Scalar("gut"), out var error, out _);

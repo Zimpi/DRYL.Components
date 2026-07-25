@@ -136,6 +136,53 @@
     margin-bottom: var(--sp-2);
 }
 
+/* kpi — a wrapping row of compact stats; tiles share the width and stack when narrow. */
+::deep .canvas-kpi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+}
+
+::deep .canvas-kpi > * {
+    flex: 1 1 140px;
+    min-width: 0;
+}
+
+/* dataGrid — the table would rather shrink than overflow (.tbl is width:100%), which on a narrow
+   canvas wraps a cell to one glyph per line. A per-column floor makes .tbl-wrap's own horizontal
+   scroll engage instead; the column count arrives as an inline --canvas-grid-cols. */
+::deep .canvas-grid .tbl {
+    min-width: calc(var(--canvas-grid-cols, 1) * 110px);
+}
+
+/* list — secondary text line inside a canvas list item. */
+::deep .canvas-list-text {
+    display: block;
+    color: var(--fg-dim);
+    font-size: 13px;
+}
+
+/* form — submit row and the per-field required hint after a failed submit. */
+::deep .canvas-form-submit {
+    margin-top: var(--sp-3);
+}
+
+::deep .canvas-field-required {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-top: var(--sp-1);
+    color: var(--danger);
+    font-size: 12px;
+}
+
+/* image — quiet caption line below a canvas image. */
+::deep .canvas-image-caption {
+    margin-top: var(--sp-1);
+    color: var(--fg-dim);
+    font-size: 13px;
+}
+
 ::deep .canvas-waiting {
     display: block;
     margin-top: var(--sp-2);

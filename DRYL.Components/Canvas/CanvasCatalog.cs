@@ -11,7 +11,7 @@ public static class CanvasCatalog
 {
     private static readonly HashSet<string> ContainerTypes = new(StringComparer.Ordinal)
     {
-        "stack", "grid", "card", "tabs",
+        "stack", "grid", "card", "tabs", "accordion", "form",
     };
 
     private static readonly HashSet<string> InteractiveTypes = new(StringComparer.Ordinal)
@@ -24,10 +24,15 @@ public static class CanvasCatalog
         "stack", "grid", "card", "tabs", "divider", "markdown", "stat", "badge", "progress", "table",
         "timeline", "lineChart", "areaChart", "barChart", "donutChart",
         "inputText", "select", "slider", "toggle", "button",
+        "kpi", "list", "keyValue", "image", "code", "emptyState", "accordion", "form", "dataGrid",
     };
 
     /// <summary>True when <paramref name="type"/> is a recognized catalog entry.</summary>
     public static bool IsKnownType(string type) => AllTypes.Contains(type);
+
+    /// <summary>Every known catalog type. The prompt layer keeps its schema in sync against this —
+    /// a type the model never sees can never be authored.</summary>
+    public static IReadOnlyCollection<string> KnownTypes => AllTypes;
 
     /// <summary>True when <paramref name="type"/> may host <c>Children</c> (<c>stack</c>, <c>grid</c>, <c>card</c>, <c>tabs</c>).</summary>
     public static bool IsContainer(string type) => ContainerTypes.Contains(type);
@@ -120,6 +125,37 @@ public static class CanvasCatalog
                 return null;
             }
 
+            case "accordion":
+            {
+                if (!TryProps<AccordionNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (p!.Labels is null || p.Labels.Count == 0)
+                    return Err(node, "labels must contain at least one label.");
+                var childCount = node.Children?.Count ?? 0;
+                if (p.Labels.Count != childCount)
+                    return Err(node, $"labels.Count ({p.Labels.Count}) must equal the number of children ({childCount}).");
+                if (p.Open is { } open && (open < 0 || open >= p.Labels.Count))
+                    return Err(node, FormattableString.Invariant(
+                        $"open ({open}) must be a valid section index (0..{p.Labels.Count - 1})."));
+                return null;
+            }
+
+            case "form":
+            {
+                if (!TryProps<FormNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.SubmitLabel))
+                    return Err(node, "submitLabel must be non-empty.");
+                if (string.IsNullOrWhiteSpace(node.Action?.Name))
+                    return Err(node, "a form needs an action — put the action binding on the form node itself.");
+                if (p.Required is { Count: > 0 } required)
+                {
+                    var fields = CanvasValidationContext.FieldNamesOf(node);
+                    foreach (var name in required)
+                        if (!fields.Contains(name))
+                            return Err(node, $"required field '{name}' is not an interactive node inside this form.");
+                }
+                return null;
+            }
+
             case "divider":
                 return null;
 
@@ -177,6 +213,26 @@ public static class CanvasCatalog
                 return null;
             }
 
+            case "dataGrid":
+            {
+                if (!TryProps<DataGridNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (p!.Columns is null || p.Columns.Count == 0)
+                    return Err(node, "columns must contain at least one column.");
+                if (p.Columns.Count > 12)
+                    return Err(node, "at most 12 columns are supported.");
+                if (p.Rows is not null)
+                {
+                    if (p.Rows.Count > 100)
+                        return Err(node, "at most 100 literal rows are supported — bind a rows data source for more.");
+                    foreach (var row in p.Rows)
+                        if (row.Count != p.Columns.Count)
+                            return Err(node, $"a row has {row.Count} cells but there are {p.Columns.Count} columns — they must match 1:1.");
+                }
+                if (p.PageSize is { } size && (size < 0 || size > 100))
+                    return Err(node, FormattableString.Invariant($"pageSize must be between 0 and 100 (was {size})."));
+                return null;
+            }
+
             case "timeline":
             {
                 if (!TryProps<CanvasTimelineProps>(node, out var p)) return Err(node, "props are not valid JSON.");
@@ -193,6 +249,58 @@ public static class CanvasCatalog
             {
                 if (!TryProps<CanvasDonutProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 return Prefix(node, p!.Validate());
+            }
+
+            case "kpi":
+            {
+                if (!TryProps<CanvasKpiProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                return Prefix(node, p!.Validate());
+            }
+
+            case "list":
+            {
+                if (!TryProps<CanvasListProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                return Prefix(node, p!.Validate());
+            }
+
+            case "keyValue":
+            {
+                if (!TryProps<CanvasKeyValueProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                return Prefix(node, p!.Validate());
+            }
+
+            case "image":
+            {
+                if (!TryProps<ImageNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.Src))
+                    return Err(node, "src must be non-empty.");
+                if (!p.Src.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                    && !p.Src.StartsWith('/')
+                    && !p.Src.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                    return Err(node, "src must start with https://, / or data:image/ — other schemes are not allowed.");
+                if (string.IsNullOrWhiteSpace(p.Alt))
+                    return Err(node, "alt must be non-empty — describe the image.");
+                if (p.Ratio is not (null or "auto" or "1:1" or "16:9" or "21:9"))
+                    return Err(node, $"ratio '{p.Ratio}' is invalid — use 'auto', '1:1', '16:9' or '21:9'.");
+                if (p.Fit is not (null or "cover" or "contain"))
+                    return Err(node, $"fit '{p.Fit}' is invalid — use 'cover' or 'contain'.");
+                return null;
+            }
+
+            case "code":
+            {
+                if (!TryProps<CodeNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.Code))
+                    return Err(node, "code must be non-empty.");
+                return null;
+            }
+
+            case "emptyState":
+            {
+                if (!TryProps<EmptyStateNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.Title))
+                    return Err(node, "title must be non-empty.");
+                return null;
             }
 
             case "inputText":
@@ -249,10 +357,10 @@ public static class CanvasCatalog
     private static string? ValidateAction(CanvasNode node, CanvasActionBinding action,
                                           CanvasValidationContext context)
     {
-        // One command, one trigger. A future form container will widen this; today anything else
-        // would mean an action could fire from something the user does not experience as a press.
-        if (node.Type != "button")
-            return Err(node, "an action can only sit on a button — move it to the button that triggers it.");
+        // One command, one trigger — a press on a button, or a form's submit. Anything else would
+        // mean an action could fire from something the user does not experience as a deliberate act.
+        if (node.Type is not ("button" or "form"))
+            return Err(node, "an action can only sit on a button or form — move it to the node that triggers it.");
 
         if (string.IsNullOrWhiteSpace(action.Name))
             return Err(node, "action.name must name a registered action.");
@@ -410,7 +518,7 @@ public static class CanvasCatalog
         "stat" or "badge" or "progress" => "scalar",
         "lineChart" or "areaChart" or "barChart" => "series",
         "donutChart" => "segments",
-        "table" => "rows",
+        "table" or "dataGrid" or "list" or "keyValue" => "rows",
         _ => "no data at all — it cannot be bound",
     };
 
@@ -502,6 +610,26 @@ internal sealed class TabsNodeProps
 {
     /// <summary>Tab labels, one per child node, in order.</summary>
     public List<string>? Labels { get; set; }
+}
+
+/// <summary>Props of the <c>accordion</c> container.</summary>
+internal sealed class AccordionNodeProps
+{
+    /// <summary>Section labels, one per child node, in order.</summary>
+    public List<string>? Labels { get; set; }
+
+    /// <summary>Index of the initially expanded section; default all collapsed.</summary>
+    public int? Open { get; set; }
+}
+
+/// <summary>Props of the <c>form</c> container — bundles its interactive children into one action.</summary>
+internal sealed class FormNodeProps
+{
+    /// <summary>Label of the submit button.</summary>
+    public string? SubmitLabel { get; set; }
+
+    /// <summary>Names of interactive child nodes that must be filled before submit.</summary>
+    public List<string>? Required { get; set; }
 }
 
 /// <summary>Props of the <c>markdown</c> leaf.</summary>
@@ -606,6 +734,73 @@ internal sealed class ToggleNodeProps
 
     /// <summary>Current on/off value.</summary>
     public bool? Value { get; set; }
+}
+
+/// <summary>Props of the <c>dataGrid</c> leaf — the interactive big brother of <c>table</c>.</summary>
+internal sealed class DataGridNodeProps
+{
+    /// <summary>Column headers, 1–12.</summary>
+    public List<string>? Columns { get; set; }
+
+    /// <summary>Literal row data (max 100); bind a rows source for more.</summary>
+    public List<List<string>>? Rows { get; set; }
+
+    /// <summary>Click-to-sort on all columns. Default true.</summary>
+    public bool? Sortable { get; set; }
+
+    /// <summary>Per-column select filters. Default false.</summary>
+    public bool? Filterable { get; set; }
+
+    /// <summary>Toolbar search across all columns. Default false.</summary>
+    public bool? Searchable { get; set; }
+
+    /// <summary>Items per page; 0 disables paging. Default 10, max 100.</summary>
+    public int? PageSize { get; set; }
+}
+
+/// <summary>Props of the <c>image</c> leaf.</summary>
+internal sealed class ImageNodeProps
+{
+    /// <summary>Image URL — must start with https://, / or data:image/.</summary>
+    public string? Src { get; set; }
+
+    /// <summary>Alt text — required, accessibility is not optional.</summary>
+    public string? Alt { get; set; }
+
+    /// <summary>Aspect ratio: 'auto' (default), '1:1', '16:9' or '21:9'.</summary>
+    public string? Ratio { get; set; }
+
+    /// <summary>Object-fit: 'cover' (default) or 'contain'.</summary>
+    public string? Fit { get; set; }
+
+    /// <summary>Optional caption line below the image.</summary>
+    public string? Caption { get; set; }
+}
+
+/// <summary>Props of the <c>code</c> leaf.</summary>
+internal sealed class CodeNodeProps
+{
+    /// <summary>The source text to render.</summary>
+    public string? Code { get; set; }
+
+    /// <summary>Optional language hint for highlighting.</summary>
+    public string? Language { get; set; }
+
+    /// <summary>Show line numbers. Default false.</summary>
+    public bool? LineNumbers { get; set; }
+}
+
+/// <summary>Props of the <c>emptyState</c> leaf.</summary>
+internal sealed class EmptyStateNodeProps
+{
+    /// <summary>Headline, e.g. 'Nothing here yet'.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>Optional supporting text.</summary>
+    public string? Description { get; set; }
+
+    /// <summary>Optional DrylIcon name; unknown names fall back to the default icon.</summary>
+    public string? Icon { get; set; }
 }
 
 /// <summary>Props of the <c>button</c> leaf.</summary>

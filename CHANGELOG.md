@@ -14,6 +14,23 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.15.0] — 2026-07-26
+
+Canvas Platform, phase 4 — **Catalog**. Nine new node types, and with them the shapes a real line-of-business dashboard used to miss: a sortable, searchable, paged data grid; a form that bundles its fields into one command; a KPI row, lists, key/value pairs, collapsible sections, images, code and an empty state. Every one of them renders through components DRYL already ships — no new component, no new token, no new animation.
+
+### Added
+- Canvas catalog — **`dataGrid`**: the interactive big brother of `table`, rendered as a `DrylTable`. `columns` (1–12), optional literal `rows` (max 100), plus `sortable` (default true), `filterable`, `searchable` and `pageSize` (default 10, max 100; paging only appears once there is more than one page). Bind it to a rows source and it takes up to 1000 rows. On a canvas narrower than the grid it scrolls sideways inside its own container rather than squeezing cells to one glyph per line.
+- Canvas catalog — **`form`**: a container whose `action` binding sits on the container itself. The interactive nodes inside it become one command with one rendered submit button; `required` field names are checked before the handler is called, and a field that failed shows an inline hint that clears the moment the user edits it. The A4 guarantee is untouched — submitting is still something only a person does.
+- Canvas catalog — **`kpi`** (a row of 1–6 compact stats with count-up), **`list`** (up to 50 title/text/icon entries), **`keyValue`** (up to 20 label/value pairs, one or two columns), **`accordion`** (collapsible sections, exactly one child per label, optional `open` index), **`image`** (with required `alt`; `src` must start with `https://`, `/` or `data:image/`), **`code`** and **`emptyState`**.
+- `CanvasData` rows sources now fill `dataGrid`, `list` and `keyValue` as well as `table` — one source, four presentations. A `keyValue` needs exactly two columns and says so at the node when it does not get them. Per-type ceilings: table 30, dataGrid 1000, list 50, keyValue 20, each with the existing truncation notice.
+- `CanvasCatalog.KnownTypes` — **New property.** The generator's schema is checked against it by a test, so a type can never exist in the catalog without the model being told about it, or vice versa.
+
+### Changed
+- An `action` binding may now sit on a `form` as well as on a `button` — the widening phase 2 announced. Anything else is still rejected with a corrective sentence.
+- `CanvasPrompt.SchemaText` (Agents 0.13.0) — One line per new type, plus the guidance that decides the expensive cases: `table` for small static tables and `dataGrid` for bound or larger data, one `form` instead of a button per field. A test now caps the schema at 4500 characters; the next type to be added has to negotiate with that limit rather than quietly widen every generation.
+- `CanvasPrompt.LayoutBudget` (Agents 0.13.0) — Constrains `dataGrid` columns and `kpi` tiles per width step, the way it already constrained `table` and `stat`.
+- Canvas data prompt — The shape map now reads `rows -> table|dataGrid|list|keyValue`, including the keyValue two-column rule.
+
 ## [2.14.1] — 2026-07-25
 
 ### Fixed

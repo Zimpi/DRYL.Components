@@ -234,6 +234,175 @@ public class CanvasCatalogTests
         Assert.NotNull(CanvasCatalog.Validate(Node("button",
             """{ "label": "Go", "intent": "submit", "kind": "fancy" }""")));
 
+    private static CanvasNode NodeChild(string id, string type, string propsJson = "{}") => new()
+    {
+        Id = id, Type = type, Props = JsonSerializer.Deserialize<JsonElement>(propsJson),
+    };
+
+    // ---- accordion ----
+
+    [Fact] public void Accordion_matching_labels_and_children_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("accordion", """{ "labels": ["A", "B"] }""",
+            NodeChild("c1", "divider"), NodeChild("c2", "divider"))));
+
+    [Fact] public void Accordion_label_child_mismatch_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("accordion", """{ "labels": ["A", "B"] }""",
+            NodeChild("c1", "divider"))));
+
+    [Fact] public void Accordion_open_out_of_range_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("accordion", """{ "labels": ["A"], "open": 2 }""",
+            NodeChild("c1", "divider"))));
+
+    [Fact] public void Accordion_is_container() => Assert.True(CanvasCatalog.IsContainer("accordion"));
+
+    // ---- form ----
+
+    [Fact] public void Form_with_action_and_children_passes()
+    {
+        var form = Node("form", """{ "submitLabel": "Anlegen", "required": ["customer"] }""",
+            NodeChild("f1", "inputText", """{ "name": "customer", "label": "Kunde" }"""));
+        form.Action = new CanvasActionBinding { Name = "order.create" };
+        Assert.Null(CanvasCatalog.Validate(form));
+    }
+
+    [Fact] public void Form_without_action_rejected() =>
+        Assert.Contains("needs an action", CanvasCatalog.Validate(
+            Node("form", """{ "submitLabel": "Anlegen" }""")));
+
+    [Fact] public void Form_required_field_missing_in_subtree_rejected()
+    {
+        var form = Node("form", """{ "submitLabel": "Anlegen", "required": ["customer"] }""",
+            NodeChild("f1", "inputText", """{ "name": "note", "label": "Notiz" }"""));
+        form.Action = new CanvasActionBinding { Name = "order.create" };
+        Assert.Contains("customer", CanvasCatalog.Validate(form));
+    }
+
+    [Fact] public void Form_is_container() => Assert.True(CanvasCatalog.IsContainer("form"));
+
+    // ---- kpi ----
+
+    [Fact] public void Kpi_valid_items_pass() =>
+        Assert.Null(CanvasCatalog.Validate(Node("kpi",
+            """{ "items": [{ "label": "Umsatz", "value": "48k", "delta": "+4%", "direction": "up" }] }""")));
+
+    [Fact] public void Kpi_empty_items_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("kpi", """{ "items": [] }""")));
+
+    [Fact] public void Kpi_more_than_six_items_rejected() =>
+        Assert.Contains("at most 6", CanvasCatalog.Validate(Node("kpi",
+            """
+            { "items": [{"label":"a","value":"1"},{"label":"b","value":"2"},{"label":"c","value":"3"},
+                 {"label":"d","value":"4"},{"label":"e","value":"5"},{"label":"f","value":"6"},
+                 {"label":"g","value":"7"}] }
+            """)));
+
+    [Fact] public void Kpi_invalid_direction_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("kpi",
+            """{ "items": [{ "label": "a", "value": "1", "direction": "sideways" }] }""")));
+
+    // ---- list ----
+
+    [Fact] public void List_valid_items_pass() =>
+        Assert.Null(CanvasCatalog.Validate(Node("list",
+            """{ "items": [{ "title": "Auftrag 4711", "text": "offen", "icon": "Package" }] }""")));
+
+    [Fact] public void List_item_without_title_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("list", """{ "items": [{ "text": "x" }] }""")));
+
+    [Fact] public void List_more_than_fifty_items_rejected()
+    {
+        var items = string.Join(",", Enumerable.Range(0, 51).Select(i => $$"""{ "title": "t{{i}}" }"""));
+        Assert.Contains("at most 50", CanvasCatalog.Validate(Node("list", $$"""{ "items": [{{items}}] }""")));
+    }
+
+    // ---- keyValue ----
+
+    [Fact] public void KeyValue_valid_pairs_pass() =>
+        Assert.Null(CanvasCatalog.Validate(Node("keyValue",
+            """{ "pairs": [{ "key": "Status", "value": "offen" }], "columns": 2 }""")));
+
+    [Fact] public void KeyValue_empty_pairs_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("keyValue", """{ "pairs": [] }""")));
+
+    [Fact] public void KeyValue_invalid_columns_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("keyValue",
+            """{ "pairs": [{ "key": "a", "value": "b" }], "columns": 3 }""")));
+
+    // ---- image ----
+
+    [Fact] public void Image_https_src_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("image",
+            """{ "src": "https://example.com/a.png", "alt": "Diagramm" }""")));
+
+    [Fact] public void Image_relative_and_data_src_pass()
+    {
+        Assert.Null(CanvasCatalog.Validate(Node("image", """{ "src": "/img/a.png", "alt": "a" }""")));
+        Assert.Null(CanvasCatalog.Validate(Node("image", """{ "src": "data:image/png;base64,AAAA", "alt": "a" }""")));
+    }
+
+    [Fact] public void Image_javascript_src_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("image",
+            """{ "src": "javascript:alert(1)", "alt": "a" }""")));
+
+    [Fact] public void Image_http_src_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("image",
+            """{ "src": "http://example.com/a.png", "alt": "a" }""")));
+
+    [Fact] public void Image_missing_alt_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("image", """{ "src": "https://example.com/a.png" }""")));
+
+    [Fact] public void Image_invalid_ratio_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("image",
+            """{ "src": "https://example.com/a.png", "alt": "a", "ratio": "4:3" }""")));
+
+    // ---- code ----
+
+    [Fact] public void Code_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("code",
+            """{ "code": "SELECT 1;", "language": "sql", "lineNumbers": true }""")));
+
+    [Fact] public void Code_empty_code_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("code", """{ "code": "" }""")));
+
+    // ---- emptyState ----
+
+    [Fact] public void EmptyState_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("emptyState",
+            """{ "title": "Noch keine Aufträge", "description": "Lege den ersten an.", "icon": "Package" }""")));
+
+    [Fact] public void EmptyState_missing_title_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("emptyState", """{ "description": "x" }""")));
+
+    // ---- dataGrid ----
+
+    [Fact] public void DataGrid_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("dataGrid",
+            """{ "columns": ["A", "B"], "rows": [["1", "2"]], "sortable": true, "pageSize": 10 }""")));
+
+    [Fact] public void DataGrid_without_columns_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("dataGrid", """{ "rows": [["1"]] }""")));
+
+    [Fact] public void DataGrid_more_than_twelve_columns_rejected()
+    {
+        var cols = string.Join(",", Enumerable.Range(0, 13).Select(i => $"\"c{i}\""));
+        Assert.Contains("at most 12", CanvasCatalog.Validate(Node("dataGrid", $$"""{ "columns": [{{cols}}] }""")));
+    }
+
+    [Fact] public void DataGrid_row_cell_mismatch_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("dataGrid",
+            """{ "columns": ["A", "B"], "rows": [["1"]] }""")));
+
+    [Fact] public void DataGrid_more_than_hundred_literal_rows_rejected()
+    {
+        var rows = string.Join(",", Enumerable.Range(0, 101).Select(i => $"[\"{i}\"]"));
+        Assert.Contains("at most 100", CanvasCatalog.Validate(Node("dataGrid",
+            $$"""{ "columns": ["A"], "rows": [{{rows}}] }""")));
+    }
+
+    [Fact] public void DataGrid_pagesize_out_of_range_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("dataGrid",
+            """{ "columns": ["A"], "pageSize": 101 }""")));
+
     // ---- classification ----
 
     [Fact] public void Interactive_and_container_classification()

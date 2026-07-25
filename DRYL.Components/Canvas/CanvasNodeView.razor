@@ -123,6 +123,50 @@
                     break;
                 }
 
+                case "accordion":
+                {
+                    var p = Props<AccordionNodeProps>();
+                    var labels = p!.Labels!;
+                    var children = Node.Children!;
+                    @for (var i = 0; i < labels.Count; i++)
+                    {
+                        var idx = i;                 // capture per-iteration for the fragment
+                        var child = children[idx];
+                        <DrylExpansion Title="@labels[idx]"
+                                       Open="@_openSections.Contains(idx)"
+                                       OpenChanged="@(v => ToggleSection(idx, v))">
+                            <CanvasNodeView @key="child.Id" Node="child" />
+                        </DrylExpansion>
+                    }
+                    break;
+                }
+
+                case "form":
+                {
+                    var p = Props<FormNodeProps>();
+                    var actionState = Ctx.Actions?.StateOf(Node.Id);
+                    <div class="canvas-form">
+                        <CascadingValue Value="_formScope" IsFixed="true">
+                            @RenderChildren
+                        </CascadingValue>
+                        <div class="canvas-form-submit">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                                        Loading="@(actionState?.Busy == true)"
+                                        OnClick="@(_ => SubmitFormAsync(p!))">
+                                @p!.SubmitLabel
+                            </DrylButton>
+                        </div>
+                        <DrylPresence Visible="@(actionState?.Error is not null)"
+                                      Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+                            <span class="canvas-action-error">
+                                <DrylIcon Name="Alert" Size="14" />
+                                @actionState?.Error
+                            </span>
+                        </DrylPresence>
+                    </div>
+                    break;
+                }
+
                 case "divider":
                     <DrylDivider />
                     break;
@@ -163,6 +207,41 @@
                 {
                     var p = Props<TableNodeProps>();
                     <DrylMarkdown Content="@BuildTable(p!)" />
+                    break;
+                }
+
+                case "dataGrid":
+                {
+                    var p = Props<DataGridNodeProps>();
+                    var rows = GridRows(p!);
+                    var sortable = p!.Sortable ?? true;
+                    var searchable = p.Searchable == true;
+                    var filterable = p.Filterable == true;
+                    var pageSize = p.PageSize ?? 10;
+                    // Paging only when it has something to page — a footer under three rows is noise.
+                    var effectivePageSize = pageSize > 0 && rows.Count > pageSize ? pageSize : 0;
+                    @*  The column count drives a per-column width floor, so a grid on a narrow
+                        canvas scrolls sideways instead of squeezing cells to one glyph a line. *@
+                    <div class="canvas-grid" style="--canvas-grid-cols: @p.Columns!.Count;">
+                        <DrylTable TItem="CanvasGridRow" Items="@rows"
+                                   ShowToolbar="@searchable" Searchable="@searchable"
+                                   PageSize="@effectivePageSize"
+                                   AriaLabel="Data grid"
+                                   RowIdSelector="@(r => r.Index)">
+                            <Columns>
+                                @for (var i = 0; i < p.Columns.Count; i++)
+                                {
+                                    var idx = i;             // capture per-iteration for the expression
+                                    <DrylColumn TItem="CanvasGridRow"
+                                                ColumnKey="@($"c{idx}")" Title="@p.Columns[idx]"
+                                                Field="@(r => r.Cell(idx))"
+                                                Sortable="@sortable" Searchable="@searchable"
+                                                Filterable="@filterable"
+                                                FilterType="@(filterable ? ColumnFilterType.Select : ColumnFilterType.Auto)" />
+                                }
+                            </Columns>
+                        </DrylTable>
+                    </div>
                     break;
                 }
 
@@ -234,13 +313,84 @@
                     break;
                 }
 
+                case "kpi":
+                {
+                    var p = Props<CanvasKpiProps>();
+                    <div class="canvas-kpi">
+                        @foreach (var item in p!.Items!)
+                        {
+                            <DrylStat Label="@item.Label" Value="@item.Value" Delta="@item.Delta"
+                                      Direction="@item.ParsedDirection" CountUp Ai="AiState.Generated" />
+                        }
+                    </div>
+                    break;
+                }
+
+                case "list":
+                {
+                    var p = Props<CanvasListProps>();
+                    <DrylList>
+                        @foreach (var item in p!.Items!)
+                        {
+                            <DrylListItem Icon="@item.Icon">
+                                @item.Title
+                                @if (!string.IsNullOrWhiteSpace(item.Text))
+                                {
+                                    <span class="canvas-list-text">@item.Text</span>
+                                }
+                            </DrylListItem>
+                        }
+                    </DrylList>
+                    break;
+                }
+
+                case "keyValue":
+                {
+                    var p = Props<CanvasKeyValueProps>();
+                    <DrylDescriptionList Columns="@(p!.Columns ?? 1)">
+                        @foreach (var pair in p.Pairs!)
+                        {
+                            <DrylDescriptionItem Term="@pair.Key">@pair.Value</DrylDescriptionItem>
+                        }
+                    </DrylDescriptionList>
+                    break;
+                }
+
+                case "image":
+                {
+                    var p = Props<ImageNodeProps>();
+                    <DrylImage Src="@(p!.Src!)" Alt="@(p.Alt!)" Fit="MapImageFit(p.Fit)"
+                               Ratio="MapImageRatio(p.Ratio)" Rounded="DrylImage.ImageRounded.Md" />
+                    @if (!string.IsNullOrWhiteSpace(p.Caption))
+                    {
+                        <div class="canvas-image-caption">@p.Caption</div>
+                    }
+                    break;
+                }
+
+                case "code":
+                {
+                    var p = Props<CodeNodeProps>();
+                    <DrylCodeBlock Code="@(p!.Code!)" Language="@p.Language"
+                                   ShowLineNumbers="@(p.LineNumbers == true)" />
+                    break;
+                }
+
+                case "emptyState":
+                {
+                    var p = Props<EmptyStateNodeProps>();
+                    <DrylEmptyState Icon="@p!.Icon" Title="@p.Title" Description="@p.Description" />
+                    break;
+                }
+
                 case "inputText":
                 {
                     var p = Props<InputTextNodeProps>();
                     var name = p!.Name!;
                     <DrylInputText Label="@p.Label" Placeholder="@p.Placeholder"
                                    Value="@(Ctx.Form.Get<string>(name))"
-                                   ValueChanged="@(v => Ctx.Form.Set(name, v))" />
+                                   ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -250,8 +400,9 @@
                     var name = p!.Name!;
                     <DrylSelect Label="@p.Label" Items="@ToItems(p.Options!)"
                                 Value="@(Ctx.Form.Get<string>(name))"
-                                ValueChanged="@(v => Ctx.Form.Set(name, v))"
+                                ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })"
                                 Ai="AiState.None" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -261,7 +412,8 @@
                     var name = p!.Name!;
                     <DrylSlider Label="@p.Label" Min="p.Min" Max="p.Max" Step="@(p.Step ?? 1)"
                                 Value="@(Ctx.Form.Get<double>(name))"
-                                ValueChanged="@(v => Ctx.Form.Set(name, v))" />
+                                ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -271,7 +423,8 @@
                     var name = p!.Name!;
                     <DrylToggle Label="@p.Label"
                                 Value="@(Ctx.Form.Get<bool>(name))"
-                                ValueChanged="@(v => Ctx.Form.Set(name, v))" />
+                                ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -323,6 +476,10 @@
     /// <summary>Everything this canvas shares with its nodes (form state, pulse tracker,
     /// data binder, intent callback) — one <c>IsFixed</c> cascade from <c>DrylCanvas</c>.</summary>
     [CascadingParameter] internal CanvasContext Ctx { get; set; } = default!;
+
+    /// <summary>Supplied by an enclosing <c>form</c> node's view: which required fields failed
+    /// the last submit. Null outside a form — the hint then never renders.</summary>
+    [CascadingParameter] internal CanvasFormScope? FormScope { get; set; }
 
     private CanvasNode? _seededNode;
 
@@ -398,7 +555,8 @@
 
     private static DrylSkeleton.SkeletonVariant SkeletonFor(string type) => type switch
     {
-        "lineChart" or "areaChart" or "barChart" or "donutChart" or "table" =>
+        "lineChart" or "areaChart" or "barChart" or "donutChart" or "table"
+            or "dataGrid" or "list" or "keyValue" or "image" or "code" or "accordion" =>
             DrylSkeleton.SkeletonVariant.Card,
         _ => DrylSkeleton.SkeletonVariant.Text,
     };
@@ -410,11 +568,97 @@
     {
         SyncBinding();
         SeedFormOnce();
+        SeedAccordionOnce();
+        SyncFormScope();
         SyncPulse();
     }
 
     /// <summary>A node that leaves the tree must not keep its key alive in the binder.</summary>
-    public void Dispose() => Ctx?.Binder?.Unregister(Node.Id);
+    public void Dispose()
+    {
+        Ctx?.Binder?.Unregister(Node.Id);
+        if (_subscribedScope is not null) _subscribedScope.OnChanged -= OnFormScopeChanged;
+    }
+
+    // ───── dataGrid ─────
+
+    // Props<T> returns the same parsed object per node version, so keying the row list off that
+    // reference keeps the Items reference stable across renders — DrylTable's itemsChanged logic
+    // (and A8's "refresh pulses instead of rebuilding") depends on it.
+    private object? _gridPropsRef;
+    private IReadOnlyList<CanvasGridRow> _gridRows = [];
+
+    private IReadOnlyList<CanvasGridRow> GridRows(DataGridNodeProps p)
+    {
+        if (ReferenceEquals(_gridPropsRef, p)) return _gridRows;
+        _gridPropsRef = p;
+        _gridRows = (p.Rows ?? []).Select((cells, i) => new CanvasGridRow(i, cells)).ToList();
+        return _gridRows;
+    }
+
+    // ───── accordion ─────
+
+    // Which sections are open — renderer-local UI state like the active tab, seeded once per
+    // node INSTANCE (same reuse trap as _seededNode) from the "open" prop.
+    private readonly HashSet<int> _openSections = new();
+    private CanvasNode? _seededAccordion;
+
+    private void ToggleSection(int index, bool open)
+    {
+        if (open) _openSections.Add(index);
+        else _openSections.Remove(index);
+    }
+
+    private void SeedAccordionOnce()
+    {
+        if (Node.Type != "accordion" || ReferenceEquals(_seededAccordion, Node)) return;
+        _seededAccordion = Node;
+        _openSections.Clear();
+        if (Props<AccordionNodeProps>() is { Open: { } open }) _openSections.Add(open);
+    }
+
+    // ───── form ─────
+
+    private readonly CanvasFormScope _formScope = new();
+    private CanvasFormScope? _subscribedScope;
+
+    // A required hint only re-renders this field's view if it hears the form's submit —
+    // the cascade is fixed, so the event is the signal.
+    private void SyncFormScope()
+    {
+        if (ReferenceEquals(_subscribedScope, FormScope)) return;
+        if (_subscribedScope is not null) _subscribedScope.OnChanged -= OnFormScopeChanged;
+        _subscribedScope = FormScope;
+        if (_subscribedScope is not null) _subscribedScope.OnChanged += OnFormScopeChanged;
+    }
+
+    private void OnFormScopeChanged() => InvokeAsync(StateHasChanged);
+
+    // Missing = a required field whose value is null or a whitespace-only string.
+    private async Task SubmitFormAsync(FormNodeProps p)
+    {
+        var missing = (p.Required ?? new List<string>())
+            .Where(name => Ctx.Form.Get(name) is var v
+                && (v is null || (v is string s && string.IsNullOrWhiteSpace(s))))
+            .ToList();
+        _formScope.SetMissing(missing);
+        if (missing.Count > 0) return;
+
+        if (Node.Action is { Name.Length: > 0 } action && Ctx.Actions is { } runner)
+            await runner.InvokeAsync(Node.Id, p.SubmitLabel, action);
+    }
+
+    private RenderFragment RequiredHint(string name) => __builder =>
+    {
+        if (FormScope is null) return;
+        <DrylPresence Visible="@FormScope.IsMissing(name)"
+                      Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+            <span class="canvas-field-required">
+                <DrylIcon Name="Alert" Size="12" />
+                Required
+            </span>
+        </DrylPresence>
+    };
 
     // The run stamps a node on every applied setProps. A stamp we have not seen yet means
     // the content just changed underneath us — replay the pulse. Stamps are per-node and
@@ -514,6 +758,20 @@
         "sm" => DrylStack.StackGap.Sm,
         "lg" => DrylStack.StackGap.Lg,
         _ => DrylStack.StackGap.Md,
+    };
+
+    private static DrylImage.ImageFit MapImageFit(string? fit) => fit switch
+    {
+        "contain" => DrylImage.ImageFit.Contain,
+        _ => DrylImage.ImageFit.Cover,
+    };
+
+    private static DrylImage.ImageRatio MapImageRatio(string? ratio) => ratio switch
+    {
+        "1:1" => DrylImage.ImageRatio.Square,
+        "16:9" => DrylImage.ImageRatio.Video,
+        "21:9" => DrylImage.ImageRatio.Wide,
+        _ => DrylImage.ImageRatio.Auto,
     };
 
     private static DrylBadge.BadgeKind MapBadge(string? kind) => kind switch

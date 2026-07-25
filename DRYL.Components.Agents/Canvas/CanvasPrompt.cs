@@ -16,7 +16,7 @@ internal static class CanvasPrompt
         Shape: { "title": string, "root": Node }
         Node: { "id": string, "type": string, "props": object, "children": Node[] }
         - "id": short, unique, stable, kebab-case. Never reuse an id.
-        - "children" only on container types: stack, grid, card, tabs.
+        - "children" only on container types: stack, grid, card, tabs, accordion, form.
         Types and props:
         - stack { "gap": "sm"|"md"|"lg"? } — vertical layout; use as root.
         - grid { "columns": 1|2|3|4 } — equal-width responsive grid.
@@ -37,6 +37,15 @@ internal static class CanvasPrompt
         - toggle { "name": string, "label": string, "value": boolean? }
         - button { "label": string, "intent": string, "kind": "primary"|"secondary"|"danger"? } — "intent" is a short
           machine-readable action id; clicking sends the intent plus all current input values back to you.
+        - dataGrid { "columns": string[], "rows": string[][]?, "sortable": boolean?, "filterable": boolean?, "searchable": boolean?, "pageSize": number? } — interactive table with sorting, filters, search and paging. Max 12 columns, max 100 literal rows; bind a rows source for more. Use "table" only for a small static table.
+        - form { "submitLabel": string, "required": string[]? } — container bundling its interactive children into ONE action. Put the action binding on the form node itself; the submit button is rendered for you. Prefer one form over a button per field.
+        - kpi { "items": [{ "label": string, "value": string, "delta": string?, "direction": "up"|"down"|"neutral"? }] } — one row of 1..6 compact stats.
+        - list { "items": [{ "title": string, "text": string?, "icon": string? }] } — vertical list, max 50 items.
+        - keyValue { "pairs": [{ "key": string, "value": string }], "columns": 1|2? } — label/value pairs, max 20.
+        - accordion { "labels": string[], "open": number? } — collapsible sections, exactly one child per label; "open" is the initially expanded index.
+        - image { "src": string, "alt": string, "ratio": "auto"|"1:1"|"16:9"|"21:9"?, "fit": "cover"|"contain"?, "caption": string? } — "src" must start with https://, / or data:image/.
+        - code { "code": string, "language": string?, "lineNumbers": boolean? } — read-only source block.
+        - emptyState { "title": string, "description": string?, "icon": string? } — for a "nothing here yet" view instead of empty markdown.
         Interactive nodes (inputText/select/slider/toggle) each need a unique "name".
         Prefer charts and stats over prose for numbers. Keep the artifact focused.
         """;
@@ -59,7 +68,7 @@ internal static class CanvasPrompt
                 """
                 - grid: use "columns": 1 only — two cards side by side do not fit.
                 - stat: label at most 14 characters, value at most 8 (a long value wraps one glyph per line).
-                - table: at most 3 columns.
+                - table, dataGrid: at most 3 columns. kpi: at most 2 items.
                 - charts: at most 2 series and at most 6 labels; keep labels short ("Apr", not "April 2025").
                 - Prefer few tall nodes over dense ones. Do not nest a grid inside a grid.
                 """,
@@ -67,13 +76,13 @@ internal static class CanvasPrompt
                 """
                 - grid: at most 2 columns.
                 - stat: label at most 20 characters.
-                - table: at most 5 columns.
+                - table, dataGrid: at most 5 columns. kpi: at most 4 items.
                 - charts: at most 3 series and at most 12 labels.
                 """,
             _ =>
                 """
                 - grid: up to 3 columns; 4 only for short stats or badges.
-                - table: at most 8 columns.
+                - table, dataGrid: at most 8 columns.
                 - charts: at most 4 series.
                 """,
         };

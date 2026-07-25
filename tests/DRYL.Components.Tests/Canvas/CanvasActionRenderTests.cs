@@ -80,6 +80,59 @@ public class CanvasActionRenderTests : BunitContext
         });
     }
 
+    private const string SpecWithForm = """
+        {"title":"Neu","root":{"id":"f","type":"form",
+          "props":{"submitLabel":"Anlegen","required":["customer"]},
+          "action":{"name":"order.approve","args":{"orderId":{"$field":"customer"}}},
+          "children":[{"id":"f1","type":"inputText","props":{"name":"customer","label":"Kunde"}}]}}
+        """;
+
+    [Fact]
+    public void Form_submit_with_empty_required_field_shows_hint_and_does_not_invoke()
+    {
+        var invoked = false;
+        Action(_ => { invoked = true; return CanvasActionResult.Ok(); });
+
+        var cut = Render<DrylCanvas>(p => p.Add(x => x.Spec, Parse(SpecWithForm)));
+        cut.Find(".canvas-form-submit button").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.False(invoked);
+            Assert.Contains("canvas-field-required", cut.Markup);
+        });
+    }
+
+    [Fact]
+    public void Form_submit_with_filled_required_field_invokes_action()
+    {
+        var invoked = false;
+        Action(_ => { invoked = true; return CanvasActionResult.Ok(); });
+
+        var cut = Render<DrylCanvas>(p => p.Add(x => x.Spec, Parse(SpecWithForm)));
+        cut.Find("[data-cid='f1'] input").Input("ACME");
+        cut.Find(".canvas-form-submit button").Click();
+
+        cut.WaitForAssertion(() => Assert.True(invoked));
+    }
+
+    [Fact]
+    public void Typing_into_a_flagged_required_field_clears_the_hint()
+    {
+        Action(_ => CanvasActionResult.Ok());
+
+        var cut = Render<DrylCanvas>(p => p.Add(x => x.Spec, Parse(SpecWithForm)));
+        cut.Find(".canvas-form-submit button").Click();
+        cut.WaitForAssertion(() => Assert.Contains("canvas-field-required", cut.Markup));
+
+        cut.Find("[data-cid='f1'] input").Input("ACME");
+
+        // The DrylPresence hint starts its exit as soon as the flag clears. bUnit never fires
+        // animationend, so assert the exit phase rather than the removal.
+        cut.WaitForAssertion(() =>
+            Assert.NotEmpty(cut.FindAll(".presence-exit .canvas-field-required")));
+    }
+
     [Fact]
     public void Kind_danger_renders_the_danger_variant()
     {
