@@ -23,7 +23,12 @@ public interface ICanvasDataService
     /// <paramref name="parameters"/> stale. Pass an anonymous object or the parameter record.</summary>
     void Invalidate(string source, object parameters);
 
-    /// <summary>Infrastructure — raised by <see cref="Invalidate(string)"/>. Bound canvases listen; hosts do not.</summary>
+    /// <summary>Infrastructure — republishes a ready-made notice, e.g. an action result's refresh
+    /// list, whose canonical key was already computed. Bound canvases call it; hosts use the two
+    /// overloads above.</summary>
+    void Invalidate(CanvasInvalidation notice);
+
+    /// <summary>Infrastructure — raised by every <c>Invalidate</c> overload. Bound canvases listen; hosts do not.</summary>
     event Action<CanvasInvalidation>? Invalidated;
 
     /// <summary>Infrastructure — runs a registered source against this scope. Bound canvases call it; hosts do not.</summary>
@@ -60,11 +65,13 @@ internal sealed class CanvasDataService : ICanvasDataService
 
     public event Action<CanvasInvalidation>? Invalidated;
 
-    public void Invalidate(string source) => Invalidated?.Invoke(new CanvasInvalidation(source, null));
+    public void Invalidate(string source) => Invalidate(new CanvasInvalidation(source, null));
 
     public void Invalidate(string source, object parameters) =>
-        Invalidated?.Invoke(new CanvasInvalidation(
+        Invalidate(new CanvasInvalidation(
             source, CanvasDataKey.Canonicalize(JsonSerializer.SerializeToElement(parameters, CanvasJson.Options))));
+
+    public void Invalidate(CanvasInvalidation notice) => Invalidated?.Invoke(notice);
 
     public Task<CanvasData> LoadAsync(string source, JsonElement? parameters, CancellationToken ct)
     {

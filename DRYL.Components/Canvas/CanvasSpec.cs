@@ -53,6 +53,13 @@ public sealed class CanvasNode
     /// </summary>
     public CanvasDataBinding? Data { get; set; }
 
+    /// <summary>
+    /// Optional binding to a registered host action (see <c>AddDrylCanvasAction</c>). Only valid
+    /// on a <c>button</c>. The AI authors and labels the button; only a user press ever runs the
+    /// handler. A node without a binding behaves exactly as it always has.
+    /// </summary>
+    public CanvasActionBinding? Action { get; set; }
+
     /// <summary>Transient exit flag: node plays its exit animation, then is purged. Never serialized.</summary>
     [JsonIgnore] public bool Removing { get; set; }
 

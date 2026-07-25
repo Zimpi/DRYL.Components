@@ -19,6 +19,15 @@ public sealed class CanvasContext
     /// source registry is available (no host registrations, prerender, plain rendering).</summary>
     public CanvasDataBinder? Binder { get; internal set; }
 
+    /// <summary>Runs this artifact's <c>action</c> bindings; <c>null</c> when no actions are
+    /// registered — in which case a button falls back to its <c>intent</c>.</summary>
+    public CanvasActionRunner? Actions { get; internal set; }
+
+    /// <summary>Applies a patch op to the canvas's spec (an action result may carry some).
+    /// Returns <c>null</c> on success, otherwise a skip reason. Set by <c>DrylCanvas</c>,
+    /// which owns the spec.</summary>
+    internal Func<CanvasOp, string?>? Patch { get; set; }
+
     /// <summary>The canvas's current AI state — drives the "waiting for …" skeleton on nodes
     /// that have not finished streaming.</summary>
     public AiState State { get; internal set; }
