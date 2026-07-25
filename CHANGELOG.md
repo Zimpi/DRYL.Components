@@ -14,6 +14,33 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.12.0] — 2026-07-25
+
+Canvas Platform, phase 1 — **Canvas Data Binding**. A canvas node reads its values from a registered host data source instead of from prompt text. Numbers stop hallucinating, stop going stale the second after they were generated, and the token cost decouples from the amount of data. Ships together with the A1 move that puts the whole renderer in this package.
+
+### Added
+- `DrylCanvas` — **New component.** Renders a `CanvasSpec` — a titled tree of curated DRYL components — as a live surface: glass card, header (title · `HeaderTools` slot · refresh · expand), body, empty state, error alert, fullscreen through the top layer. Deliberately dumb: a spec goes in, interactions come out, and where the spec came from (code, a database, a saved document, an AI generation) is the host's business. A line-of-business app can now render an artifact without referencing `DRYL.Components.Agents` at all.
+- `AddDrylCanvasDataSource(name, description, handler)` — **New DI extension.** Registers a named data source. Its parameters are declared as a C# record and the model-facing schema is derived from that record's primary constructor, so there is one place of truth and IntelliSense in the handler; an unsupported parameter type throws at registration rather than when the model first uses it. A parameterless overload covers sources that take no arguments. Tenant and user come from the handler's DI scope (`ctx.Services`) and never travel through the spec.
+- `CanvasData` — **New result shapes.** `Scalar` (→ `stat`, `badge`, `progress`), `Series` (→ `lineChart`, `areaChart`, `barChart`), `Segments` (→ `donutChart`) and `Rows` (→ `table`). The host thinks in data; the binder maps the shape onto whichever node type the artifact happens to use. A `Rows` result beyond the catalog's 30-row ceiling is cut and the node says so.
+- `CanvasNode.Data` — **New binding.** `"data": { "source": "sales.byMonth", "params": { "year": 2026, "region": { "$field": "region" } }, "refresh": "interval:30s" }`. A parameter is a literal or a reference to an interactive node of the same artifact — one select at the top, and the dependent nodes follow without an AI turn. `data` is optional; a node without it behaves exactly as it always has.
+- `ICanvasDataService` — **New scoped service.** `Descriptors` (what exists), `Invalidate(source)` and `Invalidate(source, parameters)` (the host says something moved). Registered by `AddDrylComponents()`.
+- `CanvasDataBinder` — **New per-canvas binder.** Keys bindings by source plus resolved parameters, so three stat nodes on `orders.open` cost one call. Four triggers: first render, a debounced change to a referenced field, one interval timer per canvas (five-second floor), and `Invalidate`. Per key at most one load runs, a newer one cancels the older, and a late straggler is dropped.
+- `CanvasPulseTracker` — **New.** The single source of truth for "this node just changed", stamped by both the AI patcher and the data binder, so a data refresh looks exactly like an AI change.
+- `CanvasCatalog.Validate(node, context)` — **New additive overload.** Checks a binding's source, result shape, parameters, `$field` targets and `refresh` syntax, and returns one corrective sentence for the model's receipt. The parameterless signature is unchanged.
+
+### Changed
+- **The canvas renderer moved into this package** (roadmap A1). `CanvasSpec`, `CanvasNode`, `CanvasJson`, `CanvasCatalog`, `CanvasNodeView`, `CanvasPatch`, `CanvasPatcher`, `CanvasFormState` and `CanvasInteraction` now live in `DRYL.Components` under the namespace **`DRYL.Components.Canvas`** (they were `DRYL.Components.Agents`). **Migration:** add `using DRYL.Components.Canvas;` — or `@using DRYL.Components.Canvas` in `_Imports.razor`. Nothing else changes. See the Agents 0.10.0 note below.
+- `CanvasNode.Version` is now public. It is the mutation stamp renderers memoize on; a patcher outside this package needs to bump it.
+- `wwwroot/js/dryl-canvas.js` now ships from `_content/DRYL.Components/js/` (was `_content/DRYL.Components.Agents/js/`). Nothing to wire up — the component imports it itself.
+- **Refresh is a movement, not a rebuild** (roadmap A8). A bound node's first load shows a `DrylSkeleton`; every later refresh keeps the node's identity and lands as the existing change-pulse, with `DrylStat.CountUp` tweening the number. A refresh that changes nothing renders nothing at all, so a dashboard on a 30-second interval never blinks. A failure after a good value keeps the value and adds a small marker whose tooltip names the source; a failure without one shows a compact inline error at that node only — a broken widget must never blow up the dashboard around it.
+- `DrylCanvasRun` — (Agents 0.10.0) New `Pulse` property (`CanvasPulseTracker`) replacing the internal change-stamp table. `DrylAiCanvas` hands it to `DrylCanvas`, so an AI patch and a data refresh stamp the same tracker.
+- `DrylCanvasTools.Create` / `CreateReplay` — (Agents 0.10.0) New optional `ICanvasDataService` argument. When supplied, the registered sources are described to the generator in `create_artifact` **and** `update_artifact`, and every produced binding is validated against them; findings come back as corrective sentences in the receipt, never as a hard stop. With no registered sources neither the prompt nor the receipt mentions data at all, so existing chat artifacts are untouched (roadmap A2).
+- `DrylAiCanvas` — (Agents 0.10.0) Now wraps `DrylCanvas` and keeps only what is specific to an AI being the author: the run subscription, the aura, the status indicator, the announcements and the artifact-swap morph. Its public parameters are unchanged.
+
+### Removed
+- **⚠ Breaking (Agents 0.10.0).** The canvas renderer types listed under *Changed* no longer live in `DRYL.Components.Agents`. They moved to `DRYL.Components` / namespace `DRYL.Components.Canvas`; `[Obsolete]` aliases were deliberately not added. Add `using DRYL.Components.Canvas;` and the code compiles again. `DrylAiCanvas`, `DrylCanvasRun`, `DrylCanvasTools`, `CanvasPrompt` and `CanvasStreamReveal` stay in the Agents package where they were.
+- `DrylCanvasRun.ChangeTickOf(id)` — (Agents 0.10.0) removed; use `run.Pulse.TickOf(id)`.
+
 ## [2.11.0] — 2026-07-25
 
 ### Added
