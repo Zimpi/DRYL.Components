@@ -1,7 +1,7 @@
-/*  DrylAiCanvas — artifact host surface. Tokens only; the glass-card base
+/*  DrylCanvas — artifact host surface. Tokens only; the glass-card base
     (background, border, radius, backdrop-filter) comes from dryl.css. */
 
-.ai-canvas {
+.canvas {
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -17,7 +17,7 @@
    fit-content sizing, auto margins, a solid border and system colours — so the glass
    surface survives the promotion. Browsers without the Popover API ignore the
    attribute and land on the plain fixed-position fallback these same rules describe. */
-.ai-canvas.is-expanded {
+.canvas.is-expanded {
     position: fixed;
     inset: var(--sp-4);
     z-index: var(--z-modal);
@@ -41,7 +41,7 @@
    content, and a tall artifact would push the canvas past the viewport with no scrollbar
    anywhere. overscroll-behavior keeps the page behind the overlay still once the body
    hits its end. Inline the body is auto-height, so none of this changes anything there. */
-.ai-canvas.is-expanded .canvas-body {
+.canvas.is-expanded .canvas-body {
     flex: 1 1 auto;
     min-height: 0;
     overscroll-behavior: contain;
@@ -102,10 +102,11 @@
     position: relative; /* anchor for the change-pulse overlay */
 }
 
-/* Change-pulse — the visual for a setProps op, which otherwise changes content
-   silently (an insert enters, a move glides, a remove exits). One accent ring,
-   once, over the whole affected subtree. Compositor-only: opacity + transform,
-   never a looping custom property or background-position. */
+/* Change-pulse — the visual for a content change that has no motion of its own: an AI
+   setProps op, or a data refresh that landed a new value. An insert enters, a move
+   glides, a remove exits; this is the one accent ring for everything else, once, over
+   the whole affected subtree. Compositor-only: opacity + transform, never a looping
+   custom property or background-position. */
 ::deep .canvas-pulse {
     position: absolute;
     inset: calc(var(--sp-1) * -1);
@@ -151,4 +152,37 @@
     border-radius: var(--r-md);
     color: var(--fg-dim);
     font-size: 13px;
+}
+
+/* A bound node whose source failed while a good value is still on screen. "Briefly
+   disturbed" is not "broken", so the value stays and this is all the user sees —
+   a small marker whose tooltip names the source. */
+::deep .canvas-data-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-top: var(--sp-2);
+    color: var(--warning);
+    font-size: 12px;
+}
+
+/* A bound node that never had a good value. Compact and local: one broken widget
+   must never blow up the dashboard around it. */
+::deep .canvas-data-error {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-md);
+    color: var(--fg-dim);
+    font-size: 13px;
+}
+
+/* A rows result the table had to cut at the catalog's 30-row ceiling. */
+::deep .canvas-data-truncated {
+    display: block;
+    margin-top: var(--sp-2);
+    color: var(--fg-dim);
+    font-size: 12px;
 }

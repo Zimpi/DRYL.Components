@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using DRYL.Components.Motion;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;

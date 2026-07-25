@@ -1,7 +1,7 @@
 using System.Text.Json;
-using DRYL.Components.Agents.Tools;
 
-namespace DRYL.Components.Agents;
+
+namespace DRYL.Components.Canvas;
 
 /// <summary>
 /// Validation registry for the curated canvas node catalog. Every <see cref="CanvasNode"/> the model
@@ -89,7 +89,7 @@ public static class CanvasCatalog
 
             case "stat":
             {
-                if (!TryProps<StatSpec>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (!TryProps<CanvasStatProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 if (string.IsNullOrWhiteSpace(p!.Label))
                     return Err(node, "label must be non-empty.");
                 if (string.IsNullOrWhiteSpace(p.Value))
@@ -135,19 +135,19 @@ public static class CanvasCatalog
 
             case "timeline":
             {
-                if (!TryProps<TimelineArgs>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (!TryProps<CanvasTimelineProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 return Prefix(node, p!.Validate());
             }
 
             case "lineChart" or "areaChart" or "barChart":
             {
-                if (!TryProps<CartesianChartArgs>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (!TryProps<CanvasChartProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 return Prefix(node, p!.Validate());
             }
 
             case "donutChart":
             {
-                if (!TryProps<DonutChartArgs>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (!TryProps<CanvasDonutProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 return Prefix(node, p!.Validate());
             }
 
@@ -210,7 +210,7 @@ public static class CanvasCatalog
     }
 
     private static bool TryProps<T>(CanvasNode n, out T? value) where T : class =>
-        DisplayJson.TryParse(PropsJson(n), out value);
+        CanvasJson.TryParse(PropsJson(n), out value);
 
     private static string PropsJson(CanvasNode n) =>
         n.Props is { } p && p.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)

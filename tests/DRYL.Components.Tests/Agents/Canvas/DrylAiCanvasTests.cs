@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
 namespace DRYL.Components.Tests.Agents.Canvas;

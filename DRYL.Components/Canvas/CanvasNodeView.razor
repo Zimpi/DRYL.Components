@@ -1,7 +1,6 @@
-@namespace DRYL.Components.Agents
+@namespace DRYL.Components.Canvas
 @using System.Text
 @using System.Text.Json
-@using DRYL.Components.Agents.Tools
 
 @*  ─────────────────────────────────────────────────────────
     CanvasNodeView — the recursive renderer for one canvas node.
@@ -16,8 +15,9 @@
     (Generated / None) an invalid node is finished-broken and shows a compact
     .canvas-invalid placeholder carrying the catalog's corrective message.
 
-    The shared pieces (Run, Form, intent callback) arrive as cascading
-    values from DrylAiCanvas and flow down to child views automatically.
+    The shared pieces (form state, pulse tracker, data binder, intent callback)
+    arrive as one CanvasContext cascade from DrylCanvas and flow down to child
+    views automatically.
     ───────────────────────────────────────────────────────── *@
 
 <DrylPresence @key="Node.Id"
@@ -41,7 +41,7 @@
         }
         @if (error is not null)
         {
-            @if (Run.State is AiState.Streaming or AiState.Thinking)
+            @if (Ctx.State is AiState.Streaming or AiState.Thinking)
             {
                 <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" Ai="AiState.Streaming" />
                 <span class="canvas-waiting">@($"waiting for {Node.Type}…")</span>
@@ -118,7 +118,7 @@
 
                 case "stat":
                 {
-                    var p = Props<StatSpec>();
+                    var p = Props<CanvasStatProps>();
                     @* Every number in an artifact is AI-authored and changes by setProps,
                        so the count-up tween is the rule here, not the exception. *@
                     <DrylStat Label="@p!.Label" Value="@p.Value" Delta="@p.Delta"
@@ -150,7 +150,7 @@
 
                 case "timeline":
                 {
-                    var p = Props<TimelineArgs>();
+                    var p = Props<CanvasTimelineProps>();
                     <DrylTimeline>
                         @foreach (var e in p!.Events!)
                         {
@@ -171,7 +171,7 @@
 
                 case "lineChart":
                 {
-                    var p = Props<CartesianChartArgs>();
+                    var p = Props<CanvasChartProps>();
                     @if (!string.IsNullOrWhiteSpace(p!.Title))
                     {
                         <div class="canvas-chart-title">@p.Title</div>
@@ -183,7 +183,7 @@
 
                 case "areaChart":
                 {
-                    var p = Props<CartesianChartArgs>();
+                    var p = Props<CanvasChartProps>();
                     @if (!string.IsNullOrWhiteSpace(p!.Title))
                     {
                         <div class="canvas-chart-title">@p.Title</div>
@@ -195,7 +195,7 @@
 
                 case "barChart":
                 {
-                    var p = Props<CartesianChartArgs>();
+                    var p = Props<CanvasChartProps>();
                     @if (!string.IsNullOrWhiteSpace(p!.Title))
                     {
                         <div class="canvas-chart-title">@p.Title</div>
@@ -207,7 +207,7 @@
 
                 case "donutChart":
                 {
-                    var p = Props<DonutChartArgs>();
+                    var p = Props<CanvasDonutProps>();
                     @if (!string.IsNullOrWhiteSpace(p!.Title))
                     {
                         <div class="canvas-chart-title">@p.Title</div>
@@ -221,8 +221,8 @@
                     var p = Props<InputTextNodeProps>();
                     var name = p!.Name!;
                     <DrylInputText Label="@p.Label" Placeholder="@p.Placeholder"
-                                   Value="@(Form.Get<string>(name))"
-                                   ValueChanged="@(v => Form.Set(name, v))" />
+                                   Value="@(Ctx.Form.Get<string>(name))"
+                                   ValueChanged="@(v => Ctx.Form.Set(name, v))" />
                     break;
                 }
 
@@ -231,8 +231,8 @@
                     var p = Props<SelectNodeProps>();
                     var name = p!.Name!;
                     <DrylSelect Label="@p.Label" Items="@ToItems(p.Options!)"
-                                Value="@(Form.Get<string>(name))"
-                                ValueChanged="@(v => Form.Set(name, v))"
+                                Value="@(Ctx.Form.Get<string>(name))"
+                                ValueChanged="@(v => Ctx.Form.Set(name, v))"
                                 Ai="AiState.None" />
                     break;
                 }
@@ -242,8 +242,8 @@
                     var p = Props<SliderNodeProps>();
                     var name = p!.Name!;
                     <DrylSlider Label="@p.Label" Min="p.Min" Max="p.Max" Step="@(p.Step ?? 1)"
-                                Value="@(Form.Get<double>(name))"
-                                ValueChanged="@(v => Form.Set(name, v))" />
+                                Value="@(Ctx.Form.Get<double>(name))"
+                                ValueChanged="@(v => Ctx.Form.Set(name, v))" />
                     break;
                 }
 
@@ -252,8 +252,8 @@
                     var p = Props<ToggleNodeProps>();
                     var name = p!.Name!;
                     <DrylToggle Label="@p.Label"
-                                Value="@(Form.Get<bool>(name))"
-                                ValueChanged="@(v => Form.Set(name, v))" />
+                                Value="@(Ctx.Form.Get<bool>(name))"
+                                ValueChanged="@(v => Ctx.Form.Set(name, v))" />
                     break;
                 }
 
@@ -275,9 +275,9 @@
     /// <summary>The node to render. Its <see cref="CanvasNode.Type"/> selects the mapped component.</summary>
     [Parameter, EditorRequired] public CanvasNode Node { get; set; } = default!;
 
-    [CascadingParameter] internal DrylCanvasRun Run { get; set; } = default!;
-    [CascadingParameter] internal CanvasFormState Form { get; set; } = default!;
-    [CascadingParameter(Name = "CanvasIntent")] internal EventCallback<CanvasInteraction> OnIntent { get; set; }
+    /// <summary>Everything this canvas shares with its nodes (form state, pulse tracker,
+    /// data binder, intent callback) — one <c>IsFixed</c> cascade from <c>DrylCanvas</c>.</summary>
+    [CascadingParameter] internal CanvasContext Ctx { get; set; } = default!;
 
     private CanvasNode? _seededNode;
 
@@ -317,7 +317,7 @@
     // fresh artifact (which clears them) never inherits a phantom one.
     private void SyncPulse()
     {
-        var tick = Run.ChangeTickOf(Node.Id);
+        var tick = Ctx.Pulse.TickOf(Node.Id);
         if (tick == _pulseTick) return;
         _pulseTick = tick;
         if (tick > 0) _pulseKey++;
@@ -354,8 +354,13 @@
 
     private void Seed(string name, object value)
     {
-        if (Form.Get(name) is null) Form.Set(name, value);
+        if (Ctx.Form.Get(name) is null) Ctx.Form.Set(name, value);
     }
+
+    private async Task RaiseIntent(string intent) =>
+        await Ctx.Intent.InvokeAsync(new CanvasInteraction(intent, Node.Id, Ctx.Form.Snapshot()));
+
+    private Task PurgeSelf() => Ctx.Purge?.Invoke(Node.Id) ?? Task.CompletedTask;
 
     private RenderFragment RenderChildren => builder =>
     {
@@ -369,15 +374,6 @@
         }
     };
 
-    private async Task RaiseIntent(string intent) =>
-        await OnIntent.InvokeAsync(new CanvasInteraction(intent, Node.Id, Form.Snapshot()));
-
-    private Task PurgeSelf()
-    {
-        Run.Purge(Node.Id);
-        return Task.CompletedTask;
-    }
-
     private T? Props<T>() where T : class
     {
         EnsureMemo();
@@ -386,7 +382,7 @@
         var json = Node.Props is { } p && p.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             ? p.GetRawText()
             : "{}";
-        DisplayJson.TryParse<T>(json, out var value);
+        CanvasJson.TryParse<T>(json, out var value);
         _memoProps = value;
         _memoPropsType = typeof(T);
         return value;
@@ -413,10 +409,10 @@
         _ => DrylButton.ButtonVariant.Primary,
     };
 
-    private static IReadOnlyList<ChartSeries> ToSeries(CartesianChartArgs a) =>
+    private static IReadOnlyList<ChartSeries> ToSeries(CanvasChartProps a) =>
         a.Series!.Select(s => new ChartSeries(s.Name, s.Data!)).ToList();
 
-    private static IReadOnlyList<ChartSegment> ToSegments(DonutChartArgs a) =>
+    private static IReadOnlyList<ChartSegment> ToSegments(CanvasDonutProps a) =>
         a.Segments!.Select(s => new ChartSegment(s.Label, s.Value)).ToList();
 
     private static IReadOnlyList<SelectItem> ToItems(IReadOnlyList<string> options) =>

@@ -1,4 +1,4 @@
-// dryl-canvas.js — width bridge for DrylAiCanvas (lazy ES module, no consumer wiring).
+// dryl-canvas.js — width bridge for DrylCanvas (lazy ES module, no consumer wiring).
 // Reports the artifact body's usable inline size back to .NET so the artifact generator
 // can budget its layout (column counts, label lengths, chart density) against the space
 // the artifact actually has — which is the canvas element, not the viewport: on a wide
@@ -34,7 +34,7 @@ export function observe(el, dotnet) {
         state.last = w;
         // The circuit may already be gone while the observer still fires — a rejected
         // invoke here must not surface as an unhandled rejection.
-        try { state.dotnet.invokeMethodAsync('OnWidthChanged', w)?.catch(() => { }); }
+        try { state.dotnet.invokeMethodAsync('OnWidthMeasured', w)?.catch(() => { }); }
         catch { /* disposed */ }
     };
 

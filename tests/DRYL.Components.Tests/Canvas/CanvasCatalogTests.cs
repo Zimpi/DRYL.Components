@@ -1,8 +1,8 @@
 using System.Text.Json;
-using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
-namespace DRYL.Components.Tests.Agents.Canvas;
+namespace DRYL.Components.Tests.Canvas;
 
 public class CanvasCatalogTests
 {

@@ -32,6 +32,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDrylThemeService, DrylThemeService>();
         services.AddScoped<ICommandRegistry, CommandRegistry>();
         services.AddScoped<IDrylViewTransition, DrylViewTransition>();
+        // Creates the (possibly still empty) canvas data source registry and the scoped
+        // service around it, so a canvas can always ask "is anything bound here?".
+        CanvasServiceCollectionExtensions.Registry(services);
         return services;
     }
 }

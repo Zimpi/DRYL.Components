@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
 namespace DRYL.Components.Tests.Agents.Canvas;

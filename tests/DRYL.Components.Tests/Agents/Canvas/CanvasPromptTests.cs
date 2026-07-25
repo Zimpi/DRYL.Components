@@ -1,4 +1,5 @@
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
 namespace DRYL.Components.Tests.Agents.Canvas;

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DRYL.Components.Agents;
+namespace DRYL.Components.Canvas;
 
 /// <summary>A batch of operations the model emits to mutate a live <see cref="CanvasSpec"/> in place.</summary>
 public sealed class CanvasPatchDoc

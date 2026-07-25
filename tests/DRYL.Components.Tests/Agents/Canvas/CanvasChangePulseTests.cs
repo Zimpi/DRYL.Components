@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
 namespace DRYL.Components.Tests.Agents.Canvas;
@@ -41,12 +42,12 @@ public class CanvasChangePulseTests : BunitContext
         var run = new DrylCanvasRun();
         run.ApplySnapshot(TwoStats());
 
-        Assert.Equal(0, run.ChangeTickOf("a"));
+        Assert.Equal(0, run.Pulse.TickOf("a"));
 
         Assert.Null(run.ApplyOp(SetProps("a", """{ "value": "9" }""")));
 
-        Assert.True(run.ChangeTickOf("a") > 0);
-        Assert.Equal(0, run.ChangeTickOf("b"));   // untouched node stays unstamped
+        Assert.True(run.Pulse.TickOf("a") > 0);
+        Assert.Equal(0, run.Pulse.TickOf("b"));   // untouched node stays unstamped
     }
 
     [Fact]
@@ -58,10 +59,10 @@ public class CanvasChangePulseTests : BunitContext
         run.ApplySnapshot(TwoStats());
 
         run.ApplyOp(SetProps("a", """{ "value": "9" }"""));
-        var first = run.ChangeTickOf("a");
+        var first = run.Pulse.TickOf("a");
         run.ApplyOp(SetProps("a", """{ "value": "10" }"""));
 
-        Assert.True(run.ChangeTickOf("a") > first);
+        Assert.True(run.Pulse.TickOf("a") > first);
     }
 
     [Fact]
@@ -79,7 +80,7 @@ public class CanvasChangePulseTests : BunitContext
         }));
         Assert.Null(run.ApplyOp(new CanvasOp { Op = "move", Id = "c", Parent = "root", Index = 2 }));
 
-        Assert.Equal(0, run.ChangeTickOf("c"));
+        Assert.Equal(0, run.Pulse.TickOf("c"));
     }
 
     [Fact]
@@ -90,7 +91,7 @@ public class CanvasChangePulseTests : BunitContext
 
         Assert.NotNull(run.ApplyOp(SetProps("nope", """{ "value": "9" }""")));
 
-        Assert.Equal(0, run.ChangeTickOf("nope"));
+        Assert.Equal(0, run.Pulse.TickOf("nope"));
     }
 
     [Fact]
@@ -101,11 +102,11 @@ public class CanvasChangePulseTests : BunitContext
         var run = new DrylCanvasRun();
         run.ApplySnapshot(TwoStats());
         run.ApplyOp(SetProps("a", """{ "value": "9" }"""));
-        Assert.True(run.ChangeTickOf("a") > 0);
+        Assert.True(run.Pulse.TickOf("a") > 0);
 
         run.BeginCreate();
 
-        Assert.Equal(0, run.ChangeTickOf("a"));
+        Assert.Equal(0, run.Pulse.TickOf("a"));
     }
 
     [Fact]

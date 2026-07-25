@@ -1,3 +1,5 @@
+using DRYL.Components.Canvas;
+
 namespace DRYL.Components.Agents;
 
 /// <summary>

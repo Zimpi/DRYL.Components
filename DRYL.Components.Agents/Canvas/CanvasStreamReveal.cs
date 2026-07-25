@@ -1,3 +1,5 @@
+using DRYL.Components.Canvas;
+
 using System.Text.Json;
 
 namespace DRYL.Components.Agents;

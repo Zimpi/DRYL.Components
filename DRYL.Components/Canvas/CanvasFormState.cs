@@ -1,4 +1,4 @@
-namespace DRYL.Components.Agents;
+namespace DRYL.Components.Canvas;
 
 /// <summary>Live values of a canvas's interactive nodes, keyed by their "name" prop.</summary>
 public sealed class CanvasFormState

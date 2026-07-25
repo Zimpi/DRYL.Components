@@ -1,11 +1,19 @@
+using DRYL.Components.Canvas;
+
 namespace DRYL.Components.Agents;
 
 /// <summary>Observable handle to an AI-built canvas artifact rendered by <c>DrylAiCanvas</c>.</summary>
 public sealed class DrylCanvasRun : DrylRunBase
 {
     private readonly HashSet<string> _changedIds = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> _changeTicks = new(StringComparer.Ordinal);
-    private int _changeSeq;
+
+    /// <summary>
+    /// The change stamps behind the canvas's change-pulse. The run stamps a node on every
+    /// applied <c>setProps</c>; a data binder bound to the same canvas stamps its refreshes into
+    /// the very same tracker, so an AI change and a data change read as one language (A8).
+    /// Hand this to <c>DrylCanvas.Pulse</c> — <c>DrylAiCanvas</c> does it for you.
+    /// </summary>
+    public CanvasPulseTracker Pulse { get; } = new();
 
     /// <summary>The live spec (progressively richer as generations complete), or null before the first one.</summary>
     public CanvasSpec? Spec { get; private set; }
@@ -48,14 +56,6 @@ public sealed class DrylCanvasRun : DrylRunBase
         return total;
     }
 
-    /// <summary>
-    /// Monotonic stamp of the last <c>setProps</c> applied to <paramref name="id"/> — 0 means never.
-    /// A content change is otherwise invisible (an insert enters, a move glides, a remove exits), so
-    /// <c>CanvasNodeView</c> re-keys its change-pulse overlay whenever this stamp moves. Monotonic
-    /// rather than boolean: two consecutive patches of the same node must read as two pulses.
-    /// </summary>
-    internal int ChangeTickOf(string id) => _changeTicks.TryGetValue(id, out var tick) ? tick : 0;
-
     /// <summary>Starts a new create/update generation: state becomes streaming, <see cref="ChangedIds"/> and <see cref="DrylRunBase.Error"/> are cleared.</summary>
     internal void BeginGeneration()
     {
@@ -92,7 +92,7 @@ public sealed class DrylCanvasRun : DrylRunBase
         _revealStarted = false;
         // A fresh artifact recycles ids — a stale stamp would read as "this node just
         // changed" and pulse a node that is in fact brand new (it enters instead).
-        _changeTicks.Clear();
+        Pulse.Clear();
         BeginGeneration();
     }
 
@@ -150,7 +150,7 @@ public sealed class DrylCanvasRun : DrylRunBase
             {
                 case "setProps":
                     // The only op with no motion of its own — stamp it so the node pulses.
-                    if (op.Id is not null) { _changedIds.Add(op.Id); _changeTicks[op.Id] = ++_changeSeq; }
+                    if (op.Id is not null) { _changedIds.Add(op.Id); Pulse.Stamp(op.Id); }
                     break;
                 case "move":
                     if (op.Id is not null) _changedIds.Add(op.Id);

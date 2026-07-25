@@ -1,0 +1,342 @@
+@namespace DRYL.Components
+@using DRYL.Components.Ai
+@using DRYL.Components.Canvas
+@using DRYL.Components.Motion
+@using Microsoft.Extensions.Logging
+@inject IJSRuntime JS
+@inject IServiceProvider Services
+@inject IDrylViewTransition ViewTransition
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCanvas — renders a CanvasSpec as a live tree of curated DRYL components.
+
+    Deliberately dumb: a spec goes in, interactions come out. It knows nothing about
+    where the spec came from — code, a database, a saved document or an AI generation
+    (that last one is DrylAiCanvas, which wraps this component and adds the run,
+    the aura and the streaming choreography).
+
+    The header carries the artifact title, the consumer's HeaderTools slot, a refresh
+    button (only once the artifact actually has a data binding) and an
+    expand-to-fullscreen button; a visually-hidden aria-live region announces whatever
+    the host puts in Announcement. The body recursively renders the spec's root via
+    CanvasNodeView, which receives the shared CanvasContext as one IsFixed cascade.
+
+    Nodes may bind to registered host data sources ("data": { "source", "params",
+    "refresh" }); CanvasDataBinder resolves them, dedupes by source+params and refreshes
+    on interval, on a form field change, on Invalidate and on the refresh button.
+
+    Usage:
+      <DrylCanvas Spec="_spec" OnInteraction="HandleInteraction" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" style="@VtStyle" data-vt-depth="" tabindex="-1" popover="@PopoverMode"
+     @ref="_rootEl" @onkeydown="OnKeyDown" @attributes="AdditionalAttributes">
+    @Overlay
+
+    <div class="canvas-head">
+        <span class="canvas-title">@(Spec?.Title ?? "Artifact")</span>
+        <div class="canvas-head-tools">
+            @HeaderTools
+            @if (_binder?.HasBindings == true)
+            {
+                <DrylTooltip Text="@RefreshLabel">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="@RefreshLabel" Loading="_binder.Busy" OnClick="RefreshAsync">
+                        <DrylIcon Name="Refresh" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+            }
+            @if (AllowExpand)
+            {
+                <DrylTooltip Text="@ExpandLabel">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="@ExpandLabel" Pressed="_expanded" OnClick="ToggleExpandAsync">
+                        <DrylIcon Name="@(_expanded ? "Minimize" : "Maximize")" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+            }
+        </div>
+    </div>
+
+    @*  Live build line — the canvas's heartbeat while an author (AI or data load) is at work.
+        Reuses the existing indeterminate DrylProgress (transform-only, reduced-motion aware)
+        rather than hand-rolling a bar; DrylPresence gives it an exit, not just an enter. *@
+    <DrylPresence Visible="IsBusy" Appear Transition="PresenceTransition.Fade" Speed="PresenceSpeed.Fast">
+        <div class="canvas-build" aria-hidden="true">
+            <DrylProgress Indeterminate Size="ProgressSize.Small" />
+        </div>
+    </DrylPresence>
+
+    <div class="canvas-live" aria-live="polite">@Announcement</div>
+
+    <div class="canvas-body" @ref="_bodyEl">
+        @if (Error is not null)
+        {
+            <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="Artifact failed">@Error</DrylAlert>
+        }
+        else if (Spec?.Root is { } root)
+        {
+            <CascadingValue Value="_ctx" IsFixed="true">
+                <CanvasNodeView Node="root" />
+            </CascadingValue>
+        }
+        else
+        {
+            <DrylEmptyState Title="No artifact yet">@EmptyText</DrylEmptyState>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The artifact to render. May be mutated in place by its owner (patches, streaming);
+    /// call <c>StateHasChanged</c> on the host when it changes.</summary>
+    [Parameter] public CanvasSpec? Spec { get; set; }
+
+    /// <summary>The canvas's AI state. <see cref="AiState.Streaming"/> / <see cref="AiState.Thinking"/>
+    /// show the build line and render not-yet-valid nodes as "waiting…" skeletons rather than as
+    /// finished-broken placeholders. Default: <see cref="AiState.None"/>.</summary>
+    [Parameter] public AiState State { get; set; } = AiState.None;
+
+    /// <summary>A fatal error for the whole artifact — rendered as an alert instead of the tree.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>Text announced to assistive tech through the canvas's <c>aria-live</c> region.</summary>
+    [Parameter] public string? Announcement { get; set; }
+
+    /// <summary>Message shown when there is no artifact yet.</summary>
+    [Parameter] public string? EmptyText { get; set; } = "Nothing to show yet.";
+
+    /// <summary>Bump this to reset the interactive form state — a fresh artifact recycles field
+    /// names, and the previous artifact's user input must not leak into it.</summary>
+    [Parameter] public int Epoch { get; set; }
+
+    /// <summary>The change-pulse stamps to render. Supply the tracker a patch author already
+    /// stamps into (e.g. <c>DrylCanvasRun.Pulse</c>); otherwise the canvas owns its own, which the
+    /// data binder stamps on every refresh that actually changed a value.</summary>
+    [Parameter] public CanvasPulseTracker? Pulse { get; set; }
+
+    /// <summary>Raised when the user triggers a button intent inside the artifact.</summary>
+    [Parameter] public EventCallback<CanvasInteraction> OnInteraction { get; set; }
+
+    /// <summary>Raised with a node id once its exit animation finished — the owner of the spec
+    /// drops it from the tree (see <c>DrylCanvasRun.Purge</c>).</summary>
+    [Parameter] public EventCallback<string> OnPurge { get; set; }
+
+    /// <summary>
+    /// Called with the measured usable body width in CSS px whenever it moves past a deadband.
+    /// An artifact author can then budget its layout for the space it really has.
+    /// <para>A plain delegate rather than an <c>EventCallback</c> on purpose: an EventCallback
+    /// bound to a component re-renders it, and dragging a window must never re-render the
+    /// artifact tree. Nothing on screen depends on this value.</para>
+    /// </summary>
+    [Parameter] public Action<int>? OnWidthChanged { get; set; }
+
+    /// <summary>
+    /// Whether the header offers an expand-to-fullscreen button. The expanded canvas is an
+    /// overlay, not a modal — it neither traps focus nor blocks the page, and <c>Escape</c>
+    /// collapses it. Set to <c>false</c> for canvases embedded in a surface that owns its own
+    /// layering (a dialog, a fixed side panel).
+    /// </summary>
+    [Parameter] public bool AllowExpand { get; set; } = true;
+
+    /// <summary>Extra controls in the header's tool row, left of refresh and expand.</summary>
+    [Parameter] public RenderFragment? HeaderTools { get; set; }
+
+    /// <summary>Absolutely-positioned decoration rendered as the first child of the canvas root
+    /// (e.g. an AI aura). Never part of the document flow.</summary>
+    [Parameter] public RenderFragment? Overlay { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the canvas root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // The body element — dryl.motion.autoFlip watches its [data-cid] children so
+    // artifact reflows (nodes appearing/reordering) glide instead of snapping.
+    private ElementReference _bodyEl;
+    private bool _flipAttached; // prerender guard — set only after a successful interop call
+
+    private const string WidthModulePath = "./_content/DRYL.Components/js/dryl-canvas.js";
+    private IJSObjectReference? _widthModule;
+    private DotNetObjectReference<DrylCanvas>? _selfRef;
+
+    private ElementReference _rootEl;
+    private bool _expanded;
+    private bool _expandedApplied;  // the top-layer state the DOM is actually in
+
+    private readonly CanvasContext _ctx = new();
+    private CanvasDataBinder? _binder;
+    private int _epoch;
+    private CanvasSpec? _boundSpec;
+
+    // Per-instance view-transition-name. Must be document-globally unique while in the DOM:
+    // a duplicate name voids the entire transition, so two canvases on one page each get
+    // their own counter value.
+    private static int _vtSeq;
+    private readonly string _vtName = FormattableString.Invariant($"dryl-canvas-{Interlocked.Increment(ref _vtSeq)}");
+
+    /// <summary>The shared per-canvas context — form state, pulse tracker and data binder.
+    /// Exposed so a wrapper (e.g. <c>DrylAiCanvas</c>) can read the live field values.</summary>
+    public CanvasContext Context => _ctx;
+
+    protected override void OnInitialized()
+    {
+        _ctx.Purge = id => OnPurge.InvokeAsync(id);
+        // The binder is optional: without a registered source there is nothing to bind, and a
+        // host that never called AddDrylComponents must still be able to render a spec.
+        var data = Services.GetService(typeof(ICanvasDataService)) as ICanvasDataService;
+        if (data is { Descriptors.Count: > 0 })
+        {
+            _binder = new CanvasDataBinder(data, _ctx.Form, _ctx.Pulse,
+                Services.GetService(typeof(ILogger<CanvasDataBinder>)) as ILogger);
+            _binder.OnChanged += HandleBinderChanged;
+            _ctx.Binder = _binder;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _ctx.State = State;
+        _ctx.Intent = OnInteraction;
+        if (Pulse is not null && !ReferenceEquals(_ctx.Pulse, Pulse)) _ctx.Pulse = Pulse;
+
+        // A fresh artifact means a fresh form — wipe user input from the previous one so
+        // recycled field names show the new values. The CanvasFormState instance is kept
+        // (the cascade is IsFixed); Clear() empties it in place.
+        if (Epoch != _epoch)
+        {
+            _epoch = Epoch;
+            _ctx.Form.Clear();
+        }
+
+        // A different spec instance is a different artifact — nothing bound to the old one
+        // may keep loading or keep showing a stale value.
+        if (!ReferenceEquals(_boundSpec, Spec))
+        {
+            _boundSpec = Spec;
+            _binder?.Reset();
+        }
+    }
+
+    private void HandleBinderChanged() => InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Promote/demote BEFORE signalling the render: a fullscreen canvas only really covers
+        // the viewport from the top layer (see dryl.topLayer), and the browser must see the
+        // finished state before it snapshots "new". The one frame in which the popover
+        // attribute is present but not yet shown (display: none) never paints — we are inside
+        // the view transition's update callback, during which the browser holds rendering.
+        if (_expandedApplied != _expanded)
+        {
+            _expandedApplied = _expanded;
+            try { await JS.InvokeVoidAsync(_expanded ? "dryl.topLayer.show" : "dryl.topLayer.hide", _rootEl); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        // Unconditional, cheap no-op when no transition is in flight — this is what tells the
+        // browser the "new" state has reached the DOM and it may take the second snapshot.
+        // It also covers a transition a wrapper started around a spec swap.
+        ViewTransition.SignalRendered();
+
+        if (!firstRender) return;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.motion.autoFlip", _bodyEl);
+            _flipAttached = true;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+
+        // Watch the body's usable width and report it, so an artifact author can budget its
+        // layout for the space the artifact actually has.
+        try
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            _widthModule = await JS.InvokeAsync<IJSObjectReference>("import", WidthModulePath);
+            await _widthModule.InvokeVoidAsync("observe", _bodyEl, _selfRef);
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+    }
+
+    /// <summary>JS bridge: receives the measured body width (CSS px) from the resize observer.
+    /// Not part of the component's supported API.</summary>
+    [JSInvokable]
+    public void OnWidthMeasured(int width) => OnWidthChanged?.Invoke(width);
+
+    private Task RefreshAsync() => _binder?.RefreshAllAsync() ?? Task.CompletedTask;
+
+    // The morph between inline and fullscreen is a view transition, so the CSS only has to
+    // describe the destination, never the movement.
+    private Task ToggleExpandAsync() =>
+        ViewTransition.RunAsync(() =>
+        {
+            _expanded = !_expanded;
+            StateHasChanged();
+        });
+
+    private Task OnKeyDown(KeyboardEventArgs e) =>
+        _expanded && e.Key == "Escape" ? ToggleExpandAsync() : Task.CompletedTask;
+
+    private bool IsBusy => State is AiState.Streaming or AiState.Thinking || _binder?.Busy == true;
+
+    private string ExpandLabel => _expanded ? "Exit fullscreen" : "Expand artifact";
+
+    private const string RefreshLabel = "Refresh data";
+
+    // "manual" (not "auto"): we own Escape and must stay in step with _expanded, so no
+    // light-dismiss behind the component's back. A browser without the Popover API ignores
+    // the attribute entirely and the CSS fallback takes over.
+    private string? PopoverMode => _expanded ? "manual" : null;
+
+    // Rendered on the root so an expand — and any morph a wrapper runs around a spec swap —
+    // moves the whole surface. dryl-depth adds the mercury merge; data-vt-depth is the marker
+    // the JS bridge keys on to lazily inject the #dryl-merge filter.
+    private string VtStyle => FormattableString.Invariant(
+        $"view-transition-name: {_vtName}; view-transition-class: dryl-depth");
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "canvas", "glass-card" };
+            if (_expanded) parts.Add("is-expanded");
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_binder is not null)
+        {
+            _binder.OnChanged -= HandleBinderChanged;
+            await _binder.DisposeAsync();
+        }
+
+        if (_flipAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.stopAutoFlip", _bodyEl); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        if (_widthModule is not null)
+        {
+            try
+            {
+                await _widthModule.InvokeVoidAsync("unobserve", _bodyEl);
+                await _widthModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        _selfRef?.Dispose();
+    }
+}

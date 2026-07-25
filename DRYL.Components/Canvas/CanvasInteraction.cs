@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace DRYL.Components.Agents;
+namespace DRYL.Components.Canvas;
 
 /// <summary>A user interaction inside a canvas artifact (button click), carrying the intent
 /// and a snapshot of every input value. Feed <see cref="ToPromptMessage"/> to the chat agent.</summary>

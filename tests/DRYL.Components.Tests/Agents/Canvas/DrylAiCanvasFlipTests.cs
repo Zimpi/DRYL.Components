@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
 namespace DRYL.Components.Tests.Agents.Canvas;
@@ -38,7 +39,9 @@ public class DrylAiCanvasFlipTests : BunitContext
         var run = new DrylCanvasRun();
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
 
-        await cut.InvokeAsync(() => cut.Instance.DisposeAsync());
+        // The JS teardown lives on the inner core renderer now (A1) — DrylAiCanvas only
+        // owns the run subscription and the aura.
+        await cut.InvokeAsync(() => cut.FindComponent<DrylCanvas>().Instance.DisposeAsync().AsTask());
 
         Assert.NotEmpty(JSInterop.Invocations["dryl.motion.stopAutoFlip"]);
     }

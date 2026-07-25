@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using DRYL.Components.Agents.Generation;
 
-namespace DRYL.Components.Agents;
+namespace DRYL.Components.Canvas;
 
 /// <summary>
 /// Applies a single <see cref="CanvasOp"/> to a live <see cref="CanvasSpec"/> tree, in place.
@@ -34,7 +33,7 @@ public static class CanvasPatcher
             return $"op 'setProps': no node with id '{op.Id}'.";
 
         var before = node.Props;
-        var merged = JsonMerge.Merge(ToJsonNode(node.Props), ToJsonNode(op.Props));
+        var merged = CanvasJsonMerge.Merge(ToJsonNode(node.Props), ToJsonNode(op.Props));
         node.Props = ToJsonElement(merged);
 
         var error = CanvasCatalog.Validate(node);

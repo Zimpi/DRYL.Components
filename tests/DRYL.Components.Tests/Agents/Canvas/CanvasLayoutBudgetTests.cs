@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bunit;
 using DRYL.Components;
 using DRYL.Components.Agents;
+using DRYL.Components.Canvas;
 using Xunit;
 
 namespace DRYL.Components.Tests.Agents.Canvas;
@@ -116,7 +117,7 @@ public class CanvasLayoutBudgetTests : BunitContext
         var first = new DrylCanvasRun();
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, first));
 
-        cut.Instance.OnWidthChanged(390);
+        cut.FindComponent<DrylCanvas>().Instance.OnWidthMeasured(390);
         Assert.Equal(390, first.AvailableWidth);
 
         // Rebinding to a fresh run must not make the canvas width-blind again.
