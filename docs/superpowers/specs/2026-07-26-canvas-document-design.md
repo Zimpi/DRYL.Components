@@ -102,6 +102,9 @@ public CanvasDocument AsTemplate(string title);
   reproduziert die Id), `Spec` als Tiefkopie gesetzt, danach `Activate(ActiveId)` falls bekannt,
   sonst bleibt die zuletzt geöffnete aktiv. Eine einzige `OnChange`-Welle ist nicht garantiert
   (jede Workspace-Mutation feuert), aber das ist Bestand und für den Renderer harmlos.
+  **Die Historie überlebt ein `Restore` nicht** — `Clear` verwirft die alten `CanvasView`-Instanzen,
+  die neuen starten leer. Gewollt: ein Dokument speichert Views, keine Versionen, und ein geladenes
+  Dashboard ist ein frischer Ausgangspunkt statt eines Undo-Wegs in ein anderes Dokument hinein.
 - **`TryFromJson`** ist die einzige erlaubte Eingangstür. Fehlertexte englisch wie überall in der
   Bibliothek, adressiert an den Host (nicht an ein Modell):
   - malformed JSON → `"The document could not be read: it is not valid JSON."`
