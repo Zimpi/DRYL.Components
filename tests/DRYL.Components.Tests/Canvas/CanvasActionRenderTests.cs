@@ -160,6 +160,37 @@ public class CanvasActionRenderTests : BunitContext
         cut.WaitForAssertion(() => Assert.Contains("Freigegeben", cut.Markup));
     }
 
+    // A real confirmation resolves asynchronously, and the continuation after that await used to
+    // run off the Blazor dispatcher — where touching a component (the toast provider, OnAction,
+    // the canvas's own render) kills the circuit. This drives the whole sequence through the real
+    // component path with a yielding dialog.
+    [Fact]
+    public void An_async_confirmation_completes_the_whole_sequence()
+    {
+        CanvasActionOutcome? outcome = null;
+        Action(_ => CanvasActionResult.Ok("Freigegeben"));
+        ((StubDialogService)Services.GetRequiredService<IDrylDialogService>()).Yield = true;
+
+        var cut = Render<DrylCanvas>(p => p
+            .Add(x => x.Spec, Parse("""
+                {"title":"x","root":{"id":"r","type":"stack","children":[
+                  {"id":"btn","type":"button","props":{"label":"Freigeben","kind":"danger"},
+                   "action":{"name":"order.approve","args":{"orderId":"4711"},
+                             "confirm":"Wirklich?"}}]}}
+                """))
+            .Add(x => x.OnAction, (CanvasActionOutcome o) => outcome = o));
+        cut.Find(".canvas-body button.btn").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.NotNull(outcome);
+            Assert.True(outcome!.Succeeded);
+            Assert.Equal(new[] { "Freigegeben" },
+                ((StubToastService)Services.GetRequiredService<IDrylToastService>()).Successes);
+            Assert.Empty(cut.FindAll(".canvas-action-error"));
+        });
+    }
+
     // The confirmation gate is part of the render path, not only of the runner: the button must
     // stay untouched when the user says no.
     [Fact]

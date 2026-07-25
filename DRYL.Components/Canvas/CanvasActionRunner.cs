@@ -32,6 +32,13 @@ public sealed class CanvasActionState
 /// <para>A completed action is one movement: patch ops land in one batch and pulse, the named
 /// sources reload through the existing binder, a success message is a toast, and a failure stays
 /// inline at the button.</para>
+///
+/// <para><b>Never <c>ConfigureAwait(false)</c> in here.</b> The whole sequence starts on a click
+/// and ends by touching components — the toast provider, the host's <c>OnAction</c>, the canvas's
+/// own render. Dropping the Blazor dispatcher at any await means the continuation calls
+/// <c>StateHasChanged</c> off-thread and kills the circuit. (<see cref="CanvasDataBinder"/> may do
+/// it because every signal it raises is marshalled back through <c>InvokeAsync</c>; this runner
+/// talks to components directly.)</para>
 /// </summary>
 public sealed class CanvasActionRunner
 {
@@ -94,7 +101,7 @@ public sealed class CanvasActionRunner
 
         if (!string.IsNullOrWhiteSpace(action.Confirm))
         {
-            var decision = await ConfirmAsync(nodeId, label, action.Confirm!).ConfigureAwait(false);
+            var decision = await ConfirmAsync(nodeId, label, action.Confirm!);
             if (decision is not true) return;           // declined, or refused for lack of a dialog
         }
 
@@ -103,8 +110,7 @@ public sealed class CanvasActionRunner
         CanvasActionResult result;
         try
         {
-            result = await _actions.InvokeAsync(name, args, nodeId, values, CancellationToken.None)
-                                   .ConfigureAwait(false);
+            result = await _actions.InvokeAsync(name, args, nodeId, values, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -113,7 +119,7 @@ public sealed class CanvasActionRunner
             _log?.LogError(ex, "Canvas action '{Action}' failed.", name);
             var failure = $"Action '{name}' failed.";
             Set(nodeId, new CanvasActionState(busy: false, error: failure));
-            await NotifyAsync(nodeId, name, false, failure).ConfigureAwait(false);
+            await NotifyAsync(nodeId, name, false, failure);
             return;
         }
 
@@ -121,9 +127,9 @@ public sealed class CanvasActionRunner
         Set(nodeId, new CanvasActionState(busy: false, error: result.Succeeded ? null : result.Message));
 
         if (result.Succeeded && result.Ask is { } ask && Ask is not null)
-            await Ask(new CanvasInteraction(name, nodeId, values) { Message = ask }).ConfigureAwait(false);
+            await Ask(new CanvasInteraction(name, nodeId, values) { Message = ask });
 
-        await NotifyAsync(nodeId, name, result.Succeeded, result.Message).ConfigureAwait(false);
+        await NotifyAsync(nodeId, name, result.Succeeded, result.Message);
     }
 
     // Ops first (the instant visual), then the data catch-up, then the toast: the user sees the
@@ -148,7 +154,7 @@ public sealed class CanvasActionRunner
     private async Task NotifyAsync(string nodeId, string name, bool ok, string? message)
     {
         if (Completed is { } completed)
-            await completed(new CanvasActionOutcome(name, nodeId, ok, message)).ConfigureAwait(false);
+            await completed(new CanvasActionOutcome(name, nodeId, ok, message));
     }
 
     // null = refused (no dialog service), false = declined, true = go ahead.
@@ -164,8 +170,7 @@ public sealed class CanvasActionRunner
         }
 
         var title = string.IsNullOrWhiteSpace(label) ? "Confirm" : label!;
-        var result = await dialogs.ShowConfirmAsync(title, question, confirmLabel: title)
-                                  .ConfigureAwait(false);
+        var result = await dialogs.ShowConfirmAsync(title, question, confirmLabel: title);
         return !result.Canceled;
     }
 

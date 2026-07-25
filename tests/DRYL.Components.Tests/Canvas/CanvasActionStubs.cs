@@ -8,17 +8,24 @@ namespace DRYL.Components.Tests.Canvas;
 internal sealed class StubDialogService : IDrylDialogService
 {
     public bool Confirm { get; set; } = true;
+
+    /// <summary>Completes the confirmation asynchronously, the way a real dialog does — the user
+    /// takes a moment. A synchronously-completing stub hides every bug that lives in the
+    /// continuation after the await (see the dispatcher note on CanvasActionRunner).</summary>
+    public bool Yield { get; set; }
+
     public List<(string Title, string Message)> Asked { get; } = new();
 
     public Task<IDrylDialogReference> ShowAsync<TDialog>(
         string? title = null, DialogParameters? parameters = null, DialogOptions? options = null)
         where TDialog : IComponent => throw new NotSupportedException();
 
-    public Task<DialogResult> ShowConfirmAsync(string title, string message,
+    public async Task<DialogResult> ShowConfirmAsync(string title, string message,
         string confirmLabel = "Confirm", string cancelLabel = "Cancel", DialogOptions? options = null)
     {
         Asked.Add((title, message));
-        return Task.FromResult(Confirm ? DialogResult.Ok() : DialogResult.Cancel());
+        if (Yield) await Task.Yield();
+        return Confirm ? DialogResult.Ok() : DialogResult.Cancel();
     }
 
     public Task<DialogResult> ShowAlertAsync(string title, string message,

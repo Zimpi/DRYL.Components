@@ -14,6 +14,28 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.13.0] — 2026-07-25
+
+Canvas Platform, phase 2 — **Canvas Actions**. A button in an artifact triggers a typed host command instead of a chat message. The AI builds, labels and pre-fills the button; only a human press ever runs the handler — there is no tool and no code path from a model output to a command. That is what makes it safe for an artifact to offer "Release order" at all.
+
+### Added
+- `AddDrylCanvasAction(name, description, handler)` — **New DI extension.** Registers a named host command. Same shape as `AddDrylCanvasDataSource`, deliberately: the arguments are declared as a C# record and the model-facing schema is derived from it, an unsupported argument type throws at registration, a duplicate name throws, and tenant and user come from the handler's DI scope (`ctx.Services`) rather than from the spec. A parameterless overload covers commands that take no arguments.
+- `CanvasNode.Action` — **New binding**, next to `data`: `"action": { "name": "order.approve", "args": { "orderId": { "$field": "order" } }, "confirm": "Auftrag wirklich freigeben?" }`. An argument is a literal or a reference to an interactive node of the same artifact — the same `$field` syntax a data parameter uses. `confirm` puts a `DrylDialog` in front of the handler. `action` is optional and only valid on a `button`; a button without one behaves exactly as it always has.
+- `CanvasActionResult` — **New result type.** `Ok(message)` / `Fail(message)`, plus a fluent `Refresh(sources…)`, `Refresh(source, parameters)`, `Patch(ops…)` and `AskAi(message)`. Success is a toast, failure stays inline at the button, refreshes run through the existing data binder, and patch ops go through the existing patcher and change-pulse. `AskAi` is off by default.
+- `ICanvasActionService` — **New scoped service** (`Descriptors` + the infrastructure invoker). Registered by `AddDrylCanvasAction`.
+- `CanvasActionRunner` — **New per-canvas runner.** Owns each button's busy/error state, resolves the arguments, gates on the confirmation dialog, invokes the handler inside `try/catch`, and applies the result. A second press while one is running is discarded.
+- `DrylCanvas` / `DrylAiCanvas` — **New `OnAction` parameter** reporting every completed action as a `CanvasActionOutcome` (action, node id, success, message). Optional: the canvas is fully functional without it.
+- `CanvasInteraction.Message` — **New optional property.** `ToPromptMessage()` returns it verbatim when set, which is how an action's `AskAi(…)` reaches an existing `OnInteraction="i => _chat.Send(i.ToPromptMessage())"` wiring without a single line of host change.
+- Canvas catalog — `button` accepts `"kind": "danger"`, and may omit `intent` when it carries an `action`.
+- `ICanvasDataService.Invalidate(CanvasInvalidation)` — New overload that republishes a ready-made notice (an action result's refresh list, whose canonical key is already computed).
+
+### Changed
+- `CanvasCatalog.Validate(node, context)` now also checks action bindings: the action exists, it sits on a button, its arguments are complete, known and correctly typed, every `$field` resolves within the artifact, and `confirm` is a real question. Findings come back as corrective sentences in the `create_artifact` / `update_artifact` receipt, never as a hard stop.
+- `DrylCanvasTools.Create` / `CreateReplay` — (Agents 0.11.0) New optional `ICanvasActionService` argument. When supplied, the registered actions are described to the generator in both prompts, including the line that it may place a button but never trigger one. With nothing registered, neither prompt nor receipt mentions actions and existing chat artifacts are untouched.
+
+### Fixed
+- `DrylCanvas` — A node's memoized validation subject dropped its `data` and `action` bindings, so a validity rule that depends on a binding could reject a perfectly good node.
+
 ## [2.12.0] — 2026-07-25
 
 Canvas Platform, phase 1 — **Canvas Data Binding**. A canvas node reads its values from a registered host data source instead of from prompt text. Numbers stop hallucinating, stop going stale the second after they were generated, and the token cost decouples from the amount of data. Ships together with the A1 move that puts the whole renderer in this package.
