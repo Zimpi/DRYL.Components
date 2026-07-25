@@ -186,7 +186,10 @@
 
         if (!ShowBar)
         {
+            // The bar (and its element) is gone — a future bar is a brand-new element that
+            // has to be observed from scratch.
             _lastInkActive = null;
+            _inkAttached = false;
             return;
         }
 
@@ -201,6 +204,7 @@
         }
         catch (JSDisconnectedException) { /* circuit gone */ }
         catch (InvalidOperationException) { /* prerender — no JS */ }
+        catch (JSException) { /* bar left the DOM between render and interop (presence exit) */ }
     }
 
     private static string CloseLabel(CanvasView view) => $"Close {view.Title}";
@@ -214,6 +218,7 @@
             try { await JS.InvokeVoidAsync("dryl.motion.disposeIndicator", _bar); }
             catch (JSDisconnectedException) { /* circuit gone */ }
             catch (InvalidOperationException) { /* prerender — no JS */ }
+            catch (JSException) { /* element already gone */ }
         }
     }
 }

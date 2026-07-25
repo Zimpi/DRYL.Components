@@ -1093,7 +1093,10 @@ window.dryl.motion = (() => {
     }
 
     function moveIndicator(container) {
-        if (!container) return;
+        // nodeType check: a Blazor ElementReference whose element has already left the DOM
+        // (a bar inside DrylPresence, mid exit) marshals as a non-Element stub — feeding that
+        // to ResizeObserver.observe throws and kills the circuit.
+        if (!container || container.nodeType !== 1) return;
         const first = !_ind.has(container);
         if (first) {
             const ro = new ResizeObserver(() => placeIndicator(container));

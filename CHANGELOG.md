@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.14.1] — 2026-07-25
+
+### Fixed
+- `DrylCanvasWorkspace` — Opening/closing views in quick succession could kill the circuit: the view bar lives inside a `DrylPresence`, so the gliding-indicator interop could reach an element that had already left the DOM mid-exit, and `ResizeObserver.observe` threw. `dryl.motion.moveIndicator` now ignores anything that is not a live element, and the workspace tolerates the race and re-attaches on the next render.
+
 ## [2.14.0] — 2026-07-25
 
 Canvas Platform, phase 3 — **Workspace + Prompt Dock**. A page is no longer one canvas and a chat column next to it: a `DrylCanvasWorkspace` holds named views with exactly one visible, and a `DrylCanvasDock` sits in the corner as a command bar. The AI can open a view for a new subject instead of overwriting the artifact the user is looking at — which is the difference between a tool and a chat toy.
