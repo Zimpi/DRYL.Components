@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DRYL.Components.Canvas;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DRYL.Components;
 
@@ -209,6 +210,30 @@ public static class CanvasServiceCollectionExtensions
             $"A canvas data source must return one concrete shape (CanvasScalarData, CanvasSeriesData, " +
             $"CanvasSegmentData or CanvasRowData) — '{t.Name}' does not say which. Change the lambda's " +
             "return type, e.g. by returning CanvasData.Series(…) directly.");
+    }
+
+    /// <summary>
+    /// Registers the in-memory canvas document store, so <c>DrylCanvasWorkspace</c> can save and
+    /// load dashboards. Replace it with your own by registering an <see cref="ICanvasDocumentStore"/>
+    /// first — this call never overwrites an existing registration.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static IServiceCollection AddDrylCanvasDocumentStore(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<ICanvasDocumentStore, InMemoryCanvasDocumentStore>();
+        return services;
+    }
+
+    /// <summary>Registers a host implementation of <see cref="ICanvasDocumentStore"/> as a singleton.</summary>
+    /// <typeparam name="TStore">The host's store.</typeparam>
+    /// <param name="services">The service collection.</param>
+    public static IServiceCollection AddDrylCanvasDocumentStore<TStore>(this IServiceCollection services)
+        where TStore : class, ICanvasDocumentStore
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<ICanvasDocumentStore, TStore>();
+        return services;
     }
 
     private static TParams Deserialize<TParams>(JsonElement? json, string source) where TParams : class
