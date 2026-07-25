@@ -95,6 +95,36 @@ public class CanvasActionValidationTests
     }
 
     [Fact]
+    public void An_action_on_a_form_node_is_accepted()
+    {
+        var form = new CanvasNode
+        {
+            Id = "f",
+            Type = "form",
+            Props = Json("""{"submitLabel":"Go"}"""),
+            Action = JsonSerializer.Deserialize<CanvasActionBinding>(
+                """{"name":"cache.clear"}""", CanvasJson.Options),
+        };
+
+        Assert.Null(CanvasCatalog.Validate(form, Context()));
+    }
+
+    [Fact]
+    public void An_action_on_a_stat_names_both_hosts()
+    {
+        var stat = new CanvasNode
+        {
+            Id = "s",
+            Type = "stat",
+            Props = Json("""{"label":"a","value":"1"}"""),
+            Action = JsonSerializer.Deserialize<CanvasActionBinding>(
+                """{"name":"cache.clear"}""", CanvasJson.Options),
+        };
+
+        Assert.Contains("button or form", CanvasCatalog.Validate(stat, Context()));
+    }
+
+    [Fact]
     public void An_empty_confirm_is_rejected()
     {
         var node = Button(null, """{"name":"cache.clear","confirm":"  "}""");

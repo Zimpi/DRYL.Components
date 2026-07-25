@@ -234,6 +234,51 @@ public class CanvasCatalogTests
         Assert.NotNull(CanvasCatalog.Validate(Node("button",
             """{ "label": "Go", "intent": "submit", "kind": "fancy" }""")));
 
+    private static CanvasNode NodeChild(string id, string type, string propsJson = "{}") => new()
+    {
+        Id = id, Type = type, Props = JsonSerializer.Deserialize<JsonElement>(propsJson),
+    };
+
+    // ---- accordion ----
+
+    [Fact] public void Accordion_matching_labels_and_children_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("accordion", """{ "labels": ["A", "B"] }""",
+            NodeChild("c1", "divider"), NodeChild("c2", "divider"))));
+
+    [Fact] public void Accordion_label_child_mismatch_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("accordion", """{ "labels": ["A", "B"] }""",
+            NodeChild("c1", "divider"))));
+
+    [Fact] public void Accordion_open_out_of_range_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("accordion", """{ "labels": ["A"], "open": 2 }""",
+            NodeChild("c1", "divider"))));
+
+    [Fact] public void Accordion_is_container() => Assert.True(CanvasCatalog.IsContainer("accordion"));
+
+    // ---- form ----
+
+    [Fact] public void Form_with_action_and_children_passes()
+    {
+        var form = Node("form", """{ "submitLabel": "Anlegen", "required": ["customer"] }""",
+            NodeChild("f1", "inputText", """{ "name": "customer", "label": "Kunde" }"""));
+        form.Action = new CanvasActionBinding { Name = "order.create" };
+        Assert.Null(CanvasCatalog.Validate(form));
+    }
+
+    [Fact] public void Form_without_action_rejected() =>
+        Assert.Contains("needs an action", CanvasCatalog.Validate(
+            Node("form", """{ "submitLabel": "Anlegen" }""")));
+
+    [Fact] public void Form_required_field_missing_in_subtree_rejected()
+    {
+        var form = Node("form", """{ "submitLabel": "Anlegen", "required": ["customer"] }""",
+            NodeChild("f1", "inputText", """{ "name": "note", "label": "Notiz" }"""));
+        form.Action = new CanvasActionBinding { Name = "order.create" };
+        Assert.Contains("customer", CanvasCatalog.Validate(form));
+    }
+
+    [Fact] public void Form_is_container() => Assert.True(CanvasCatalog.IsContainer("form"));
+
     // ---- kpi ----
 
     [Fact] public void Kpi_valid_items_pass() =>

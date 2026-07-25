@@ -11,7 +11,7 @@ public static class CanvasCatalog
 {
     private static readonly HashSet<string> ContainerTypes = new(StringComparer.Ordinal)
     {
-        "stack", "grid", "card", "tabs",
+        "stack", "grid", "card", "tabs", "accordion", "form",
     };
 
     private static readonly HashSet<string> InteractiveTypes = new(StringComparer.Ordinal)
@@ -24,7 +24,7 @@ public static class CanvasCatalog
         "stack", "grid", "card", "tabs", "divider", "markdown", "stat", "badge", "progress", "table",
         "timeline", "lineChart", "areaChart", "barChart", "donutChart",
         "inputText", "select", "slider", "toggle", "button",
-        "kpi", "list", "keyValue", "image", "code", "emptyState",
+        "kpi", "list", "keyValue", "image", "code", "emptyState", "accordion", "form", "dataGrid",
     };
 
     /// <summary>True when <paramref name="type"/> is a recognized catalog entry.</summary>
@@ -118,6 +118,37 @@ public static class CanvasCatalog
                 var childCount = node.Children?.Count ?? 0;
                 if (p.Labels.Count != childCount)
                     return Err(node, $"labels.Count ({p.Labels.Count}) must equal the number of children ({childCount}).");
+                return null;
+            }
+
+            case "accordion":
+            {
+                if (!TryProps<AccordionNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (p!.Labels is null || p.Labels.Count == 0)
+                    return Err(node, "labels must contain at least one label.");
+                var childCount = node.Children?.Count ?? 0;
+                if (p.Labels.Count != childCount)
+                    return Err(node, $"labels.Count ({p.Labels.Count}) must equal the number of children ({childCount}).");
+                if (p.Open is { } open && (open < 0 || open >= p.Labels.Count))
+                    return Err(node, FormattableString.Invariant(
+                        $"open ({open}) must be a valid section index (0..{p.Labels.Count - 1})."));
+                return null;
+            }
+
+            case "form":
+            {
+                if (!TryProps<FormNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (string.IsNullOrWhiteSpace(p!.SubmitLabel))
+                    return Err(node, "submitLabel must be non-empty.");
+                if (string.IsNullOrWhiteSpace(node.Action?.Name))
+                    return Err(node, "a form needs an action — put the action binding on the form node itself.");
+                if (p.Required is { Count: > 0 } required)
+                {
+                    var fields = CanvasValidationContext.FieldNamesOf(node);
+                    foreach (var name in required)
+                        if (!fields.Contains(name))
+                            return Err(node, $"required field '{name}' is not an interactive node inside this form.");
+                }
                 return null;
             }
 
@@ -302,10 +333,10 @@ public static class CanvasCatalog
     private static string? ValidateAction(CanvasNode node, CanvasActionBinding action,
                                           CanvasValidationContext context)
     {
-        // One command, one trigger. A future form container will widen this; today anything else
-        // would mean an action could fire from something the user does not experience as a press.
-        if (node.Type != "button")
-            return Err(node, "an action can only sit on a button — move it to the button that triggers it.");
+        // One command, one trigger — a press on a button, or a form's submit. Anything else would
+        // mean an action could fire from something the user does not experience as a deliberate act.
+        if (node.Type is not ("button" or "form"))
+            return Err(node, "an action can only sit on a button or form — move it to the node that triggers it.");
 
         if (string.IsNullOrWhiteSpace(action.Name))
             return Err(node, "action.name must name a registered action.");
@@ -555,6 +586,26 @@ internal sealed class TabsNodeProps
 {
     /// <summary>Tab labels, one per child node, in order.</summary>
     public List<string>? Labels { get; set; }
+}
+
+/// <summary>Props of the <c>accordion</c> container.</summary>
+internal sealed class AccordionNodeProps
+{
+    /// <summary>Section labels, one per child node, in order.</summary>
+    public List<string>? Labels { get; set; }
+
+    /// <summary>Index of the initially expanded section; default all collapsed.</summary>
+    public int? Open { get; set; }
+}
+
+/// <summary>Props of the <c>form</c> container — bundles its interactive children into one action.</summary>
+internal sealed class FormNodeProps
+{
+    /// <summary>Label of the submit button.</summary>
+    public string? SubmitLabel { get; set; }
+
+    /// <summary>Names of interactive child nodes that must be filled before submit.</summary>
+    public List<string>? Required { get; set; }
 }
 
 /// <summary>Props of the <c>markdown</c> leaf.</summary>
