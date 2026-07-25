@@ -117,7 +117,8 @@ Wie `tabs`: `labels: string[]`, genau ein Kind je Label. Jeder Abschnitt ist ein
 Rendert `DrylImage` (Skeleton beim Laden, Fallback-Icon bei Fehler — beides Bestand).
 
 - `src: string` (Pflicht), `alt: string` (Pflicht — a11y ist nicht optional),
-  `ratio?: "auto"|"16:9"|"4:3"|"1:1"` (default auto), `fit?: "cover"|"contain"`
+  `ratio?: "auto"|"1:1"|"16:9"|"21:9"` (default auto; die vier `ImageRatio`-Werte von
+  `DrylImage`), `fit?: "cover"|"contain"`
   (default cover), `caption?: string` (als `<figcaption>`-artige `--fg-dim`-Zeile).
 - **URL-Sicherheit:** `src` muss mit `https://`, `/` oder `data:image/` beginnen;
   alles andere (insb. `javascript:`, `http:`) → korrigierender Receipt. Das ist
