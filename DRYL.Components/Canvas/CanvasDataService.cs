@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace DRYL.Components.Canvas;
 
@@ -35,10 +36,24 @@ internal sealed class CanvasDataService : ICanvasDataService
     private readonly CanvasDataRegistry _registry;
     private readonly IServiceProvider _scope;
 
+    // The block goes into *every* generation, so a large registry is a standing token cost.
+    // Once per process is the right cadence for saying so — the real answer is the catalog
+    // compression of phase 4, not a hard limit here.
+    private static int _crowdedWarned;
+
     public CanvasDataService(CanvasDataRegistry registry, IServiceProvider scope)
     {
         _registry = registry;
         _scope = scope;
+
+        if (registry.Descriptors.Count >= CanvasDataPrompt.CrowdedAt &&
+            Interlocked.Exchange(ref _crowdedWarned, 1) == 0)
+        {
+            (scope.GetService(typeof(ILogger<CanvasDataService>)) as ILogger)?.LogWarning(
+                "{Count} canvas data sources are registered. Their descriptors go into every artifact " +
+                "generation — keep each description to one line, or the prompt grows with the catalog.",
+                registry.Descriptors.Count);
+        }
     }
 
     public IReadOnlyList<CanvasDataDescriptor> Descriptors => _registry.Descriptors;

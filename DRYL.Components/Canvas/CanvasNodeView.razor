@@ -1,6 +1,7 @@
 @namespace DRYL.Components.Canvas
 @using System.Text
 @using System.Text.Json
+@implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     CanvasNodeView — the recursive renderer for one canvas node.
@@ -38,8 +39,25 @@
         @{
             EnsureMemo();
             var error = _memoError;
+            var binding = _bindingState;
         }
-        @if (error is not null)
+        @if (binding is { HasValue: false, Error: { } bindError })
+        {
+            @*  A bound node that never got a good value. Compact and local: one broken
+                widget must never blow up the dashboard around it. *@
+            <span class="canvas-data-error">
+                <DrylIcon Name="Alert" Size="14" />
+                @bindError
+            </span>
+        }
+        else if (binding is { HasValue: false })
+        {
+            @*  First load — a skeleton in the rough shape of the node type, exactly like the
+                streaming case. A *refresh* deliberately never gets here: the node keeps its
+                identity and its value, and the change-pulse carries the movement instead (A8). *@
+            <DrylSkeleton Variant="SkeletonFor(Node.Type)" Lines="3" Ai="AiState.Streaming" />
+        }
+        else if (error is not null)
         {
             @if (Ctx.State is AiState.Streaming or AiState.Thinking)
             {
@@ -268,6 +286,22 @@
                 }
             }
         }
+
+        @if (_truncated)
+        {
+            <span class="canvas-data-truncated">Showing the first @CanvasDataMapper.MaxTableRows rows.</span>
+        }
+        @if (binding is { HasValue: true, Error: { } staleError })
+        {
+            @*  The source failed but a good value is still on screen. "Briefly disturbed" is
+                not "broken", so the value stays and this is all the user sees. *@
+            <DrylTooltip Text="@staleError">
+                <span class="canvas-data-flag">
+                    <DrylIcon Name="Alert" Size="12" />
+                    Not up to date
+                </span>
+            </DrylTooltip>
+        }
     </div>
 </DrylPresence>
 
@@ -290,26 +324,80 @@
     private Type? _memoPropsType;
     private object? _memoProps;
 
+    // The binding's live state, refreshed on every parameter set. Null for an unbound node,
+    // which is the overwhelmingly common case and costs nothing.
+    private CanvasBindingState? _bindingState;
+    private CanvasData? _memoData;          // the data the effective props were built from
+    private JsonElement? _effectiveProps;   // node props with the bound shape's props overwritten
+    private string? _mapError;
+    private bool _truncated;
+
     private void EnsureMemo()
     {
         // Identity AND stamp: Blazor reuses this view for a different node instance
         // (whole-tree replacement recycles ids), so the stamp alone is not a safe key.
-        if (ReferenceEquals(_memoNode, Node) && _memoVersion == Node.Version) return;
+        // The bound data is part of the key too — a refresh changes the props without
+        // touching the node.
+        if (ReferenceEquals(_memoNode, Node) && _memoVersion == Node.Version &&
+            ReferenceEquals(_memoData, _bindingState?.Data))
+            return;
+
         _memoNode = Node;
         _memoVersion = Node.Version;
-        _memoError = CanvasCatalog.Validate(Node);
+        _memoData = _bindingState?.Data;
         _memoProps = null;
         _memoPropsType = null;
+        _truncated = false;
+        _mapError = null;
+
+        _effectiveProps = Node.Props;
+        if (_memoData is { } data)
+            _effectiveProps = CanvasDataMapper.Apply(Node.Type, Node.Props, data, out _mapError, out _truncated);
+
+        // Validate what will actually be rendered. A bound chart legitimately has no "labels"
+        // in the spec — that is the whole point of binding — so validating the authored props
+        // would reject exactly the artifacts this phase exists to enable.
+        var subject = ReferenceEquals(_effectiveProps, Node.Props)
+            ? Node
+            : new CanvasNode { Id = Node.Id, Type = Node.Type, Props = _effectiveProps, Children = Node.Children };
+
+        // A shape that cannot fill this node type is a data problem, not a props problem —
+        // say so where the node is, in the same quiet placeholder the catalog uses.
+        _memoError = _mapError ?? CanvasCatalog.Validate(subject);
     }
+
+    // Registering on every parameter set is what makes a $field change re-key the binding:
+    // the binder resolves the params again and moves the node onto the new key if it moved.
+    private void SyncBinding()
+    {
+        var binder = Ctx.Binder;
+        if (binder is null) return;
+
+        if (Node.Data is { Source: not null } binding) binder.Register(Node.Id, binding);
+        else if (_bindingState is not null) binder.Unregister(Node.Id);
+
+        _bindingState = binder.StateOf(Node.Id);
+    }
+
+    private static DrylSkeleton.SkeletonVariant SkeletonFor(string type) => type switch
+    {
+        "lineChart" or "areaChart" or "barChart" or "donutChart" or "table" =>
+            DrylSkeleton.SkeletonVariant.Card,
+        _ => DrylSkeleton.SkeletonVariant.Text,
+    };
 
     private int _pulseTick;  // last change stamp we have seen for this node
     private int _pulseKey;   // bumped on every new stamp — re-keys the pulse overlay
 
     protected override void OnParametersSet()
     {
+        SyncBinding();
         SeedFormOnce();
         SyncPulse();
     }
+
+    /// <summary>A node that leaves the tree must not keep its key alive in the binder.</summary>
+    public void Dispose() => Ctx?.Binder?.Unregister(Node.Id);
 
     // The run stamps a node on every applied setProps. A stamp we have not seen yet means
     // the content just changed underneath us — replay the pulse. Stamps are per-node and
@@ -379,7 +467,9 @@
         EnsureMemo();
         if (_memoPropsType == typeof(T)) return (T?)_memoProps;
 
-        var json = Node.Props is { } p && p.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
+        // The effective props: a bound node reads the data source's result, an unbound one its
+        // own authored props. Either way this is the single place the props text comes from.
+        var json = _effectiveProps is { } p && p.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             ? p.GetRawText()
             : "{}";
         CanvasJson.TryParse<T>(json, out var value);
