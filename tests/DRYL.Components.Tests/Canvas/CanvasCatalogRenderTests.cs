@@ -77,6 +77,50 @@ public class CanvasCatalogRenderTests : BunitContext
     }
 
     [Fact]
+    public void DataGrid_renders_headers_and_rows()
+    {
+        var cut = RenderSpec("""
+            {"id":"g","type":"dataGrid","props":{
+                "columns":["Auftrag","Status"],
+                "rows":[["4711","offen"],["4712","erledigt"]]}}
+            """);
+        Assert.Contains("Auftrag", cut.Markup);
+        Assert.Contains("4712", cut.Markup);
+        Assert.Equal(2, cut.FindAll("tbody tr").Count);
+    }
+
+    [Fact]
+    public void DataGrid_pages_when_rows_exceed_pagesize()
+    {
+        var rows = string.Join(",", Enumerable.Range(0, 15).Select(i => $"[\"r{i}\"]"));
+        var cut = RenderSpec($$$"""
+            {"id":"g","type":"dataGrid","props":{"columns":["A"],"rows":[{{{rows}}}],"pageSize":10}}
+            """);
+        Assert.Equal(10, cut.FindAll("tbody tr").Count);
+        Assert.NotEmpty(cut.FindAll(".tbl-footer"));
+    }
+
+    [Fact]
+    public void DataGrid_hides_paging_when_rows_fit()
+    {
+        var cut = RenderSpec("""
+            {"id":"g","type":"dataGrid","props":{"columns":["A"],"rows":[["1"]]}}
+            """);
+        Assert.Empty(cut.FindAll(".tbl-footer"));
+    }
+
+    [Fact]
+    public void DataGrid_sorts_on_header_click()
+    {
+        var cut = RenderSpec("""
+            {"id":"g","type":"dataGrid","props":{"columns":["A"],"rows":[["b"],["a"]]}}
+            """);
+        cut.FindAll(".tbl-th-clickable")[0].Click();
+        var cells = cut.FindAll("tbody td").Select(td => td.TextContent.Trim()).ToList();
+        Assert.Equal("a", cells[0]);
+    }
+
+    [Fact]
     public void Accordion_renders_sections_and_open_index()
     {
         var cut = RenderSpec("""

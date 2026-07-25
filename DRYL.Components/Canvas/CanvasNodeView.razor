@@ -210,6 +210,37 @@
                     break;
                 }
 
+                case "dataGrid":
+                {
+                    var p = Props<DataGridNodeProps>();
+                    var rows = GridRows(p!);
+                    var sortable = p!.Sortable ?? true;
+                    var searchable = p.Searchable == true;
+                    var filterable = p.Filterable == true;
+                    var pageSize = p.PageSize ?? 10;
+                    // Paging only when it has something to page — a footer under three rows is noise.
+                    var effectivePageSize = pageSize > 0 && rows.Count > pageSize ? pageSize : 0;
+                    <DrylTable TItem="CanvasGridRow" Items="@rows"
+                               ShowToolbar="@searchable" Searchable="@searchable"
+                               PageSize="@effectivePageSize"
+                               AriaLabel="Data grid"
+                               RowIdSelector="@(r => r.Index)">
+                        <Columns>
+                            @for (var i = 0; i < p.Columns!.Count; i++)
+                            {
+                                var idx = i;             // capture per-iteration for the expression
+                                <DrylColumn TItem="CanvasGridRow"
+                                            ColumnKey="@($"c{idx}")" Title="@p.Columns[idx]"
+                                            Field="@(r => r.Cell(idx))"
+                                            Sortable="@sortable" Searchable="@searchable"
+                                            Filterable="@filterable"
+                                            FilterType="@(filterable ? ColumnFilterType.Select : ColumnFilterType.Auto)" />
+                            }
+                        </Columns>
+                    </DrylTable>
+                    break;
+                }
+
                 case "timeline":
                 {
                     var p = Props<CanvasTimelineProps>();
@@ -543,6 +574,22 @@
     {
         Ctx?.Binder?.Unregister(Node.Id);
         if (_subscribedScope is not null) _subscribedScope.OnChanged -= OnFormScopeChanged;
+    }
+
+    // ───── dataGrid ─────
+
+    // Props<T> returns the same parsed object per node version, so keying the row list off that
+    // reference keeps the Items reference stable across renders — DrylTable's itemsChanged logic
+    // (and A8's "refresh pulses instead of rebuilding") depends on it.
+    private object? _gridPropsRef;
+    private IReadOnlyList<CanvasGridRow> _gridRows = [];
+
+    private IReadOnlyList<CanvasGridRow> GridRows(DataGridNodeProps p)
+    {
+        if (ReferenceEquals(_gridPropsRef, p)) return _gridRows;
+        _gridPropsRef = p;
+        _gridRows = (p.Rows ?? []).Select((cells, i) => new CanvasGridRow(i, cells)).ToList();
+        return _gridRows;
     }
 
     // ───── accordion ─────

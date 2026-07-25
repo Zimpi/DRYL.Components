@@ -215,6 +215,42 @@ public class CanvasBindingRenderTests : BunitContext
     }
 
     [Fact]
+    public void A_rows_source_fills_a_dataGrid()
+    {
+        Services.AddDrylComponents();
+        Services.AddDrylCanvasDataSource("orders.grid", "Open orders.",
+            (CanvasDataContext _, CancellationToken _) => Task.FromResult(CanvasData.Rows(
+                new[] { "Nr", "Status" }, new[] { new[] { "4711", "offen" } })));
+
+        var cut = Render<DrylCanvas>(p => p.Add(x => x.Spec, Parse("""
+            {"root":{"id":"g1","type":"dataGrid","props":{},"data":{"source":"orders.grid"}}}
+            """)));
+
+        cut.WaitForAssertion(() => Assert.Contains("4711", cut.Find("tbody").TextContent),
+                             TimeSpan.FromSeconds(3));
+        Assert.Empty(cut.FindAll(".canvas-invalid"));
+    }
+
+    [Fact]
+    public void A_rows_source_fills_a_list_and_a_keyValue()
+    {
+        Services.AddDrylComponents();
+        Services.AddDrylCanvasDataSource("orders.pairs", "Order facts.",
+            (CanvasDataContext _, CancellationToken _) => Task.FromResult(CanvasData.Rows(
+                new[] { "Key", "Value" }, new[] { new[] { "Customer", "ACME" } })));
+
+        var cut = Render<DrylCanvas>(p => p.Add(x => x.Spec, Parse("""
+            {"root":{"id":"root","type":"stack","children":[
+                {"id":"l1","type":"list","props":{},"data":{"source":"orders.pairs"}},
+                {"id":"kv1","type":"keyValue","props":{},"data":{"source":"orders.pairs"}}]}}
+            """)));
+
+        cut.WaitForAssertion(() => Assert.Contains("ACME", cut.Markup), TimeSpan.FromSeconds(3));
+        Assert.Empty(cut.FindAll(".canvas-invalid"));
+        Assert.Empty(cut.FindAll(".canvas-data-error"));
+    }
+
+    [Fact]
     public void A_truncated_rows_result_says_so()
     {
         Services.AddDrylComponents();
