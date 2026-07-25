@@ -83,15 +83,18 @@ internal static class CanvasPrompt
     }
 
     /// <summary>Builds the full create-artifact prompt: <see cref="SchemaText"/> + the layout budget for
-    /// <paramref name="width"/> + the brief (+ optional title).</summary>
-    internal static string CreatePrompt(string brief, string? title, int? width = null) =>
-        $"{SchemaText}\n{LayoutBudget(width)}\nBuild a new artifact{(title is null ? "" : $" titled \"{title}\"")} for this request:\n{brief}";
+    /// <paramref name="width"/> + the data source block (empty when nothing is registered, A2) +
+    /// the brief (+ optional title).</summary>
+    internal static string CreatePrompt(string brief, string? title, int? width = null,
+                                       IReadOnlyList<CanvasDataDescriptor>? sources = null) =>
+        $"{SchemaText}\n{LayoutBudget(width)}{CanvasDataPrompt.Block(sources)}\nBuild a new artifact{(title is null ? "" : $" titled \"{title}\"")} for this request:\n{brief}";
 
     /// <summary>Builds the full update-artifact prompt: <see cref="SchemaText"/> + the layout budget for
-    /// <paramref name="width"/> + the current spec + a closed set of patch ops the model may emit against
-    /// it, + the brief.</summary>
-    internal static string UpdatePrompt(string brief, string currentSpecJson, int? width = null) =>
-        SchemaText + LayoutBudget(width) + """
+    /// <paramref name="width"/> + the data source block + the current spec + a closed set of patch ops
+    /// the model may emit against it, + the brief.</summary>
+    internal static string UpdatePrompt(string brief, string currentSpecJson, int? width = null,
+                                       IReadOnlyList<CanvasDataDescriptor>? sources = null) =>
+        SchemaText + LayoutBudget(width) + CanvasDataPrompt.Block(sources) + """
 
 
             You UPDATE the existing artifact below. Output ONLY: { "ops": [Op, …] }

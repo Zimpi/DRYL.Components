@@ -36,7 +36,39 @@ public static class CanvasCatalog
     public static bool IsInteractive(string type) => InteractiveTypes.Contains(type);
 
     /// <summary>Validates a single node's shape and props. Returns null when valid, otherwise a corrective, model-facing error sentence.</summary>
-    public static string? Validate(CanvasNode node)
+    public static string? Validate(CanvasNode node) => Validate(node, null);
+
+    /// <summary>
+    /// Validates a node, and — when <paramref name="context"/> is supplied and the node carries a
+    /// <c>data</c> binding — the binding too: the source exists, its result shape fits the node
+    /// type, the parameters are complete and known, every <c>$field</c> points at an interactive
+    /// node of this artifact, and <c>refresh</c> is syntactically valid.
+    /// <para>The result is a corrective sentence for the model's receipt, never a hard stop: an
+    /// invalid node renders as a placeholder and the model repairs it on its next turn.</para>
+    /// </summary>
+    public static string? Validate(CanvasNode node, CanvasValidationContext? context)
+    {
+        if (context is null || node.Data is not { Source: not null }) return ValidateShape(node);
+
+        // The binding comes first: a bound chart legitimately carries no "labels" — that is the
+        // whole point — so reporting "labels must contain at least one label" would reject exactly
+        // the artifacts data binding exists to enable.
+        var bindingError = ValidateBinding(node, context);
+        if (bindingError is not null) return bindingError;
+
+        // The data itself only arrives at runtime, so validate the presentation props against a
+        // stand-in of the declared shape. Everything the shape does not own is checked for real.
+        var descriptor = context.Sources.First(d => d.Name == node.Data.Source);
+        var props = CanvasDataMapper.Apply(node.Type, node.Props,
+            CanvasDataMapper.Sample(descriptor.Shape), out _, out _);
+
+        return ValidateShape(new CanvasNode
+        {
+            Id = node.Id, Type = node.Type, Props = props, Children = node.Children,
+        });
+    }
+
+    private static string? ValidateShape(CanvasNode node)
     {
         if (string.IsNullOrWhiteSpace(node.Id))
             return Err(node, "id must be non-empty.");
@@ -200,6 +232,101 @@ public static class CanvasCatalog
         }
     }
 
+    private static string? ValidateBinding(CanvasNode node, CanvasValidationContext context)
+    {
+        if (node.Data is not { } binding) return null;
+
+        if (string.IsNullOrWhiteSpace(binding.Source))
+            return Err(node, "data.source must name a registered data source.");
+
+        var descriptor = context.Sources.FirstOrDefault(d => d.Name == binding.Source);
+        if (descriptor is null)
+        {
+            var available = context.Sources.Take(5).Select(d => d.Name).ToList();
+            return Err(node, available.Count == 0
+                ? $"unknown data source '{binding.Source}' — no data sources are registered."
+                : $"unknown data source '{binding.Source}' — available: {string.Join(", ", available)}"
+                  + (context.Sources.Count > available.Count ? ", …" : "") + ".");
+        }
+
+        if (!CanvasDataMapper.Allows(descriptor.Shape, node.Type))
+            return Err(node, $"source '{descriptor.Name}' returns {CanvasDataMapper.ShapeName(descriptor.Shape)}, " +
+                             $"but a {node.Type} needs {ExpectedShape(node.Type)}.");
+
+        var paramError = ValidateParams(node, binding, descriptor, context);
+        if (paramError is not null) return paramError;
+
+        return ValidateRefresh(node, binding.Refresh);
+    }
+
+    private static string? ValidateParams(CanvasNode node, CanvasDataBinding binding,
+                                          CanvasDataDescriptor descriptor, CanvasValidationContext context)
+    {
+        var given = new HashSet<string>(StringComparer.Ordinal);
+
+        if (binding.Params is { } p)
+        {
+            if (p.ValueKind != JsonValueKind.Object)
+                return Err(node, "data.params must be an object.");
+
+            foreach (var prop in p.EnumerateObject())
+            {
+                given.Add(prop.Name);
+                var info = descriptor.Params.FirstOrDefault(x => x.Name == prop.Name);
+                if (info is null)
+                    return Err(node, $"source '{descriptor.Name}' has no parameter '{prop.Name}' — it takes "
+                                     + Signature(descriptor) + ".");
+
+                if (CanvasDataBinder.FieldReference(prop.Value) is { } field)
+                {
+                    // A field reference is only useful if the field exists; a typo would otherwise
+                    // silently resolve to null on every load.
+                    if (!context.FieldNames.Contains(field))
+                        return Err(node, $"param '{prop.Name}' references field '{field}', but this artifact has "
+                                         + (context.FieldNames.Count == 0
+                                             ? "no interactive nodes."
+                                             : "no such interactive node — it has: "
+                                               + string.Join(", ", context.FieldNames.Take(5)) + "."));
+                }
+            }
+        }
+
+        var missing = descriptor.Params.Where(x => x.Required && !given.Contains(x.Name)).Select(x => x.Name).ToList();
+        return missing.Count == 0
+            ? null
+            : Err(node, $"source '{descriptor.Name}' is missing required param"
+                        + (missing.Count == 1 ? " " : "s ") + string.Join(", ", missing)
+                        + " — it takes " + Signature(descriptor) + ".");
+    }
+
+    private static string? ValidateRefresh(CanvasNode node, string? refresh)
+    {
+        if (string.IsNullOrWhiteSpace(refresh) ||
+            refresh.Equals("manual", StringComparison.OrdinalIgnoreCase)) return null;
+
+        if (!CanvasDataBinder.TryParseInterval(refresh, out var seconds))
+            return Err(node, $"data.refresh '{refresh}' is invalid — use \"manual\" or \"interval:<n>s\".");
+
+        return seconds >= 5
+            ? null
+            : Err(node, FormattableString.Invariant(
+                $"data.refresh 'interval:{seconds}s' is below the 5s floor — it was raised to interval:5s."));
+    }
+
+    private static string Signature(CanvasDataDescriptor d) =>
+        d.Params.Count == 0
+            ? "no parameters"
+            : "(" + string.Join(", ", d.Params.Select(p => $"{p.Name}{(p.Required ? "" : "?")}: {p.TypeName}")) + ")";
+
+    private static string ExpectedShape(string nodeType) => nodeType switch
+    {
+        "stat" or "badge" or "progress" => "scalar",
+        "lineChart" or "areaChart" or "barChart" => "series",
+        "donutChart" => "segments",
+        "table" => "rows",
+        _ => "no data at all — it cannot be bound",
+    };
+
     private static string? ValidateNameAndLabel(CanvasNode node, string? name, string? label)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -221,6 +348,42 @@ public static class CanvasCatalog
         error is null ? null : $"{n.Type} node '{n.Id}': {error}";
 
     private static string Err(CanvasNode n, string msg) => $"{n.Type} node '{n.Id}': {msg}";
+}
+
+/// <summary>
+/// What <see cref="CanvasCatalog.Validate(CanvasNode, CanvasValidationContext?)"/> needs to check a
+/// node's <c>data</c> binding: which sources exist, and which interactive field names this artifact
+/// offers a <c>$field</c> reference.
+/// </summary>
+public sealed class CanvasValidationContext
+{
+    /// <summary>The registered data sources (see <c>ICanvasDataService.Descriptors</c>).</summary>
+    public IReadOnlyList<CanvasDataDescriptor> Sources { get; init; } = Array.Empty<CanvasDataDescriptor>();
+
+    /// <summary>The <c>name</c> props of every interactive node in the same artifact.</summary>
+    public IReadOnlyCollection<string> FieldNames { get; init; } = Array.Empty<string>();
+
+    /// <summary>Collects the <c>name</c> of every interactive node in <paramref name="root"/>'s subtree.</summary>
+    public static IReadOnlyCollection<string> FieldNamesOf(CanvasNode? root)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        Collect(root, names);
+        return names;
+    }
+
+    private static void Collect(CanvasNode? node, HashSet<string> names)
+    {
+        if (node is null) return;
+        if (CanvasCatalog.IsInteractive(node.Type) &&
+            node.Props is { ValueKind: JsonValueKind.Object } p &&
+            p.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String &&
+            n.GetString() is { Length: > 0 } name)
+        {
+            names.Add(name);
+        }
+        if (node.Children is null) return;
+        foreach (var child in node.Children) Collect(child, names);
+    }
 }
 
 /// <summary>Props of the <c>stack</c> container: a vertical/horizontal flex stack.</summary>

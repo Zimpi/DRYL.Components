@@ -43,6 +43,18 @@ internal static class CanvasDataMapper
     };
 
     /// <summary>
+    /// A minimal stand-in result of <paramref name="shape"/>. Validation runs before any data
+    /// exists, so this fills the props the shape owns and lets everything else be checked for real.
+    /// </summary>
+    public static CanvasData Sample(CanvasDataShape shape) => shape switch
+    {
+        CanvasDataShape.Scalar => CanvasData.Scalar(0, "0"),
+        CanvasDataShape.Series => CanvasData.Series(new[] { "—" }, ("—", new[] { 0d })),
+        CanvasDataShape.Segments => CanvasData.Segments(new[] { ("—", 1d) }),
+        _ => CanvasData.Rows(new[] { "—" }, new[] { new[] { "—" } }),
+    };
+
+    /// <summary>
     /// Returns <paramref name="baseProps"/> with the props this shape owns overwritten by
     /// <paramref name="data"/>. On a mismatch returns the untouched base props and sets
     /// <paramref name="error"/> to a short, user-facing sentence.
