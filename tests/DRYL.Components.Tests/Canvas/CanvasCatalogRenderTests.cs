@@ -76,6 +76,32 @@ public class CanvasCatalogRenderTests : BunitContext
         Assert.Contains("sql", cut.Find(".code-block-lang").TextContent);
     }
 
+    // The model contract for phase 4: an artifact that uses every new type renders through
+    // without a single corrective placeholder. A failure here is a real regression in one of
+    // the catalog/renderer pairs, not a test that needs loosening.
+    [Fact]
+    public void An_artifact_with_all_nine_new_types_renders_without_invalid_nodes()
+    {
+        var cut = RenderSpec("""
+            {"id":"root","type":"stack","children":[
+                {"id":"k","type":"kpi","props":{"items":[{"label":"Revenue","value":"48k"}]}},
+                {"id":"g","type":"dataGrid","props":{"columns":["A"],"rows":[["1"]]}},
+                {"id":"l","type":"list","props":{"items":[{"title":"Entry"}]}},
+                {"id":"kv","type":"keyValue","props":{"pairs":[{"key":"K","value":"V"}]}},
+                {"id":"a","type":"accordion","props":{"labels":["S"]},"children":[
+                    {"id":"a1","type":"markdown","props":{"content":"Body"}}]},
+                {"id":"i","type":"image","props":{"src":"/img/a.png","alt":"Chart"}},
+                {"id":"c","type":"code","props":{"code":"SELECT 1;"}},
+                {"id":"e","type":"emptyState","props":{"title":"Empty"}},
+                {"id":"f","type":"form","props":{"submitLabel":"Go"},
+                 "action":{"name":"noop"},
+                 "children":[{"id":"f1","type":"inputText","props":{"name":"x","label":"X"}}]}]}
+            """);
+
+        Assert.Empty(cut.FindAll(".canvas-invalid"));
+        Assert.Empty(cut.FindAll(".canvas-data-error"));
+    }
+
     [Fact]
     public void DataGrid_renders_headers_and_rows()
     {
