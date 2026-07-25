@@ -1,0 +1,109 @@
+/* DrylCanvasDock — a floating command bar. Tokens only.
+   The popover defaults (inset: 0; margin: auto) are overridden explicitly: the dock is a
+   corner card, not a centred sheet. */
+
+.canvas-dock {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    overflow: visible;
+    z-index: 60;
+    width: min(420px, calc(100vw - var(--sp-6)));
+}
+
+.canvas-dock.is-collapsed {
+    width: auto;
+}
+
+.canvas-dock--br { right: var(--sp-4); bottom: var(--sp-4); }
+.canvas-dock--bl { left: var(--sp-4); bottom: var(--sp-4); }
+.canvas-dock--tr { right: var(--sp-4); top: var(--sp-4); }
+.canvas-dock--tl { left: var(--sp-4); top: var(--sp-4); }
+
+/* Collapsed: just the button, nothing else to see. */
+.dock-fab {
+    display: inline-flex;
+}
+
+.dock-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-2);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-2);
+}
+
+.dock-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+}
+
+/* Exactly one line of status — it truncates rather than growing the dock. */
+.dock-status {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dock-status.is-error {
+    color: var(--danger);
+}
+
+/* Disclosure: animate the track, never squeeze the content. */
+.dock-log {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--dur-med) var(--ease-in-out);
+}
+
+.dock-log.is-open {
+    grid-template-rows: 1fr;
+}
+
+.dock-log-inner {
+    overflow: hidden;
+}
+
+.dock-log-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    max-height: 42vh;
+    overflow-y: auto;
+    padding-right: var(--sp-1);
+}
+
+/* On a phone the dock is the bottom bar — a 420px card in the corner is not a target. */
+@media (max-width: 640px) {
+    .canvas-dock {
+        left: var(--sp-3);
+        right: var(--sp-3);
+        bottom: var(--sp-3);
+        top: auto;
+        width: auto;
+    }
+
+    .canvas-dock.is-collapsed {
+        left: auto;
+    }
+
+    .dock-log-content {
+        max-height: 50vh;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dock-log {
+        transition: none;
+    }
+}

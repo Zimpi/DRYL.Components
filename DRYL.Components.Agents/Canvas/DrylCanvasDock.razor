@@ -1,0 +1,280 @@
+@namespace DRYL.Components.Agents
+@using DRYL.Components.Ai
+@using DRYL.Components.Canvas
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCanvasDock — the prompt dock: a command bar, not a chat.
+
+    A floating card in a corner of the viewport: one input, one line of live
+    status ("Building · 7 elements") and the full transcript only on demand.
+    The artifact on the canvas is the answer — the text beside it is not, so
+    it does not get to own half the screen.
+
+    The dock lives in the browser's top layer (popover="manual"), because a
+    position: fixed element is measured against the nearest ancestor with a
+    transform or backdrop-filter — in a real app almost always some glass
+    card. Without JS (prerender) it stays a plain fixed element in flow.
+
+    The transcript comes from the host through the Log slot: the dock brings
+    no second message model next to DrylChat/DrylMessage.
+
+    Usage:
+      <DrylCanvasDock Run="_run" Busy="Busy" OnSend="Send">
+          <Log>@foreach (var t in _turns) { <DrylMessage …>@t.Text</DrylMessage> }</Log>
+      </DrylCanvasDock>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" popover="@PopoverMode" @ref="_el" @attributes="AdditionalAttributes">
+    <DrylPresence Visible="@Collapsed" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
+        <div class="dock-fab">
+            <DrylTooltip Text="@Title">
+                <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                            AriaLabel="@Title"
+                            Ai="@DockAi"
+                            OnClick="@(() => SetCollapsedAsync(false))">
+                    <DrylIcon Name="Sparkle" Size="16" />
+                </DrylButton>
+            </DrylTooltip>
+        </div>
+    </DrylPresence>
+
+    <DrylPresence Visible="@(!Collapsed)" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
+        <div class="dock-panel glass-card">
+            <div class="dock-head">
+                <DrylAiIndicator State="@DockAi" />
+
+                @*  One line, and it moves: re-keying the presence on the text fades the old line
+                    out and the new one in — a status change is a change, not a jump. *@
+                <div class="dock-status @(HasError ? "is-error" : null)" aria-live="polite">
+                    <DrylPresence @key="StatusText" Visible Appear
+                                  Transition="PresenceTransition.Fade" Speed="PresenceSpeed.Fast">
+                        <span>@StatusText</span>
+                    </DrylPresence>
+                </div>
+
+                @if (Log is not null)
+                {
+                    <DrylTooltip Text="@LogLabel">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="@LogLabel"
+                                    Pressed="_logOpen"
+                                    Class="dock-log-toggle"
+                                    OnClick="ToggleLog">
+                            <DrylIcon Name="@(_logOpen ? "ChevronDown" : "ChevronUp")" Size="14" />
+                        </DrylButton>
+                    </DrylTooltip>
+                }
+
+                <DrylTooltip Text="@CollapseLabel">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="@CollapseLabel"
+                                Class="dock-collapse"
+                                OnClick="@(() => SetCollapsedAsync(true))">
+                        <DrylIcon Name="Minimize" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+            </div>
+
+            @if (Log is not null)
+            {
+                @*  0fr → 1fr disclosure (the DrylToolCallGroup trick): the log animates open
+                    without ever squeezing its content and stays in the DOM while closed. *@
+                <div class="dock-log @(_logOpen ? "is-open" : null)"
+                     role="log"
+                     aria-hidden="@(_logOpen ? null : "true")">
+                    <div class="dock-log-inner">
+                        <div class="dock-log-content" @ref="_logEl">@Log</div>
+                    </div>
+                </div>
+            }
+
+            <DrylChatComposer @bind-Value="_draft"
+                              OnSend="SendAsync"
+                              Disabled="@Busy"
+                              Placeholder="@Placeholder"
+                              AriaLabel="@Title"
+                              Ai="@DockAi" />
+        </div>
+    </DrylPresence>
+</div>
+
+@code {
+    /// <summary>The canvas run the status line reads. Optional — without it the dock is just an input.</summary>
+    [Parameter] public DrylCanvasRun? Run { get; set; }
+
+    /// <summary>The host is busy with a turn: the composer locks and the dock breathes.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Raised with the submitted text.</summary>
+    [Parameter] public EventCallback<string> OnSend { get; set; }
+
+    /// <summary>Which corner the dock floats in. Default <see cref="DockCorner.BottomRight"/>.</summary>
+    [Parameter] public DockCorner Corner { get; set; } = DockCorner.BottomRight;
+
+    /// <summary>Composer placeholder.</summary>
+    [Parameter] public string? Placeholder { get; set; } = "Ask for a view…";
+
+    /// <summary>Overrides the status line derived from <see cref="Run"/>.</summary>
+    [Parameter] public string? Status { get; set; }
+
+    /// <summary>The transcript, revealed on demand. Without it the dock offers no disclosure.</summary>
+    [Parameter] public RenderFragment? Log { get; set; }
+
+    /// <summary>Whether the dock is collapsed to a single button. Supports two-way binding.</summary>
+    [Parameter] public bool Collapsed { get; set; }
+
+    /// <summary>Fires when the dock collapses or expands.</summary>
+    [Parameter] public EventCallback<bool> CollapsedChanged { get; set; }
+
+    /// <summary>Name of the assistant — the collapsed button's label and the composer's aria-label.</summary>
+    [Parameter] public string Title { get; set; } = "Assistant";
+
+    /// <summary>Extra CSS class(es) merged onto the dock root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private DrylCanvasRun? _subscribed;
+    private ElementReference _el;
+    private ElementReference _logEl;
+    private string? _draft;
+    private bool _logOpen;
+    private bool _topLayer;   // the popover attribute is in the DOM
+    private bool _shown;      // …and the element is actually promoted
+    private bool _scrollLog;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private async Task SendAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        _scrollLog = _logOpen;
+        await OnSend.InvokeAsync(text);
+    }
+
+    private async Task SetCollapsedAsync(bool collapsed)
+    {
+        if (Collapsed == collapsed) return;
+        Collapsed = collapsed;
+        await CollapsedChanged.InvokeAsync(collapsed);
+    }
+
+    private void ToggleLog()
+    {
+        _logOpen = !_logOpen;
+        _scrollLog = _logOpen;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Two-step promotion: the popover attribute has to be in the DOM before showPopover may
+        // be called, so the first render goes out without it and asks for a second.
+        if (firstRender)
+        {
+            _topLayer = true;
+            StateHasChanged();
+            return;
+        }
+
+        if (_topLayer && !_shown)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.topLayer.show", _el);
+                _shown = true;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        if (_scrollLog)
+        {
+            _scrollLog = false;
+            try { await JS.InvokeVoidAsync("dryl.chat.scrollToEnd", _logEl); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+    }
+
+    private bool HasError => string.IsNullOrWhiteSpace(Status) && Run?.Error is not null;
+
+    // The AI vocabulary of the whole dock: the run's own state, or Thinking while the host is
+    // mid-turn — the dock has to breathe before the first artifact node exists.
+    private AiState DockAi =>
+        Run?.State is AiState.Streaming or AiState.Thinking ? Run.State
+        : Busy ? AiState.Thinking
+        : Run?.State ?? AiState.None;
+
+    private string StatusText
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Status)) return Status!;
+            if (Run?.Error is { } error) return error.Message;
+
+            var n = Run?.NodeCount ?? 0;
+            var elements = FormattableString.Invariant($"{n} element{(n == 1 ? "" : "s")}");
+            return (Run?.State ?? AiState.None) switch
+            {
+                AiState.Streaming => "Building · " + elements,
+                AiState.Thinking => "Working…",
+                AiState.Generated => "Ready · " + elements,
+                _ => Busy ? "Working…" : "Idle",
+            };
+        }
+    }
+
+    private string LogLabel => _logOpen ? "Hide conversation" : "Show conversation";
+
+    private const string CollapseLabel = "Collapse assistant";
+
+    // "manual": the dock owns its own collapse; a light-dismissing popover would vanish behind
+    // the component's back on the first click elsewhere on the page.
+    private string? PopoverMode => _topLayer ? "manual" : null;
+
+    private string CornerCss => Corner switch
+    {
+        DockCorner.BottomLeft => "bl",
+        DockCorner.TopRight => "tr",
+        DockCorner.TopLeft => "tl",
+        _ => "br",
+    };
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "canvas-dock", "canvas-dock--" + CornerCss };
+            if (Collapsed) parts.Add("is-collapsed");
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+
+        if (_shown)
+        {
+            try { await JS.InvokeVoidAsync("dryl.topLayer.hide", _el); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (JSException) { /* element already gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+    }
+}
