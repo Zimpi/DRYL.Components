@@ -1,0 +1,112 @@
+/* DrylCanvasWorkspace — the view bar plus the one visible view.
+   Tokens only; the glide lives on .ws-ink, the same shape DrylTabs uses. */
+
+.canvas-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    min-width: 0;
+}
+
+/* ---- View bar ---------------------------------------------------- */
+.ws-bar {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--sp-1);
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.ws-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: var(--sp-1) var(--sp-2);
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: var(--r-md) var(--r-md) 0 0;
+    color: var(--fg-muted);
+    white-space: nowrap;
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                background var(--dur-fast) var(--ease-out);
+}
+
+.ws-chip:hover {
+    color: var(--fg);
+    border-color: var(--line);
+    background: var(--glass-1);
+}
+
+.ws-chip.is-active {
+    color: var(--fg);
+    border-color: var(--line-strong);
+    background: var(--glass-1);
+}
+
+.ws-chip-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.ws-chip-label:focus-visible {
+    outline: none;
+    border-radius: var(--r-xs);
+    box-shadow: 0 0 0 2px var(--accent-line);
+}
+
+/* The close button is DrylButton's own output — a scoped selector never reaches it. */
+::deep .ws-chip-close {
+    opacity: 0.55;
+    transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.ws-chip:hover ::deep .ws-chip-close,
+::deep .ws-chip-close:focus-visible {
+    opacity: 1;
+}
+
+/* The gliding underline. Width and transform come from dryl.motion.moveIndicator; the
+   transition only switches on after the first placement (is-ink-ready), so the ink does
+   not slide in from x=0 on the initial render. */
+.ws-ink {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 0;
+    border-radius: var(--r-pill);
+    background: var(--accent-grad);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ws-bar.is-ink-ready .ws-ink {
+    transition: transform var(--dur-med) var(--ease-spring),
+                width var(--dur-med) var(--ease-spring),
+                opacity var(--dur-fast) var(--ease-out);
+}
+
+/* ---- Body -------------------------------------------------------- */
+.ws-body {
+    min-width: 0;
+    min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ws-chip,
+    ::deep .ws-chip-close,
+    .ws-bar.is-ink-ready .ws-ink {
+        transition: none;
+    }
+}

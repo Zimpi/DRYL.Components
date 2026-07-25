@@ -1,0 +1,216 @@
+@namespace DRYL.Components
+@using DRYL.Components.Canvas
+@using DRYL.Components.Motion
+@inject IJSRuntime JS
+@inject IDrylViewTransition ViewTransition
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCanvasWorkspace — a set of named canvas views, exactly one visible.
+
+    A line-of-business page is not one artifact; it is "the overview",
+    "order 4711", "last month's report" — and the user has to be able to get
+    back to what they had. The workspace keeps those views side by side as
+    chips and shows exactly one of them large.
+
+    Switching runs through IDrylViewTransition, so the surface morphs into the
+    other view instead of snapping (one state change, one movement), while the
+    shared [data-dryl-ink] indicator glides between the chips — the same
+    primitive DrylTabs uses.
+
+    The workspace renders whatever the View slot puts in the body (typically a
+    DrylAiCanvas); without the slot it renders a plain DrylCanvas over the
+    active view's spec.
+
+    Usage:
+      <DrylCanvasWorkspace Workspace="_ws">
+          <View><DrylAiCanvas Run="_run" AllowExpand="false" /></View>
+      </DrylCanvasWorkspace>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="canvas-workspace @Class" @attributes="AdditionalAttributes">
+    @if (ShowBar)
+    {
+        <div class="ws-bar" role="tablist" aria-label="@AriaLabel" @ref="_bar">
+            <div class="ws-ink" data-dryl-ink aria-hidden="true"></div>
+            @foreach (var v in Workspace!.Views)
+            {
+                var view = v;                     // one capture per chip, not one for the loop
+                var isActive = view.Id == Workspace.ActiveId;
+                <DrylPresence @key="view.Id"
+                              Visible="@(!view.Removing)"
+                              Appear
+                              Transition="PresenceTransition.Scale"
+                              Speed="PresenceSpeed.Fast"
+                              OnExited="@(() => Workspace.Remove(view.Id))">
+                    <div class="ws-chip @(isActive ? "is-active" : null)"
+                         data-dryl-ink-active="@(isActive ? "true" : null)">
+                        <button type="button"
+                                role="tab"
+                                class="ws-chip-label"
+                                aria-selected="@(isActive ? "true" : "false")"
+                                tabindex="@(isActive ? 0 : -1)"
+                                @onclick="@(() => ActivateAsync(view.Id))"
+                                @onkeydown="@(e => OnKeyDownAsync(e, view))">
+                            @if (!string.IsNullOrEmpty(view.Icon))
+                            {
+                                <DrylIcon Name="@view.Icon" Size="14" />
+                            }
+                            <span>@view.Title</span>
+                        </button>
+                        @if (AllowClose)
+                        {
+                            <DrylTooltip Text="@CloseLabel(view)">
+                                <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                            Size="DrylButton.ButtonSize.Small"
+                                            AriaLabel="@CloseLabel(view)"
+                                            Class="ws-chip-close"
+                                            OnClick="@(() => Workspace.Close(view.Id))">
+                                    <DrylIcon Name="X" Size="12" />
+                                </DrylButton>
+                            </DrylTooltip>
+                        }
+                    </div>
+                </DrylPresence>
+            }
+        </div>
+    }
+
+    <div class="ws-body">
+        @if (Workspace?.Active is { } active)
+        {
+            @if (View is not null)
+            {
+                @View(active)
+            }
+            else
+            {
+                <DrylCanvas Spec="active.Spec" EmptyText="@EmptyText" />
+            }
+        }
+        else
+        {
+            <DrylEmptyState Title="No view yet" Description="@EmptyText" />
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The views to show. Without one the workspace renders its empty state.</summary>
+    [Parameter] public CanvasWorkspace? Workspace { get; set; }
+
+    /// <summary>How the active view is rendered — put your <c>DrylAiCanvas</c> here. Without the
+    /// slot the workspace renders a plain <c>DrylCanvas</c> over the view's spec.</summary>
+    [Parameter] public RenderFragment<CanvasView>? View { get; set; }
+
+    /// <summary>Whether each chip offers a close button. Default true.</summary>
+    [Parameter] public bool AllowClose { get; set; } = true;
+
+    /// <summary>Whether the bar shows for a single view too. Default false — one artifact
+    /// deserves no chrome.</summary>
+    [Parameter] public bool ShowBarWhenSingle { get; set; }
+
+    /// <summary>Text shown while there is nothing to show.</summary>
+    [Parameter] public string? EmptyText { get; set; } = "Ask the assistant to open one.";
+
+    /// <summary>Accessible label of the view bar.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Views";
+
+    /// <summary>Extra CSS class(es) merged onto the workspace root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private CanvasWorkspace? _subscribed;
+    private ElementReference _bar;
+    private bool _inkAttached;
+    private string? _lastInkActive;
+
+    private bool ShowBar =>
+        Workspace is { Views.Count: > 0 } && (ShowBarWhenSingle || Workspace.Views.Count > 1);
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Workspace)) return;
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Workspace;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    // The workspace is mutated from anywhere — a chip, the host, an AI tool call. A change that
+    // did not come through our own handler still has to reach the DOM.
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private Task ActivateAsync(string id)
+    {
+        if (Workspace is null || Workspace.ActiveId == id) return Task.CompletedTask;
+
+        // The morph belongs to the workspace, not to whatever sits in the body: nesting two view
+        // transitions loses one of the mutations (DrylAiCanvas skips its own swap morph for a
+        // switch, see DrylCanvasRun.ConsumeSwapMorphSuppression).
+        return ViewTransition.RunAsync(() =>
+        {
+            Workspace.Activate(id);
+            StateHasChanged();
+        });
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e, CanvasView view)
+    {
+        if (Workspace is null) return;
+        var open = Workspace.Views.Where(v => !v.Removing).ToList();
+        if (open.Count == 0) return;
+        var index = open.IndexOf(view);
+        if (index < 0) return;
+
+        switch (e.Key)
+        {
+            case "ArrowRight": await ActivateAsync(open[(index + 1) % open.Count].Id); break;
+            case "ArrowLeft": await ActivateAsync(open[(index - 1 + open.Count) % open.Count].Id); break;
+            case "Home": await ActivateAsync(open[0].Id); break;
+            case "End": await ActivateAsync(open[^1].Id); break;
+            case "Enter" or " ": await ActivateAsync(view.Id); break;
+            case "Delete" or "Backspace" when AllowClose: Workspace.Close(view.Id); break;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Tells the browser the switched-to view has reached the DOM (a cheap no-op otherwise).
+        ViewTransition.SignalRendered();
+
+        if (!ShowBar)
+        {
+            _lastInkActive = null;
+            return;
+        }
+
+        // Re-measure the gliding indicator whenever the active chip changed — same contract as
+        // DrylTabs, including the deferred is-ink-ready class inside moveIndicator.
+        if (_inkAttached && _lastInkActive == Workspace!.ActiveId) return;
+        _lastInkActive = Workspace!.ActiveId;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.motion.moveIndicator", _bar);
+            _inkAttached = true;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+    }
+
+    private static string CloseLabel(CanvasView view) => $"Close {view.Title}";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+
+        if (_inkAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.disposeIndicator", _bar); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+    }
+}
