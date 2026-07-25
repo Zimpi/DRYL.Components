@@ -9,15 +9,34 @@
 }
 
 /* ---- View bar ---------------------------------------------------- */
+/* The bar is the non-scrolling row; only the chips scroll inside it, so the tool group stays
+   reachable at 375px instead of drifting off to the right with the chips. */
 .ws-bar {
     position: relative;
     display: flex;
     align-items: flex-end;
-    gap: var(--sp-1);
-    padding-bottom: 2px;
+    gap: var(--sp-2);
     border-bottom: 1px solid var(--line);
+}
+
+.ws-chips {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: var(--sp-1);
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-bottom: 2px;
     overflow-x: auto;
     scrollbar-width: thin;
+}
+
+.ws-tools {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    flex: none;
+    padding-bottom: var(--sp-1);
 }
 
 .ws-chip {
@@ -91,10 +110,72 @@
     pointer-events: none;
 }
 
-.ws-bar.is-ink-ready .ws-ink {
+.ws-chips.is-ink-ready .ws-ink {
     transition: transform var(--dur-med) var(--ease-spring),
                 width var(--dur-med) var(--ease-spring),
                 opacity var(--dur-fast) var(--ease-out);
+}
+
+/* ---- Version list ------------------------------------------------ */
+.ws-versions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.ws-version {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-1) var(--sp-2);
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    background: none;
+    font: inherit;
+    color: var(--fg-muted);
+    text-align: left;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                background var(--dur-fast) var(--ease-out);
+}
+
+.ws-version:hover {
+    color: var(--fg);
+    border-color: var(--line);
+    background: var(--glass-1);
+}
+
+.ws-version:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-line);
+}
+
+.ws-version.is-current {
+    color: var(--fg);
+    border-color: var(--accent-line);
+}
+
+.ws-version-time {
+    color: var(--fg-dim);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+}
+
+/* The movement is the visual feedback; the words are for screen readers only. */
+.ws-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 /* ---- Body -------------------------------------------------------- */
@@ -105,8 +186,9 @@
 
 @media (prefers-reduced-motion: reduce) {
     .ws-chip,
+    .ws-version,
     ::deep .ws-chip-close,
-    .ws-bar.is-ink-ready .ws-ink {
+    .ws-chips.is-ink-ready .ws-ink {
         transition: none;
     }
 }

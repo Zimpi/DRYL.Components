@@ -32,7 +32,8 @@
     @*  The bar itself comes and goes — a second view appearing must not make it pop into
         existence (rule 2.12). Presence gives it an enter and an exit. *@
     <DrylPresence Visible="ShowBar" Transition="PresenceTransition.SlideDown" Speed="PresenceSpeed.Fast">
-        <div class="ws-bar" role="tablist" aria-label="@AriaLabel" @ref="_bar">
+        <div class="ws-bar">
+        <div class="ws-chips" role="tablist" aria-label="@AriaLabel" @ref="_bar">
             <div class="ws-ink" data-dryl-ink aria-hidden="true"></div>
             @*  Not Workspace!.Views: while the bar plays its exit the parameter may already
                 have been swapped out from under it. *@
@@ -77,6 +78,60 @@
                 </DrylPresence>
             }
         </div>
+
+        @if (ShowHistory)
+        {
+            <div class="ws-tools">
+                <DrylTooltip Text="Undo">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="Undo"
+                                Disabled="@(Workspace?.CanUndo != true)"
+                                OnClick="UndoAsync">
+                        <DrylIcon Name="Undo" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+                <DrylTooltip Text="Redo">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="Redo"
+                                Disabled="@(Workspace?.CanRedo != true)"
+                                OnClick="RedoAsync">
+                        <DrylIcon Name="Redo" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+                <DrylPopover @bind-Open="_versionsOpen" PanelAriaLabel="Version history">
+                    <TriggerContent>
+                        <DrylTooltip Text="Version history">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                        Size="DrylButton.ButtonSize.Small"
+                                        AriaLabel="Version history"
+                                        Disabled="@(Versions.Count == 0)">
+                                <DrylIcon Name="History" Size="14" />
+                            </DrylButton>
+                        </DrylTooltip>
+                    </TriggerContent>
+                    <PanelContent>
+                        <div class="ws-versions">
+                            @for (var i = Versions.Count - 1; i >= 0; i--)
+                            {
+                                var index = i;                        // one capture per row
+                                var entry = Versions[index];
+                                <button type="button"
+                                        class="ws-version @(index == Position ? "is-current" : null)"
+                                        @onclick="@(() => RestoreAsync(index))">
+                                    <span class="ws-version-label">@entry.Label</span>
+                                    <span class="ws-version-time">@entry.At.ToLocalTime().ToString("t")</span>
+                                </button>
+                            }
+                        </div>
+                    </PanelContent>
+                </DrylPopover>
+            </div>
+        }
+
+        <span class="ws-live" aria-live="polite">@_announcement</span>
+        </div>
     </DrylPresence>
 
     <div class="ws-body">
@@ -113,6 +168,16 @@
     /// deserves no chrome.</summary>
     [Parameter] public bool ShowBarWhenSingle { get; set; }
 
+    /// <summary>Whether the bar offers undo, redo and the version history. Default false.</summary>
+    [Parameter] public bool ShowHistory { get; set; }
+
+    /// <summary>A counter the host bumps after every settled round (typically <c>run.Round</c>).
+    /// Every change commits a version of the active view.</summary>
+    [Parameter] public int Revision { get; set; }
+
+    /// <summary>Label for the next committed version — typically the prompt that produced it.</summary>
+    [Parameter] public string? RevisionLabel { get; set; }
+
     /// <summary>Text shown while there is nothing to show.</summary>
     [Parameter] public string? EmptyText { get; set; } = "Ask the assistant to open one.";
 
@@ -130,16 +195,31 @@
     private ElementReference _bar;
     private bool _inkAttached;
     private string? _lastInkActive;
+    private bool _versionsOpen;
+    private int _lastRevision;
+    private string? _announcement;
 
+    // History needs the bar even for a single view — one artifact still deserves an undo.
     private bool ShowBar =>
-        Workspace is { Views.Count: > 0 } && (ShowBarWhenSingle || Workspace.Views.Count > 1);
+        Workspace is { Views.Count: > 0 } &&
+        (ShowBarWhenSingle || ShowHistory || Workspace.Views.Count > 1);
 
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_subscribed, Workspace)) return;
-        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
-        _subscribed = Workspace;
-        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        if (!ReferenceEquals(_subscribed, Workspace))
+        {
+            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            _subscribed = Workspace;
+            if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        }
+
+        // A settled round is a version. CanvasHistory.Record drops a snapshot that changed
+        // nothing, so a superfluous commit costs nothing.
+        if (Revision != _lastRevision)
+        {
+            _lastRevision = Revision;
+            Workspace?.Commit(RevisionLabel ?? FormattableString.Invariant($"Version {Revision}"));
+        }
     }
 
     // The workspace is mutated from anywhere — a chip, the host, an AI tool call. A change that
@@ -158,6 +238,45 @@
             Workspace.Activate(id);
             StateHasChanged();
         });
+    }
+
+    private IReadOnlyList<CanvasHistoryEntry> Versions =>
+        Workspace?.Active?.History.Entries ?? Array.Empty<CanvasHistoryEntry>();
+
+    private int Position => Workspace?.Active?.History.Position ?? -1;
+
+    private Task UndoAsync() => HistoryStep(
+        () => Workspace!.Undo(),
+        () => $"Undone: {Versions.ElementAtOrDefault(Position + 1)?.Label ?? "last change"}");
+
+    private Task RedoAsync() => HistoryStep(
+        () => Workspace!.Redo(),
+        () => $"Redone: {Versions.ElementAtOrDefault(Position)?.Label ?? "last change"}");
+
+    private Task RestoreAsync(int index)
+    {
+        _versionsOpen = false;
+        return HistoryStep(
+            () => Workspace!.RestoreVersion(index),
+            () => FormattableString.Invariant($"Restored version {index + 1} of {Versions.Count}"));
+    }
+
+    // A history step is a state change, so it is a movement: the same view-transition layer the
+    // view switch uses morphs the artifact instead of blinking it away.
+    private async Task HistoryStep(Func<bool> step, Func<string> announce)
+    {
+        if (Workspace is null) return;
+
+        var moved = false;
+        await ViewTransition.RunAsync(() =>
+        {
+            moved = step();
+            if (moved) StateHasChanged();
+        });
+
+        if (!moved) return;
+        _announcement = announce();
+        StateHasChanged();
     }
 
     private async Task OnKeyDownAsync(KeyboardEventArgs e, CanvasView view)
