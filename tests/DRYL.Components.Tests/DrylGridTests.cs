@@ -28,9 +28,26 @@ public class DrylGridTests : BunitContext
     {
         var cut = Render<DrylGrid>(ps => ps.Add(p => p.Columns, 3).AddChildContent("x"));
         var cls = cut.Find("div.grid").GetAttribute("class")!;
-        Assert.Contains("cq", cls);
         Assert.Contains("grid-cols-3", cls);
         Assert.DoesNotContain("auto-fit", cut.Find("div.grid").GetAttribute("style") ?? "");
+    }
+
+    // The .grid-cols-* step-down rules are container queries, which resolve against the
+    // nearest ANCESTOR container — the grid carrying .cq itself would never match them.
+    [Fact]
+    public void Fixed_columns_get_a_container_query_ancestor()
+    {
+        var cut = Render<DrylGrid>(ps => ps.Add(p => p.Columns, 3).AddChildContent("x"));
+        var grid = cut.Find("div.grid");
+        Assert.DoesNotContain("cq", grid.GetAttribute("class")!.Split(' '));
+        Assert.Equal("cq", grid.ParentElement!.GetAttribute("class"));
+    }
+
+    [Fact]
+    public void Autofit_needs_no_container_wrapper()
+    {
+        var cut = Render<DrylGrid>(ps => ps.AddChildContent("x"));
+        Assert.Empty(cut.FindAll("div.cq"));
     }
 
     [Fact]

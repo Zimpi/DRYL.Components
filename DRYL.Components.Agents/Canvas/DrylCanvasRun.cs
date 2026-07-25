@@ -4,6 +4,8 @@ namespace DRYL.Components.Agents;
 public sealed class DrylCanvasRun : DrylRunBase
 {
     private readonly HashSet<string> _changedIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _changeTicks = new(StringComparer.Ordinal);
+    private int _changeSeq;
 
     /// <summary>The live spec (progressively richer as generations complete), or null before the first one.</summary>
     public CanvasSpec? Spec { get; private set; }
@@ -13,6 +15,46 @@ public sealed class DrylCanvasRun : DrylRunBase
 
     /// <summary>The ids touched by the latest batch of ops — drives move/reveal animations.</summary>
     public IReadOnlyCollection<string> ChangedIds => _changedIds;
+
+    /// <summary>The number of nodes in the live tree — 0 while there is no artifact.</summary>
+    public int NodeCount => Spec?.Root is { } root ? Count(root) : 0;
+
+    /// <summary>
+    /// The usable inline width (CSS px) of the surface the artifact renders into, as last
+    /// measured by <c>DrylAiCanvas</c>; <c>null</c> before the first measurement (prerender,
+    /// no JS, or no canvas mounted). Every generation reads the current value and hands the
+    /// generator a matching layout budget, so an artifact built on a phone is authored for a
+    /// phone rather than shrunk into one afterwards.
+    /// <para>This is the canvas element's width, not the viewport's: on a wide desktop the
+    /// canvas may still sit in a narrow side panel, and that panel is the real budget.</para>
+    /// </summary>
+    public int? AvailableWidth { get; private set; }
+
+    /// <summary>
+    /// Reports the measured width of the rendering surface (see <see cref="AvailableWidth"/>).
+    /// Deliberately does not raise <c>OnChange</c> — the value only feeds the next generation's
+    /// prompt, and a resize must never re-render the artifact tree.
+    /// </summary>
+    public void ReportWidth(int widthPx)
+    {
+        if (widthPx > 0) AvailableWidth = widthPx;
+    }
+
+    private static int Count(CanvasNode node)
+    {
+        var total = 1;
+        if (node.Children is { } children)
+            foreach (var child in children) total += Count(child);
+        return total;
+    }
+
+    /// <summary>
+    /// Monotonic stamp of the last <c>setProps</c> applied to <paramref name="id"/> — 0 means never.
+    /// A content change is otherwise invisible (an insert enters, a move glides, a remove exits), so
+    /// <c>CanvasNodeView</c> re-keys its change-pulse overlay whenever this stamp moves. Monotonic
+    /// rather than boolean: two consecutive patches of the same node must read as two pulses.
+    /// </summary>
+    internal int ChangeTickOf(string id) => _changeTicks.TryGetValue(id, out var tick) ? tick : 0;
 
     /// <summary>Starts a new create/update generation: state becomes streaming, <see cref="ChangedIds"/> and <see cref="DrylRunBase.Error"/> are cleared.</summary>
     internal void BeginGeneration()
@@ -48,6 +90,9 @@ public sealed class DrylCanvasRun : DrylRunBase
     {
         _artifactEpoch++;
         _revealStarted = false;
+        // A fresh artifact recycles ids — a stale stamp would read as "this node just
+        // changed" and pulse a node that is in fact brand new (it enters instead).
+        _changeTicks.Clear();
         BeginGeneration();
     }
 
@@ -103,7 +148,11 @@ public sealed class DrylCanvasRun : DrylRunBase
         {
             switch (op.Op)
             {
-                case "setProps" or "move":
+                case "setProps":
+                    // The only op with no motion of its own — stamp it so the node pulses.
+                    if (op.Id is not null) { _changedIds.Add(op.Id); _changeTicks[op.Id] = ++_changeSeq; }
+                    break;
+                case "move":
                     if (op.Id is not null) _changedIds.Add(op.Id);
                     break;
                 case "insert":

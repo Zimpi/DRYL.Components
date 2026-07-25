@@ -16,7 +16,11 @@ namespace DRYL.Components.Tests.Agents.Canvas;
 /// </summary>
 public class DrylAiCanvasFlipTests : BunitContext
 {
-    public DrylAiCanvasFlipTests() => JSInterop.Mode = JSRuntimeMode.Loose;
+    public DrylAiCanvasFlipTests()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        Services.AddDrylComponents();   // the canvas injects IDrylViewTransition
+    }
 
     [Fact]
     public void AutoFlip_is_invoked_on_canvas_body_after_first_render()

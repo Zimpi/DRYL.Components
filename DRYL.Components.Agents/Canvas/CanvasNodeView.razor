@@ -27,6 +27,14 @@
               Speed="PresenceSpeed.Slow"
               OnExited="PurgeSelf">
     <div class="canvas-node" data-cid="@Node.Id">
+        @if (_pulseKey > 0)
+        {
+            @*  Change-pulse: a setProps has no motion of its own, so the node flashes an
+                accent ring once. Re-keying (not a timer) restarts the animation — a new key
+                makes Blazor replace the element, and a freshly mounted element runs its
+                CSS animation from frame one. Nothing to dispose, nothing to leak. *@
+            <span class="canvas-pulse" @key="_pulseKey" aria-hidden="true"></span>
+        }
         @{
             EnsureMemo();
             var error = _memoError;
@@ -111,8 +119,10 @@
                 case "stat":
                 {
                     var p = Props<StatSpec>();
+                    @* Every number in an artifact is AI-authored and changes by setProps,
+                       so the count-up tween is the rule here, not the exception. *@
                     <DrylStat Label="@p!.Label" Value="@p.Value" Delta="@p.Delta"
-                              Direction="@p.ParsedDirection" Ai="AiState.Generated" />
+                              Direction="@p.ParsedDirection" CountUp Ai="AiState.Generated" />
                     break;
                 }
 
@@ -292,7 +302,26 @@
         _memoPropsType = null;
     }
 
-    protected override void OnParametersSet() => SeedFormOnce();
+    private int _pulseTick;  // last change stamp we have seen for this node
+    private int _pulseKey;   // bumped on every new stamp — re-keys the pulse overlay
+
+    protected override void OnParametersSet()
+    {
+        SeedFormOnce();
+        SyncPulse();
+    }
+
+    // The run stamps a node on every applied setProps. A stamp we have not seen yet means
+    // the content just changed underneath us — replay the pulse. Stamps are per-node and
+    // monotonic, so repeated patches of the same node each get their own pulse, and a
+    // fresh artifact (which clears them) never inherits a phantom one.
+    private void SyncPulse()
+    {
+        var tick = Run.ChangeTickOf(Node.Id);
+        if (tick == _pulseTick) return;
+        _pulseTick = tick;
+        if (tick > 0) _pulseKey++;
+    }
 
     // Interactive nodes seed their form value from the node's `value` prop, and only when
     // the field has no value yet — so a later re-render (or a patch to an unrelated prop)

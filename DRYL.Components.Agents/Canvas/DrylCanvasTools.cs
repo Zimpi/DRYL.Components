@@ -69,7 +69,10 @@ public sealed class DrylCanvasTools
         try
         {
             CanvasSpec? last = null;
-            await foreach (var delta in _generate(CanvasPrompt.CreatePrompt(brief, title), ct))
+            // Read the width per call, not per tool instance: the canvas may have been resized,
+            // rotated or expanded to fullscreen since the last generation.
+            await foreach (var delta in _generate(
+                CanvasPrompt.CreatePrompt(brief, title, _run.AvailableWidth), ct))
             {
                 var snapshot = reader.Append(delta);
                 if (snapshot is not null) _run.RevealSnapshot(last = snapshot);
@@ -138,7 +141,8 @@ public sealed class DrylCanvasTools
         {
             List<CanvasOp>? lastOps = null;
             var current = JsonSerializer.Serialize(_run.Spec, CanvasJson.Options);
-            await foreach (var delta in _generate(CanvasPrompt.UpdatePrompt(brief, current), ct))
+            await foreach (var delta in _generate(
+                CanvasPrompt.UpdatePrompt(brief, current, _run.AvailableWidth), ct))
             {
                 var ops = reader.Append(delta)?.Ops;
                 if (ops is not null) lastOps = ops;

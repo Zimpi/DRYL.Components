@@ -7,6 +7,46 @@
     overflow: hidden;
 }
 
+/* Fullscreen — an overlay, not a modal: no backdrop, no focus trap, Escape collapses.
+   The morph between inline and fullscreen is a view transition (see VtStyle), so this
+   rule only has to describe the destination, never the movement.
+
+   The element is promoted to the top layer (popover="manual", see dryl.topLayer),
+   which is the only way `inset` measures against the viewport rather than the nearest
+   transformed/filtered ancestor. That means overriding the UA's popover defaults —
+   fit-content sizing, auto margins, a solid border and system colours — so the glass
+   surface survives the promotion. Browsers without the Popover API ignore the
+   attribute and land on the plain fixed-position fallback these same rules describe. */
+.ai-canvas.is-expanded {
+    position: fixed;
+    inset: var(--sp-4);
+    z-index: var(--z-modal);
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    /* A consumer-supplied sizing class (a demo surface's min-height, a grid cell's
+       stretch) must not fight the fullscreen box once we are out of the flow. */
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    color: var(--fg);
+}
+
+/* Fullscreen gives the artifact the whole box: the body takes the leftover height and
+   scrolls inside it, so the header stays put no matter how tall the artifact is.
+   min-height: 0 is load-bearing — without it a flex child refuses to shrink below its
+   content, and a tall artifact would push the canvas past the viewport with no scrollbar
+   anywhere. overscroll-behavior keeps the page behind the overlay still once the body
+   hits its end. Inline the body is auto-height, so none of this changes anything there. */
+.ai-canvas.is-expanded .canvas-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overscroll-behavior: contain;
+}
+
 .canvas-head {
     display: flex;
     align-items: center;
@@ -16,9 +56,22 @@
     border-bottom: 1px solid var(--line);
 }
 
+.canvas-head-tools {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
 .canvas-title {
     color: var(--fg);
     font-weight: 600;
+}
+
+/* Build line — flush under the header, so it reads as the header's own heartbeat
+   rather than as content. DrylProgress brings its own (transform-only) animation. */
+.canvas-build {
+    padding: 0 var(--sp-4);
+    margin-top: calc(var(--sp-1) * -1);
 }
 
 .canvas-body {
@@ -46,6 +99,33 @@
 /* CanvasNodeView renders these inside child components — reach them with ::deep. */
 ::deep .canvas-node {
     min-width: 0;
+    position: relative; /* anchor for the change-pulse overlay */
+}
+
+/* Change-pulse — the visual for a setProps op, which otherwise changes content
+   silently (an insert enters, a move glides, a remove exits). One accent ring,
+   once, over the whole affected subtree. Compositor-only: opacity + transform,
+   never a looping custom property or background-position. */
+::deep .canvas-pulse {
+    position: absolute;
+    inset: calc(var(--sp-1) * -1);
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--glow-accent);
+    pointer-events: none;
+    opacity: 0;
+    animation: canvas-pulse var(--dur-slow) var(--ease-out) both;
+}
+
+@keyframes canvas-pulse {
+    0%   { opacity: 0; transform: scale(0.99); }
+    35%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.012); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* opacity: 0 is the resting state, so dropping the animation hides it outright. */
+    ::deep .canvas-pulse { animation: none; }
 }
 
 ::deep .canvas-card-title,

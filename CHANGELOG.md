@@ -14,6 +14,28 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.11.0] — 2026-07-25
+
+### Added
+- `DrylStat` — New `CountUp` parameter: the headline value tweens up to its new number instead of snapping — from 0 on first render, from the previous number on every change. The first number in `Value` is animated while any prefix/suffix (currency symbol, unit, `%`) rides along unchanged, and the tween always lands on exactly the string you passed. Off by default; honours reduced motion.
+- `DrylIcon` — New `Maximize` and `Minimize` icons (Lucide `maximize-2` / `minimize-2`).
+- `dryl.motion.countUp(el, text)` — New shared motion primitive backing `DrylStat.CountUp`. Duration reads `--dur-slow`; the easing mirrors `--ease-out`.
+- `dryl.topLayer.show/hide(el)` — New helper that promotes an element to the browser's top layer via the Popover API. `position: fixed` is measured against the nearest transformed/filtered ancestor, so a "fullscreen" overlay built on it quietly fills a card instead of the viewport; the top layer has no containing block at all. Browsers without the Popover API fall back to plain fixed positioning.
+- `DrylAiCanvas` — (Agents 0.9.0) New `AllowExpand` parameter (default `true`): the header offers an expand-to-fullscreen button, and the artifact *grows* into the overlay through a view transition rather than jumping. The expanded canvas really covers the viewport (top layer, see above), scrolls its body while the header stays put, and contains overscroll so the page behind stays still. `Escape` collapses it. It is an overlay, not a modal — it neither traps focus nor blocks the page. Set `false` for canvases inside a surface that owns its own layering.
+- `DrylCanvasRun` — (Agents 0.9.0) New `NodeCount` property: the number of nodes in the live tree.
+- `DrylCanvasRun` — (Agents 0.9.0) New `AvailableWidth` property and `ReportWidth(int)` method: the measured inline width of the surface the artifact renders into. `DrylAiCanvas` keeps it current on its own; a consumer only needs this when hosting the artifact tree outside the canvas.
+
+### Changed
+- `DrylAiCanvas` — (Agents 0.9.0) **Change-pulse:** a `setProps` patch now flashes a one-shot accent ring over the node it changed. Every patch op finally has exactly one visual — an insert enters, a move glides, a remove exits, and a content change pulses. Compositor-only (opacity + transform), reduced-motion aware.
+- `DrylAiCanvas` — (Agents 0.9.0) **Live build counter:** while an artifact streams, the header status reads "Building · 14 elements" and a thin indeterminate progress line runs under the header, so the artifact visibly grows even between revealed nodes.
+- `DrylAiCanvas` — (Agents 0.9.0) Canvas `stat` nodes count up: AI-authored numbers now tween on every `setProps` instead of snapping.
+- `DrylAiCanvas` — (Agents 0.9.0) **The artifact generator now knows how much room it has.** The canvas measures its own body width and hands every `create_artifact` / `update_artifact` generation a matching layout budget (grid column ceiling, stat label and table column limits, chart series/label limits). The artifact generator is stateless and never sees the page, so it previously authored a three-column dashboard for a 360px phone column just as readily as for a desktop panel. The width is the canvas element's, not the viewport's — a canvas in a narrow side panel on a wide screen gets the narrow budget — and it is re-read on every tool call, so resizing, rotating or expanding to fullscreen is reflected in the next generation.
+
+### Fixed
+- `DrylGrid` — `Columns` never actually stepped down on narrow slots. The step-down rules are container queries, and a container query resolves against the nearest *ancestor* container — the grid carried `.cq` on itself, which can never match. Fixed columns now get a container-query wrapper (the same shape `DrylStack.CollapseBelow` already used), so `Columns="3"` really becomes 2 columns below 768px and 1 below 480px of available width. This was why a canvas artifact's three stats stayed side by side on a phone, one glyph per line.
+- `DrylAiCanvas` — (Agents 0.9.0) A second `create_artifact` no longer replaces the artifact with a hard cut: the old tree morphs into the new one through a view transition (the "Depth Glass" mercury merge), giving the replaced artifact the exit animation it previously had no way to play. Browsers without the View Transition API — and users who prefer reduced motion — get the plain, morph-free swap.
+- `DrylLineChart` / `DrylBarChart` / `DrylAreaChart` / `DrylDonutChart` — A `ValueFormat` .NET does not recognise (e.g. `"K"`, or an inner `"{value:Q}"`) now falls back to the default number format instead of throwing mid-render and taking the circuit down.
+
 ## [2.10.2] — 2026-07-25
 
 ### Changed

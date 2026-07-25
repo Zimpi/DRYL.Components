@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@inject IJSRuntime JS
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -29,7 +30,7 @@
     </div>
 
     <div class="stat-value-row">
-        <span class="stat-value">@Value</span>
+        <span class="stat-value" @ref="_valueEl">@Value</span>
         @if (!string.IsNullOrEmpty(Delta) && Direction != DeltaDirection.None)
         {
             <span class="@DeltaCssClass">
@@ -73,6 +74,15 @@
     /// <summary>Optional sparkline slot, typically a <see cref="DrylSparkline"/>.</summary>
     [Parameter] public RenderFragment? Sparkline { get; set; }
 
+    /// <summary>
+    /// If true, the headline value tweens up to its new number instead of snapping —
+    /// counting from 0 on first render and from the previous number on every change.
+    /// The first number found in <see cref="Value"/> is animated; any prefix/suffix
+    /// (currency symbol, unit, %) rides along unchanged, and the tween always lands on
+    /// exactly the string you passed. Off by default; honours reduced motion.
+    /// </summary>
+    [Parameter] public bool CountUp { get; set; }
+
     /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
@@ -95,11 +105,37 @@
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
 
+    private ElementReference _valueEl;
+    private string? _countedValue;   // the Value the tween was last pointed at
+    private bool _counting;          // true once a first tween has been requested
+
     protected override void OnParametersSet()
     {
         if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+    }
+
+    // The tween is pure JS: it rewrites the span's text between renders and always lands on
+    // the exact string Blazor rendered, so the component's markup is the same with or
+    // without CountUp — a consumer reading the DOM (or a test) sees the real value either way.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!CountUp)
+        {
+            // Remember the value anyway, so switching CountUp on later starts from here
+            // rather than replaying the whole history as one jump.
+            _countedValue = Value;
+            return;
+        }
+
+        if (_counting && _countedValue == Value) return;
+        _countedValue = Value;
+        _counting = true;
+
+        try { await JS.InvokeVoidAsync("dryl.motion.countUp", _valueEl, Value ?? string.Empty); }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS yet */ }
     }
 
     public void Dispose() => _aura.Dispose();

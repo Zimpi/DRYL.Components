@@ -1261,7 +1261,99 @@ window.dryl.motion = (() => {
         if (s) { s.observer.disconnect(); s.dispose(); _flip.delete(root); }
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip };
+    /* ---- Count-up ---------------------------------------------------
+     * countUp(el, text) tweens the FIRST number found in `text` from the
+     * value the element last landed on (0 initially) up to the target,
+     * writing prefix and suffix through unchanged. Carries DrylStat's
+     * CountUp parameter.
+     *
+     * Two properties make this safe to point at Blazor-owned DOM:
+     *   1. The final frame always writes `text` verbatim, so a misread
+     *      grouping/decimal separator is at worst a cosmetic mid-tween
+     *      frame — never a wrong end value.
+     *   2. Blazor only patches a text node whose *virtual* value changed,
+     *      so an unrelated re-render never fights the tween; the next real
+     *      value change resets the target and the tween continues from
+     *      wherever it had landed.
+     *
+     * Duration comes from --dur-slow (rule 2.1: no literals) and the
+     * easing mirrors --ease-out. Reduced motion writes the text directly.
+     * ---------------------------------------------------------------- */
+    // Digits plus every separator a formatted number may carry: '.', ',', plain,
+    // non-breaking and narrow no-break space (de-DE / fr-FR group with the latter two).
+    const SEPS   = '.,\\u00A0\\u202F ';
+    const NUMBER = new RegExp('-?\\d[\\d' + SEPS + ']*\\d|-?\\d');
+
+    function slowMs() {
+        const raw = getComputedStyle(document.documentElement).getPropertyValue('--dur-slow').trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms > 0 ? ms : 420;
+    }
+
+    // Split a number token into its separators so intermediate frames look like
+    // the target: the last separator followed by 1–2 digits is the decimal point,
+    // anything else is grouping.
+    function shapeOf(token) {
+        const m = token.match(/[.,](\d+)$/);
+        const decimals = m && m[1].length <= 2 ? m[1].length : 0;
+        const decSep = decimals ? token[token.length - decimals - 1] : '';
+        const body = decimals ? token.slice(0, -decimals - 1) : token;
+        const grp = (body.match(new RegExp('[' + SEPS + ']')) || [''])[0];
+        return { decimals, decSep: decSep || '.', grp };
+    }
+
+    function toNumber(token, shape) {
+        let s = token;
+        if (shape.grp) s = s.split(shape.grp).join('');
+        if (shape.decimals) s = s.slice(0, -shape.decimals - 1) + '.' + s.slice(-shape.decimals);
+        return parseFloat(s);
+    }
+
+    function render(value, shape) {
+        const neg = value < 0;
+        const fixed = Math.abs(value).toFixed(shape.decimals);
+        let [int, dec] = fixed.split('.');
+        if (shape.grp) int = int.replace(/\B(?=(\d{3})+(?!\d))/g, shape.grp);
+        return (neg ? '-' : '') + int + (dec ? shape.decSep + dec : '');
+    }
+
+    function countUp(el, text) {
+        if (!el) return;
+        text = String(text ?? '');
+
+        const prev = el.__drylCount;
+        if (prev) { cancelAnimationFrame(prev.raf); el.__drylCount = null; }
+
+        const token = text.match(NUMBER);
+        if (!token || reduced()) { el.textContent = text; return; }
+
+        const shape = shapeOf(token[0]);
+        const to = toNumber(token[0], shape);
+        const from = prev && isFinite(prev.value) ? prev.value : 0;
+        if (!isFinite(to) || to === from) { el.textContent = text; el.__drylCount = { value: to, raf: 0 }; return; }
+
+        const head = text.slice(0, token.index);
+        const tail = text.slice(token.index + token[0].length);
+        const dur = slowMs();
+        const t0 = performance.now();
+
+        const step = (now) => {
+            if (!el.isConnected) { el.__drylCount = null; return; }
+            const p = Math.min(1, (now - t0) / dur);
+            // easeOutCubic — the JS mirror of --ease-out's decelerating shape.
+            const eased = 1 - Math.pow(1 - p, 3);
+            if (p < 1) {
+                el.textContent = head + render(from + (to - from) * eased, shape) + tail;
+                el.__drylCount.raf = requestAnimationFrame(step);
+            } else {
+                el.textContent = text;   // land on the exact string Blazor rendered
+                el.__drylCount = { value: to, raf: 0 };
+            }
+        };
+        el.__drylCount = { value: to, raf: requestAnimationFrame(step) };
+    }
+
+    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip, countUp };
 })();
 
 /* ──────────────────────────────────────────────────────────
@@ -1322,6 +1414,34 @@ window.dryl.viewTransition = (() => {
  *   variables, so there is no per-frame Blazor cost. The CSS side is
  *   gated on prefers-reduced-motion.
  * ────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────
+ * dryl.topLayer — promote an element to the browser's top layer.
+ *
+ * `position: fixed` is measured against the nearest ancestor with a
+ * transform, filter, backdrop-filter or containment — and in a real app
+ * that is almost always something: a page fade-in wrapper, a glass card,
+ * a tilting surface. A "fullscreen" overlay built on fixed positioning
+ * therefore quietly fills a card instead of the viewport.
+ *
+ * The top layer has no containing block at all, so an element promoted
+ * into it really does span the viewport. The caller renders
+ * popover="manual" on the element and calls show/hide from OnAfterRender.
+ *
+ * Progressive by construction: a browser without the Popover API ignores
+ * the unknown attribute and these calls no-op, leaving the element in
+ * flow with whatever `position: fixed` gets it — today's behaviour.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.topLayer = {
+    show(el) {
+        // Throws if the element is already open or has no popover attribute yet —
+        // both are benign races with Blazor's render/interop ordering.
+        try { el && el.showPopover && el.showPopover(); } catch (_) { /* already open */ }
+    },
+    hide(el) {
+        try { el && el.hidePopover && el.hidePopover(); } catch (_) { /* already closed */ }
+    },
+};
+
 window.dryl.depthglass = {
     track(el) {
         if (!el || el.__drylDg) return;

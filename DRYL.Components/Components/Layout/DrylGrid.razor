@@ -16,9 +16,24 @@
       <DrylGrid Columns="3">…</DrylGrid>
     ───────────────────────────────────────────────────────── *@
 
-<div class="@CssClass" style="@Style" @attributes="AdditionalAttributes">
-    @ChildContent
-</div>
+@if (UsesFixedColumns)
+{
+    @*  The step-down rules for .grid-cols-* are container queries, and a container
+        query resolves against the nearest ANCESTOR container — an element is never
+        its own container. So the query context is a wrapper around the grid, not the
+        grid itself (same shape as DrylStack's CollapseBelow). *@
+    <div class="cq">
+        <div class="@CssClass" style="@Style" @attributes="AdditionalAttributes">
+            @ChildContent
+        </div>
+    </div>
+}
+else
+{
+    <div class="@CssClass" style="@Style" @attributes="AdditionalAttributes">
+        @ChildContent
+    </div>
+}
 
 @code {
     /// <summary>Minimum width an item may occupy before the grid wraps to fewer
@@ -51,7 +66,7 @@
         get
         {
             var classes = new List<string> { "grid" };
-            if (UsesFixedColumns) { classes.Add("cq"); classes.Add($"grid-cols-{Columns}"); }
+            if (UsesFixedColumns) classes.Add($"grid-cols-{Columns}");
             if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }

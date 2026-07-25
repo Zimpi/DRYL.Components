@@ -49,4 +49,20 @@ public class ChartFormatValueTests
         var chart = new TestChart { ValueFormat = "{valueX}" };
         Assert.Equal(80.ToString("{valueX}"), chart.Format(80));
     }
+
+    [Fact]
+    public void Invalid_inner_format_falls_back_to_default()
+    {
+        // "{value:Q}" — a plausible model emission (K=Tsd., M=Mio.) — is not a valid
+        // .NET format string; it must not throw mid chart-render.
+        var chart = new TestChart { ValueFormat = "{value:Q}" };
+        Assert.Equal(80.ToString("0.##"), chart.Format(80));
+    }
+
+    [Fact]
+    public void Invalid_plain_format_falls_back_to_default()
+    {
+        var chart = new TestChart { ValueFormat = "K" };
+        Assert.Equal(80.ToString("0.##"), chart.Format(80));
+    }
 }

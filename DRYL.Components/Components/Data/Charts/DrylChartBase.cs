@@ -71,23 +71,33 @@ public abstract class DrylChartBase : DrylAiAware, IDisposable
         if (ValueFormat is null) return v.ToString("0.##");
 
         var i = ValueFormat.IndexOf("{value", StringComparison.Ordinal);
-        if (i < 0) return v.ToString(ValueFormat);
+        if (i < 0) return Safe(v, ValueFormat);
 
         var rest = ValueFormat.AsSpan(i + 6);
         var end = rest.IndexOf('}');
-        if (end < 0) return v.ToString(ValueFormat);            // no closing brace — not a template
+        if (end < 0) return Safe(v, ValueFormat);            // no closing brace — not a template
 
         var inner = "0.##";
         if (end > 0)
         {
-            if (rest[0] != ':') return v.ToString(ValueFormat); // "{valueX}" — not our placeholder
+            if (rest[0] != ':') return Safe(v, ValueFormat); // "{valueX}" — not our placeholder
             inner = rest.Slice(1, end - 1).ToString();
         }
 
         return string.Concat(
             ValueFormat.AsSpan(0, i),
-            v.ToString(inner),
+            Safe(v, inner),
             ValueFormat.AsSpan(i + 6 + end + 1));
+    }
+
+    // Models invent format strings .NET does not know ("K" for thousands, "{value:Q}").
+    // A single unknown character is parsed as a *standard* specifier and throws, which
+    // would take the chart — and on Blazor Server the circuit — down mid-render. A chart
+    // showing an unstyled number is always the better failure.
+    private static string Safe(double v, string format)
+    {
+        try { return v.ToString(format); }
+        catch (FormatException) { return v.ToString("0.##"); }
     }
 
     /// <summary>

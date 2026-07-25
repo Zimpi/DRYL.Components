@@ -13,6 +13,8 @@ public class DrylAiCanvasTests : BunitContext
         // DrylPresence calls dryl.motion.* during its exit lifecycle; the canvas renders
         // several JS-interop-aware components. Loose mode lets those calls no-op in tests.
         JSInterop.Mode = JSRuntimeMode.Loose;
+        // The canvas runs artifact swaps and the fullscreen expand through IDrylViewTransition.
+        Services.AddDrylComponents();
     }
 
     private static CanvasSpec Parse(string json) =>
@@ -124,7 +126,8 @@ public class DrylAiCanvasTests : BunitContext
             .Add(x => x.OnInteraction, i => captured = i));
 
         cut.Find("input").Input("hello");
-        cut.Find("button").Click();
+        // Scoped to the body: the header also carries the expand-to-fullscreen button.
+        cut.Find(".canvas-body button").Click();
 
         Assert.NotNull(captured);
         Assert.Equal("submit", captured!.Intent);
