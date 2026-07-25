@@ -168,7 +168,10 @@
 
 /* A bound node that never had a good value. Compact and local: one broken widget
    must never blow up the dashboard around it. */
-::deep .canvas-data-error {
+/*  A bound node that never got a value, and an action that failed. One vocabulary: the user
+    should not have to learn two shapes for "this bit did not work".                        */
+::deep .canvas-data-error,
+::deep .canvas-action-error {
     display: flex;
     align-items: center;
     gap: var(--sp-2);

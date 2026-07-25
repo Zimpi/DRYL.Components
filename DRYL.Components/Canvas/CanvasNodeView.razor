@@ -278,10 +278,21 @@
                 case "button":
                 {
                     var p = Props<ButtonNodeProps>();
-                    var intent = p!.Intent!;
-                    <DrylButton Variant="MapButtonVariant(p.Kind)" OnClick="@(_ => RaiseIntent(intent))">
+                    var actionState = Ctx.Actions?.StateOf(Node.Id);
+                    <DrylButton Variant="MapButtonVariant(p!.Kind)"
+                                Loading="@(actionState?.Busy == true)"
+                                OnClick="@(_ => TriggerAsync(p))">
                         @p.Label
                     </DrylButton>
+                    @*  A command that failed. It stays until the next attempt — a failure asks the
+                        user to react, so it must not expire the way a toast would. *@
+                    <DrylPresence Visible="@(actionState?.Error is not null)"
+                                  Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+                        <span class="canvas-action-error">
+                            <DrylIcon Name="Alert" Size="14" />
+                            @actionState?.Error
+                        </span>
+                    </DrylPresence>
                     break;
                 }
             }
@@ -356,10 +367,16 @@
 
         // Validate what will actually be rendered. A bound chart legitimately has no "labels"
         // in the spec — that is the whole point of binding — so validating the authored props
-        // would reject exactly the artifacts this phase exists to enable.
-        var subject = ReferenceEquals(_effectiveProps, Node.Props)
+        // would reject exactly the artifacts data binding exists to enable.
+        // The stand-in must carry Data and Action too: a button's validity depends on its action
+        // (a bound button needs no intent), and dropping them silently fails the node.
+        var subject = _memoData is null
             ? Node
-            : new CanvasNode { Id = Node.Id, Type = Node.Type, Props = _effectiveProps, Children = Node.Children };
+            : new CanvasNode
+            {
+                Id = Node.Id, Type = Node.Type, Props = _effectiveProps,
+                Children = Node.Children, Data = Node.Data, Action = Node.Action,
+            };
 
         // A shape that cannot fill this node type is a data problem, not a props problem —
         // say so where the node is, in the same quiet placeholder the catalog uses.
@@ -445,6 +462,20 @@
         if (Ctx.Form.Get(name) is null) Ctx.Form.Set(name, value);
     }
 
+    // Two ways out of a button, and the choice is deliberate. A registered action is a host
+    // command — it runs C#, not a chat turn. Everything else keeps the original behaviour, so a
+    // host that registered no action at all sees exactly what it saw before.
+    private async Task TriggerAsync(ButtonNodeProps p)
+    {
+        if (Node.Action is { Name: { Length: > 0 } } action && Ctx.Actions is { } runner)
+        {
+            await runner.InvokeAsync(Node.Id, p.Label, action);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(p.Intent)) await RaiseIntent(p.Intent!);
+    }
+
     private async Task RaiseIntent(string intent) =>
         await Ctx.Intent.InvokeAsync(new CanvasInteraction(intent, Node.Id, Ctx.Form.Snapshot()));
 
@@ -496,6 +527,7 @@
     private static DrylButton.ButtonVariant MapButtonVariant(string? kind) => kind switch
     {
         "secondary" => DrylButton.ButtonVariant.Secondary,
+        "danger" => DrylButton.ButtonVariant.Danger,
         _ => DrylButton.ButtonVariant.Primary,
     };
 

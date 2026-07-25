@@ -116,8 +116,15 @@
     /// data binder stamps on every refresh that actually changed a value.</summary>
     [Parameter] public CanvasPulseTracker? Pulse { get; set; }
 
-    /// <summary>Raised when the user triggers a button intent inside the artifact.</summary>
+    /// <summary>Raised when the user triggers a button intent inside the artifact — and when a
+    /// registered action's result asked for it, carrying the ready-made chat turn in
+    /// <see cref="CanvasInteraction.Message"/>.</summary>
     [Parameter] public EventCallback<CanvasInteraction> OnInteraction { get; set; }
+
+    /// <summary>Raised after every completed action button — successful or not. The canvas has
+    /// already applied the result (patch, refresh, toast, inline error) by then; this is for the
+    /// host's own logging or reactions.</summary>
+    [Parameter] public EventCallback<CanvasActionOutcome> OnAction { get; set; }
 
     /// <summary>Raised with a node id once its exit animation finished — the owner of the spec
     /// drops it from the tree (see <c>DrylCanvasRun.Purge</c>).</summary>
@@ -169,6 +176,7 @@
 
     private readonly CanvasContext _ctx = new();
     private CanvasDataBinder? _binder;
+    private CanvasActionRunner? _runner;
     private int _epoch;
     private CanvasSpec? _boundSpec;
 
@@ -195,6 +203,34 @@
             _binder.OnChanged += HandleBinderChanged;
             _ctx.Binder = _binder;
         }
+
+        // The canvas owns the spec, so it is the only place a patch may touch it.
+        _ctx.Patch = op => Spec is null ? $"op '{op.Op}': there is no artifact to patch." : ApplyOp(op);
+
+        // Actions are optional in exactly the way data sources are: without a registration a
+        // button falls back to its intent and nothing about today's behaviour changes.
+        var actions = Services.GetService(typeof(ICanvasActionService)) as ICanvasActionService;
+        if (actions is { Descriptors.Count: > 0 })
+        {
+            _runner = new CanvasActionRunner(actions, data, _ctx.Form, Services,
+                Services.GetService(typeof(ILogger<CanvasActionRunner>)) as ILogger)
+            {
+                Patch = op => _ctx.Patch(op),
+                Ask = i => OnInteraction.InvokeAsync(i),
+                Completed = o => OnAction.InvokeAsync(o),
+            };
+            _runner.OnChanged += HandleBinderChanged;
+            _ctx.Actions = _runner;
+        }
+    }
+
+    // An action result's ops go through the same patcher and the same pulse tracker as an AI
+    // setProps — one language for "something changed here", whoever changed it.
+    private string? ApplyOp(CanvasOp op)
+    {
+        var reason = CanvasPatcher.Apply(Spec!, op);
+        if (reason is null && op.Op == "setProps" && op.Id is not null) _ctx.Pulse.Stamp(op.Id);
+        return reason;
     }
 
     protected override void OnParametersSet()
@@ -313,6 +349,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (_runner is not null) _runner.OnChanged -= HandleBinderChanged;
+
         if (_binder is not null)
         {
             _binder.OnChanged -= HandleBinderChanged;
