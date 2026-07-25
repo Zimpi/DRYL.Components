@@ -85,6 +85,80 @@ public static class CanvasServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers a named canvas action with typed arguments. A button in the artifact binds to it
+    /// through <c>"action": { "name": … }</c>; only a user press ever runs it — the AI authors and
+    /// labels the button, it never presses it.
+    /// <code>
+    /// public sealed record ApproveArgs(string OrderId, string? Note = null);
+    ///
+    /// builder.Services.AddDrylCanvasAction("order.approve",
+    ///     "Gibt einen Auftrag frei.",
+    ///     async (ApproveArgs a, CanvasActionContext ctx, CancellationToken ct) =>
+    ///     {
+    ///         await ctx.Services.GetRequiredService&lt;IOrderService&gt;().ApproveAsync(a.OrderId, ct);
+    ///         return CanvasActionResult.Ok("Auftrag freigegeben").Refresh("orders.open");
+    ///     });
+    /// </code>
+    /// </summary>
+    /// <remarks>A success message is shown as a toast, which needs a <c>&lt;DrylToastProvider/&gt;</c>
+    /// in the layout; a <c>confirm</c> on the binding needs a <c>&lt;DrylDialogProvider/&gt;</c> —
+    /// without it the action is refused rather than run unconfirmed.</remarks>
+    /// <param name="services">The service collection.</param>
+    /// <param name="name">The key used in a node's <c>action.name</c>. Convention: <c>area.thing</c>.</param>
+    /// <param name="description">One model-facing sentence: what the action does. Do <em>not</em>
+    /// describe the arguments — those are derived from <typeparamref name="TArgs"/>.</param>
+    /// <param name="handler">Runs the command. Tenant and user come from <c>ctx.Services</c>, never from the spec.</param>
+    /// <typeparam name="TArgs">A record whose primary constructor declares the arguments.</typeparam>
+    /// <exception cref="ArgumentException">An argument uses an unsupported type, or the name is empty.</exception>
+    /// <exception cref="InvalidOperationException">The name is already registered.</exception>
+    public static IServiceCollection AddDrylCanvasAction<TArgs>(
+        this IServiceCollection services,
+        string name,
+        string description,
+        Func<TArgs, CanvasActionContext, CancellationToken, Task<CanvasActionResult>> handler)
+        where TArgs : class
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        ValidateName(name);
+
+        var descriptor = new CanvasActionDescriptor(
+            name, description ?? string.Empty, CanvasParamSchema.Describe(typeof(TArgs)));
+
+        ActionRegistry(services).Add(new CanvasActionSource(descriptor, async (json, ctx, ct) =>
+        {
+            var args = Deserialize<TArgs>(json, name);
+            return await handler(args, ctx, ct).ConfigureAwait(false);
+        }));
+
+        return services;
+    }
+
+    /// <summary>Registers a named canvas action that takes no arguments.</summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="name">The key used in a node's <c>action.name</c>. Convention: <c>area.thing</c>.</param>
+    /// <param name="description">One model-facing sentence: what the action does.</param>
+    /// <param name="handler">Runs the command. Tenant and user come from <c>ctx.Services</c>, never from the spec.</param>
+    /// <exception cref="ArgumentException">The name is empty.</exception>
+    /// <exception cref="InvalidOperationException">The name is already registered.</exception>
+    public static IServiceCollection AddDrylCanvasAction(
+        this IServiceCollection services,
+        string name,
+        string description,
+        Func<CanvasActionContext, CancellationToken, Task<CanvasActionResult>> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        ValidateName(name);
+
+        var descriptor = new CanvasActionDescriptor(
+            name, description ?? string.Empty, Array.Empty<CanvasParamInfo>());
+
+        ActionRegistry(services).Add(new CanvasActionSource(descriptor,
+            async (_, ctx, ct) => await handler(ctx, ct).ConfigureAwait(false)));
+
+        return services;
+    }
+
     // The registry is a singleton *instance* so registrations can be collected while the
     // collection is still being built — a source added here must be visible to the very first
     // scope, and resolving the container just to register into it is not an option.
@@ -100,10 +174,25 @@ public static class CanvasServiceCollectionExtensions
         return registry;
     }
 
+    // Same shape as Registry(services), and a separate registry on purpose: reading data and
+    // running a command are different privileges, and a name may legitimately exist in both.
+    internal static CanvasActionRegistry ActionRegistry(IServiceCollection services)
+    {
+        foreach (var d in services)
+            if (d.ServiceType == typeof(CanvasActionRegistry) &&
+                d.ImplementationInstance is CanvasActionRegistry existing)
+                return existing;
+
+        var registry = new CanvasActionRegistry();
+        services.AddSingleton(registry);
+        services.AddScoped<ICanvasActionService>(sp => new CanvasActionService(registry, sp));
+        return registry;
+    }
+
     private static void ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("A canvas data source needs a non-empty name.", nameof(name));
+            throw new ArgumentException("A canvas data source or action needs a non-empty name.", nameof(name));
     }
 
     private static CanvasDataShape ShapeOf<TData>() where TData : CanvasData
