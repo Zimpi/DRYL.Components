@@ -14,6 +14,22 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.16.0] — 2026-07-26
+
+Canvas Platform, phase 5 — **Document**. A workspace that only lives in memory is a demo, not an application. A canvas document now serializes the whole workspace — every named view, its artifact, and which one was open — so a dashboard survives a reload, a user switch and a deployment. And because the canvas has no op log (patches mutate in place, a fresh generation replaces the tree), the version history is a snapshot ring per view: undo, redo, and "back to version N", each one morphing through the same view-transition layer a view switch uses. Persistence itself stays yours — DRYL ships the contract and an in-memory implementation and no database code at all.
+
+### Added
+- **`CanvasDocument`** — Serializes a whole `CanvasWorkspace` with a schema version: `Capture` (a deep copy that skips views already animating away, and optionally folds live field values into the nodes' `value` props), `Restore`, `ToJson`, `TryFromJson` and `AsTemplate`. Data bindings travel with the document, the numbers do not — a restored document asks the host's registered sources for fresh values. A document written by a newer build is refused with a message that names both schema versions rather than being half-read.
+- **`CanvasHistory`** — The per-view snapshot ring behind undo and redo: `Record` (a snapshot identical to the current one is dropped, so a round that changed nothing never fills the ring), `Undo`, `Redo`, `Restore(index)`, `Clear`, plus `Entries`, `Position`, `CanUndo` and `CanRedo`. Recording after an undo truncates the redo branch. Reachable per view as `CanvasView.History`.
+- `CanvasWorkspace` — New `Commit`, `Undo`, `Redo`, `RestoreVersion`, `CanUndo` and `CanRedo`, all about the active view; each raises `OnChange` exactly when it actually changed something.
+- **`ICanvasDocumentStore`** + `InMemoryCanvasDocumentStore` + `CanvasDocumentInfo` — the persistence contract (`SaveAsync` / `LoadAsync` / `ListAsync` / `DeleteAsync`), task-based so the same interface works over HTTP or `localStorage` on WebAssembly. Register with `AddDrylCanvasDocumentStore()`, or `AddDrylCanvasDocumentStore<TStore>()` for your own — neither ever overwrites an existing registration.
+- `DrylCanvasWorkspace` — New `ShowHistory`, `Revision` and `RevisionLabel` parameters: undo, redo and a version-history popover in the view bar. A changed `Revision` commits a version of the active view; every history step runs through `IDrylViewTransition`, so the artifact morphs instead of blinking, and announces itself over `aria-live`. With history on, the bar also shows for a single view — one artifact still deserves an undo.
+- `DrylCanvasWorkspace` — New `AutoSave`, `AutoSaveDelayMs`, `DocumentId`, `DocumentIdChanged`, `DocumentTitle` and `OnSaved` parameters: debounced saving against the registered store. A store that throws is swallowed, never surfaced into the circuit — a broken store must not take a running dashboard down.
+- `DrylIcon` — New `Undo`, `Redo` and `History` icons.
+
+### Changed
+- `DrylCanvasWorkspace` — The view bar no longer scrolls as a whole: the chips scroll inside a new `.ws-chips` element while the tool group stays put, so undo and redo remain reachable at 375 px. Custom CSS that targeted `.ws-bar` for the scrolling row (or `.ws-bar.is-ink-ready`) must move to `.ws-chips`.
+
 ## [2.15.0] — 2026-07-26
 
 Canvas Platform, phase 4 — **Catalog**. Nine new node types, and with them the shapes a real line-of-business dashboard used to miss: a sortable, searchable, paged data grid; a form that bundles its fields into one command; a KPI row, lists, key/value pairs, collapsible sections, images, code and an empty state. Every one of them renders through components DRYL already ships — no new component, no new token, no new animation.
