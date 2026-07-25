@@ -206,9 +206,17 @@ services.AddDrylCanvasAction("order.approve",
 Ziel: die Vision-Oberfläche als zwei Komponenten statt als Host-Code.
 
 ```razor
-<DrylCanvasWorkspace Views="_views" @bind-ActiveViewId="_active" />
-<DrylCanvasDock Run="_run" Chat="_chat" Corner="DockCorner.BottomRight" />
+<DrylCanvasWorkspace Workspace="_ws">
+    <View><DrylAiCanvas Run="_run" AllowExpand="false" /></View>
+</DrylCanvasWorkspace>
+<DrylCanvasDock Run="_run" Busy="Busy" OnSend="Send" Corner="DockCorner.BottomRight">
+    <Log>@* die DrylMessages des Hosts *@</Log>
+</DrylCanvasDock>
 ```
+
+*(Präzisiert durch die Phase-3-Spec: die Views liegen in einem beobachtbaren `CanvasWorkspace`
+statt in einer gebundenen Liste — sonst kann `open_view` sie nicht eröffnen; der Verlauf im Dock
+kommt als Slot vom Host statt aus einem dock-eigenen Nachrichtenmodell.)*
 
 **Scope**
 
