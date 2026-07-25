@@ -38,7 +38,7 @@ public static class CanvasDataPrompt
             A param is a literal, or { "$field": "<name of an interactive node in this artifact>" }.
             "refresh" is "manual" (default, omit it) or "interval:<n>s" with n >= 5.
             Shapes map to types: scalar -> stat|badge|progress, series -> lineChart|areaChart|barChart,
-            segments -> donutChart, rows -> table.
+            segments -> donutChart, rows -> table|dataGrid|list|keyValue (keyValue needs exactly 2 columns).
             A bound node still authors its presentation props (title, label, valueFormat) itself.
             Do NOT invent numbers when a matching source exists.
 

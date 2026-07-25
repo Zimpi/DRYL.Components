@@ -30,6 +30,10 @@ public static class CanvasCatalog
     /// <summary>True when <paramref name="type"/> is a recognized catalog entry.</summary>
     public static bool IsKnownType(string type) => AllTypes.Contains(type);
 
+    /// <summary>Every known catalog type. The prompt layer keeps its schema in sync against this —
+    /// a type the model never sees can never be authored.</summary>
+    public static IReadOnlyCollection<string> KnownTypes => AllTypes;
+
     /// <summary>True when <paramref name="type"/> may host <c>Children</c> (<c>stack</c>, <c>grid</c>, <c>card</c>, <c>tabs</c>).</summary>
     public static bool IsContainer(string type) => ContainerTypes.Contains(type);
 
