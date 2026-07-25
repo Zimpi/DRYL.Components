@@ -29,14 +29,17 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="canvas-workspace @Class" @attributes="AdditionalAttributes">
-    @if (ShowBar)
-    {
+    @*  The bar itself comes and goes — a second view appearing must not make it pop into
+        existence (rule 2.12). Presence gives it an enter and an exit. *@
+    <DrylPresence Visible="ShowBar" Transition="PresenceTransition.SlideDown" Speed="PresenceSpeed.Fast">
         <div class="ws-bar" role="tablist" aria-label="@AriaLabel" @ref="_bar">
             <div class="ws-ink" data-dryl-ink aria-hidden="true"></div>
-            @foreach (var v in Workspace!.Views)
+            @*  Not Workspace!.Views: while the bar plays its exit the parameter may already
+                have been swapped out from under it. *@
+            @foreach (var v in Workspace?.Views ?? Array.Empty<CanvasView>())
             {
                 var view = v;                     // one capture per chip, not one for the loop
-                var isActive = view.Id == Workspace.ActiveId;
+                var isActive = view.Id == Workspace!.ActiveId;
                 <DrylPresence @key="view.Id"
                               Visible="@(!view.Removing)"
                               Appear
@@ -74,7 +77,7 @@
                 </DrylPresence>
             }
         </div>
-    }
+    </DrylPresence>
 
     <div class="ws-body">
         @if (Workspace?.Active is { } active)

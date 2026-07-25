@@ -40,6 +40,26 @@ public class DrylCanvasDockTests : BunitContext
     }
 
     [Fact]
+    public void An_untouched_run_reads_as_idle()
+    {
+        // DrylRunBase starts at Thinking, but a canvas run exists long before anything asks it
+        // for an artifact — a freshly loaded page must not claim the assistant is working.
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Run, new DrylCanvasRun()));
+
+        Assert.Contains("Idle", cut.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
+    public void Busy_alone_makes_the_dock_work()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Busy, true));
+
+        Assert.Contains("Working", cut.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
     public void A_failed_run_puts_its_message_in_the_status_line()
     {
         var run = new DrylCanvasRun();

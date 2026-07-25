@@ -212,10 +212,19 @@
 
     private bool HasError => string.IsNullOrWhiteSpace(Status) && Run?.Error is not null;
 
+    // A canvas run is created by the host long before anything asks it for an artifact, and
+    // DrylRunBase starts at Thinking — so an untouched run would make the dock claim it is
+    // working while the page has just loaded. Nothing has happened until the run has streamed,
+    // produced or failed something, or until the host says it is busy with a turn.
+    private bool Working =>
+        Busy || Run is { State: AiState.Streaming } || Run?.Error is not null
+        || Run is { Round: > 0 } || Run?.Spec is not null;
+
     // The AI vocabulary of the whole dock: the run's own state, or Thinking while the host is
     // mid-turn — the dock has to breathe before the first artifact node exists.
     private AiState DockAi =>
-        Run?.State is AiState.Streaming or AiState.Thinking ? Run.State
+        !Working ? AiState.None
+        : Run?.State is AiState.Streaming or AiState.Thinking ? Run.State
         : Busy ? AiState.Thinking
         : Run?.State ?? AiState.None;
 
@@ -225,6 +234,7 @@
         {
             if (!string.IsNullOrWhiteSpace(Status)) return Status!;
             if (Run?.Error is { } error) return error.Message;
+            if (!Working) return "Idle";
 
             var n = Run?.NodeCount ?? 0;
             var elements = FormattableString.Invariant($"{n} element{(n == 1 ? "" : "s")}");
@@ -233,7 +243,7 @@
                 AiState.Streaming => "Building · " + elements,
                 AiState.Thinking => "Working…",
                 AiState.Generated => "Ready · " + elements,
-                _ => Busy ? "Working…" : "Idle",
+                _ => "Working…",
             };
         }
     }
