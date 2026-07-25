@@ -39,16 +39,28 @@ public static class CanvasCatalog
     public static string? Validate(CanvasNode node) => Validate(node, null);
 
     /// <summary>
-    /// Validates a node, and — when <paramref name="context"/> is supplied and the node carries a
-    /// <c>data</c> binding — the binding too: the source exists, its result shape fits the node
-    /// type, the parameters are complete and known, every <c>$field</c> points at an interactive
-    /// node of this artifact, and <c>refresh</c> is syntactically valid.
+    /// Validates a node, and — when <paramref name="context"/> is supplied — its bindings too.
+    /// <para>A <c>data</c> binding: the source exists, its result shape fits the node type, the
+    /// parameters are complete and known, every <c>$field</c> points at an interactive node of
+    /// this artifact, and <c>refresh</c> is syntactically valid. An <c>action</c> binding: it sits
+    /// on a button, the action exists, its arguments are complete and known, and every
+    /// <c>$field</c> resolves.</para>
     /// <para>The result is a corrective sentence for the model's receipt, never a hard stop: an
     /// invalid node renders as a placeholder and the model repairs it on its next turn.</para>
     /// </summary>
     public static string? Validate(CanvasNode node, CanvasValidationContext? context)
     {
-        if (context is null || node.Data is not { Source: not null }) return ValidateShape(node);
+        if (context is null) return ValidateShape(node);
+
+        // A node may carry both bindings; checking the action first costs nothing, and neither
+        // check may swallow the other.
+        if (node.Action is { } action)
+        {
+            var actionError = ValidateAction(node, action, context);
+            if (actionError is not null) return actionError;
+        }
+
+        if (node.Data is not { Source: not null }) return ValidateShape(node);
 
         // The binding comes first: a bound chart legitimately carries no "labels" — that is the
         // whole point — so reporting "labels must contain at least one label" would reject exactly
@@ -64,7 +76,7 @@ public static class CanvasCatalog
 
         return ValidateShape(new CanvasNode
         {
-            Id = node.Id, Type = node.Type, Props = props, Children = node.Children,
+            Id = node.Id, Type = node.Type, Props = props, Children = node.Children, Action = node.Action,
         });
     }
 
@@ -220,10 +232,12 @@ public static class CanvasCatalog
                 if (!TryProps<ButtonNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 if (string.IsNullOrWhiteSpace(p!.Label))
                     return Err(node, "label must be non-empty.");
-                if (string.IsNullOrWhiteSpace(p.Intent))
-                    return Err(node, "intent must be non-empty.");
-                if (p.Kind is not (null or "primary" or "secondary"))
-                    return Err(node, $"kind '{p.Kind}' is invalid — use 'primary' or 'secondary'.");
+                // An action-bound button carries its meaning in the action, not in an invented
+                // intent string; a plain button still needs one to be reachable at all.
+                if (string.IsNullOrWhiteSpace(p.Intent) && string.IsNullOrWhiteSpace(node.Action?.Name))
+                    return Err(node, "a button needs an intent or an action.");
+                if (p.Kind is not (null or "primary" or "secondary" or "danger"))
+                    return Err(node, $"kind '{p.Kind}' is invalid — use 'primary', 'secondary' or 'danger'.");
                 return null;
             }
 
@@ -231,6 +245,79 @@ public static class CanvasCatalog
                 return $"type '{node.Type}' is not in the canvas catalog.";
         }
     }
+
+    private static string? ValidateAction(CanvasNode node, CanvasActionBinding action,
+                                          CanvasValidationContext context)
+    {
+        // One command, one trigger. A future form container will widen this; today anything else
+        // would mean an action could fire from something the user does not experience as a press.
+        if (node.Type != "button")
+            return Err(node, "an action can only sit on a button — move it to the button that triggers it.");
+
+        if (string.IsNullOrWhiteSpace(action.Name))
+            return Err(node, "action.name must name a registered action.");
+
+        var descriptor = context.Actions.FirstOrDefault(a => a.Name == action.Name);
+        if (descriptor is null)
+        {
+            var available = context.Actions.Take(5).Select(a => a.Name).ToList();
+            return Err(node, available.Count == 0
+                ? $"unknown action '{action.Name}' — no actions are registered."
+                : $"unknown action '{action.Name}' — available: {string.Join(", ", available)}"
+                  + (context.Actions.Count > available.Count ? ", …" : "") + ".");
+        }
+
+        if (action.Confirm is not null && string.IsNullOrWhiteSpace(action.Confirm))
+            return Err(node, "action.confirm must be a question for the user, or be omitted entirely.");
+
+        return ValidateActionArgs(node, action, descriptor, context);
+    }
+
+    private static string? ValidateActionArgs(CanvasNode node, CanvasActionBinding action,
+                                              CanvasActionDescriptor descriptor,
+                                              CanvasValidationContext context)
+    {
+        var given = new HashSet<string>(StringComparer.Ordinal);
+
+        if (action.Args is { } a)
+        {
+            if (a.ValueKind != JsonValueKind.Object)
+                return Err(node, "action.args must be an object.");
+
+            foreach (var prop in a.EnumerateObject())
+            {
+                given.Add(prop.Name);
+                if (descriptor.Args.All(x => x.Name != prop.Name))
+                    return Err(node, $"action '{descriptor.Name}' has no argument '{prop.Name}' — it takes "
+                                     + ActionSignature(descriptor) + ".");
+
+                // A field reference is only useful if the field exists; a typo would otherwise
+                // silently send null to a command handler.
+                if (CanvasArgs.FieldReference(prop.Value) is { } field &&
+                    !context.FieldNames.Contains(field))
+                {
+                    return Err(node, $"argument '{prop.Name}' references field '{field}', but this artifact has "
+                                     + (context.FieldNames.Count == 0
+                                         ? "no interactive nodes."
+                                         : "no such interactive node — it has: "
+                                           + string.Join(", ", context.FieldNames.Take(5)) + "."));
+                }
+            }
+        }
+
+        var missing = descriptor.Args.Where(x => x.Required && !given.Contains(x.Name))
+                                     .Select(x => x.Name).ToList();
+        return missing.Count == 0
+            ? null
+            : Err(node, $"action '{descriptor.Name}' is missing required arg"
+                        + (missing.Count == 1 ? " " : "s ") + string.Join(", ", missing)
+                        + " — it takes " + ActionSignature(descriptor) + ".");
+    }
+
+    private static string ActionSignature(CanvasActionDescriptor d) =>
+        d.Args.Count == 0
+            ? "no arguments"
+            : "(" + string.Join(", ", d.Args.Select(a => $"{a.Name}{(a.Required ? "" : "?")}: {a.TypeName}")) + ")";
 
     private static string? ValidateBinding(CanvasNode node, CanvasValidationContext context)
     {
@@ -359,6 +446,9 @@ public sealed class CanvasValidationContext
 {
     /// <summary>The registered data sources (see <c>ICanvasDataService.Descriptors</c>).</summary>
     public IReadOnlyList<CanvasDataDescriptor> Sources { get; init; } = Array.Empty<CanvasDataDescriptor>();
+
+    /// <summary>The registered actions (see <c>ICanvasActionService.Descriptors</c>).</summary>
+    public IReadOnlyList<CanvasActionDescriptor> Actions { get; init; } = Array.Empty<CanvasActionDescriptor>();
 
     /// <summary>The <c>name</c> props of every interactive node in the same artifact.</summary>
     public IReadOnlyCollection<string> FieldNames { get; init; } = Array.Empty<string>();
