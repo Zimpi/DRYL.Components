@@ -373,6 +373,36 @@ public class CanvasCatalogTests
     [Fact] public void EmptyState_missing_title_rejected() =>
         Assert.NotNull(CanvasCatalog.Validate(Node("emptyState", """{ "description": "x" }""")));
 
+    // ---- dataGrid ----
+
+    [Fact] public void DataGrid_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("dataGrid",
+            """{ "columns": ["A", "B"], "rows": [["1", "2"]], "sortable": true, "pageSize": 10 }""")));
+
+    [Fact] public void DataGrid_without_columns_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("dataGrid", """{ "rows": [["1"]] }""")));
+
+    [Fact] public void DataGrid_more_than_twelve_columns_rejected()
+    {
+        var cols = string.Join(",", Enumerable.Range(0, 13).Select(i => $"\"c{i}\""));
+        Assert.Contains("at most 12", CanvasCatalog.Validate(Node("dataGrid", $$"""{ "columns": [{{cols}}] }""")));
+    }
+
+    [Fact] public void DataGrid_row_cell_mismatch_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("dataGrid",
+            """{ "columns": ["A", "B"], "rows": [["1"]] }""")));
+
+    [Fact] public void DataGrid_more_than_hundred_literal_rows_rejected()
+    {
+        var rows = string.Join(",", Enumerable.Range(0, 101).Select(i => $"[\"{i}\"]"));
+        Assert.Contains("at most 100", CanvasCatalog.Validate(Node("dataGrid",
+            $$"""{ "columns": ["A"], "rows": [{{rows}}] }""")));
+    }
+
+    [Fact] public void DataGrid_pagesize_out_of_range_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("dataGrid",
+            """{ "columns": ["A"], "pageSize": 101 }""")));
+
     // ---- classification ----
 
     [Fact] public void Interactive_and_container_classification()

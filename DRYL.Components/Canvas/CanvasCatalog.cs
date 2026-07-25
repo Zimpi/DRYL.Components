@@ -209,6 +209,26 @@ public static class CanvasCatalog
                 return null;
             }
 
+            case "dataGrid":
+            {
+                if (!TryProps<DataGridNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                if (p!.Columns is null || p.Columns.Count == 0)
+                    return Err(node, "columns must contain at least one column.");
+                if (p.Columns.Count > 12)
+                    return Err(node, "at most 12 columns are supported.");
+                if (p.Rows is not null)
+                {
+                    if (p.Rows.Count > 100)
+                        return Err(node, "at most 100 literal rows are supported — bind a rows data source for more.");
+                    foreach (var row in p.Rows)
+                        if (row.Count != p.Columns.Count)
+                            return Err(node, $"a row has {row.Count} cells but there are {p.Columns.Count} columns — they must match 1:1.");
+                }
+                if (p.PageSize is { } size && (size < 0 || size > 100))
+                    return Err(node, FormattableString.Invariant($"pageSize must be between 0 and 100 (was {size})."));
+                return null;
+            }
+
             case "timeline":
             {
                 if (!TryProps<CanvasTimelineProps>(node, out var p)) return Err(node, "props are not valid JSON.");
@@ -710,6 +730,28 @@ internal sealed class ToggleNodeProps
 
     /// <summary>Current on/off value.</summary>
     public bool? Value { get; set; }
+}
+
+/// <summary>Props of the <c>dataGrid</c> leaf — the interactive big brother of <c>table</c>.</summary>
+internal sealed class DataGridNodeProps
+{
+    /// <summary>Column headers, 1–12.</summary>
+    public List<string>? Columns { get; set; }
+
+    /// <summary>Literal row data (max 100); bind a rows source for more.</summary>
+    public List<List<string>>? Rows { get; set; }
+
+    /// <summary>Click-to-sort on all columns. Default true.</summary>
+    public bool? Sortable { get; set; }
+
+    /// <summary>Per-column select filters. Default false.</summary>
+    public bool? Filterable { get; set; }
+
+    /// <summary>Toolbar search across all columns. Default false.</summary>
+    public bool? Searchable { get; set; }
+
+    /// <summary>Items per page; 0 disables paging. Default 10, max 100.</summary>
+    public int? PageSize { get; set; }
 }
 
 /// <summary>Props of the <c>image</c> leaf.</summary>
