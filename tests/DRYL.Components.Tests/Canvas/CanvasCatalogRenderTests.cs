@@ -77,6 +77,20 @@ public class CanvasCatalogRenderTests : BunitContext
     }
 
     [Fact]
+    public void Accordion_renders_sections_and_open_index()
+    {
+        var cut = RenderSpec("""
+            {"id":"a","type":"accordion","props":{"labels":["Erster","Zweiter"],"open":0},"children":[
+                {"id":"c1","type":"markdown","props":{"content":"Inhalt eins"}},
+                {"id":"c2","type":"markdown","props":{"content":"Inhalt zwei"}}]}
+            """);
+        Assert.Contains("Erster", cut.Markup);
+        Assert.Contains("Zweiter", cut.Markup);
+        var headers = cut.FindAll("[aria-expanded]");
+        Assert.Contains(headers, h => h.GetAttribute("aria-expanded") == "true");
+    }
+
+    [Fact]
     public void EmptyState_renders_title_and_description()
     {
         var cut = RenderSpec("""

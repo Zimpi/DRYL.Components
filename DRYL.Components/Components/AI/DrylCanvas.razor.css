@@ -155,6 +155,20 @@
     font-size: 13px;
 }
 
+/* form — submit row and the per-field required hint after a failed submit. */
+::deep .canvas-form-submit {
+    margin-top: var(--sp-3);
+}
+
+::deep .canvas-field-required {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-top: var(--sp-1);
+    color: var(--danger);
+    font-size: 12px;
+}
+
 /* image — quiet caption line below a canvas image. */
 ::deep .canvas-image-caption {
     margin-top: var(--sp-1);

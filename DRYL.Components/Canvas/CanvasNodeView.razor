@@ -123,6 +123,50 @@
                     break;
                 }
 
+                case "accordion":
+                {
+                    var p = Props<AccordionNodeProps>();
+                    var labels = p!.Labels!;
+                    var children = Node.Children!;
+                    @for (var i = 0; i < labels.Count; i++)
+                    {
+                        var idx = i;                 // capture per-iteration for the fragment
+                        var child = children[idx];
+                        <DrylExpansion Title="@labels[idx]"
+                                       Open="@_openSections.Contains(idx)"
+                                       OpenChanged="@(v => ToggleSection(idx, v))">
+                            <CanvasNodeView @key="child.Id" Node="child" />
+                        </DrylExpansion>
+                    }
+                    break;
+                }
+
+                case "form":
+                {
+                    var p = Props<FormNodeProps>();
+                    var actionState = Ctx.Actions?.StateOf(Node.Id);
+                    <div class="canvas-form">
+                        <CascadingValue Value="_formScope" IsFixed="true">
+                            @RenderChildren
+                        </CascadingValue>
+                        <div class="canvas-form-submit">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Primary"
+                                        Loading="@(actionState?.Busy == true)"
+                                        OnClick="@(_ => SubmitFormAsync(p!))">
+                                @p!.SubmitLabel
+                            </DrylButton>
+                        </div>
+                        <DrylPresence Visible="@(actionState?.Error is not null)"
+                                      Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+                            <span class="canvas-action-error">
+                                <DrylIcon Name="Alert" Size="14" />
+                                @actionState?.Error
+                            </span>
+                        </DrylPresence>
+                    </div>
+                    break;
+                }
+
                 case "divider":
                     <DrylDivider />
                     break;
@@ -310,7 +354,8 @@
                     var name = p!.Name!;
                     <DrylInputText Label="@p.Label" Placeholder="@p.Placeholder"
                                    Value="@(Ctx.Form.Get<string>(name))"
-                                   ValueChanged="@(v => Ctx.Form.Set(name, v))" />
+                                   ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -320,8 +365,9 @@
                     var name = p!.Name!;
                     <DrylSelect Label="@p.Label" Items="@ToItems(p.Options!)"
                                 Value="@(Ctx.Form.Get<string>(name))"
-                                ValueChanged="@(v => Ctx.Form.Set(name, v))"
+                                ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })"
                                 Ai="AiState.None" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -331,7 +377,8 @@
                     var name = p!.Name!;
                     <DrylSlider Label="@p.Label" Min="p.Min" Max="p.Max" Step="@(p.Step ?? 1)"
                                 Value="@(Ctx.Form.Get<double>(name))"
-                                ValueChanged="@(v => Ctx.Form.Set(name, v))" />
+                                ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -341,7 +388,8 @@
                     var name = p!.Name!;
                     <DrylToggle Label="@p.Label"
                                 Value="@(Ctx.Form.Get<bool>(name))"
-                                ValueChanged="@(v => Ctx.Form.Set(name, v))" />
+                                ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
                     break;
                 }
 
@@ -393,6 +441,10 @@
     /// <summary>Everything this canvas shares with its nodes (form state, pulse tracker,
     /// data binder, intent callback) — one <c>IsFixed</c> cascade from <c>DrylCanvas</c>.</summary>
     [CascadingParameter] internal CanvasContext Ctx { get; set; } = default!;
+
+    /// <summary>Supplied by an enclosing <c>form</c> node's view: which required fields failed
+    /// the last submit. Null outside a form — the hint then never renders.</summary>
+    [CascadingParameter] internal CanvasFormScope? FormScope { get; set; }
 
     private CanvasNode? _seededNode;
 
@@ -481,11 +533,81 @@
     {
         SyncBinding();
         SeedFormOnce();
+        SeedAccordionOnce();
+        SyncFormScope();
         SyncPulse();
     }
 
     /// <summary>A node that leaves the tree must not keep its key alive in the binder.</summary>
-    public void Dispose() => Ctx?.Binder?.Unregister(Node.Id);
+    public void Dispose()
+    {
+        Ctx?.Binder?.Unregister(Node.Id);
+        if (_subscribedScope is not null) _subscribedScope.OnChanged -= OnFormScopeChanged;
+    }
+
+    // ───── accordion ─────
+
+    // Which sections are open — renderer-local UI state like the active tab, seeded once per
+    // node INSTANCE (same reuse trap as _seededNode) from the "open" prop.
+    private readonly HashSet<int> _openSections = new();
+    private CanvasNode? _seededAccordion;
+
+    private void ToggleSection(int index, bool open)
+    {
+        if (open) _openSections.Add(index);
+        else _openSections.Remove(index);
+    }
+
+    private void SeedAccordionOnce()
+    {
+        if (Node.Type != "accordion" || ReferenceEquals(_seededAccordion, Node)) return;
+        _seededAccordion = Node;
+        _openSections.Clear();
+        if (Props<AccordionNodeProps>() is { Open: { } open }) _openSections.Add(open);
+    }
+
+    // ───── form ─────
+
+    private readonly CanvasFormScope _formScope = new();
+    private CanvasFormScope? _subscribedScope;
+
+    // A required hint only re-renders this field's view if it hears the form's submit —
+    // the cascade is fixed, so the event is the signal.
+    private void SyncFormScope()
+    {
+        if (ReferenceEquals(_subscribedScope, FormScope)) return;
+        if (_subscribedScope is not null) _subscribedScope.OnChanged -= OnFormScopeChanged;
+        _subscribedScope = FormScope;
+        if (_subscribedScope is not null) _subscribedScope.OnChanged += OnFormScopeChanged;
+    }
+
+    private void OnFormScopeChanged() => InvokeAsync(StateHasChanged);
+
+    // Missing = a required field whose value is null or a whitespace-only string.
+    private async Task SubmitFormAsync(FormNodeProps p)
+    {
+        var missing = (p.Required ?? new List<string>())
+            .Where(name => Ctx.Form.Get(name) is var v
+                && (v is null || (v is string s && string.IsNullOrWhiteSpace(s))))
+            .ToList();
+        _formScope.SetMissing(missing);
+        if (missing.Count > 0) return;
+
+        if (Node.Action is { Name.Length: > 0 } action && Ctx.Actions is { } runner)
+            await runner.InvokeAsync(Node.Id, p.SubmitLabel, action);
+    }
+
+    private RenderFragment RequiredHint(string name) => __builder =>
+    {
+        if (FormScope is null) return;
+        <DrylPresence Visible="@FormScope.IsMissing(name)"
+                      Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+            <span class="canvas-field-required">
+                <DrylIcon Name="Alert" Size="12" />
+                Required
+            </span>
+        </DrylPresence>
+    };
 
     // The run stamps a node on every applied setProps. A stamp we have not seen yet means
     // the content just changed underneath us — replay the pulse. Stamps are per-node and
