@@ -14,6 +14,20 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.14.0] — 2026-07-25
+
+Canvas Platform, phase 3 — **Workspace + Prompt Dock**. A page is no longer one canvas and a chat column next to it: a `DrylCanvasWorkspace` holds named views with exactly one visible, and a `DrylCanvasDock` sits in the corner as a command bar. The AI can open a view for a new subject instead of overwriting the artifact the user is looking at — which is the difference between a tool and a chat toy.
+
+### Added
+- `DrylCanvasWorkspace` — **New component.** Named canvas views, exactly one of them large; the view bar carries the same gliding gradient indicator as `DrylTabs`, and switching runs through `IDrylViewTransition`, so the surface morphs instead of snapping. A single view gets no bar at all. Chips close with an exit animation, keyboard is ←/→/Home/End plus `Delete`; the `View` slot decides what renders (typically a `DrylAiCanvas`), otherwise the workspace renders a plain `DrylCanvas`.
+- `CanvasWorkspace` / `CanvasView` — **New state types** (`DRYL.Components.Canvas`). `Open` / `Activate` / `Close` / `Remove` / `Clear` plus `OnChange`; a view's id is the slug of its title, so re-opening "Overview" finds the view that already exists rather than adding a second one. Plain observable state a host may pre-fill from code.
+- `DrylCanvasDock` — **New component** (`DRYL.Components.Agents`). The prompt dock: a `DrylChatComposer`, one line of live status derived from the run (`Building · 7 elements`, `Ready`, or the error), and the transcript only on demand — the host supplies it through the `Log` slot, so there is no second message model next to `DrylMessage`. Collapses to a single button, corners via the new `DockCorner` enum, full width below 640px. Lives in the browser's top layer (`popover="manual"`), because a `position: fixed` dock would otherwise measure itself against the nearest glass card instead of the viewport.
+- `DrylCanvasRun.UseWorkspace(workspace)` — **New method.** From then on `Spec` reads and writes the active view's spec: a generation always fills the view the user is looking at, and switching views resets the interactive form state so a different artifact never inherits the previous one's field values.
+- `DrylCanvasTools.Create` / `CreateReplay` — **New optional `workspace` argument.** With it the model also gets `open_view(name, brief)`, which opens (or re-opens) a named view and runs the same create generation into it; the receipt names the view. Without a workspace nothing changes — the tool is not registered and costs no prompt budget.
+
+### Changed
+- `create_artifact` — Its description now says explicitly that it replaces whatever is currently shown, and (with a workspace) points at `open_view` for a subject that should stay reachable.
+
 ## [2.13.0] — 2026-07-25
 
 Canvas Platform, phase 2 — **Canvas Actions**. A button in an artifact triggers a typed host command instead of a chat message. The AI builds, labels and pre-fills the button; only a human press ever runs the handler — there is no tool and no code path from a model output to a command. That is what makes it safe for an artifact to offer "Release order" at all.
