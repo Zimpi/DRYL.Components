@@ -20,27 +20,46 @@ public sealed class DrylCanvasTools
     private readonly Func<string, CancellationToken, IAsyncEnumerable<string>> _generate;
     private readonly ICanvasDataService? _data;
     private readonly ICanvasActionService? _actions;
+    private readonly CanvasWorkspace? _workspace;
 
     private DrylCanvasTools(
         DrylCanvasRun run, Func<string, CancellationToken, IAsyncEnumerable<string>> generate,
-        ICanvasDataService? data, ICanvasActionService? actions)
+        ICanvasDataService? data, ICanvasActionService? actions, CanvasWorkspace? workspace)
     {
         _run = run;
         _generate = generate;
         _data = data;
         _actions = actions;
+        _workspace = workspace;
 
         CreateArtifact = AIFunctionFactory.Create(CreateArtifactImpl, "create_artifact",
             "Create a live visual artifact next to the chat — a card, chart, table or form the user " +
             "sees rendered live. Put ALL concrete data and numbers the artifact needs into the brief; " +
             "the generator sees only this brief, nothing else from the conversation. Use this once per " +
-            "distinct artifact.");
+            "distinct artifact; it replaces whatever is currently shown." +
+            (workspace is null ? "" :
+                " Call open_view instead when the current artifact should stay reachable."));
         UpdateArtifact = AIFunctionFactory.Create(UpdateArtifactImpl, "update_artifact",
             "Update the current artifact in place — patch props, insert, remove or move nodes. Put ALL " +
             "concrete data and numbers the update needs into the brief; the generator sees only this " +
             "brief plus the current artifact, nothing else from the conversation. Requires an artifact " +
             "already created via create_artifact.");
-        All = new List<AITool> { CreateArtifact, UpdateArtifact };
+        var all = new List<AITool> { CreateArtifact, UpdateArtifact };
+
+        // The third tool exists only where there is a workspace to open a view on — a plain chat
+        // artifact never sees it and never pays for it in the prompt.
+        if (workspace is not null)
+        {
+            OpenView = AIFunctionFactory.Create(OpenViewImpl, "open_view",
+                "Open a named view on the workspace and build its artifact there. Use this when the " +
+                "user turns to a new subject (a specific order, a second report) and the current " +
+                "artifact should stay reachable — the view bar keeps both and the user can switch " +
+                "back. Re-using a name re-opens that view and rebuilds it. Put ALL concrete data and " +
+                "numbers the artifact needs into the brief; the generator sees only this brief.");
+            all.Add(OpenView);
+        }
+
+        All = all;
     }
 
     /// <summary>Create the tools; <paramref name="generator"/> runs the artifact generations
@@ -50,17 +69,21 @@ public sealed class DrylCanvasTools
     /// <param name="data">Registered host data sources the model may bind nodes to.</param>
     /// <param name="actions">Registered host actions the model may wire buttons to. It can place
     /// and label them; it can never trigger one — only a user press runs a command.</param>
+    /// <param name="workspace">The workspace the artifacts live in. When given, the model also gets
+    /// <c>open_view</c> and can put a new subject next to the current artifact instead of over it.</param>
     public static DrylCanvasTools Create(DrylCanvasRun run, AIAgent generator,
                                         ICanvasDataService? data = null,
-                                        ICanvasActionService? actions = null) =>
-        new(run, LiveGenerate(generator), data, actions);
+                                        ICanvasActionService? actions = null,
+                                        CanvasWorkspace? workspace = null) =>
+        new(run, LiveGenerate(generator), data, actions, workspace);
 
     /// <summary>Replay/demo/test seam: like <see cref="Create"/>, but generations come from
     /// <paramref name="generate"/> (prompt → raw JSON delta stream) instead of a live agent.</summary>
     public static DrylCanvasTools CreateReplay(
         DrylCanvasRun run, Func<string, CancellationToken, IAsyncEnumerable<string>> generate,
-        ICanvasDataService? data = null, ICanvasActionService? actions = null) =>
-        new(run, generate, data, actions);
+        ICanvasDataService? data = null, ICanvasActionService? actions = null,
+        CanvasWorkspace? workspace = null) =>
+        new(run, generate, data, actions, workspace);
 
     /// <summary>Create-artifact tool (<c>create_artifact</c>): runs a fresh structured-streaming
     /// generation and progressively fills <see cref="DrylCanvasRun.Spec"/> as it streams.</summary>
@@ -71,13 +94,32 @@ public sealed class DrylCanvasTools
     /// staggered one per beat, as they become safe to apply (see <see cref="UpdateArtifactImpl"/>).</summary>
     public AITool UpdateArtifact { get; }
 
-    /// <summary>The tool set to hand to the chat agent: <see cref="CreateArtifact"/> and <see cref="UpdateArtifact"/>.</summary>
+    /// <summary>Open-view tool (<c>open_view</c>): activates (or creates) a named workspace view and
+    /// runs a create generation into it. Null when the tools were built without a workspace.</summary>
+    public AITool? OpenView { get; }
+
+    /// <summary>The tool set to hand to the chat agent: <see cref="CreateArtifact"/>,
+    /// <see cref="UpdateArtifact"/> and — with a workspace — <see cref="OpenView"/>.</summary>
     public IList<AITool> All { get; }
 
+    private Task<string> OpenViewImpl(
+        [Description("Short name of the view, e.g. \"Order 4711\". Re-using a name re-opens that view.")] string name,
+        [Description("What the artifact should show, incl. all concrete data/numbers it needs.")] string brief,
+        [Description("Short artifact title; defaults to the view name.")] string? title = null,
+        CancellationToken ct = default)
+    {
+        var view = _workspace!.Open(string.IsNullOrWhiteSpace(name) ? "View" : name.Trim());
+        return CreateArtifactImpl(brief, title ?? view.Title, ct, view.Title);
+    }
+
+    // viewName sits after the CancellationToken on purpose: AIFunctionFactory stops building the
+    // tool schema at the token, so open_view can name the view in the receipt without changing
+    // create_artifact's signature for the model.
     private async Task<string> CreateArtifactImpl(
         [Description("What the artifact should show, incl. all concrete data/numbers it needs.")] string brief,
         [Description("Short artifact title.")] string? title = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? viewName = null)
     {
         _run.BeginCreate();
         var reader = new PartialJsonReader<CanvasSpec>(CanvasJson.Options);
@@ -127,7 +169,8 @@ public sealed class DrylCanvasTools
                 if (CanvasCatalog.Validate(n, context) is { } e) problems.Add(e);
             });
             _run.CompleteReveal(final);
-            var receipt = $"Artifact created: {nodes} elements, {interactive} inputs." + recovery;
+            var where = viewName is null ? "" : $" in view \"{viewName}\"";
+            var receipt = $"Artifact created{where}: {nodes} elements, {interactive} inputs." + recovery;
             return problems.Count == 0 ? receipt
                 : receipt + " Some elements were invalid and are shown as placeholders — fix via update_artifact: "
                   + string.Join(" ", problems.Take(3));
