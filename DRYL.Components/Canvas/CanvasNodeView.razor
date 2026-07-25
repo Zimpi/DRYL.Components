@@ -234,6 +234,76 @@
                     break;
                 }
 
+                case "kpi":
+                {
+                    var p = Props<CanvasKpiProps>();
+                    <div class="canvas-kpi">
+                        @foreach (var item in p!.Items!)
+                        {
+                            <DrylStat Label="@item.Label" Value="@item.Value" Delta="@item.Delta"
+                                      Direction="@item.ParsedDirection" CountUp Ai="AiState.Generated" />
+                        }
+                    </div>
+                    break;
+                }
+
+                case "list":
+                {
+                    var p = Props<CanvasListProps>();
+                    <DrylList>
+                        @foreach (var item in p!.Items!)
+                        {
+                            <DrylListItem Icon="@item.Icon">
+                                @item.Title
+                                @if (!string.IsNullOrWhiteSpace(item.Text))
+                                {
+                                    <span class="canvas-list-text">@item.Text</span>
+                                }
+                            </DrylListItem>
+                        }
+                    </DrylList>
+                    break;
+                }
+
+                case "keyValue":
+                {
+                    var p = Props<CanvasKeyValueProps>();
+                    <DrylDescriptionList Columns="@(p!.Columns ?? 1)">
+                        @foreach (var pair in p.Pairs!)
+                        {
+                            <DrylDescriptionItem Term="@pair.Key">@pair.Value</DrylDescriptionItem>
+                        }
+                    </DrylDescriptionList>
+                    break;
+                }
+
+                case "image":
+                {
+                    var p = Props<ImageNodeProps>();
+                    <DrylImage Src="@(p!.Src!)" Alt="@(p.Alt!)" Fit="MapImageFit(p.Fit)"
+                               Ratio="MapImageRatio(p.Ratio)" Rounded="DrylImage.ImageRounded.Md" />
+                    @if (!string.IsNullOrWhiteSpace(p.Caption))
+                    {
+                        <div class="canvas-image-caption">@p.Caption</div>
+                    }
+                    break;
+                }
+
+                case "code":
+                {
+                    var p = Props<CodeNodeProps>();
+                    <DrylCodeBlock Code="@(p!.Code!)" Language="@p.Language"
+                                   ShowLineNumbers="@(p.LineNumbers == true)" />
+                    break;
+                }
+
+                case "emptyState":
+                {
+                    var p = Props<EmptyStateNodeProps>();
+                    <DrylEmptyState Icon="@p!.Icon" Title="@p.Title" Description="@p.Description" />
+                    break;
+                }
+
                 case "inputText":
                 {
                     var p = Props<InputTextNodeProps>();
@@ -398,7 +468,8 @@
 
     private static DrylSkeleton.SkeletonVariant SkeletonFor(string type) => type switch
     {
-        "lineChart" or "areaChart" or "barChart" or "donutChart" or "table" =>
+        "lineChart" or "areaChart" or "barChart" or "donutChart" or "table"
+            or "dataGrid" or "list" or "keyValue" or "image" or "code" or "accordion" =>
             DrylSkeleton.SkeletonVariant.Card,
         _ => DrylSkeleton.SkeletonVariant.Text,
     };
@@ -514,6 +585,20 @@
         "sm" => DrylStack.StackGap.Sm,
         "lg" => DrylStack.StackGap.Lg,
         _ => DrylStack.StackGap.Md,
+    };
+
+    private static DrylImage.ImageFit MapImageFit(string? fit) => fit switch
+    {
+        "contain" => DrylImage.ImageFit.Contain,
+        _ => DrylImage.ImageFit.Cover,
+    };
+
+    private static DrylImage.ImageRatio MapImageRatio(string? ratio) => ratio switch
+    {
+        "1:1" => DrylImage.ImageRatio.Square,
+        "16:9" => DrylImage.ImageRatio.Video,
+        "21:9" => DrylImage.ImageRatio.Wide,
+        _ => DrylImage.ImageRatio.Auto,
     };
 
     private static DrylBadge.BadgeKind MapBadge(string? kind) => kind switch
