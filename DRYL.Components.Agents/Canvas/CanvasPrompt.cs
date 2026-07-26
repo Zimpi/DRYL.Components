@@ -46,6 +46,7 @@ internal static class CanvasPrompt
         - image { "src": string, "alt": string, "ratio": "auto"|"1:1"|"16:9"|"21:9"?, "fit": "cover"|"contain"?, "caption": string? } — "src" must start with https://, / or data:image/.
         - code { "code": string, "language": string?, "lineNumbers": boolean? } — read-only source block.
         - emptyState { "title": string, "description": string?, "icon": string? } — for a "nothing here yet" view instead of empty markdown.
+        Any node may carry "locked": true — the user pinned it. Never change, move or remove a pinned node, and add nothing to it.
         Interactive nodes (inputText/select/slider/toggle) each need a unique "name".
         Prefer charts and stats over prose for numbers. Keep the artifact focused.
         """;
@@ -116,6 +117,7 @@ internal static class CanvasPrompt
             - { "op": "remove", "id": string }
             - { "op": "move", "id": string, "parent": string, "index": number }
             Use existing ids; new nodes get fresh unique ids. Emit the smallest op set that fulfils the request.
+            Nodes marked "locked": true are pinned by the user — no op may target them; report that instead of trying.
 
             Current artifact:
             """ + currentSpecJson + "\n\nRequest:\n" + brief;
