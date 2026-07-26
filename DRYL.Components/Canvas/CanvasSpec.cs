@@ -60,6 +60,15 @@ public sealed class CanvasNode
     /// </summary>
     public CanvasActionBinding? Action { get; set; }
 
+    /// <summary>
+    /// Pinned by the user: the AI author may not change, move or remove this node, and may add
+    /// nothing to it. Everything the user triggers — a data refresh, an action result, the node
+    /// toolbar itself — still goes through (see <see cref="CanvasPatchAuthor"/>). Travels with the
+    /// node into a saved document.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Locked { get; set; }
+
     /// <summary>Transient exit flag: node plays its exit animation, then is purged. Never serialized.</summary>
     [JsonIgnore] public bool Removing { get; set; }
 
