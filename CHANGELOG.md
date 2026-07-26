@@ -23,6 +23,15 @@ Zwei Lücken, die beim Bau einer echten Steuerzentrale auffielen: ein Formular k
 - `CanvasPrompt.SchemaText` (Agents 0.15.0) — One line for the new `textarea` type, plus the guidance that decides which of the two a generation reaches for.
 - `DrylCanvasDock` (Agents 0.15.0) — New `Actions` slot: host controls in the dock head, left of the log toggle. The dock brought stop and reset for nobody, so every host that wanted them had to put them somewhere else on the page — which is exactly the chrome the dock exists to remove.
 - `DrylCanvasDock` (Agents 0.15.0) — New `Suggestions` slot above the composer, for ready-made prompt chips. On a workspace page there is no empty state left to carry them.
+- `AddDrylCanvasDocumentStore<TStore>` — New optional `ServiceLifetime`. A store that separates documents per user has to read the signed-in user, which a singleton cannot do — so the only lifetime on offer was the one a real host cannot use.
+
+### Fixed
+- `DrylCanvasRun` — Started at `Thinking`. Right for an agent run, which starts because someone asked; wrong for a canvas, which is created empty and may never be generated into. A restored document showed an aura claiming to think, and nothing was ever coming to settle it.
+- `DrylCanvasDock` — The status line said `Working…` for an idle run that holds a spec. An artifact nobody is working on is `Ready`, whether a generation or a document store put it there.
+- `DrylCanvasDock` — A long host `Status` squeezed the AI indicator and the log/collapse buttons out of the head instead of truncating itself: flexbox shrinks every sibling proportionally, and the indicator and the tooltip-wrapped buttons are child-component output, so only a `::deep` rule can reach them.
+- `DrylCanvasDock` — The selection chip's type badge wrapped mid-word (`butto/n`) because label and badge shared the row with no flex rules.
+- `DrylCanvas` — A `list` or `keyValue` node carrying a data binding was rejected for having no literal entries, although the data prompt offers both as `rows` targets and the source supplies the entries at runtime. `dataGrid` had it right all along.
+- `CanvasDataPrompt` — The block never said that `kpi` cannot bind. It is the obvious node for a row of figures, so a model honouring A3 built an empty one with no way out.
 
 ## [2.17.1] — 2026-07-26
 

@@ -44,6 +44,18 @@
     min-width: 0;
 }
 
+/*  Exactly one thing in this row may give, and that is the status text. Flexbox shrinks every
+    child with a non-zero flex-shrink proportionally, so without this a long status does not
+    truncate — it drags the indicator and the icon buttons down with it until they vanish. A
+    status the host controls ("Schritt 2 von 3 · …") reaches that length easily.
+
+    ::deep is load-bearing: the indicator and the tooltip wrappers are child-component output and
+    carry no scope attribute, so a plain selector would compile to one they can never match — and
+    they are exactly the elements that were collapsing. */
+.dock-head > ::deep *:not(.dock-status) {
+    flex: 0 0 auto;
+}
+
 /* Exactly one line of status — it truncates rather than growing the dock. */
 .dock-status {
     flex: 1 1 auto;
@@ -137,13 +149,11 @@
     white-space: nowrap;
 }
 
-/* Host controls sit next to the status line and never shrink; the status yields instead
-   (it already truncates, see .dock-status above). */
+/* Host controls sit next to the status line; the head rule above keeps them from shrinking. */
 .dock-actions {
     display: flex;
     align-items: center;
     gap: var(--sp-1);
-    flex: 0 0 auto;
 }
 
 /* One scrollable row of prompt chips — it scrolls in itself so the dock never grows sideways. */
