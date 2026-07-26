@@ -38,4 +38,23 @@ public class CanvasResponsiveCssTests
     {
         Assert.Contains("height: min(var(--chart-h, 260px), 100cqw);", ReadDrylCss());
     }
+
+    [Fact]
+    public void Canvas_body_is_a_named_query_container()
+    {
+        // Named, not anonymous: DrylGrid/DrylStack/DrylPagination/DrylDescriptionList each
+        // bring their own .cq wrapper, and an anonymous query would bind to that nearer
+        // container instead of the canvas.
+        Assert.Contains("container: canvas / inline-size;", ReadCanvasCss());
+    }
+
+    [Fact]
+    public void Canvas_container_queries_are_all_named()
+    {
+        var css = ReadCanvasCss();
+        var anonymous = System.Text.RegularExpressions.Regex.Matches(css, @"@container\s*\(");
+        Assert.True(anonymous.Count == 0,
+            $"{anonymous.Count} anonymous @container query/queries in DrylCanvas.razor.css — "
+            + "use `@container canvas (…)` so a node's own .cq wrapper cannot hijack it.");
+    }
 }

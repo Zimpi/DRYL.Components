@@ -74,7 +74,19 @@
     margin-top: calc(var(--sp-1) * -1);
 }
 
+/* The body is the query context for everything the canvas renders: a node adapts to the
+   width of the CANVAS, never to the viewport — the same artifact lives in a narrow chat
+   column and, one morph later, in a fullscreen overlay.
+
+   Named on purpose. A container query binds to the nearest ancestor container, and four
+   primitives (DrylGrid, DrylStack, DrylPagination, DrylDescriptionList) bring their own
+   .cq wrapper along, which would swallow an anonymous query in node depth.
+
+   Containment makes this element a containing block for position: fixed descendants —
+   harmless here, because the tooltip bubble and every popover panel are portaled to
+   <body> (dryl.tooltip, dryl.popover) and the fullscreen box sits ABOVE the body. */
 .canvas-body {
+    container: canvas / inline-size;
     display: flex;
     flex-direction: column;
     gap: var(--sp-4);
