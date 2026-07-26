@@ -91,7 +91,14 @@
     flex-direction: column;
     gap: var(--sp-4);
     padding: var(--sp-4);
-    overflow: auto;
+    /* The canvas never scrolls sideways as a whole — a widget that needs a horizontal axis
+       scrolls inside itself (.tbl-wrap). Measured at 375px: a chart's tooltip bubbles are
+       laid out even while hidden and pushed the body's scroll width past its client width
+       (330 vs 329 wide, 322 vs 318 in a 320px slot), so the artifact offered a phantom
+       horizontal scroll to reach a bubble the canvas' own overflow already clips.
+       Vertical scrolling is untouched — it carries the fullscreen body. */
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 /* Visually hidden, but still announced by screen readers (1px clip pattern). */

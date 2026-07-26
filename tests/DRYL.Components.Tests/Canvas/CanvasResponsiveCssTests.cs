@@ -49,6 +49,17 @@ public class CanvasResponsiveCssTests
     }
 
     [Fact]
+    public void Canvas_body_never_scrolls_sideways()
+    {
+        // Hidden chart tooltips are laid out and used to inflate the body's scroll width,
+        // offering a phantom horizontal scroll. A widget that needs a horizontal axis
+        // scrolls inside itself instead.
+        var css = ReadCanvasCss();
+        Assert.Contains("overflow-x: hidden;", css);
+        Assert.Contains("overflow-y: auto;", css);
+    }
+
+    [Fact]
     public void Canvas_container_queries_are_all_named()
     {
         var css = ReadCanvasCss();
