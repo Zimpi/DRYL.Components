@@ -5705,9 +5705,15 @@ pre { overflow-x: auto; }
 .chart-seg-cap { border-radius: 4px 4px 0 0; }
 
 /* ── Donut ── */
+/* The wheel is square (see .donut-slice), so a fixed height is also a fixed WIDTH: in any
+   slot narrower than --chart-h it used to spill out both sides. The chart root is a query
+   container and the box takes min(wanted height, available width) — the wheel shrinks to
+   its slot instead of overflowing it. Tooltip anchors and --donut-hole are percentages and
+   ride along. A container never queries itself, hence the type on the root. */
+.chart-kind-donut { container-type: inline-size; }
 .donut-box {
   position: relative;
-  height: var(--chart-h, 260px);
+  height: min(var(--chart-h, 260px), 100cqw);
   display: flex;
   justify-content: center;
 }
