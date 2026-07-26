@@ -42,11 +42,34 @@ public class DrylCanvasDockTests : BunitContext
     [Fact]
     public void An_untouched_run_reads_as_idle()
     {
-        // DrylRunBase starts at Thinking, but a canvas run exists long before anything asks it
-        // for an artifact — a freshly loaded page must not claim the assistant is working.
+        // A canvas run exists long before anything asks it for an artifact — a freshly loaded
+        // page must not claim the assistant is working.
         var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Run, new DrylCanvasRun()));
 
         Assert.Contains("Idle", cut.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
+    public void A_restored_artifact_reads_as_ready_not_as_working()
+    {
+        // A document loaded from a store fills Spec without any generation ever running. Claiming
+        // work would be a lie nothing can settle: no generation is coming to end it.
+        var spec = JsonSerializer.Deserialize<CanvasSpec>(
+            """
+            { "title": "Report", "root": { "id": "root", "type": "stack", "children": [
+                { "id": "a", "type": "markdown", "props": { "content": "x" } } ] } }
+            """, CanvasJson.Options)!;
+
+        var workspace = new CanvasWorkspace();
+        workspace.Open("Übersicht").Spec = spec;
+        var run = new DrylCanvasRun();
+        run.UseWorkspace(workspace);
+
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Run, run));
+
+        var status = cut.Find(".dock-status").TextContent;
+        Assert.Contains("Ready", status);
+        Assert.DoesNotContain("Working", status);
     }
 
     [Fact]

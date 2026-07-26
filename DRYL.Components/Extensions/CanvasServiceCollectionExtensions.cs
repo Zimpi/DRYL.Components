@@ -225,14 +225,20 @@ public static class CanvasServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Registers a host implementation of <see cref="ICanvasDocumentStore"/> as a singleton.</summary>
+    /// <summary>Registers a host implementation of <see cref="ICanvasDocumentStore"/>.</summary>
+    /// <remarks>Pass <see cref="ServiceLifetime.Scoped"/> for a store that scopes its documents to
+    /// the signed-in user: reading the user means depending on a scoped service, which a singleton
+    /// cannot do.</remarks>
     /// <typeparam name="TStore">The host's store.</typeparam>
     /// <param name="services">The service collection.</param>
-    public static IServiceCollection AddDrylCanvasDocumentStore<TStore>(this IServiceCollection services)
+    /// <param name="lifetime">The store's lifetime. Default <see cref="ServiceLifetime.Singleton"/>.</param>
+    public static IServiceCollection AddDrylCanvasDocumentStore<TStore>(
+        this IServiceCollection services,
+        ServiceLifetime lifetime = ServiceLifetime.Singleton)
         where TStore : class, ICanvasDocumentStore
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.TryAddSingleton<ICanvasDocumentStore, TStore>();
+        services.TryAdd(new ServiceDescriptor(typeof(ICanvasDocumentStore), typeof(TStore), lifetime));
         return services;
     }
 

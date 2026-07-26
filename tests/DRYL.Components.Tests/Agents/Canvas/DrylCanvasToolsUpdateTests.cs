@@ -132,7 +132,7 @@ public class DrylCanvasToolsUpdateTests
         var receipt = await InvokeAsync(tools.UpdateArtifact, "add something");
 
         Assert.Equal("There is no artifact yet — call create_artifact first.", receipt);
-        Assert.Equal(AiState.Thinking, run.State);   // unchanged: BeginGeneration was never called
+        Assert.Equal(AiState.None, run.State);       // unchanged: BeginGeneration was never called
         Assert.Equal(0, changes);
         Assert.Null(run.Spec);
     }

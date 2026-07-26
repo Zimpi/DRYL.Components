@@ -17,10 +17,13 @@ public class DrylCanvasRunTests
     // ---- initial state ----
 
     [Fact]
-    public void Initial_state_is_thinking_with_no_spec()
+    // A canvas is a surface, not an errand: it may sit empty for a long time — or forever —
+    // before anything is generated into it, so it starts idle. BeginGeneration moves it to
+    // Streaming, so a chat artifact still announces itself the moment work starts.
+    public void Initial_state_is_idle_with_no_spec()
     {
         var run = new DrylCanvasRun();
-        Assert.Equal(AiState.Thinking, run.State);
+        Assert.Equal(AiState.None, run.State);
         Assert.Null(run.Spec);
         Assert.Equal(0, run.Round);
         Assert.Empty(run.ChangedIds);

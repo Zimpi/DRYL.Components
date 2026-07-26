@@ -338,6 +338,10 @@
                 AiState.Streaming => "Building · " + elements,
                 AiState.Thinking => "Working…",
                 AiState.Generated => "Ready · " + elements,
+                // Idle but holding an artifact: a document restored from a store, or one the host
+                // built in code. Nobody is working on it, so saying so would be a lie that never
+                // resolves — there is no generation coming to settle it.
+                _ when !Busy && Run?.Spec is not null => "Ready · " + elements,
                 _ => "Working…",
             };
         }

@@ -39,6 +39,8 @@ public static class CanvasDataPrompt
             "refresh" is "manual" (default, omit it) or "interval:<n>s" with n >= 5.
             Shapes map to types: scalar -> stat|badge|progress, series -> lineChart|areaChart|barChart,
             segments -> donutChart, rows -> table|dataGrid|list|keyValue (keyValue needs exactly 2 columns).
+            Every other type takes literal props only. In particular kpi CANNOT bind: for a row of
+            figures that come from sources, use a grid of stat nodes, each bound on its own.
             A bound node still authors its presentation props (title, label, valueFormat) itself.
             Do NOT invent numbers when a matching source exists.
 

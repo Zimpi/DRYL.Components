@@ -123,6 +123,9 @@ public class CanvasDataRegistryTests
         Assert.Contains("orders.open() -> rows — \"Offene Aufträge.\"", block);
         Assert.Contains("\"$field\"", block);
         Assert.Contains("Do NOT invent numbers", block);
+        // kpi looks like the obvious node for a row of figures but takes literal props only.
+        // Without this line a model that honours A3 builds an empty kpi and has no way out.
+        Assert.Contains("kpi CANNOT bind", block);
     }
 
     [Fact]

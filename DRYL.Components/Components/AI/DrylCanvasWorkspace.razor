@@ -149,7 +149,7 @@
         }
         else
         {
-            <DrylEmptyState Title="No view yet" Description="@EmptyText" />
+            <DrylEmptyState Title="@EmptyTitle" Description="@EmptyText" />
         }
     </div>
 </div>
@@ -197,6 +197,9 @@
 
     /// <summary>Raised after every successful autosave.</summary>
     [Parameter] public EventCallback<CanvasDocumentInfo> OnSaved { get; set; }
+
+    /// <summary>Headline shown while there is nothing to show.</summary>
+    [Parameter] public string EmptyTitle { get; set; } = "No view yet";
 
     /// <summary>Text shown while there is nothing to show.</summary>
     [Parameter] public string? EmptyText { get; set; } = "Ask the assistant to open one.";

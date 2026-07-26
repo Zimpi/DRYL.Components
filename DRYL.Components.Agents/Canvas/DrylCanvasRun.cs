@@ -5,6 +5,15 @@ namespace DRYL.Components.Agents;
 /// <summary>Observable handle to an AI-built canvas artifact rendered by <c>DrylAiCanvas</c>.</summary>
 public sealed class DrylCanvasRun : DrylRunBase
 {
+    /// <summary>
+    /// A canvas is a surface, not an errand: it is created empty and may sit there for a long
+    /// time — or forever — before anything is generated into it. So it starts idle, unlike an
+    /// agent run, which starts because someone asked it something. Without this a restored
+    /// document (or a page that simply never prompted) shows a dock and an aura that claim to be
+    /// thinking, and they never stop, because nothing ever settles them.
+    /// </summary>
+    public DrylCanvasRun() => State = AiState.None;
+
     private readonly HashSet<string> _changedIds = new(StringComparer.Ordinal);
 
     /// <summary>

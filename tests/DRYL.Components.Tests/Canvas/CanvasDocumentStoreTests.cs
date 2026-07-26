@@ -111,6 +111,25 @@ public class CanvasDocumentStoreTests
         Assert.IsType<HostStore>(provider.GetService<ICanvasDocumentStore>());
     }
 
+    // A store that scopes documents to the signed-in user has to read that user, which means
+    // depending on a scoped service — impossible from a singleton, and the DI container refuses
+    // to build at all rather than at first use.
+    [Fact]
+    public void A_host_store_can_be_registered_as_scoped()
+    {
+        var provider = new ServiceCollection()
+            .AddDrylCanvasDocumentStore<HostStore>(ServiceLifetime.Scoped)
+            .BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        using var scope = provider.CreateScope();
+        var store = scope.ServiceProvider.GetService<ICanvasDocumentStore>();
+
+        Assert.IsType<HostStore>(store);
+        Assert.Same(store, scope.ServiceProvider.GetService<ICanvasDocumentStore>());
+        using var other = provider.CreateScope();
+        Assert.NotSame(store, other.ServiceProvider.GetService<ICanvasDocumentStore>());
+    }
+
     private sealed class HostStore : ICanvasDocumentStore
     {
         public Task<string> SaveAsync(CanvasDocument document, CancellationToken ct = default) =>

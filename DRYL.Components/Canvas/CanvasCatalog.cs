@@ -257,16 +257,18 @@ public static class CanvasCatalog
                 return Prefix(node, p!.Validate());
             }
 
+            // A bound list gets its entries from the source at runtime, so demanding literal ones
+            // would make every bound list invalid — the same reason dataGrid's rows are optional.
             case "list":
             {
                 if (!TryProps<CanvasListProps>(node, out var p)) return Err(node, "props are not valid JSON.");
-                return Prefix(node, p!.Validate());
+                return Prefix(node, p!.Validate(node.Data is not null));
             }
 
             case "keyValue":
             {
                 if (!TryProps<CanvasKeyValueProps>(node, out var p)) return Err(node, "props are not valid JSON.");
-                return Prefix(node, p!.Validate());
+                return Prefix(node, p!.Validate(node.Data is not null));
             }
 
             case "image":

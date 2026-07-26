@@ -200,10 +200,12 @@ internal sealed class CanvasListProps
     public IReadOnlyList<CanvasListItemProps>? Items { get; set; }
 
     /// <summary>Null when valid; otherwise a corrective, model-facing error sentence.</summary>
-    public string? Validate()
+    /// <param name="bound">True when the node carries a data binding, which supplies the items at
+    /// runtime — then literal items are optional, exactly as <c>rows</c> is on <c>dataGrid</c>.</param>
+    public string? Validate(bool bound = false)
     {
         if (Items is null || Items.Count == 0)
-            return "items must contain at least one item.";
+            return bound ? null : "items must contain at least one item.";
         if (Items.Count > 50)
             return "at most 50 items are supported — aggregate or paginate the rest.";
         foreach (var i in Items)
@@ -232,10 +234,12 @@ internal sealed class CanvasKeyValueProps
     public int? Columns { get; set; }
 
     /// <summary>Null when valid; otherwise a corrective, model-facing error sentence.</summary>
-    public string? Validate()
+    /// <param name="bound">True when the node carries a data binding, which supplies the pairs at
+    /// runtime — then literal pairs are optional, exactly as <c>rows</c> is on <c>dataGrid</c>.</param>
+    public string? Validate(bool bound = false)
     {
         if (Pairs is null || Pairs.Count == 0)
-            return "pairs must contain at least one pair.";
+            return bound ? null : "pairs must contain at least one pair.";
         if (Pairs.Count > 20)
             return "at most 20 pairs are supported.";
         if (Columns is not (null or 1 or 2))

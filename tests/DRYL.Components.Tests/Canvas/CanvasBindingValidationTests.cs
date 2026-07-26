@@ -174,4 +174,31 @@ public class CanvasBindingValidationTests
 
         Assert.Equal(new[] { "onlyOpen", "region" }, names.OrderBy(n => n, StringComparer.Ordinal));
     }
+
+    // A bound list or keyValue gets its entries from the source at runtime. Demanding literal ones
+    // made every bound one invalid, while dataGrid — the same rows shape — has always allowed it.
+    [Fact]
+    public void A_bound_list_needs_no_literal_items()
+    {
+        var node = Bound("list", """{}""", """{ "source": "orders.open" }""");
+
+        Assert.Null(CanvasCatalog.Validate(node, Context()));
+    }
+
+    [Fact]
+    public void A_bound_keyValue_needs_no_literal_pairs()
+    {
+        var node = Bound("keyValue", """{}""", """{ "source": "orders.open" }""");
+
+        Assert.Null(CanvasCatalog.Validate(node, Context()));
+    }
+
+    [Fact]
+    public void An_unbound_list_still_needs_items()
+    {
+        var node = JsonSerializer.Deserialize<CanvasNode>(
+            """{ "id": "n", "type": "list", "props": {} }""", CanvasJson.Options)!;
+
+        Assert.Contains("at least one item", CanvasCatalog.Validate(node, Context())!);
+    }
 }
