@@ -197,7 +197,7 @@ public sealed class DrylCanvasRun : DrylRunBase
         if (Spec is null)
             return $"op '{op.Op}': there is no artifact to patch.";
 
-        var reason = CanvasPatcher.Apply(Spec, op);
+        var reason = CanvasPatcher.Apply(Spec, op, CanvasPatchAuthor.Ai);
         if (reason is null)
         {
             switch (op.Op)

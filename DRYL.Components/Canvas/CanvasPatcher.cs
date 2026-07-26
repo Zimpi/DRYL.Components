@@ -3,6 +3,17 @@ using System.Text.Json.Nodes;
 
 namespace DRYL.Components.Canvas;
 
+/// <summary>Who is patching. The pin (<see cref="CanvasNode.Locked"/>) only binds the AI author —
+/// what the user triggers always goes through (roadmap A4).</summary>
+public enum CanvasPatchAuthor
+{
+    /// <summary>The user, directly or through a command they pressed. Ignores pins.</summary>
+    User,
+
+    /// <summary>The AI author. Ops on pinned nodes come back as a corrective skip reason.</summary>
+    Ai,
+}
+
 /// <summary>
 /// Applies a single <see cref="CanvasOp"/> to a live <see cref="CanvasSpec"/> tree, in place.
 /// Every op is validated before the tree is touched: on failure <see cref="Apply"/> returns a
@@ -14,23 +25,30 @@ public static class CanvasPatcher
     /// Applies <paramref name="op"/> to <paramref name="spec"/>. Returns <c>null</c> on success;
     /// otherwise a model-facing skip reason, and <paramref name="spec"/> is left unchanged.
     /// </summary>
-    public static string? Apply(CanvasSpec spec, CanvasOp op) => op.Op switch
+    /// <param name="spec">The live artifact.</param>
+    /// <param name="op">The op to apply.</param>
+    /// <param name="author">Who is patching — <see cref="CanvasPatchAuthor.Ai"/> respects pins.</param>
+    public static string? Apply(CanvasSpec spec, CanvasOp op,
+                                CanvasPatchAuthor author = CanvasPatchAuthor.User) => op.Op switch
     {
-        "setProps" => ApplySetProps(spec, op),
-        "insert" => ApplyInsert(spec, op),
-        "remove" => ApplyRemove(spec, op),
-        "move" => ApplyMove(spec, op),
+        "setProps" => ApplySetProps(spec, op, author),
+        "insert" => ApplyInsert(spec, op, author),
+        "remove" => ApplyRemove(spec, op, author),
+        "move" => ApplyMove(spec, op, author),
         _ => $"op '{op.Op}': unknown operation — use 'setProps', 'insert', 'remove' or 'move'.",
     };
 
-    private static string? ApplySetProps(CanvasSpec spec, CanvasOp op)
+    private static string? ApplySetProps(CanvasSpec spec, CanvasOp op, CanvasPatchAuthor author)
     {
         if (string.IsNullOrWhiteSpace(op.Id))
             return "op 'setProps': id is required.";
 
-        var node = FindNode(spec, op.Id);
+        var node = CanvasTree.Find(spec, op.Id);
         if (node is null)
             return $"op 'setProps': no node with id '{op.Id}'.";
+
+        if (author == CanvasPatchAuthor.Ai && node.Locked)
+            return $"op 'setProps': node '{node.Id}' is pinned by the user — leave it unchanged and say so if asked.";
 
         var before = node.Props;
         var merged = CanvasJsonMerge.Merge(ToJsonNode(node.Props), ToJsonNode(op.Props));
@@ -47,18 +65,21 @@ public static class CanvasPatcher
         return null;
     }
 
-    private static string? ApplyInsert(CanvasSpec spec, CanvasOp op)
+    private static string? ApplyInsert(CanvasSpec spec, CanvasOp op, CanvasPatchAuthor author)
     {
         if (op.Node is null)
             return "op 'insert': node is required.";
         if (string.IsNullOrWhiteSpace(op.Parent))
             return "op 'insert': parent is required.";
 
-        var parent = FindNode(spec, op.Parent);
+        var parent = CanvasTree.Find(spec, op.Parent);
         if (parent is null)
             return $"op 'insert': no node with id '{op.Parent}'.";
         if (!CanvasCatalog.IsContainer(parent.Type))
             return $"op 'insert': node '{parent.Id}' is not a container.";
+
+        if (author == CanvasPatchAuthor.Ai && parent.Locked)
+            return $"op 'insert': node '{parent.Id}' is pinned by the user — nothing may be added to it.";
 
         var subtreeError = ValidateSubtree(op.Node);
         if (subtreeError is not null)
@@ -69,7 +90,7 @@ public static class CanvasPatcher
         if (internalDuplicate is not null)
             return $"op 'insert': node ids within the inserted subtree must be unique ('{internalDuplicate}' appears twice).";
 
-        var existingIds = CollectIds(spec.Root);
+        var existingIds = CanvasTree.CollectIds(spec.Root);
         var duplicate = newIds.FirstOrDefault(existingIds.Contains);
         if (duplicate is not null)
             return $"op 'insert': id '{duplicate}' already exists in the spec.";
@@ -89,23 +110,26 @@ public static class CanvasPatcher
         return null;
     }
 
-    private static string? ApplyRemove(CanvasSpec spec, CanvasOp op)
+    private static string? ApplyRemove(CanvasSpec spec, CanvasOp op, CanvasPatchAuthor author)
     {
         if (string.IsNullOrWhiteSpace(op.Id))
             return "op 'remove': id is required.";
         if (spec.Root is not null && op.Id == spec.Root.Id)
             return "op 'remove': the root node cannot be removed.";
 
-        var node = FindNode(spec, op.Id);
+        var node = CanvasTree.Find(spec, op.Id);
         if (node is null)
             return $"op 'remove': no node with id '{op.Id}'.";
+
+        if (author == CanvasPatchAuthor.Ai && node.Locked)
+            return $"op 'remove': node '{node.Id}' is pinned by the user — it must stay.";
 
         node.Removing = true;
         node.Version++;
         return null;
     }
 
-    private static string? ApplyMove(CanvasSpec spec, CanvasOp op)
+    private static string? ApplyMove(CanvasSpec spec, CanvasOp op, CanvasPatchAuthor author)
     {
         if (string.IsNullOrWhiteSpace(op.Id))
             return "op 'move': id is required.";
@@ -114,11 +138,11 @@ public static class CanvasPatcher
         if (spec.Root is not null && op.Id == spec.Root.Id)
             return "op 'move': the root node cannot be moved.";
 
-        var node = FindNode(spec, op.Id);
+        var node = CanvasTree.Find(spec, op.Id);
         if (node is null)
             return $"op 'move': no node with id '{op.Id}'.";
 
-        var newParent = FindNode(spec, op.Parent);
+        var newParent = CanvasTree.Find(spec, op.Parent);
         if (newParent is null)
             return $"op 'move': no node with id '{op.Parent}'.";
         if (!CanvasCatalog.IsContainer(newParent.Type))
@@ -127,7 +151,20 @@ public static class CanvasPatcher
         if (IsSelfOrDescendant(node, op.Parent))
             return $"op 'move': node '{op.Id}' cannot be moved into its own subtree.";
 
-        var oldParent = FindParent(spec, op.Id);
+        var oldParent = CanvasTree.FindParent(spec, op.Id);
+
+        // A pin guards the node's own position and, for a container, everything about how it is
+        // put together — but not what happens inside its children (see the phase 6 spec, E2).
+        if (author == CanvasPatchAuthor.Ai)
+        {
+            if (node.Locked)
+                return $"op 'move': node '{node.Id}' is pinned by the user — its position must stay.";
+            if (newParent.Locked)
+                return $"op 'move': node '{newParent.Id}' is pinned by the user — nothing may be moved out of or into it.";
+            if (oldParent is { Locked: true })
+                return $"op 'move': node '{oldParent.Id}' is pinned by the user — nothing may be moved out of or into it.";
+        }
+
         var oldIndex = oldParent!.Children!.IndexOf(node);
         oldParent.Children.RemoveAt(oldIndex);
 
@@ -151,35 +188,8 @@ public static class CanvasPatcher
     }
 
     // ---- tree walks ----
-
-    private static CanvasNode? FindNode(CanvasSpec spec, string id) => FindNode(spec.Root, id);
-
-    private static CanvasNode? FindNode(CanvasNode? node, string id)
-    {
-        if (node is null) return null;
-        if (node.Id == id) return node;
-        if (node.Children is null) return null;
-        foreach (var child in node.Children)
-        {
-            var found = FindNode(child, id);
-            if (found is not null) return found;
-        }
-        return null;
-    }
-
-    private static CanvasNode? FindParent(CanvasSpec spec, string id) => FindParent(spec.Root, id);
-
-    private static CanvasNode? FindParent(CanvasNode? node, string id)
-    {
-        if (node?.Children is null) return null;
-        foreach (var child in node.Children)
-        {
-            if (child.Id == id) return node;
-            var found = FindParent(child, id);
-            if (found is not null) return found;
-        }
-        return null;
-    }
+    // The plain "find a node / find its parent / collect ids" walks live in CanvasTree, shared
+    // with the renderer and the cloner. What stays here is patch-specific validation.
 
     private static bool IsSelfOrDescendant(CanvasNode node, string id)
     {
@@ -201,22 +211,6 @@ public static class CanvasPatcher
             if (childError is not null) return childError;
         }
         return null;
-    }
-
-    private static HashSet<string> CollectIds(CanvasNode? node)
-    {
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        CollectIds(node, ids);
-        return ids;
-    }
-
-    private static void CollectIds(CanvasNode? node, HashSet<string> ids)
-    {
-        if (node is null) return;
-        ids.Add(node.Id);
-        if (node.Children is null) return;
-        foreach (var child in node.Children)
-            CollectIds(child, ids);
     }
 
     /// <summary>
