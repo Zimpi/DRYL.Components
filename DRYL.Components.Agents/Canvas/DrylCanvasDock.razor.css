@@ -122,10 +122,18 @@
     font-size: .82rem;
 }
 
+/* The label is the only part that may give: a long node name shortens, the type badge does not
+   get squeezed until it breaks mid-word. ::deep because the badge is a child component's output. */
 .dock-context-label {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dock-context ::deep .badge {
+    flex: 0 0 auto;
     white-space: nowrap;
 }
 
