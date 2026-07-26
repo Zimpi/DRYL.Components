@@ -35,6 +35,8 @@
             OnInteraction="OnInteraction"
             OnAction="OnAction"
             OnPurge="HandlePurge"
+            Selection="Selection"
+            OnEdit="OnEdit"
             OnWidthChanged="HandleWidth"
             AllowExpand="AllowExpand"
             Class="@RootCssClass"
@@ -58,6 +60,13 @@
     /// <summary>Raised after every completed action button in the artifact — successful or not.
     /// The canvas has already applied the result (patch, refresh, toast, inline error) by then.</summary>
     [Parameter] public EventCallback<CanvasActionOutcome> OnAction { get; set; }
+
+    /// <summary>Opt-in for direct manipulation — see <c>DrylCanvas.Selection</c>. Share the same
+    /// instance with <c>DrylCanvasDock</c> so the selected element travels into the next prompt.</summary>
+    [Parameter] public CanvasSelection? Selection { get; set; }
+
+    /// <summary>Raised after every completed direct manipulation — see <c>DrylCanvas.OnEdit</c>.</summary>
+    [Parameter] public EventCallback<CanvasEdit> OnEdit { get; set; }
 
     /// <summary>
     /// Whether the header offers an expand-to-fullscreen button. The expanded canvas is an

@@ -100,6 +100,15 @@
     [JSInvokable]
     public Task SubmitFromJs() => Send();
 
+    /// <summary>Moves keyboard focus into the composer's input — for a host that hands the user
+    /// straight from somewhere else (a canvas node, a command) into typing.</summary>
+    public async ValueTask FocusAsync()
+    {
+        try { await _ref.FocusAsync(); }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+    }
+
     private Task SendClick(MouseEventArgs _) => Send();
 
     private async Task Send()

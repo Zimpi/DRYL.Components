@@ -107,3 +107,24 @@
         transition: none;
     }
 }
+
+/* The context chip: what the next prompt is about, one line above the input. Translucent like
+   every other surface, with the accent showing up as a 1px line rather than a fill. */
+.dock-context {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-2);
+    border: 1px solid var(--accent-line);
+    border-radius: var(--r-pill);
+    background: var(--glass-1);
+    color: var(--fg-muted);
+    font-size: .82rem;
+}
+
+.dock-context-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

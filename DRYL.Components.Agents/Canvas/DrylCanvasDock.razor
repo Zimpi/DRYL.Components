@@ -92,7 +92,27 @@
                 </div>
             }
 
-            <DrylChatComposer @bind-Value="_draft"
+            @*  The context chip: what the next prompt is about. It arrives and leaves with a
+                movement, because a selection appearing is a state change like any other. *@
+            <DrylPresence Visible="@(Selection?.HasSelection == true)"
+                          Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+                <div class="dock-context">
+                    <DrylIcon Name="Sparkle" Size="12" />
+                    <span class="dock-context-label">@Selection?.Label</span>
+                    <DrylBadge>@Selection?.Type</DrylBadge>
+                    <DrylTooltip Text="@ClearContextLabel">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="@ClearContextLabel"
+                                    OnClick="@(() => Selection?.Clear())">
+                            <DrylIcon Name="X" Size="12" />
+                        </DrylButton>
+                    </DrylTooltip>
+                </div>
+            </DrylPresence>
+
+            <DrylChatComposer @ref="_composer"
+                              @bind-Value="_draft"
                               OnSend="SendAsync"
                               Disabled="@Busy"
                               Placeholder="@Placeholder"
@@ -124,6 +144,14 @@
     /// <summary>The transcript, revealed on demand. Without it the dock offers no disclosure.</summary>
     [Parameter] public RenderFragment? Log { get; set; }
 
+    /// <summary>
+    /// The canvas's selection. With it the dock shows a context chip for the selected element and
+    /// prefixes every prompt with a reference to it, so "make it a bar chart" lands on the right
+    /// node. Hand the same instance to <c>DrylAiCanvas</c>. Without it the dock behaves exactly
+    /// as before.
+    /// </summary>
+    [Parameter] public CanvasSelection? Selection { get; set; }
+
     /// <summary>Whether the dock is collapsed to a single button. Supports two-way binding.</summary>
     [Parameter] public bool Collapsed { get; set; }
 
@@ -141,6 +169,9 @@
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private DrylCanvasRun? _subscribed;
+    private CanvasSelection? _subscribedSelection;
+    private DrylChatComposer? _composer;
+    private bool _focusComposer;
     private ElementReference _el;
     private ElementReference _logEl;
     private string? _draft;
@@ -151,20 +182,56 @@
 
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_subscribed, Run)) return;
-        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
-        _subscribed = Run;
-        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        if (!ReferenceEquals(_subscribed, Run))
+        {
+            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            _subscribed = Run;
+            if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        }
+
+        if (!ReferenceEquals(_subscribedSelection, Selection))
+        {
+            if (_subscribedSelection is not null)
+            {
+                _subscribedSelection.OnChange -= HandleChange;
+                _subscribedSelection.OnPromptRequested -= HandlePromptRequested;
+            }
+            _subscribedSelection = Selection;
+            if (_subscribedSelection is not null)
+            {
+                _subscribedSelection.OnChange += HandleChange;
+                _subscribedSelection.OnPromptRequested += HandlePromptRequested;
+            }
+        }
     }
 
     private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    // "Prompt about this element" was pressed on a node: the dock is where that sentence gets
+    // typed, so it opens and takes the caret.
+    private void HandlePromptRequested() => InvokeAsync(async () =>
+    {
+        if (Collapsed) await SetCollapsedAsync(false);
+        _focusComposer = true;
+        StateHasChanged();
+    });
 
     private async Task SendAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         _scrollLog = _logOpen;
-        await OnSend.InvokeAsync(text);
+        await OnSend.InvokeAsync(WithContext(text));
     }
+
+    // The one line that turns "make it a bar chart" into an instruction the model can patch with:
+    // the node id it needs for update_artifact, plus type and label so it does not have to guess
+    // which element the user meant. The chip stays afterwards — a follow-up almost always means
+    // the same element.
+    private string WithContext(string text) =>
+        Selection is { HasSelection: true, Id: { } id }
+            ? FormattableString.Invariant(
+                $"Regarding the artifact element \"{id}\" ({Selection.Type}, \"{Selection.Label}\"):\n{text}")
+            : text;
 
     private async Task SetCollapsedAsync(bool collapsed)
     {
@@ -207,6 +274,12 @@
             try { await JS.InvokeVoidAsync("dryl.chat.scrollToEnd", _logEl); }
             catch (JSDisconnectedException) { /* circuit gone */ }
             catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        if (_focusComposer && _composer is not null)
+        {
+            _focusComposer = false;
+            await _composer.FocusAsync();
         }
     }
 
@@ -252,6 +325,8 @@
 
     private const string CollapseLabel = "Collapse assistant";
 
+    private const string ClearContextLabel = "Clear context";
+
     // "manual": the dock owns its own collapse; a light-dismissing popover would vanish behind
     // the component's back on the first click elsewhere on the page.
     private string? PopoverMode => _topLayer ? "manual" : null;
@@ -278,6 +353,12 @@
     public async ValueTask DisposeAsync()
     {
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+
+        if (_subscribedSelection is not null)
+        {
+            _subscribedSelection.OnChange -= HandleChange;
+            _subscribedSelection.OnPromptRequested -= HandlePromptRequested;
+        }
 
         if (_shown)
         {
