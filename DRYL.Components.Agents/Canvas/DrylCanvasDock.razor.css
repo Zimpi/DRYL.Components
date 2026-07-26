@@ -128,3 +128,26 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* Host controls sit next to the status line and never shrink; the status yields instead
+   (it already truncates, see .dock-status above). */
+.dock-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    flex: 0 0 auto;
+}
+
+/* One scrollable row of prompt chips — it scrolls in itself so the dock never grows sideways. */
+.dock-suggestions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: var(--sp-1);
+}
+
+.dock-suggestions::-webkit-scrollbar {
+    display: none;
+}

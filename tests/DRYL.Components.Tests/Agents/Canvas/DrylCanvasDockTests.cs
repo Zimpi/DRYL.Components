@@ -148,4 +148,31 @@ public class DrylCanvasDockTests : BunitContext
 
         Assert.Contains("canvas-dock--tl", cut.Find(".canvas-dock").GetAttribute("class"));
     }
+
+    [Fact]
+    public void Host_actions_render_in_the_head()
+    {
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Actions,
+            (RenderFragment)(b => b.AddMarkupContent(0, "<button id=\"stop\">Stop</button>"))));
+
+        Assert.NotNull(cut.Find(".dock-head #stop"));
+    }
+
+    [Fact]
+    public void Suggestions_render_above_the_composer()
+    {
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Suggestions,
+            (RenderFragment)(b => b.AddMarkupContent(0, "<button id=\"chip\">Kennzahlen</button>"))));
+
+        Assert.NotNull(cut.Find(".dock-suggestions #chip"));
+    }
+
+    [Fact]
+    public void Without_the_slots_the_dock_grows_no_containers()
+    {
+        var cut = Render<DrylCanvasDock>();
+
+        Assert.Empty(cut.FindAll(".dock-actions"));
+        Assert.Empty(cut.FindAll(".dock-suggestions"));
+    }
 }

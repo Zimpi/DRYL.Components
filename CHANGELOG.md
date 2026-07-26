@@ -14,9 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.18.0] — 2026-07-26
+
+Zwei Lücken, die beim Bau einer echten Steuerzentrale auffielen: ein Formular konnte keinen Langtext aufnehmen, und das Dock gehörte ausschließlich sich selbst.
+
 ### Added
 - `DrylCanvas` — New catalog node type `textarea`: the multi-line sibling of `inputText`, with `rows` (2..20, default 4). A form in an artifact can now hold a Markdown body or a long description instead of squeezing it into a single line.
 - `CanvasPrompt.SchemaText` (Agents 0.15.0) — One line for the new `textarea` type, plus the guidance that decides which of the two a generation reaches for.
+- `DrylCanvasDock` (Agents 0.15.0) — New `Actions` slot: host controls in the dock head, left of the log toggle. The dock brought stop and reset for nobody, so every host that wanted them had to put them somewhere else on the page — which is exactly the chrome the dock exists to remove.
+- `DrylCanvasDock` (Agents 0.15.0) — New `Suggestions` slot above the composer, for ready-made prompt chips. On a workspace page there is no empty state left to carry them.
 
 ## [2.17.1] — 2026-07-26
 

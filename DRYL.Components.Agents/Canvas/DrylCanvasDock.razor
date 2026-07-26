@@ -54,6 +54,13 @@
                     </DrylPresence>
                 </div>
 
+                @*  Host controls: the dock owns the status, the log and its own collapse — everything
+                    else is the host's business and lives here. *@
+                @if (Actions is not null)
+                {
+                    <div class="dock-actions">@Actions</div>
+                }
+
                 @if (Log is not null)
                 {
                     <DrylTooltip Text="@LogLabel">
@@ -111,6 +118,12 @@
                 </div>
             </DrylPresence>
 
+            @*  Suggestions arrive and leave with a movement, like every other row of the dock. *@
+            <DrylPresence Visible="@(Suggestions is not null)"
+                          Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+                <div class="dock-suggestions">@Suggestions</div>
+            </DrylPresence>
+
             <DrylChatComposer @ref="_composer"
                               @bind-Value="_draft"
                               OnSend="SendAsync"
@@ -143,6 +156,15 @@
 
     /// <summary>The transcript, revealed on demand. Without it the dock offers no disclosure.</summary>
     [Parameter] public RenderFragment? Log { get; set; }
+
+    /// <summary>Host controls in the dock head, left of the log toggle — stop, reset, save, whatever
+    /// the dock itself does not own. Icon-only buttons need a <c>DrylTooltip</c> and an
+    /// <c>AriaLabel</c>. Keep it to two or three: the status line yields space, but it does not vanish.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    /// <summary>Prompt suggestions above the composer — typically small ghost buttons that send a
+    /// ready-made prompt. Scrolls horizontally rather than widening the dock.</summary>
+    [Parameter] public RenderFragment? Suggestions { get; set; }
 
     /// <summary>
     /// The canvas's selection. With it the dock shows a context chip for the selected element and

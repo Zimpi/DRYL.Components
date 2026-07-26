@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../DRYL.Website"
+		},
+		{
+			"path": "../DRYL.Portfolio"
 		}
 	],
 	"settings": {}
