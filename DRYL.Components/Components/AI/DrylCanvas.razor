@@ -201,6 +201,7 @@
 
     private CanvasSelection? _subscribedSelection;
     private string? _selectionAnnouncement;
+    private bool _reorderAttached;
 
     // Per-instance view-transition-name. Must be document-globally unique while in the DOM:
     // a duplicate name voids the entire transition, so two canvases on one page each get
@@ -235,7 +236,7 @@
         // Direct manipulation: the canvas is the only place that sees the whole tree, so it is
         // the only place that can turn "one step up" or "duplicate this" into a node.
         _ctx.Navigate = Navigate;
-        _ctx.Command = RunCommandAsync;
+        _ctx.Command = (id, command) => RunCommandAsync(id, command);
 
         // Actions are optional in exactly the way data sources are: without a registration a
         // button falls back to its intent and nothing about today's behaviour changes.
@@ -330,7 +331,7 @@
 
     // Every structural change is one CanvasOp through the one patcher — that is what makes the
     // presence, FLIP and pulse layers animate a user edit exactly like an AI edit (A8).
-    private async Task RunCommandAsync(string id, CanvasNodeCommand command)
+    private async Task RunCommandAsync(string id, CanvasNodeCommand command, int? targetIndex = null)
     {
         if (Spec?.Root is not { } root || Selection is null) return;
         var node = CanvasTree.Find(root, id);
@@ -342,7 +343,7 @@
             CanvasNodeCommand.TogglePin => TogglePin(node),
             CanvasNodeCommand.Duplicate => Duplicate(root, node),
             CanvasNodeCommand.Remove => Remove(node),
-            _ => Reorder(root, node, command == CanvasNodeCommand.MoveUp ? -1 : 1),
+            _ => Reorder(root, node, command == CanvasNodeCommand.MoveUp ? -1 : 1, targetIndex),
         };
         if (!done) return;
 
@@ -498,6 +499,13 @@
             _selfRef = DotNetObjectReference.Create(this);
             _widthModule = await JS.InvokeAsync<IJSObjectReference>("import", WidthModulePath);
             await _widthModule.InvokeVoidAsync("observe", _bodyEl, _selfRef);
+
+            // Reorder is opt-in with the selection: a canvas nobody may edit needs no gesture.
+            if (Selection is not null)
+            {
+                await _widthModule.InvokeVoidAsync("initReorder", _bodyEl, _selfRef);
+                _reorderAttached = true;
+            }
         }
         catch (JSDisconnectedException) { /* circuit gone */ }
         catch (InvalidOperationException) { /* prerender — no JS */ }
@@ -507,6 +515,26 @@
     /// Not part of the component's supported API.</summary>
     [JSInvokable]
     public void OnWidthMeasured(int width) => OnWidthChanged?.Invoke(width);
+
+    /// <summary>JS bridge: the reorder gesture dropped node <paramref name="id"/> at
+    /// <paramref name="index"/> among its siblings. Not part of the component's supported API.</summary>
+    /// <param name="id">The dragged node's id.</param>
+    /// <param name="index">Its new index among its siblings.</param>
+    [JSInvokable]
+    public async Task OnNodeReorder(string id, int index)
+    {
+        if (Spec?.Root is not { } root) return;
+        var node = CanvasTree.Find(root, id);
+        var parent = CanvasTree.FindParent(root, id);
+        if (node is null || parent?.Children is null) return;
+        if (node.Locked || parent.Locked) return;
+
+        var current = parent.Children.IndexOf(node);
+        if (index == current || index < 0 || index >= parent.Children.Count) return;
+
+        await RunCommandAsync(
+            id, index < current ? CanvasNodeCommand.MoveUp : CanvasNodeCommand.MoveDown, index);
+    }
 
     private Task RefreshAsync() => _binder?.RefreshAllAsync() ?? Task.CompletedTask;
 
@@ -573,6 +601,7 @@
         {
             try
             {
+                if (_reorderAttached) await _widthModule.InvokeVoidAsync("disposeReorder", _bodyEl);
                 await _widthModule.InvokeVoidAsync("unobserve", _bodyEl);
                 await _widthModule.DisposeAsync();
             }

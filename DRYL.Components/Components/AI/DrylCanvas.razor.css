@@ -278,3 +278,34 @@
 
 /* …except while the toolbar is up, which carries the pin state on its own button. */
 ::deep .canvas-node.is-selected .canvas-node-pin { opacity: 0; }
+
+/* The dragged node lifts off its surface and follows the pointer (transform only — no layout
+   thrash, no re-render). The glide back into the grid is the FLIP layer's job. */
+::deep .canvas-node.is-dragging {
+    box-shadow: var(--shadow-lg);
+    opacity: .9;
+    z-index: 3;
+    cursor: grabbing;
+}
+
+::deep [data-drag-handle] {
+    cursor: grab;
+    touch-action: none;
+}
+
+/* The insertion marker is drawn, never inserted — JS only sets the attribute, so the DOM
+   Blazor owns is never touched from the outside. */
+::deep .canvas-node[data-drop-before]::before,
+::deep .canvas-node[data-drop-after]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: var(--r-pill);
+    background: var(--accent-line);
+    box-shadow: var(--glow-accent);
+}
+
+::deep .canvas-node[data-drop-before]::before { top: calc(var(--sp-1) * -1); }
+::deep .canvas-node[data-drop-after]::after { bottom: calc(var(--sp-1) * -1); }

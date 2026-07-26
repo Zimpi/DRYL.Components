@@ -86,6 +86,18 @@
                             <DrylIcon Name="Trash" Size="14" />
                         </DrylButton>
                     </DrylTooltip>
+                    @if (HasSiblings)
+                    {
+                        <DrylTooltip Text="Reorder element">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                        Size="DrylButton.ButtonSize.Small"
+                                        AriaLabel="Reorder element"
+                                        Disabled="Node.Locked"
+                                        data-drag-handle="">
+                                <DrylIcon Name="GripVertical" Size="14" />
+                            </DrylButton>
+                        </DrylTooltip>
+                    }
                 </div>
             </DrylPresence>
         }
@@ -538,6 +550,10 @@
     /// artifact, not an element inside it, so it is never selectable.</summary>
     [Parameter] public bool IsRoot { get; set; }
 
+    /// <summary>Set by the parent view: a node without siblings has nothing to reorder against,
+    /// so it is offered no drag handle.</summary>
+    [Parameter] public bool HasSiblings { get; set; }
+
     /// <summary>Everything this canvas shares with its nodes (form state, pulse tracker,
     /// data binder, intent callback) — one <c>IsFixed</c> cascade from <c>DrylCanvas</c>.</summary>
     [CascadingParameter] internal CanvasContext Ctx { get; set; } = default!;
@@ -688,8 +704,15 @@
 
         switch (e.Key)
         {
-            case "ArrowUp": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Previous); break;
-            case "ArrowDown": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Next); break;
+            // Alt turns the walk into a move — the keyboard twin of the drag handle.
+            case "ArrowUp":
+                if (e.AltKey) _ = RunCommand(CanvasNodeCommand.MoveUp);
+                else Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Previous);
+                break;
+            case "ArrowDown":
+                if (e.AltKey) _ = RunCommand(CanvasNodeCommand.MoveDown);
+                else Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Next);
+                break;
             case "ArrowLeft": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Parent); break;
             case "ArrowRight": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.FirstChild); break;
             case "Home": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.First); break;
@@ -870,12 +893,15 @@
 
     private RenderFragment RenderChildren => builder =>
     {
+        var children = Node.Children;
+        var hasSiblings = children is { Count: > 1 };
         var i = 0;
-        foreach (var child in Node.Children ?? Enumerable.Empty<CanvasNode>())
+        foreach (var child in children ?? Enumerable.Empty<CanvasNode>())
         {
             builder.OpenComponent<CanvasNodeView>(i++);
             builder.SetKey(child.Id);
             builder.AddComponentParameter(1, nameof(Node), child);
+            builder.AddComponentParameter(2, nameof(HasSiblings), hasSiblings);
             builder.CloseComponent();
         }
     };
