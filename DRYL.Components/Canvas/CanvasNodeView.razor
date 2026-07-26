@@ -35,6 +35,60 @@
          @onclick="SelectSelf" @onclick:stopPropagation="Selectable"
          @onfocus="() => _focused = true" @onblur="() => _focused = false"
          @onkeydown="OnNodeKeyDown" @onkeydown:preventDefault="OwnsKeys">
+        @if (Selectable && Node.Locked)
+        {
+            @*  A pinned node says so even while nothing is selected. The state is already in the
+                wrapper's aria-label, so the mark itself is decoration. *@
+            <span class="canvas-node-pin" aria-hidden="true">
+                <DrylIcon Name="Lock" Size="12" />
+            </span>
+        }
+        @if (Selectable)
+        {
+            <DrylPresence Visible="IsSelected" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
+                @*  The toolbar sits inside the node it acts on, so its clicks would bubble into
+                    the wrapper's own select handler and re-select this node AFTER a command
+                    already moved the selection (a duplicate selects the copy, a remove clears). *@
+                <div class="canvas-node-tools glass-card"
+                     @onclick="() => { }" @onclick:stopPropagation="true">
+                    <DrylTooltip Text="Prompt about this element">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="Prompt about this element"
+                                    OnClick="@(() => Ctx.Selection!.RequestPrompt())">
+                            <DrylIcon Name="Sparkle" Size="14" />
+                        </DrylButton>
+                    </DrylTooltip>
+                    <DrylTooltip Text="@PinLabel">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="@PinLabel"
+                                    Pressed="Node.Locked"
+                                    OnClick="@(_ => RunCommand(CanvasNodeCommand.TogglePin))">
+                            <DrylIcon Name="Lock" Size="14" />
+                        </DrylButton>
+                    </DrylTooltip>
+                    <DrylTooltip Text="Duplicate element">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="Duplicate element"
+                                    Disabled="Node.Locked"
+                                    OnClick="@(_ => RunCommand(CanvasNodeCommand.Duplicate))">
+                            <DrylIcon Name="Copy" Size="14" />
+                        </DrylButton>
+                    </DrylTooltip>
+                    <DrylTooltip Text="Remove element">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Danger"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="Remove element"
+                                    Disabled="Node.Locked"
+                                    OnClick="@(_ => RunCommand(CanvasNodeCommand.Remove))">
+                            <DrylIcon Name="Trash" Size="14" />
+                        </DrylButton>
+                    </DrylTooltip>
+                </div>
+            </DrylPresence>
+        }
         @if (_pulseKey > 0)
         {
             @*  Change-pulse: a setProps has no motion of its own, so the node flashes an
@@ -622,6 +676,11 @@
         Ctx.Selection!.Select(Node);
     }
 
+    private string PinLabel => Node.Locked ? "Unpin element" : "Pin element";
+
+    private Task RunCommand(CanvasNodeCommand command) =>
+        Ctx.Command?.Invoke(Node.Id, command) ?? Task.CompletedTask;
+
     private void OnNodeKeyDown(KeyboardEventArgs e)
     {
         if (!OwnsKeys) return;
@@ -635,6 +694,9 @@
             case "ArrowRight": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.FirstChild); break;
             case "Home": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.First); break;
             case "End": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Last); break;
+            case "Delete" or "Backspace":
+                if (!Node.Locked) _ = RunCommand(CanvasNodeCommand.Remove);
+                break;
             case "Enter": selection.RequestPrompt(); break;
             case "Escape": selection.Clear(); break;
         }

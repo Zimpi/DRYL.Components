@@ -250,3 +250,31 @@
 @media (prefers-reduced-motion: reduce) {
     ::deep .canvas-node.is-selected { transition: none; }
 }
+
+/* The toolbar sits on the node's top-right corner and comes and goes with a scale presence —
+   it is chrome, so it never takes space in the node's own layout. */
+::deep .canvas-node-tools {
+    position: absolute;
+    top: calc(var(--sp-1) * -1);
+    right: calc(var(--sp-1) * -1);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: var(--sp-1);
+    border-radius: var(--r-pill);
+}
+
+/* A pinned node says so even while nothing is selected. */
+::deep .canvas-node-pin {
+    position: absolute;
+    top: var(--sp-1);
+    right: var(--sp-1);
+    z-index: 1;
+    display: inline-flex;
+    color: var(--fg-dim);
+    pointer-events: none;
+}
+
+/* …except while the toolbar is up, which carries the pin state on its own button. */
+::deep .canvas-node.is-selected .canvas-node-pin { opacity: 0; }

@@ -138,6 +138,13 @@
     /// host's own logging or reactions.</summary>
     [Parameter] public EventCallback<CanvasActionOutcome> OnAction { get; set; }
 
+    /// <summary>
+    /// Raised after every completed direct manipulation — pin, duplicate, remove, reorder. Bump
+    /// your workspace's <c>Revision</c> and set <c>RevisionLabel</c> from
+    /// <see cref="CanvasEdit.Label"/> to make the user's own change a version like an AI round.
+    /// </summary>
+    [Parameter] public EventCallback<CanvasEdit> OnEdit { get; set; }
+
     /// <summary>Raised with a node id once its exit animation finished — the owner of the spec
     /// drops it from the tree (see <c>DrylCanvasRun.Purge</c>).</summary>
     [Parameter] public EventCallback<string> OnPurge { get; set; }
@@ -207,7 +214,10 @@
 
     protected override void OnInitialized()
     {
-        _ctx.Purge = id => OnPurge.InvokeAsync(id);
+        // Without a host that owns the spec (a plain DrylCanvas fed from code or a document),
+        // nobody would ever drop the node and it would linger as an invisible, Removing-flagged
+        // element. Purge it ourselves.
+        _ctx.Purge = id => OnPurge.HasDelegate ? OnPurge.InvokeAsync(id) : PurgeSelf(id);
         // The binder is optional: without a registered source there is nothing to bind, and a
         // host that never called AddDrylComponents must still be able to render a spec.
         var data = Services.GetService(typeof(ICanvasDataService)) as ICanvasDataService;
@@ -225,6 +235,7 @@
         // Direct manipulation: the canvas is the only place that sees the whole tree, so it is
         // the only place that can turn "one step up" or "duplicate this" into a node.
         _ctx.Navigate = Navigate;
+        _ctx.Command = RunCommandAsync;
 
         // Actions are optional in exactly the way data sources are: without a registration a
         // button falls back to its intent and nothing about today's behaviour changes.
@@ -316,6 +327,119 @@
         Selection.Select(target, focus: true);
         return true;
     }
+
+    // Every structural change is one CanvasOp through the one patcher — that is what makes the
+    // presence, FLIP and pulse layers animate a user edit exactly like an AI edit (A8).
+    private async Task RunCommandAsync(string id, CanvasNodeCommand command)
+    {
+        if (Spec?.Root is not { } root || Selection is null) return;
+        var node = CanvasTree.Find(root, id);
+        if (node is null) return;
+
+        var label = CanvasLabel.For(node);
+        var done = command switch
+        {
+            CanvasNodeCommand.TogglePin => TogglePin(node),
+            CanvasNodeCommand.Duplicate => Duplicate(root, node),
+            CanvasNodeCommand.Remove => Remove(node),
+            _ => Reorder(root, node, command == CanvasNodeCommand.MoveUp ? -1 : 1),
+        };
+        if (!done) return;
+
+        _selectionAnnouncement = command switch
+        {
+            CanvasNodeCommand.TogglePin => node.Locked ? $"{label} pinned." : $"{label} unpinned.",
+            CanvasNodeCommand.Duplicate => $"{label} duplicated.",
+            CanvasNodeCommand.Remove => $"{label} removed.",
+            _ => PositionAnnouncement(root, node, label),
+        };
+
+        StateHasChanged();
+        await OnEdit.InvokeAsync(new CanvasEdit(id, command, EditLabel(command, label)));
+    }
+
+    private static string EditLabel(CanvasNodeCommand command, string label) => command switch
+    {
+        CanvasNodeCommand.TogglePin => $"Pinned {label}",
+        CanvasNodeCommand.Duplicate => $"Duplicated {label}",
+        CanvasNodeCommand.Remove => $"Removed {label}",
+        _ => $"Moved {label}",
+    };
+
+    // The pin is metadata, not content: it never goes through the patcher and never pulses.
+    // The movement the user sees is the toolbar button changing state.
+    private bool TogglePin(CanvasNode node)
+    {
+        node.Locked = !node.Locked;
+        node.Version++;
+        Selection!.Select(node);
+        return true;
+    }
+
+    private bool Duplicate(CanvasNode root, CanvasNode node)
+    {
+        var parent = CanvasTree.FindParent(root, node.Id);
+        if (parent?.Children is null || node.Locked) return false;
+
+        var copy = CanvasNodeClone.Duplicate(node, CanvasTree.CollectIds(root));
+        var index = parent.Children.IndexOf(node) + 1;
+        if (_ctx.Patch!(new CanvasOp
+        {
+            Op = "insert", Parent = parent.Id, Index = index, Node = copy,
+        }) is not null) return false;
+
+        Selection!.Select(copy);
+        return true;
+    }
+
+    private bool Remove(CanvasNode node)
+    {
+        if (node.Locked) return false;
+        if (_ctx.Patch!(new CanvasOp { Op = "remove", Id = node.Id }) is not null) return false;
+
+        Selection!.Clear();
+        return true;
+    }
+
+    // One slot up or down among the siblings, or straight to targetIndex when a drop named one.
+    private bool Reorder(CanvasNode root, CanvasNode node, int delta, int? targetIndex = null)
+    {
+        var parent = CanvasTree.FindParent(root, node.Id);
+        if (parent?.Children is null || node.Locked || parent.Locked) return false;
+
+        var index = targetIndex ?? parent.Children.IndexOf(node) + delta;
+        if (index < 0 || index >= parent.Children.Count) return false;
+
+        return _ctx.Patch!(new CanvasOp
+        {
+            Op = "move", Id = node.Id, Parent = parent.Id, Index = index,
+        }) is null;
+    }
+
+    private static string PositionAnnouncement(CanvasNode root, CanvasNode node, string label)
+    {
+        var siblings = CanvasTree.FindParent(root, node.Id)?.Children;
+        if (siblings is null) return $"{label} moved.";
+        return FormattableString.Invariant(
+            $"{label} moved to position {siblings.IndexOf(node) + 1} of {siblings.Count}.");
+    }
+
+    private Task PurgeSelf(string id)
+    {
+        if (Spec?.Root is not { } root) return Task.CompletedTask;
+        var parent = CanvasTree.FindParent(root, id);
+        var node = parent?.Children?.FirstOrDefault(c => c.Id == id);
+        if (parent?.Children is null || node is null) return Task.CompletedTask;
+
+        parent.Children.Remove(node);
+        parent.Version++;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Test seam: bUnit never plays the exit transition that would call
+    /// <c>DrylPresence.OnExited</c>, so a test drives the purge directly.</summary>
+    internal Task PurgeForTest(string id) => _ctx.Purge!(id);
 
     private static CanvasNode? Sibling(CanvasNode root, CanvasNode node, CanvasNav direction)
     {
