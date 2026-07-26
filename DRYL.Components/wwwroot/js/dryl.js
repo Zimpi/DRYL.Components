@@ -790,9 +790,21 @@ window.dryl.chat = (() => {
         if (el) el.scrollTop = el.scrollHeight;
     }
 
+    // A hidden element has no layout: scrollHeight is 0. Writing that back would pin the
+    // textarea to zero height and it would stay there until the first keystroke — which is
+    // exactly what a composer inside a not-yet-shown popover or a collapsed panel does on
+    // attach. Leave the CSS height untouched instead (rows="1" is the right fallback) and
+    // report back that the measurement did not happen.
     function autoGrow(el) {
+        const prev = el.style.height;
         el.style.height = 'auto';
-        el.style.height = el.scrollHeight + 'px';
+        const h = el.scrollHeight;
+        if (h > 0) {
+            el.style.height = h + 'px';
+            return true;
+        }
+        el.style.height = prev;
+        return false;
     }
 
     function attachComposer(el, dotnetRef) {
@@ -809,8 +821,20 @@ window.dryl.chat = (() => {
 
         el.addEventListener('keydown', onKeyDown);
         el.addEventListener('input', onInput);
-        _map.set(el, { onKeyDown, onInput });
-        autoGrow(el);
+        const handlers = { onKeyDown, onInput, observer: null };
+        _map.set(el, handlers);
+
+        // Attached while hidden — measure once the host reveals it, so a pre-filled draft
+        // still gets its real height without waiting for a keystroke.
+        if (!autoGrow(el) && typeof ResizeObserver !== 'undefined') {
+            handlers.observer = new ResizeObserver(() => {
+                if (autoGrow(el)) {
+                    handlers.observer.disconnect();
+                    handlers.observer = null;
+                }
+            });
+            handlers.observer.observe(el);
+        }
     }
 
     function detachComposer(el) {
@@ -819,6 +843,7 @@ window.dryl.chat = (() => {
         if (!h) return;
         el.removeEventListener('keydown', h.onKeyDown);
         el.removeEventListener('input', h.onInput);
+        if (h.observer) h.observer.disconnect();
         _map.delete(el);
     }
 

@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.16.1] — 2026-07-26
+
+### Fixed
+- `DrylChatComposer` — The textarea collapsed to zero height when the composer was attached inside a host that was still hidden (a `DrylCanvasDock` before its popover is shown): the auto-grow measurement read a `scrollHeight` of `0` and pinned that height until the first keystroke. The measurement is now ignored while the element has no layout, and re-run once the host reveals it.
+
 ## [2.16.0] — 2026-07-26
 
 Canvas Platform, phase 5 — **Document**. A workspace that only lives in memory is a demo, not an application. A canvas document now serializes the whole workspace — every named view, its artifact, and which one was open — so a dashboard survives a reload, a user switch and a deployment. And because the canvas has no op log (patches mutate in place, a fresh generation replaces the tree), the version history is a snapshot ring per view: undo, redo, and "back to version N", each one morphing through the same view-transition layer a view switch uses. Persistence itself stays yours — DRYL ships the contract and an in-memory implementation and no database code at all.

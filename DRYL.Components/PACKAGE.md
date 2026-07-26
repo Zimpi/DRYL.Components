@@ -18,7 +18,7 @@
 
 | Aurora Glow Cards | Live Token Streaming | Agentic Tool Calls |
 | :---: | :---: | :---: |
-| ![DRYL — Cards Aurora Glow](docs/gifs/drylcards.gif) | ![DRYL — Chat Streaming](docs/gifs/drylchat.gif) | ![DRYL — Function Call](docs/gifs/drylfunctioncall.gif) |
+| ![DRYL — Cards Aurora Glow](https://raw.githubusercontent.com/Zimpi/DRYL.Components/main/docs/gifs/drylcards.gif) | ![DRYL — Chat Streaming](https://raw.githubusercontent.com/Zimpi/DRYL.Components/main/docs/gifs/drylchat.gif) | ![DRYL — Function Call](https://raw.githubusercontent.com/Zimpi/DRYL.Components/main/docs/gifs/drylfunctioncall.gif) |
 | Responsive card layouts with AI-driven gradient borders and breathing glow effects | Real-time token streaming with animated content updates and live AI indicators | Tool-call chains with animated state transitions and contextual feedback |
 
 ---
