@@ -14,6 +14,10 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DrylCanvas` — New catalog node type `textarea`: the multi-line sibling of `inputText`, with `rows` (2..20, default 4). A form in an artifact can now hold a Markdown body or a long description instead of squeezing it into a single line.
+- `CanvasPrompt.SchemaText` (Agents 0.15.0) — One line for the new `textarea` type, plus the guidance that decides which of the two a generation reaches for.
+
 ## [2.17.1] — 2026-07-26
 
 Sidequest R — **Responsive**. Ein Artefakt weiß jetzt, wie breit es wirklich ist: der Canvas-Body ist ein Container-Kontext, kein Widget rechnet mehr mit dem Viewport, und das Donut-Rad passt sich seinem Platz an statt ihn zu überlaufen.

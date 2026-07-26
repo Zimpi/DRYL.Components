@@ -193,13 +193,26 @@ public class CanvasCatalogTests
     [Fact] public void DonutChart_invalid_is_delegated() =>
         Assert.NotNull(CanvasCatalog.Validate(Node("donutChart", """{ "segments": [] }""")));
 
-    // ---- inputText / select / slider / toggle ----
+    // ---- inputText / textarea / select / slider / toggle ----
 
     [Fact] public void InputText_valid_passes() =>
         Assert.Null(CanvasCatalog.Validate(Node("inputText", """{ "name": "email", "label": "Email" }""")));
 
     [Fact] public void InputText_without_name_is_rejected() =>
         Assert.NotNull(CanvasCatalog.Validate(Node("inputText", """{ "label": "Email" }""")));
+
+    [Fact] public void Textarea_valid_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("textarea", """{ "name": "body", "label": "About", "rows": 8 }""")));
+
+    [Fact] public void Textarea_without_rows_passes() =>
+        Assert.Null(CanvasCatalog.Validate(Node("textarea", """{ "name": "body", "label": "About" }""")));
+
+    [Fact] public void Textarea_without_name_is_rejected() =>
+        Assert.NotNull(CanvasCatalog.Validate(Node("textarea", """{ "label": "About" }""")));
+
+    [Fact] public void Textarea_with_rows_out_of_range_is_rejected() =>
+        Assert.Contains("rows", CanvasCatalog.Validate(
+            Node("textarea", """{ "name": "body", "label": "About", "rows": 40 }"""))!);
 
     [Fact] public void Select_valid_passes() =>
         Assert.Null(CanvasCatalog.Validate(Node("select",
@@ -414,6 +427,7 @@ public class CanvasCatalogTests
         Assert.False(CanvasCatalog.IsContainer("stat"));
         Assert.True(CanvasCatalog.IsInteractive("toggle"));
         Assert.True(CanvasCatalog.IsInteractive("inputText"));
+        Assert.True(CanvasCatalog.IsInteractive("textarea"));
         Assert.True(CanvasCatalog.IsInteractive("select"));
         Assert.True(CanvasCatalog.IsInteractive("slider"));
         Assert.False(CanvasCatalog.IsInteractive("button"));
@@ -425,7 +439,7 @@ public class CanvasCatalogTests
                  {
                      "stack", "grid", "card", "tabs", "divider", "markdown", "stat", "badge", "progress",
                      "table", "timeline", "lineChart", "areaChart", "barChart", "donutChart",
-                     "inputText", "select", "slider", "toggle", "button",
+                     "inputText", "textarea", "select", "slider", "toggle", "button",
                  })
             Assert.True(CanvasCatalog.IsKnownType(type), $"'{type}' should be known");
 

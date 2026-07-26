@@ -32,6 +32,7 @@ internal static class CanvasPrompt
         - lineChart|areaChart|barChart { "title": string?, "labels": string[], "series": [{ "name": string, "data": number[] }], "valueFormat": string? } — one value per label. "valueFormat" is a display template: put {value} where the number goes, e.g. "€{value} Tsd" or "{value}%".
         - donutChart { "title": string?, "segments": [{ "label": string, "value": number }], "valueFormat": string? } — max 6 segments. Same {value} display template for "valueFormat".
         - inputText { "name": string, "label": string, "placeholder": string?, "value": string? }
+        - textarea { "name": string, "label": string, "placeholder": string?, "value": string?, "rows": number? } — multi-line text (Markdown, long descriptions). "rows" is 2..20, default 4. Use inputText for a single line.
         - select { "name": string, "label": string, "options": string[], "value": string? }
         - slider { "name": string, "label": string, "min": number, "max": number, "step": number?, "value": number? }
         - toggle { "name": string, "label": string, "value": boolean? }
@@ -47,7 +48,7 @@ internal static class CanvasPrompt
         - code { "code": string, "language": string?, "lineNumbers": boolean? } — read-only source block.
         - emptyState { "title": string, "description": string?, "icon": string? } — for a "nothing here yet" view instead of empty markdown.
         Any node may carry "locked": true — the user pinned it. Never change, move or remove a pinned node, and add nothing to it.
-        Interactive nodes (inputText/select/slider/toggle) each need a unique "name".
+        Interactive nodes (inputText/textarea/select/slider/toggle) each need a unique "name".
         Prefer charts and stats over prose for numbers. Keep the artifact focused.
         """;
 

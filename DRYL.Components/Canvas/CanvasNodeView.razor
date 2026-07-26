@@ -467,6 +467,18 @@
                     break;
                 }
 
+                case "textarea":
+                {
+                    var p = Props<TextareaNodeProps>();
+                    var name = p!.Name!;
+                    <DrylTextarea Label="@p.Label" Placeholder="@p.Placeholder"
+                                  Rows="@(p.Rows ?? 4)"
+                                  Value="@(Ctx.Form.Get<string>(name))"
+                                  ValueChanged="@(v => { Ctx.Form.Set(name, v); FormScope?.Clear(name); })" />
+                    @RequiredHint(name)
+                    break;
+                }
+
                 case "select":
                 {
                     var p = Props<SelectNodeProps>();
@@ -854,6 +866,9 @@
         {
             case "inputText":
                 if (Props<InputTextNodeProps>() is { Name: { } tn, Value: { } tv }) Seed(tn, tv);
+                break;
+            case "textarea":
+                if (Props<TextareaNodeProps>() is { Name: { } an, Value: { } av }) Seed(an, av);
                 break;
             case "select":
                 if (Props<SelectNodeProps>() is { Name: { } sn, Value: { } sv }) Seed(sn, sv);

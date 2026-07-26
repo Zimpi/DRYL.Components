@@ -181,4 +181,26 @@ public class CanvasCatalogRenderTests : BunitContext
             """);
         Assert.Contains("Noch keine Aufträge", cut.Markup);
     }
+
+    [Fact]
+    public void Textarea_renders_label_rows_and_seeded_value()
+    {
+        var cut = RenderSpec("""
+            {"id":"t","type":"textarea","props":{
+                "name":"body","label":"Über mich","rows":8,"value":"Hallo"}}
+            """);
+        var textarea = cut.Find("textarea");
+        Assert.Equal("8", textarea.GetAttribute("rows"));
+        Assert.Equal("Hallo", textarea.GetAttribute("value"));
+        Assert.Contains("Über mich", cut.Markup);
+    }
+
+    [Fact]
+    public void Textarea_without_rows_falls_back_to_the_default()
+    {
+        var cut = RenderSpec("""
+            {"id":"t","type":"textarea","props":{"name":"body","label":"Notiz"}}
+            """);
+        Assert.Equal("4", cut.Find("textarea").GetAttribute("rows"));
+    }
 }

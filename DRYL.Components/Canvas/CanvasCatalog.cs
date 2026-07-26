@@ -16,14 +16,14 @@ public static class CanvasCatalog
 
     private static readonly HashSet<string> InteractiveTypes = new(StringComparer.Ordinal)
     {
-        "inputText", "select", "slider", "toggle",
+        "inputText", "textarea", "select", "slider", "toggle",
     };
 
     private static readonly HashSet<string> AllTypes = new(StringComparer.Ordinal)
     {
         "stack", "grid", "card", "tabs", "divider", "markdown", "stat", "badge", "progress", "table",
         "timeline", "lineChart", "areaChart", "barChart", "donutChart",
-        "inputText", "select", "slider", "toggle", "button",
+        "inputText", "textarea", "select", "slider", "toggle", "button",
         "kpi", "list", "keyValue", "image", "code", "emptyState", "accordion", "form", "dataGrid",
     };
 
@@ -37,7 +37,7 @@ public static class CanvasCatalog
     /// <summary>True when <paramref name="type"/> may host <c>Children</c> (<c>stack</c>, <c>grid</c>, <c>card</c>, <c>tabs</c>).</summary>
     public static bool IsContainer(string type) => ContainerTypes.Contains(type);
 
-    /// <summary>True when <paramref name="type"/> is a form control (<c>inputText</c>, <c>select</c>, <c>slider</c>, <c>toggle</c>).</summary>
+    /// <summary>True when <paramref name="type"/> is a form control (<c>inputText</c>, <c>textarea</c>, <c>select</c>, <c>slider</c>, <c>toggle</c>).</summary>
     public static bool IsInteractive(string type) => InteractiveTypes.Contains(type);
 
     /// <summary>Validates a single node's shape and props. Returns null when valid, otherwise a corrective, model-facing error sentence.</summary>
@@ -307,6 +307,17 @@ public static class CanvasCatalog
             {
                 if (!TryProps<InputTextNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
                 return ValidateNameAndLabel(node, p!.Name, p.Label);
+            }
+
+            case "textarea":
+            {
+                if (!TryProps<TextareaNodeProps>(node, out var p)) return Err(node, "props are not valid JSON.");
+                var err = ValidateNameAndLabel(node, p!.Name, p.Label);
+                if (err is not null) return err;
+                // A null rows falls through: the renderer uses the DrylTextarea default.
+                if (p.Rows is < 2 or > 20)
+                    return Err(node, FormattableString.Invariant($"rows ({p.Rows}) must be between 2 and 20."));
+                return null;
             }
 
             case "select":
@@ -683,6 +694,25 @@ internal sealed class InputTextNodeProps
 
     /// <summary>Current field value.</summary>
     public string? Value { get; set; }
+}
+
+/// <summary>Props of the <c>textarea</c> control — the multi-line sibling of <c>inputText</c>.</summary>
+internal sealed class TextareaNodeProps
+{
+    /// <summary>Form field name used in interaction events.</summary>
+    public string? Name { get; set; }
+
+    /// <summary>Visible field label.</summary>
+    public string? Label { get; set; }
+
+    /// <summary>Optional placeholder text.</summary>
+    public string? Placeholder { get; set; }
+
+    /// <summary>Current field value.</summary>
+    public string? Value { get; set; }
+
+    /// <summary>Visible rows, 2..20. Null renders the <c>DrylTextarea</c> default of 4.</summary>
+    public int? Rows { get; set; }
 }
 
 /// <summary>Props of the <c>select</c> control.</summary>
