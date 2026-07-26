@@ -14,6 +14,30 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.17.0] — 2026-07-26
+
+Canvas Platform, phase 6 — **Direct Manipulation**. Describing a change is not always the shortest way to make one. Hand the canvas a `CanvasSelection` and its elements become pickable — by click or by keyboard, at the cost of exactly one tab stop for the whole artifact. The selected element carries a toolbar: prompt about it, pin it, duplicate it, remove it, drag it into another slot. A pin is an instruction to the AI author, not a freeze of the widget: the patcher refuses every AI op on a pinned node and hands the model a sentence saying why, while everything the user triggers — a data refresh, an action result, the toolbar itself — still goes through. And because every edit is one ordinary `CanvasOp`, the presence, FLIP and pulse layers animate a user's change exactly like the AI's: one op, one movement.
+
+With this the Agents package has everything it needs for 1.0.
+
+### Added
+- **`CanvasSelection`** — The selected node of one canvas surface, shared by the renderer and the prompt dock so the user can point at an element and then talk about it: `Select`, `Clear`, `RequestPrompt`, plus `Id`, `Type`, `Label`, `Locked`, `HasSelection`, `RovingId` and the `OnChange` / `OnPromptRequested` events. Ships with `CanvasNav`, `CanvasNodeCommand` and `CanvasEdit`.
+- `DrylCanvas` — New `Selection` parameter. Supplying one **is** the opt-in for direct manipulation; without it not a single attribute of the rendered markup changes. Nodes become clickable and keyboard-reachable (arrow keys walk the tree, `Home`/`End` jump, `Alt`+`↑`/`↓` reorders, `Enter` asks the dock, `Delete` removes, `Escape` deselects), the selected one shows an accent ring and a toolbar, and every selection change is announced through its own `aria-live` region.
+- `DrylCanvas` — New `OnEdit` callback (`CanvasEdit`) raised after every completed direct manipulation, carrying a ready-made history label — bump your workspace's `Revision` from it and a user's edit becomes a version exactly like an AI round.
+- **`CanvasNode.Locked`** (`"locked": true`) — A node the user pinned. `CanvasPatcher` refuses `setProps`, `remove` and `move` on it, plus `insert`/`move` into or out of it when it is a container, and returns a corrective model-facing reason; its descendants stay editable. The flag travels into a saved document without a schema change.
+- `CanvasPatcher.Apply` — New optional `CanvasPatchAuthor` parameter (`User` by default, `Ai` from the AI patch path) — pins bind the AI author only, so a data refresh and an action result the user triggered are never blocked.
+- **`CanvasLabel`** — Turns a node into the short, speakable name the toolbar, the dock's chip and every announcement all use for it.
+- **`CanvasNodeClone`** — Deep-copies a subtree for "duplicate" with fresh ids and fresh interactive field names, keeping data and action bindings; a copy starts unpinned.
+- `DrylChatComposer` — New `FocusAsync()` method.
+- `DrylAiCanvas` — New `Selection` and `OnEdit` parameters, forwarded to `DrylCanvas`.
+- `DrylCanvasDock` — New `Selection` parameter: a context chip naming the selected element above the input, and one reference line (`id`, type, label) prefixed onto every prompt so "make it a bar chart" patches the right node. "Prompt about this element" opens a collapsed dock and focuses its composer.
+
+### Changed
+- `CanvasPrompt` — The generator contract now documents `"locked": true` in both the schema and the update-op block, so the model skips a pinned node instead of being corrected after the fact.
+
+### Fixed
+- `DrylCanvas` — A removed node is now dropped from the spec even when the host handles no `OnPurge`; it used to linger forever as an invisible, removing-flagged element.
+
 ## [2.16.1] — 2026-07-26
 
 ### Fixed
