@@ -14,6 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.17.1] — 2026-07-26
+
+Sidequest R — **Responsive**. Ein Artefakt weiß jetzt, wie breit es wirklich ist: der Canvas-Body ist ein Container-Kontext, kein Widget rechnet mehr mit dem Viewport, und das Donut-Rad passt sich seinem Platz an statt ihn zu überlaufen.
+
+### Fixed
+- `DrylDonutChart` — Das Rad war immer so breit wie hoch (`Height`, Standard 260 px), unabhängig vom Slot, und lief in jedem schmaleren Container an beiden Seiten heraus (gemessen: 220 px Rad in einem 200-px-Slot, 10 px Überstand je Seite). Es nimmt jetzt `min(Höhe, verfügbare Breite)` — Segmente, Tooltip-Anker und Mitte skalieren mit.
+- `DrylCanvas` — Der Canvas-Body ist ein benannter Container-Kontext (`canvas`): die Nodes richten sich nach der Breite des Canvas, nicht nach der des Viewports — dieselbe Spec liegt einmal in einer schmalen Chat-Spalte und einen Morph später im Vollbild.
+- `DrylCanvas` — Kein seitliches Scrollen mehr: die auch im verborgenen Zustand gelayouteten Chart-Tooltips hatten die Scrollbreite des Body über seine Breite hinausgeschoben (330 zu 329 bei 375 px, 322 zu 318 in einem 320-px-Slot) und boten eine Scroll-Möglichkeit zu einer Blase, die der Canvas an seiner Kante ohnehin abschneidet. Ein Widget mit horizontalem Bedarf scrollt weiterhin in sich selbst.
+
 ## [2.17.0] — 2026-07-26
 
 Canvas Platform, phase 6 — **Direct Manipulation**. Describing a change is not always the shortest way to make one. Hand the canvas a `CanvasSelection` and its elements become pickable — by click or by keyboard, at the cost of exactly one tab stop for the whole artifact. The selected element carries a toolbar: prompt about it, pin it, duplicate it, remove it, drag it into another slot. A pin is an instruction to the AI author, not a freeze of the widget: the patcher refuses every AI op on a pinned node and hands the model a sentence saying why, while everything the user triggers — a data refresh, an action result, the toolbar itself — still goes through. And because every edit is one ordinary `CanvasOp`, the presence, FLIP and pulse layers animate a user's change exactly like the AI's: one op, one movement.

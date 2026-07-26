@@ -283,7 +283,7 @@ Ziel: Der Nutzer kann anfassen statt nur beschreiben.
 
 ### Sidequest R — Responsive
 
-**Agents PATCH · unabhängig, jederzeit**
+**Kern PATCH · unabhängig, jederzeit** (nach dem A1-Umzug liegen beide Bausteine im Kern)
 
 Der bereits geplante Rest aus der ursprünglichen Canvas-Roadmap: `.canvas-body` als
 Container-Kontext, Donut responsiv.
@@ -346,7 +346,7 @@ gleiche Namen voraussetzt.
 | 4 Katalog | → 2.15.0 | → 0.13.0 |
 | 5 Document | → 2.16.0 | — |
 | 6 Direct Manipulation | → 2.17.0 | → 0.14.0 |
-| R Responsive | — | PATCH, wann immer |
+| R Responsive | 2.17.0 → **2.17.1** | — |
 
 Nach Phase 6 hat das Agents-Paket alles, was es für **1.0.0** braucht — das ist der natürliche
 Schnitt.
