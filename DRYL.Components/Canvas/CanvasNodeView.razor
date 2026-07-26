@@ -1,6 +1,8 @@
 @namespace DRYL.Components.Canvas
 @using System.Text
 @using System.Text.Json
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -27,7 +29,12 @@
               Transition="PresenceTransition.SlideUp"
               Speed="PresenceSpeed.Slow"
               OnExited="PurgeSelf">
-    <div class="canvas-node" data-cid="@Node.Id">
+    <div class="@WrapperCss" data-cid="@Node.Id" @ref="_el"
+         tabindex="@TabIndex"
+         aria-label="@WrapperAriaLabel"
+         @onclick="SelectSelf" @onclick:stopPropagation="Selectable"
+         @onfocus="() => _focused = true" @onblur="() => _focused = false"
+         @onkeydown="OnNodeKeyDown" @onkeydown:preventDefault="OwnsKeys">
         @if (_pulseKey > 0)
         {
             @*  Change-pulse: a setProps has no motion of its own, so the node flashes an
@@ -473,6 +480,10 @@
     /// <summary>The node to render. Its <see cref="CanvasNode.Type"/> selects the mapped component.</summary>
     [Parameter, EditorRequired] public CanvasNode Node { get; set; } = default!;
 
+    /// <summary>True for the one node <c>DrylCanvas</c> renders itself: the artifact's root is the
+    /// artifact, not an element inside it, so it is never selectable.</summary>
+    [Parameter] public bool IsRoot { get; set; }
+
     /// <summary>Everything this canvas shares with its nodes (form state, pulse tracker,
     /// data binder, intent callback) — one <c>IsFixed</c> cascade from <c>DrylCanvas</c>.</summary>
     [CascadingParameter] internal CanvasContext Ctx { get; set; } = default!;
@@ -571,6 +582,76 @@
         SeedAccordionOnce();
         SyncFormScope();
         SyncPulse();
+    }
+
+    // ───── selection ─────
+
+    private ElementReference _el;
+    private bool _focused;
+    private int _seenFocusTick;
+
+    private bool Selectable => Ctx.Selection is not null && !IsRoot;
+
+    private bool IsSelected => Selectable && Ctx.Selection!.Id == Node.Id;
+
+    // Arrow keys are navigation only while this wrapper itself holds focus. `focus` does not
+    // bubble, so an input inside the node never sets this flag and keeps its own key handling —
+    // which is also why binding preventDefault to it is safe.
+    private bool OwnsKeys => Selectable && _focused;
+
+    // Roving tabindex: exactly one node in the tree is in the tab order, so a whole artifact
+    // costs one tab stop rather than one per element.
+    private string? TabIndex =>
+        !Selectable ? null : Ctx.Selection!.RovingId == Node.Id ? "0" : "-1";
+
+    private string WrapperCss => IsSelected ? "canvas-node is-selected" : "canvas-node";
+
+    private string? WrapperAriaLabel
+    {
+        get
+        {
+            if (!Selectable) return null;
+            var label = $"{CanvasLabel.For(Node)}, {Node.Type}";
+            return Node.Locked ? label + ", pinned" : label;
+        }
+    }
+
+    private void SelectSelf()
+    {
+        if (!Selectable) return;
+        Ctx.Selection!.Select(Node);
+    }
+
+    private void OnNodeKeyDown(KeyboardEventArgs e)
+    {
+        if (!OwnsKeys) return;
+        var selection = Ctx.Selection!;
+
+        switch (e.Key)
+        {
+            case "ArrowUp": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Previous); break;
+            case "ArrowDown": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Next); break;
+            case "ArrowLeft": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Parent); break;
+            case "ArrowRight": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.FirstChild); break;
+            case "Home": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.First); break;
+            case "End": Ctx.Navigate?.Invoke(Node.Id, CanvasNav.Last); break;
+            case "Enter": selection.RequestPrompt(); break;
+            case "Escape": selection.Clear(); break;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Keyboard navigation moved the selection here — the focus travels with it, so the next
+        // arrow key comes back to this wrapper. A click never bumps the tick: the browser has
+        // already put focus where the user pressed.
+        if (Ctx.Selection is not { } sel || sel.Id != Node.Id) return;
+        if (sel.FocusTick == _seenFocusTick) return;
+        _seenFocusTick = sel.FocusTick;
+
+        try { await _el.FocusAsync(); }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
     }
 
     /// <summary>A node that leaves the tree must not keep its key alive in the binder.</summary>

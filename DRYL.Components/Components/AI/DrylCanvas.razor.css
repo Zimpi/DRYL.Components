@@ -236,3 +236,17 @@
     color: var(--fg-dim);
     font-size: 12px;
 }
+
+/* ── Direct manipulation ─────────────────────────────────────────────────────
+   A selected node wears the same accent language as the change-pulse, only it
+   stays: a 1px accent ring plus the shared glow. Never a filled background —
+   the accent glows, it does not scream. */
+::deep .canvas-node.is-selected {
+    box-shadow: 0 0 0 1px var(--accent-line), var(--glow-accent);
+    border-radius: var(--r-lg);
+    transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::deep .canvas-node.is-selected { transition: none; }
+}

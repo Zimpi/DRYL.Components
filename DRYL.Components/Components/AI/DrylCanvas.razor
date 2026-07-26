@@ -70,6 +70,10 @@
 
     <div class="canvas-live" aria-live="polite">@Announcement</div>
 
+    @*  A second region on purpose: a selection message must not overwrite what the AI just
+        announced, and vice versa. *@
+    <div class="canvas-live" aria-live="polite">@_selectionAnnouncement</div>
+
     <div class="canvas-body" @ref="_bodyEl">
         @if (Error is not null)
         {
@@ -78,7 +82,7 @@
         else if (Spec?.Root is { } root)
         {
             <CascadingValue Value="_ctx" IsFixed="true">
-                <CanvasNodeView Node="root" />
+                <CanvasNodeView Node="root" IsRoot="true" />
             </CascadingValue>
         }
         else
@@ -115,6 +119,14 @@
     /// stamps into (e.g. <c>DrylCanvasRun.Pulse</c>); otherwise the canvas owns its own, which the
     /// data binder stamps on every refresh that actually changed a value.</summary>
     [Parameter] public CanvasPulseTracker? Pulse { get; set; }
+
+    /// <summary>
+    /// Opt-in for direct manipulation: hand the canvas a selection and its nodes become pickable —
+    /// by click or keyboard, with a toolbar to prompt about the selected element, pin, duplicate,
+    /// remove or reorder it. Share the same instance with <c>DrylCanvasDock</c> and its context
+    /// chip carries the element into the next prompt. Without it nothing about the canvas changes.
+    /// </summary>
+    [Parameter] public CanvasSelection? Selection { get; set; }
 
     /// <summary>Raised when the user triggers a button intent inside the artifact — and when a
     /// registered action's result asked for it, carrying the ready-made chat turn in
@@ -180,6 +192,9 @@
     private int _epoch;
     private CanvasSpec? _boundSpec;
 
+    private CanvasSelection? _subscribedSelection;
+    private string? _selectionAnnouncement;
+
     // Per-instance view-transition-name. Must be document-globally unique while in the DOM:
     // a duplicate name voids the entire transition, so two canvases on one page each get
     // their own counter value.
@@ -206,6 +221,10 @@
 
         // The canvas owns the spec, so it is the only place a patch may touch it.
         _ctx.Patch = op => Spec is null ? $"op '{op.Op}': there is no artifact to patch." : ApplyOp(op);
+
+        // Direct manipulation: the canvas is the only place that sees the whole tree, so it is
+        // the only place that can turn "one step up" or "duplicate this" into a node.
+        _ctx.Navigate = Navigate;
 
         // Actions are optional in exactly the way data sources are: without a registration a
         // button falls back to its intent and nothing about today's behaviour changes.
@@ -248,13 +267,73 @@
             _ctx.Form.Clear();
         }
 
+        if (!ReferenceEquals(_subscribedSelection, Selection))
+        {
+            if (_subscribedSelection is not null) _subscribedSelection.OnChange -= HandleSelectionChanged;
+            _subscribedSelection = Selection;
+            if (_subscribedSelection is not null) _subscribedSelection.OnChange += HandleSelectionChanged;
+            _ctx.Selection = Selection;
+        }
+
+        // The node that owns the tab stop while nothing is selected.
+        Selection?.SetFallback(Spec?.Root?.Children?.FirstOrDefault()?.Id);
+
         // A different spec instance is a different artifact — nothing bound to the old one
         // may keep loading or keep showing a stale value.
         if (!ReferenceEquals(_boundSpec, Spec))
         {
             _boundSpec = Spec;
             _binder?.Reset();
+            // …and a selection into the old artifact means nothing in the new one.
+            Selection?.Clear();
         }
+    }
+
+    private void HandleSelectionChanged()
+    {
+        _selectionAnnouncement = Selection is { HasSelection: true, Label: { } label, Type: { } type }
+            ? $"Selected: {label}, {type}"
+            : "Selection cleared.";
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Resolving a keyboard step needs the whole tree, which only this component has.
+    private bool Navigate(string fromId, CanvasNav direction)
+    {
+        if (Spec?.Root is not { } root || Selection is null) return false;
+
+        var node = CanvasTree.Find(root, fromId);
+        if (node is null) return false;
+
+        var target = direction switch
+        {
+            CanvasNav.FirstChild => node.Children?.FirstOrDefault(c => !c.Removing),
+            CanvasNav.Parent => CanvasTree.FindParent(root, fromId) is { } p && p.Id != root.Id ? p : null,
+            _ => Sibling(root, node, direction),
+        };
+
+        if (target is null) return false;
+        Selection.Select(target, focus: true);
+        return true;
+    }
+
+    private static CanvasNode? Sibling(CanvasNode root, CanvasNode node, CanvasNav direction)
+    {
+        var parent = CanvasTree.FindParent(root, node.Id);
+        var siblings = parent?.Children?.Where(c => !c.Removing).ToList();
+        if (siblings is not { Count: > 0 }) return null;
+
+        var index = siblings.IndexOf(node);
+        if (index < 0) return null;
+
+        return direction switch
+        {
+            CanvasNav.Previous => index > 0 ? siblings[index - 1] : null,
+            CanvasNav.Next => index < siblings.Count - 1 ? siblings[index + 1] : null,
+            CanvasNav.First => siblings[0],
+            CanvasNav.Last => siblings[^1],
+            _ => null,
+        };
     }
 
     private void HandleBinderChanged() => InvokeAsync(StateHasChanged);
@@ -350,6 +429,8 @@
     public async ValueTask DisposeAsync()
     {
         if (_runner is not null) _runner.OnChanged -= HandleBinderChanged;
+
+        if (_subscribedSelection is not null) _subscribedSelection.OnChange -= HandleSelectionChanged;
 
         if (_binder is not null)
         {

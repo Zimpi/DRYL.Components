@@ -23,6 +23,18 @@ public sealed class CanvasContext
     /// registered — in which case a button falls back to its <c>intent</c>.</summary>
     public CanvasActionRunner? Actions { get; internal set; }
 
+    /// <summary>The selected node of this canvas, or <c>null</c> when the host did not opt into
+    /// direct manipulation. A set selection is what turns the nodes into pickable elements.</summary>
+    public CanvasSelection? Selection { get; internal set; }
+
+    /// <summary>Moves the selection one step from the given node. Returns false when there is
+    /// nowhere to go. Set by <c>DrylCanvas</c>, which owns the tree.</summary>
+    internal Func<string, CanvasNav, bool>? Navigate { get; set; }
+
+    /// <summary>Runs a node command (pin, duplicate, remove, reorder) against the spec. Set by
+    /// <c>DrylCanvas</c>, which owns the spec and the history it feeds.</summary>
+    internal Func<string, CanvasNodeCommand, Task>? Command { get; set; }
+
     /// <summary>Applies a patch op to the canvas's spec (an action result may carry some).
     /// Returns <c>null</c> on success, otherwise a skip reason. Set by <c>DrylCanvas</c>,
     /// which owns the spec.</summary>
