@@ -39,7 +39,15 @@ DRYL renders in two color modes — dark and light — driven entirely by the to
 - Every new component is verified in **both** modes before it ships (flip `data-dryl-mode` on `<html>` in devtools).
 
 ### 2.3 Glass surfaces, not solid blocks
-Cards, panels, modals → translucent with `backdrop-filter`. Never paint a solid hex on a card background.
+Cards, panels, modals → translucent. Never paint a solid hex on a card background.
+
+**Frost is charged per surface**, so it goes only where it can be seen:
+
+- **Floating over content** (topbar, sidebar, popover, menu, tooltip, toast, dialog) → `background: var(--panel-float)` (or `--panel-grad`) + `backdrop-filter: var(--glass-fx-float)`. Content sliding underneath is the point — which also means the fill has to stay translucent. A frosted panel at 0.95 opacity is a solid block wearing a filter it cannot show.
+- **In the flow** (card, expansion panel, alert, secondary button) → `backdrop-filter: var(--glass-fx-flow)`. Behind it is the page's own smooth background; blurring something smooth is invisible (measured: 0.84 of 255) and cost multiples of the page's GPU draw.
+- **Opaque background** (anything on `--bg-2`, `--panel-sticky`) → no `backdrop-filter` at all. A surface you cannot see through can never show one.
+
+Never write `backdrop-filter: blur(...)` on a new in-flow surface — use the token.
 
 ### 2.4 Accents glow, never scream
 Saturated accent colors are only ever used as:
@@ -90,6 +98,7 @@ DRYL has **one** AI vocabulary. Every AI-aware component re-uses it; no componen
 - The opt-in parameter is always named `Ai` (of type `AiState`) and defaults to `AiState.None`. AI mode must be **off by default** so existing consumers see no change.
 - Never invent a new AI animation, color, gradient, or duration. If you think you need one, propose adding it to `dryl.css` and ask the maintainer — same rule as 2.1.
 - Components that semantically can't host AI mode (e.g. `DrylBadge`, `DrylToggle`) do not get an `Ai` parameter. Don't add it "just in case".
+- **An aura runs only while the AI is actually working there.** `Active` / `Thinking` / `Streaming` are live states — a surface left in one of them animates forever for nothing. `Generated` is a one-shot: it plays, holds, and `AuraLifecycle` then takes it off the surface by itself, so a host announces "done" and is finished. Never set an AI state decoratively, and never leave one behind when the work ends.
 
 ### 2.11 Icon-only buttons always have a tooltip
 **Every** button that renders only an icon (no visible text label) **must** be wrapped in a `DrylTooltip` that names its action. No exceptions.

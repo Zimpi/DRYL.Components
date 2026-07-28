@@ -40,6 +40,7 @@
                            inputmode="numeric"
                            maxlength="1"
                            value="@_chars[idx]"
+                           data-dryl-input
                            autocomplete="@(idx == 0 ? "one-time-code" : "off")"
                            disabled="@Disabled"
                            aria-label="@($"Digit {idx + 1} of {Digits}")"
@@ -135,34 +136,24 @@
         }
     }
 
-    private async Task HandleDigitInput(ChangeEventArgs e, int idx)
+    // Caret movement between boxes is handled in dryl.otp, in the browser.
+    // Routing it through the circuit made every digit wait two hops, and a
+    // code typed faster than that landed in the wrong boxes.
+    private void HandleDigitInput(ChangeEventArgs e, int idx)
     {
         var raw = e.Value?.ToString() ?? string.Empty;
         // Accept only the first digit character
         var digit = raw.FirstOrDefault(char.IsDigit);
         _chars[idx] = digit != default ? digit.ToString() : string.Empty;
         UpdateCurrentValue();
-        if (_chars[idx].Length > 0 && idx < Digits - 1)
-            await JS.InvokeVoidAsync("dryl.otp.focusNext", _container, idx);
     }
 
-    private async Task HandleDigitKeyDown(KeyboardEventArgs e, int idx)
+    private void HandleDigitKeyDown(KeyboardEventArgs e, int idx)
     {
-        switch (e.Key)
+        if (e.Key == "Backspace" && !string.IsNullOrEmpty(_chars[idx]))
         {
-            case "Backspace" when string.IsNullOrEmpty(_chars[idx]) && idx > 0:
-                await JS.InvokeVoidAsync("dryl.otp.focusPrev", _container, idx);
-                break;
-            case "Backspace":
-                _chars[idx] = string.Empty;
-                UpdateCurrentValue();
-                break;
-            case "ArrowLeft" when idx > 0:
-                await JS.InvokeVoidAsync("dryl.otp.focusPrev", _container, idx);
-                break;
-            case "ArrowRight" when idx < Digits - 1:
-                await JS.InvokeVoidAsync("dryl.otp.focusNext", _container, idx);
-                break;
+            _chars[idx] = string.Empty;
+            UpdateCurrentValue();
         }
     }
 

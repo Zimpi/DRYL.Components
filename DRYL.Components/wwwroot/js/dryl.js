@@ -8,6 +8,115 @@ window.dryl.reduced = () =>
     !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 /* --------------------------------------------------------------
+ * Input echo guard — keeps fast typing intact on a slow circuit.
+ *
+ * A live-bound field renders as value="@Current" + @oninput, so every
+ * keystroke makes a round trip and the server writes its own copy of
+ * the text back into the element. Whatever was typed while that copy
+ * was in flight gets overwritten — the character shows up, then
+ * vanishes, and the next keystroke builds on the damaged text. Over a
+ * real network "generiere mir folgende View" arrives as "geneilew".
+ *
+ * The fix: remember every value the element itself reported, and drop
+ * a write that repeats one of them while newer local input exists —
+ * that write is a late echo of an older keystroke and has nothing to
+ * say. Anything else (a programmatic set, a clear-after-send, a
+ * server-side correction) is not in the list and is applied as usual.
+ *
+ * Entries expire after ECHO_TTL so a late correction that happens to
+ * match something typed a while ago still lands, and the list is
+ * cleared whenever the server does write, and on blur.
+ *
+ * Opt in per element with data-dryl-input; the guard installs itself
+ * on first focus, so nothing pays for it until a field is used.
+ * -------------------------------------------------------------- */
+window.dryl.inputs = (() => {
+    const STATE = '__drylEchoGuard';
+    const ECHO_TTL = 1500;  // ms a local value outranks the server's copy
+    const MAX_PENDING = 64;
+
+    function prune(state, now) {
+        const p = state.pending;
+        while (p.length && now - p[0].t > ECHO_TTL) p.shift();
+        if (p.length > MAX_PENDING) p.splice(0, p.length - MAX_PENDING);
+    }
+
+    /* Every value the element locally held, in order — typed, or written by
+       one of our own scripts (the input mask rewrites the field on each
+       keystroke). Applied writes are recorded too: dropping the history
+       there would let the next stale echo through, which is exactly how a
+       masked field still lost digits. */
+    function record(state, v) {
+        const now = performance.now();
+        const last = state.pending[state.pending.length - 1];
+        if (last && last.v === v) last.t = now;
+        else state.pending.push({ v: v, t: now });
+        prune(state, now);
+    }
+
+    /* Shadow the element's own value property. Blazor assigns through
+       this property (never setAttribute), so this is the one seam every
+       server write has to pass. */
+    function install(el) {
+        if (!el || el[STATE]) return;
+        const proto = (el instanceof HTMLTextAreaElement)
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype;
+        const own = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (!own || !own.get || !own.set) return;
+
+        const state = { pending: [] };
+        el[STATE] = state;
+
+        Object.defineProperty(el, 'value', {
+            configurable: true,
+            get() { return own.get.call(this); },
+            set(v) {
+                prune(state, performance.now());
+
+                // Already there — nothing to write, we have simply caught up.
+                if (own.get.call(this) === v) { record(state, v); return; }
+
+                const i = state.pending.findIndex(p => p.v === v);
+                if (i >= 0 && i < state.pending.length - 1) {
+                    // A value the field already held, with newer local input
+                    // behind it: a stale echo. Drop it and everything older.
+                    state.pending.splice(0, i + 1);
+                    return;
+                }
+
+                own.set.call(this, v);
+                record(state, v);
+            }
+        });
+    }
+
+    if (!window.__drylInputGuardBound) {
+        window.__drylInputGuardBound = true;
+
+        document.addEventListener('focusin', (e) => {
+            const t = e.target;
+            if (t instanceof Element && t.matches('[data-dryl-input]')) install(t);
+        }, true);
+
+        // Bubble phase on purpose: element-level handlers (the input mask
+        // rewrites el.value) have already run, so what we record is exactly
+        // what the server is about to receive.
+        document.addEventListener('input', (e) => {
+            const state = e.target && e.target[STATE];
+            if (state) record(state, e.target.value);
+        });
+
+        document.addEventListener('focusout', (e) => {
+            const state = e.target && e.target[STATE];
+            if (state) state.pending.length = 0;
+        }, true);
+    }
+
+    return { install };
+})();
+
+/* --------------------------------------------------------------
  * Storage — thin wrapper over localStorage used by DrylTable's
  * PersistStateKey. Returns null on any access failure (private
  * browsing, quota, disabled storage) so the C# side can fall back
@@ -634,8 +743,40 @@ window.dryl.otp = (() => {
             dotnetRef.invokeMethodAsync('SetDigits', digits);
         };
 
+        /* Caret movement stays in the browser. Asking the server where to
+           focus costs a full round trip, and until the answer arrives every
+           further digit lands in the box the user has already left — a code
+           typed at any speed came out as "16" over a slow connection. */
+        const onInput = (e) => {
+            const el = e.target;
+            if (!(el instanceof HTMLInputElement) || el.value === '') return;
+            const inputs = getInputs(container);
+            const i = inputs.indexOf(el);
+            if (i >= 0 && i + 1 < inputs.length) inputs[i + 1].focus();
+        };
+
+        const onKeyDown = (e) => {
+            const el = e.target;
+            if (!(el instanceof HTMLInputElement)) return;
+            const inputs = getInputs(container);
+            const i = inputs.indexOf(el);
+            if (i < 0) return;
+
+            if (e.key === 'Backspace' && el.value === '' && i > 0) {
+                inputs[i - 1].focus();
+            } else if (e.key === 'ArrowLeft' && i > 0) {
+                e.preventDefault();
+                inputs[i - 1].focus();
+            } else if (e.key === 'ArrowRight' && i + 1 < inputs.length) {
+                e.preventDefault();
+                inputs[i + 1].focus();
+            }
+        };
+
         container.addEventListener('paste', onPaste);
-        _map.set(container, { onPaste });
+        container.addEventListener('input', onInput);
+        container.addEventListener('keydown', onKeyDown);
+        _map.set(container, { onPaste, onInput, onKeyDown });
     }
 
     function detach(container) {
@@ -643,6 +784,8 @@ window.dryl.otp = (() => {
         const h = _map.get(container);
         if (!h) return;
         container.removeEventListener('paste', h.onPaste);
+        container.removeEventListener('input', h.onInput);
+        container.removeEventListener('keydown', h.onKeyDown);
         _map.delete(container);
     }
 

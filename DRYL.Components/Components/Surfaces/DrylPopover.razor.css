@@ -39,15 +39,17 @@
 }
 
 /* Default surface (opt out with Surface="false").
-   Dropdowns float over page content, so the fill is opaque (--bg-2),
-   matching the library's existing menu / select / date panels.
+   Dropdowns float over page content — which is what the frost is for, so the
+   fill is the translucent --panel-float, matching the library's menu / select /
+   date panels. It used to be opaque, which left the backdrop-filter above with
+   nothing to show and the panel reading as a solid block.
    The base min-width lives here so content-sized panels (Surface=false)
    can hug their own content instead of being padded out. */
 .popover-panel--surface {
     min-width: 180px;
-    background: var(--bg-2);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    background: var(--panel-float);
+    backdrop-filter: var(--glass-fx-float);
+    -webkit-backdrop-filter: var(--glass-fx-float);
     border: 1px solid var(--line-strong);
     border-radius: var(--r-md);
     box-shadow: var(--shadow-lg);

@@ -58,6 +58,33 @@
   --glass-3:       rgba(255, 255, 255, 0.08);
   --glass-blur:    18px;
 
+  /* Frosting comes in two tiers, because the browser charges for it per
+     surface: a backdrop-filter re-samples and re-blurs whatever sits behind
+     it, every frame the backdrop changes.
+
+     A surface that FLOATS over scrolling content — topbar, sidebar, sticky
+     header, popover, menu, tooltip, toast, dialog — earns that: the content
+     sliding underneath is exactly what the frost is for.
+
+     A surface that sits IN THE FLOW — a card, an expansion panel, a secondary
+     button — has the page's own smooth background behind it. Blurring
+     something already smooth changes almost nothing you can see (measured on
+     the component overview: 0.84 of 255 average pixel difference), while 95
+     of them on one page cost 3.4x the GPU draw of the whole page. So the
+     in-flow tier keeps the translucent fill and skips the blur.
+
+     A third case needs no token at all: a surface whose own background is
+     opaque (menus, popovers and the bulk bar sit on --bg-2; the sticky table
+     header on --panel-sticky at 0.92) can never show what is behind it, so a
+     backdrop-filter there is invisible by definition and was pure cost — a
+     wide table charged one per header cell. Frost belongs on translucent
+     floating surfaces only.
+
+     An app that wants frost everywhere can have it back in one line:
+     --glass-fx-flow: blur(var(--glass-blur)) saturate(140%); */
+  --glass-fx-float: blur(24px) saturate(160%);
+  --glass-fx-flow:  none;
+
   /* Text */
   --fg:            #f4f4f7;
   --fg-muted:      rgba(244, 244, 247, 0.62);
@@ -216,8 +243,13 @@
   --panel-soft:        rgba(10, 10, 14, 0.78);
   --panel-solid:       rgba(20, 20, 28, 0.95);
   --panel-sticky:      rgba(7, 7, 10, 0.92);
-  --panel-grad:        linear-gradient(180deg, rgba(20, 20, 28, 0.95), rgba(10, 10, 14, 0.95));
-  --panel-grad-strong: linear-gradient(180deg, rgba(20, 20, 28, 0.97), rgba(10, 10, 14, 0.97));
+  /* Floating panels are glass, and glass has to let something through: at the
+     0.95/0.97 these carried, the frost behind them had 3-5% to work with and
+     a dialog read as a solid block. Now they are actually translucent, and
+     they are the surfaces that earn the backdrop-filter (see --glass-fx-float). */
+  --panel-grad:        linear-gradient(180deg, rgba(20, 20, 28, 0.72), rgba(10, 10, 14, 0.76));
+  --panel-grad-strong: linear-gradient(180deg, rgba(20, 20, 28, 0.80), rgba(10, 10, 14, 0.84));
+  --panel-float:       rgba(16, 16, 22, 0.76);
 }
 
 /* Theme seeds glide on change; instant for reduced-motion users. */
@@ -327,8 +359,9 @@
     --panel-soft:        rgba(255, 255, 255, 0.78);
     --panel-solid:       rgba(252, 252, 255, 0.95);
     --panel-sticky:      rgba(245, 245, 250, 0.92);
-    --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.95), rgba(243, 243, 250, 0.95));
-    --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.97), rgba(243, 243, 250, 0.97));
+    --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.72), rgba(243, 243, 250, 0.76));
+    --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.80), rgba(243, 243, 250, 0.84));
+    --panel-float:       rgba(252, 252, 255, 0.76);
   }
 }
 :root[data-dryl-mode="light"] {
@@ -400,8 +433,9 @@
   --panel-soft:        rgba(255, 255, 255, 0.78);
   --panel-solid:       rgba(252, 252, 255, 0.95);
   --panel-sticky:      rgba(245, 245, 250, 0.92);
-  --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.95), rgba(243, 243, 250, 0.95));
-  --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.97), rgba(243, 243, 250, 0.97));
+  --panel-grad:        linear-gradient(180deg, rgba(252, 252, 255, 0.72), rgba(243, 243, 250, 0.76));
+  --panel-grad-strong: linear-gradient(180deg, rgba(252, 252, 255, 0.80), rgba(243, 243, 250, 0.84));
+  --panel-float:       rgba(252, 252, 255, 0.76);
 }
 
 * { box-sizing: border-box; }
@@ -540,8 +574,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .glass {
   background: var(--glass-1);
   border: 1px solid var(--line);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: var(--glass-fx-flow);
+  -webkit-backdrop-filter: var(--glass-fx-flow);
   border-radius: var(--r-lg);
 }
 
@@ -551,8 +585,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
     var(--sheen-grad),
     var(--panel-tint);
   border: 1px solid var(--line);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: var(--glass-fx-flow);
+  -webkit-backdrop-filter: var(--glass-fx-flow);
   border-radius: var(--r-lg);
   box-shadow:
     inset 0 1px 0 var(--edge-hi),
@@ -672,7 +706,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .btn-secondary {
   background: var(--glass-2);
   border-color: var(--line-strong);
-  backdrop-filter: blur(12px);
+  backdrop-filter: var(--glass-fx-flow);
 }
 .btn-secondary:hover {
   background: var(--glass-3);
@@ -2028,8 +2062,6 @@ code, .code-inline {
   top: 0;
   z-index: 2;
   background: var(--panel-sticky);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 /* Horizontal scroll container */
@@ -2316,9 +2348,9 @@ code, .code-inline {
   z-index: var(--z-drawer);
   min-width: 240px;
   max-width: 320px;
-  background: var(--bg-2);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--panel-float);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-lg);
@@ -2794,8 +2826,6 @@ td.tbl-td-editing select {
   background:
     var(--sheen-grad),
     var(--bg-2);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
   border-bottom: 1px solid var(--accent-line);
   box-shadow: inset 0 -1px 0 var(--accent-line);
   animation: tbl-bulk-in var(--dur-med) var(--ease-spring);
@@ -2919,9 +2949,9 @@ td.tbl-td-editing select {
   z-index: var(--z-drawer);
   min-width: 200px;
   max-width: 280px;
-  background: var(--bg-2);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--panel-float);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-lg);
@@ -3745,6 +3775,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   max-height: 90dvh;
   border-radius: var(--r-lg);
   background: var(--panel-grad);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   border: 1px solid var(--line-strong);
   box-shadow: var(--shadow-lg), 0 0 80px color-mix(in srgb, var(--accent-a) 25%, transparent);
   animation: dialogIn var(--dur-med) var(--ease-spring);
@@ -3918,7 +3950,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   border-radius: var(--r-md);
   border: 1px solid var(--line-strong);
   background: var(--glass-1);
-  backdrop-filter: blur(12px);
+  backdrop-filter: var(--glass-fx-flow);
 }
 .alert .ico {
   width: 28px; height: 28px;
@@ -4239,12 +4271,24 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 /* Afterglow — once Generated has bloomed, the travelling comet retires, leaving a
-   calm static saum + gently breathing halo: a non-distracting "AI was here" trace
-   a surface can rest in indefinitely (no need to drop to None). The retire fade
-   runs on the static wrapper (opacity → compositor); the spin keeps its base
-   ai-comet-spin animation on the ::before untouched. */
+   calm static saum + gently breathing halo: the "AI was here" trace, held just long
+   enough to be read. It is not a resting place — AuraLifecycle takes the whole aura
+   off the surface once the one-shot has played (see its Generated branch), because a
+   halo that breathes for the life of the page costs frames for something that has
+   nothing left to say. The retire fade runs on the static wrapper (opacity →
+   compositor); the spin keeps its base ai-comet-spin animation on the ::before. */
 .ai-aura.ai-generated .ai-aura-comet {
   animation: ai-comet-retire 1100ms var(--ease-out) 800ms forwards;
+}
+/* The halo retires with it — it keeps breathing through the bloom, then fades out
+   on the same beat. A host that composes an AuraLifecycle unmounts the aura
+   outright; the two that drive these classes from item data (DrylTabs,
+   DrylNotifications) have no lifecycle to do it, and a halo breathing for the rest
+   of the page's life is frames spent on a surface with nothing left to say. */
+.ai-aura.ai-generated .ai-aura-glow {
+  animation:
+    ai-aura-breathe var(--aura-halo-dur) var(--ease-in-out) infinite,
+    ai-comet-retire 1100ms var(--ease-out) 800ms forwards;
 }
 /* visibility: hidden at the end tells the compositor to stop drawing the
    (still spinning) comet surface entirely — a retired comet must not keep
@@ -4292,8 +4336,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   position: relative;
   background: var(--glass-1);
   border: 1px solid var(--line);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: var(--glass-fx-flow);
+  -webkit-backdrop-filter: var(--glass-fx-flow);
   border-radius: 0;
   z-index: 0;
   transition:
@@ -4493,9 +4537,9 @@ body.dryl-scroll-locked { overflow: hidden; }
   max-width: min(320px, calc(100vw - var(--sp-4)));
   display: flex;
   flex-direction: column;
-  background: var(--bg-2);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  background: var(--panel-float);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-lg);

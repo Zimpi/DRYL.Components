@@ -3,9 +3,9 @@
 /* Positioning is provided by the DrylPopover wrapper; this is just the surface. */
 .date-panel {
     min-width: 280px;
-    background: var(--bg-2);
-    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    background: var(--panel-float);
+    backdrop-filter: var(--glass-fx-float);
+    -webkit-backdrop-filter: var(--glass-fx-float);
     border: 1px solid var(--line-strong);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-lg);

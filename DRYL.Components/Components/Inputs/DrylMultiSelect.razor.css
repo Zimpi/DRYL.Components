@@ -116,9 +116,9 @@
     left: 0;
     width: 100%;
     z-index: var(--z-drawer);
-    background: var(--bg-2);
-    backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+    background: var(--panel-float);
+    backdrop-filter: var(--glass-fx-float);
+    -webkit-backdrop-filter: var(--glass-fx-float);
     border: 1px solid var(--line-strong);
     border-top-color: rgba(124, 92, 255, 0.35);
     border-radius: var(--r-md);

@@ -14,6 +14,28 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.19.0] — 2026-07-27
+
+Zwei Dinge, die auf schnellen Geräten unsichtbar waren und auf allen anderen wehtaten: getippte Zeichen verschwanden wieder aus den Eingabefeldern, und die Bibliothek verlangte GPU-Arbeit für Effekte, die niemand sehen konnte.
+
+### Changed
+- **Glass surfaces** — Frost is now charged only where it can be seen. A surface that floats over scrolling content (topbar, sidebar, popover, menu, tooltip, toast, dialog) keeps its real `backdrop-filter`; a surface in the flow (`.glass`, `.glass-card`, `.expansion`, `.alert`, `.btn-secondary`) keeps the translucent fill and drops the blur, because the page's own smooth background behind it is what the blur was blurring. Measured on the component overview: 95 frosted surfaces down to 5, GPU draw per frame 2.77 ms → 1.11 ms, with an average pixel difference of 0.84 of 255. Opt back in per app with `--glass-fx-flow`.
+- **Opaque surfaces** — Removed the `backdrop-filter` from surfaces whose own background is opaque and which therefore could never show it: the table's bulk bar (on `--bg-2`) and the sticky table header (`--panel-sticky`, 0.92). A wide table charged one wasted backdrop sample per header cell; the tables page went 1.98 ms → 1.17 ms per frame with no visual change at all.
+- **Floating panels are glass again** — Dialog, command palette, menu, popover, select, multi-select, autocomplete, date and time panels were opaque or near-opaque (0.95 / 0.97 / fully solid). The frost above them had 3-5% to work with, so they read as solid blocks — the dialog carried no `backdrop-filter` at all. They now sit on genuinely translucent fills (`--panel-grad`, `--panel-grad-strong`, the new `--panel-float`) with a real `--glass-fx-float` behind them. This is the tier that earns its cost: a dialog open over a page measures 0.76 → 0.97 ms per frame, and only while it is open.
+- `AiState.Generated` — Now a genuine one-shot: the aura plays its bloom, holds long enough to be read, then takes itself off the surface. It used to be a resting place, so a surface that had been generated into kept a breathing halo alive for the life of the page, and a host had to remember to hand back to `None` to stop it. Hosts no longer need to — setting `Generated` and walking away is the whole contract now.
+
+### Added
+- `--glass-fx-flow` — New token controlling the frosting of in-flow surfaces. Defaults to `none`; set it to `blur(var(--glass-blur)) saturate(140%)` to give every card its backdrop blur back.
+- `--glass-fx-float` — New token carrying the frosting recipe for floating surfaces (`blur(24px) saturate(160%)`), so every panel that floats over content frosts identically.
+- `--panel-float` — New token: the translucent fill for floating flat panels (menu, popover, select, date and time panels).
+
+### Fixed
+- **Every live-bound field** — Characters typed while a keystroke was in flight were swallowed. A live-bound field renders as `value` + `oninput`, so the server writes its own copy of the text back on every keystroke; over a real network that copy arrives stale and overwrites what was typed in the meantime, and the next keystroke builds on the damaged text. Measured over a 300 ms round trip, "generiere mir folgende View" arrived as "geneilew". The browser now keeps a short history of the values a field locally held and drops a write that repeats an older one — a late echo of a keystroke already superseded. Programmatic writes (clearing a composer after send, filling a field from a picked suggestion, a server-side correction) are not echoes and still apply. Affects `DrylInputText`, `DrylTextarea`, `DrylInputPassword`, `DrylInputNumber`, `DrylInputMask`, `DrylInputOtp`, `DrylSlider`, `DrylAutocomplete`, `DrylChipInput`, `DrylChatComposer`, `DrylCommandPalette` and `DrylTable`'s search and column filters.
+- `DrylInputOtp` — Digits landed in the wrong boxes. Moving the caret to the next box was a server round trip, so every digit typed before the answer came back overwrote the previous one: `123456` arrived as `16`. Caret movement between boxes (advance, backspace walk-back, arrow keys) now happens in the browser.
+
+### Added
+- `data-dryl-input` — Opt-in marker for the echo guard above. DRYL's own fields carry it; an app with its own live-bound `<input>` or `<textarea>` can add the attribute to get the same protection.
+
 ## [2.18.0] — 2026-07-26
 
 Zwei Lücken, die beim Bau einer echten Steuerzentrale auffielen: ein Formular konnte keinen Langtext aufnehmen, und das Dock gehörte ausschließlich sich selbst.

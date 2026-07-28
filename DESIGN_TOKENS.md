@@ -45,6 +45,26 @@ Tokens listed below with a single value are identical in both modes.
 | `--glass-2`      | `rgba(255,255,255,0.05)`   | `rgba(255,255,255,0.62)`   | Slightly elevated (hover, secondary button).       |
 | `--glass-3`      | `rgba(255,255,255,0.08)`   | `rgba(255,255,255,0.72)`   | Top elevation (active state, popover).             |
 | `--glass-blur`   | `18px`                     | (same)                     | Default `backdrop-filter` blur radius.             |
+| `--glass-fx-flow`| `none`                     | (same)                     | Frosting for surfaces **in the flow** — see below. |
+| `--glass-fx-float`| `blur(24px) saturate(160%)`| (same)                    | Frosting for surfaces that **float over content**. |
+| `--panel-float`  | `rgba(16,16,22,0.76)`      | `rgba(252,252,255,0.76)`   | Fill for floating flat panels (menu, popover, select). |
+
+**Frost is charged per surface.** A `backdrop-filter` makes the browser re-sample
+and re-blur everything behind it, every frame the backdrop changes. So DRYL only
+pays for it where it shows:
+
+- **Floating over content** (topbar, sidebar, sticky header, popover, menu,
+  tooltip, toast, dialog) — real frost. The content sliding underneath is the
+  whole point.
+- **In the flow** (card, expansion panel, alert, secondary button) — translucent
+  fill, no blur, via `--glass-fx-flow`. What sits behind is the page's own smooth
+  background, and blurring something smooth changes almost nothing you can see
+  (measured: 0.84 of 255 average) while costing multiples of the page's GPU draw.
+- **Opaque** — no frost at all. A surface you cannot see through can never show a
+  backdrop-filter; adding one is pure cost.
+
+An app that wants frost on everything sets one line:
+`--glass-fx-flow: blur(var(--glass-blur)) saturate(140%);`
 
 ### Lines (the edges)
 | Token            | Dark                       | Light                      | Use                                                |
@@ -432,7 +452,7 @@ A few proven combinations — use these as starting points, don't recreate them.
 background: var(--glass-1);
 border: 1px solid var(--line);
 border-radius: var(--r-lg);
-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+backdrop-filter: var(--glass-fx-flow);   /* a card sits in the flow */
 padding: var(--sp-5);
 box-shadow: var(--shadow-md);
 transition: border-color var(--dur-med) var(--ease-out),

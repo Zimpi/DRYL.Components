@@ -18,13 +18,23 @@ namespace DRYL.Components.Ai;
 public sealed class AuraLifecycle : IDisposable
 {
     private readonly int _exitMs;
+    private readonly int _generatedHoldMs;
     private CancellationTokenSource? _exitCts;
+    private AiState _lastEffective = AiState.None;
 
     /// <param name="exitMs">
     /// How long the aura lingers, fading, after the state drops to None. Must be at least
     /// the CSS <c>--dur-slow</c> (420ms) so the dissolve completes before unmount.
     /// </param>
-    public AuraLifecycle(int exitMs = 460) => _exitMs = exitMs;
+    /// <param name="generatedHoldMs">
+    /// How long <see cref="AiState.Generated"/> stays on screen before retiring itself. Must
+    /// outlast the CSS one-shot (the bloom ends at 900ms, the comet's retire at 1900ms).
+    /// </param>
+    public AuraLifecycle(int exitMs = 460, int generatedHoldMs = 1900)
+    {
+        _exitMs = exitMs;
+        _generatedHoldMs = generatedHoldMs;
+    }
 
     /// <summary>The state the aura should currently render (frozen at the last live state while exiting).</summary>
     public AiState RenderState { get; private set; } = AiState.None;
@@ -47,6 +57,27 @@ public sealed class AuraLifecycle : IDisposable
     /// </param>
     public void Sync(AiState effective, Func<Task> requestRender)
     {
+        var entering = effective != _lastEffective;
+        _lastEffective = effective;
+
+        if (effective == AiState.Generated)
+        {
+            // Generated is a one-shot, not a resting place. It plays, then takes itself
+            // off the surface — a host announces "done" and is finished, it never has to
+            // remember to hand back to None. Until it retired, an aura that had nothing
+            // left to say kept a breathing halo alive for the life of the page.
+            if (entering)
+            {
+                _exitCts?.Cancel();
+                Exiting = false;
+                RenderState = AiState.Generated;
+                _exitCts = new CancellationTokenSource();
+                _ = RetireGeneratedAsync(_exitCts.Token, requestRender);
+            }
+            // Re-rendering while spent must not bring it back for another lap.
+            return;
+        }
+
         if (effective != AiState.None)
         {
             // Live (or re-activated mid-exit): cancel any pending exit and show it.
@@ -63,6 +94,24 @@ public sealed class AuraLifecycle : IDisposable
             _exitCts = new CancellationTokenSource();
             _ = DelayExitAsync(_exitCts.Token, requestRender);
         }
+    }
+
+    private async Task RetireGeneratedAsync(CancellationToken token, Func<Task> requestRender)
+    {
+        try { await Task.Delay(_generatedHoldMs, token); }
+        catch (TaskCanceledException) { return; }
+        if (token.IsCancellationRequested) return;
+
+        Exiting = true;
+        await requestRender();
+
+        try { await Task.Delay(_exitMs, token); }
+        catch (TaskCanceledException) { return; }
+        if (token.IsCancellationRequested) return;
+
+        Exiting = false;
+        RenderState = AiState.None;
+        await requestRender();
     }
 
     private async Task DelayExitAsync(CancellationToken token, Func<Task> requestRender)

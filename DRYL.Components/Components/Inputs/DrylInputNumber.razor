@@ -41,6 +41,7 @@
                type="number"
                inputmode="decimal"
                value="@CurrentValueAsString"
+               data-dryl-input
                min="@(_hasMin ? FormatConstraint(Min) : null)"
                max="@(_hasMax ? FormatConstraint(Max) : null)"
                step="@(_hasStep ? FormatConstraint(Step) : null)"

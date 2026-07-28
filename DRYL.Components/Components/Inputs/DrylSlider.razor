@@ -43,6 +43,7 @@
                max="@Max.ToString(CultureInfo.InvariantCulture)"
                step="@Step.ToString(CultureInfo.InvariantCulture)"
                value="@CurrentValueAsString"
+               data-dryl-input
                style="--pct: @_pct"
                disabled="@Disabled"
                aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
