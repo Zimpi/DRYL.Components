@@ -58,6 +58,13 @@ public abstract class DrylRunBase : IAsyncDisposable
     internal CancellationToken DisposalToken => _cts.Token;
 
     internal void AddToolCall(DrylToolInvocation t) { _toolCalls.Add(t); Raise(); }
+
+    /// <summary>Drops the trace. For runs that are reused across sessions (a voice run is one),
+    /// so the next session does not inherit the previous one's tool calls.</summary>
+    /// <remarks>Silent on purpose: clearing is part of a larger state change, and the caller
+    /// raises once for the whole of it. Raising here too would cost every host a second render
+    /// for the same event.</remarks>
+    internal void ClearToolCalls() => _toolCalls.Clear();
     internal void AddUsage(Microsoft.Extensions.AI.UsageDetails details) { (Usage ??= new DrylRunUsage()).Add(details); Raise(); }
     internal void AddUsage(DrylRunUsage usage) { (Usage ??= new DrylRunUsage()).Add(usage); Raise(); }
     internal void Raise() => OnChange?.Invoke();

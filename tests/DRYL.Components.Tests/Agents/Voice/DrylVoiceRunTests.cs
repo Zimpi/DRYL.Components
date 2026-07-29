@@ -196,6 +196,26 @@ public class DrylVoiceRunTests
     }
 
     [Fact]
+    public async Task A_new_session_starts_with_an_empty_trace()
+    {
+        // The run is reused for every session, so without this the tool calls of an old
+        // conversation would still be sitting in the log during the next one.
+        var options = new DrylVoiceOptions { ApiKey = "sk-test" };
+        options.Tools.Add(AIFunctionFactory.Create(() => "ok", "list_projects"));
+        var run = Run(options);
+        run.OnConnected();
+        await run.OnToolCallAsync("call_1", "list_projects", "{}");
+
+        Assert.Single(run.ToolCalls);
+
+        run.OnClosed();
+        Assert.Single(run.ToolCalls);      // nach dem Auflegen noch lesbar
+
+        run.MarkConnecting();
+        Assert.Empty(run.ToolCalls);       // die nächste Sitzung räumt sie weg
+    }
+
+    [Fact]
     public async Task Stopping_an_idle_run_is_a_no_op()
     {
         var run = Run();

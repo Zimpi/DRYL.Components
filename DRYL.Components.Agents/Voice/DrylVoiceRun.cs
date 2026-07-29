@@ -181,6 +181,7 @@ public sealed class DrylVoiceRun : DrylRunBase
         Activity = VoiceActivity.Listening;
         Error = null;                            // a new attempt does not carry the old failure
         _transcript.Clear();                     // a session is a conversation; a new one starts empty
+        ClearToolCalls();                        // …and so is its trace
         State = AiState.Thinking;
         Raise();
     }
