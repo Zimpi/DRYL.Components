@@ -8,11 +8,18 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Register the DRYL Agents services. Call alongside <c>AddDrylComponents()</c>:
     /// <code>builder.Services.AddDrylComponents().AddDrylAgents();</code>
-    /// Registers <see cref="DrylAgentRunner"/> as scoped (one per Blazor circuit).
+    /// Registers <see cref="DrylAgentRunner"/> and <see cref="DrylVoiceRunner"/> as scoped
+    /// (one per Blazor circuit).
     /// </summary>
     public static IServiceCollection AddDrylAgents(this IServiceCollection services)
     {
         services.AddScoped<DrylAgentRunner>();
+
+        // An explicit factory rather than AddScoped<DrylVoiceRunner>(): the optional HttpClient
+        // parameter is a test seam, and nothing should try to resolve it from the container.
+        services.AddScoped(sp => new DrylVoiceRunner(
+            sp.GetRequiredService<Microsoft.JSInterop.IJSRuntime>()));
+
         return services;
     }
 
