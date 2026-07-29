@@ -28,12 +28,18 @@
     display: inline-flex;
 }
 
+/*  The dock floats over the canvas, so it is a floating surface, not an in-flow one (rule 2.3):
+    it gets --panel-float and real frost. Inherited from .glass-card it was a 4% white wash with
+    backdrop-filter: none — the page read straight through it, which only became obvious once the
+    voice takeover made the panel large and mostly empty. */
 .dock-panel {
     display: flex;
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-2);
     border-radius: var(--r-lg);
+    background: var(--panel-float);
+    backdrop-filter: var(--glass-fx-float);
     box-shadow: var(--shadow-2);
 }
 

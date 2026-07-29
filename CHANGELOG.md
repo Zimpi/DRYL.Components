@@ -24,6 +24,9 @@ Der Assistent bekommt eine Stimme. Ein Dock, das bisher getippt wurde, lässt si
 - `DrylCanvasDock` (Agents 0.16.0) — Neue Parameter `Voice` und `VoiceLabel`. Mit einem Sprach-Run wächst dem Kopf ein Mikrofon-Knopf; läuft die Sitzung, wird das Dock zum Sprach-Panel: Composer, Vorschläge und Kontext-Chip weichen, Orb, letzte gesprochene Zeile und ein Beenden-Knopf treten an ihre Stelle. Ohne `Voice` ändert sich am Dock nichts.
 - `DrylIcon` — Neues Icon `Microphone` (lucide: mic).
 
+### Fixed
+- `DrylCanvasDock` (Agents 0.16.0) — Die Dock-Fläche war durchsichtig. Sie erbte von `.glass-card` einen 4-%-Weiß-Verlauf mit `backdrop-filter: none`, also die Behandlung für Flächen *im* Fluss — das Dock schwebt aber über dem Canvas, und man las die Seite glatt durch es hindurch. Sie trägt jetzt `--panel-float` und echtes `--glass-fx-float` (Regel 2.3). Aufgefallen erst, als die Sprach-Übernahme die Fläche groß und weitgehend leer machte.
+
 ## [2.19.0] — 2026-07-27
 
 Zwei Dinge, die auf schnellen Geräten unsichtbar waren und auf allen anderen wehtaten: getippte Zeichen verschwanden wieder aus den Eingabefeldern, und die Bibliothek verlangte GPU-Arbeit für Effekte, die niemand sehen konnte.
