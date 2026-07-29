@@ -14,6 +14,16 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.20.0] — 2026-07-29
+
+Der Assistent bekommt eine Stimme. Ein Dock, das bisher getippt wurde, lässt sich jetzt besprechen — mit denselben Werkzeugen, demselben Verlauf und ohne dass eine einzige Audiodatei den Server berührt.
+
+### Added
+- `DrylVoiceRunner` / `DrylVoiceRun` / `DrylVoiceOptions` (Agents 0.16.0) — **Neu:** Sprachsitzungen über die OpenAI-Realtime-API. Der Browser hält eine WebRTC-Verbindung direkt zum Modell (Mikrofon rein, Stimme raus, ein Datenkanal für die Ereignisse); der Server prägt nur das kurzlebige `ek_…`-Token und führt jeden Werkzeugaufruf aus. Der API-Schlüssel verlässt den Server nie, und weil die ganze Session im Token steckt, kann der Browser weder Instructions noch Modell noch Werkzeugliste verändern. Konfiguriert wird ausschließlich in C# — `Model`, `Instructions`, `Voice`, `Speed`, `TurnDetection`, `ReasoningEffort`, `TranscriptionModel`, `Language`, `Tools`, `IdleTimeout`, `MaxDuration`, `BaseUrl`, `SafetyIdentifier`. Es gibt bewusst kein Einstellungs-UI.
+- `DrylVoiceOrb` (Agents 0.16.0) — **Neue Komponente:** die sichtbare Stimme. Gebaut aus den vorhandenen `.ai-aura`-Primitiven, also ohne eine einzige neue Farbe oder Dauer; die fünf `AiState`-Werte tragen sie wie jede andere KI-Fläche. Der Lautstärkepegel bleibt im Browser und schreibt eine CSS-Variable direkt auf das Element — ein Pegel, der über Interop liefe, wären sechzig Renderdurchläufe pro Sekunde für eine Dekoration.
+- `DrylCanvasDock` (Agents 0.16.0) — Neue Parameter `Voice` und `VoiceLabel`. Mit einem Sprach-Run wächst dem Kopf ein Mikrofon-Knopf; läuft die Sitzung, wird das Dock zum Sprach-Panel: Composer, Vorschläge und Kontext-Chip weichen, Orb, letzte gesprochene Zeile und ein Beenden-Knopf treten an ihre Stelle. Ohne `Voice` ändert sich am Dock nichts.
+- `DrylIcon` — Neues Icon `Microphone` (lucide: mic).
+
 ## [2.19.0] — 2026-07-27
 
 Zwei Dinge, die auf schnellen Geräten unsichtbar waren und auf allen anderen wehtaten: getippte Zeichen verschwanden wieder aus den Eingabefeldern, und die Bibliothek verlangte GPU-Arbeit für Effekte, die niemand sehen konnte.
