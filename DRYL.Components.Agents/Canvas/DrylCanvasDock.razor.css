@@ -28,12 +28,18 @@
     display: inline-flex;
 }
 
+/*  The dock floats over the canvas, so it is a floating surface, not an in-flow one (rule 2.3):
+    it gets --panel-float and real frost. Inherited from .glass-card it was a 4% white wash with
+    backdrop-filter: none — the page read straight through it, which only became obvious once the
+    voice takeover made the panel large and mostly empty. */
 .dock-panel {
     display: flex;
     flex-direction: column;
     gap: var(--sp-2);
     padding: var(--sp-2);
     border-radius: var(--r-lg);
+    background: var(--panel-float);
+    backdrop-filter: var(--glass-fx-float);
     box-shadow: var(--shadow-2);
 }
 
@@ -168,4 +174,29 @@
 
 .dock-suggestions::-webkit-scrollbar {
     display: none;
+}
+
+/* The takeover: while the voice is live, this is what the dock is. Centred, generous, quiet —
+   one thing is happening and it is the conversation. */
+.dock-voice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-2) var(--sp-3);
+}
+
+/* The last spoken line. Two lines at most: this is a glance, the full transcript lives in the
+   log. The fixed min-height keeps the panel from jumping every time a sentence arrives. */
+.dock-voice-line {
+    min-height: 2.6em;
+    max-width: 34ch;
+    text-align: center;
+    font-size: .9rem;
+    line-height: 1.3;
+    color: var(--fg-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }

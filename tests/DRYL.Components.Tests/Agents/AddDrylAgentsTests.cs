@@ -23,4 +23,23 @@ public class AddDrylAgentsTests
         using var scope2 = provider.CreateScope();
         Assert.NotSame(runner, scope2.ServiceProvider.GetService<DrylAgentRunner>());
     }
+
+    [Fact]
+    public void AddDrylAgents_registers_the_voice_runner_as_scoped()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(
+            new DRYL.Components.Tests.Agents.Voice.NoopJsRuntime());
+        services.AddDrylComponents();
+        services.AddDrylAgents();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var runner = scope.ServiceProvider.GetService<DrylVoiceRunner>();
+        Assert.NotNull(runner);
+
+        using var scope2 = provider.CreateScope();
+        Assert.NotSame(runner, scope2.ServiceProvider.GetService<DrylVoiceRunner>());
+    }
 }

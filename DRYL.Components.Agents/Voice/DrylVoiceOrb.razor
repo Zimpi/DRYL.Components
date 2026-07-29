@@ -1,0 +1,107 @@
+@namespace DRYL.Components.Agents
+@using DRYL.Components.Ai
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylVoiceOrb — a voice, made visible.
+
+    Nothing here is new: it is the shared .ai-aura vocabulary bent into a
+    circle. The state classes are the same ones every other AI surface wears,
+    so a listening assistant reads the same here as it does anywhere else.
+
+    The level is the one thing the orb owns, and it never touches .NET: the
+    JS module writes --voice-level straight onto this element and the CSS
+    turns it into a scale. A level shipped over interop would re-render the
+    circuit sixty times a second for a decoration.
+
+    Usage:
+      <DrylVoiceOrb Run="_voice" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass"
+     style="@FormattableString.Invariant($"--orb-size: {Size}px")"
+     @ref="_el"
+     aria-hidden="true">
+    <div class="ai-aura-ring"></div>
+    <div class="ai-aura-comet"></div>
+    <div class="ai-aura-glow"></div>
+    <div class="voice-orb-core"></div>
+</div>
+
+@code {
+    /// <summary>The session the orb reflects. Without it the orb sits still.</summary>
+    [Parameter] public DrylVoiceRun? Run { get; set; }
+
+    /// <summary>Diameter in pixels. Default 96.</summary>
+    [Parameter] public int Size { get; set; } = 96;
+
+    /// <summary>Extra CSS class(es) merged onto the orb.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    private const string ModulePath = "./_content/DRYL.Components.Agents/js/dryl-voice.js";
+
+    private DrylVoiceRun? _subscribed;
+    private ElementReference _el;
+    private IJSObjectReference? _module;
+    private bool _attached;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Run)) return;
+
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _subscribed = Run;
+        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+    }
+
+    private void HandleChange() => InvokeAsync(StateHasChanged);
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "voice-orb", "ai-aura" };
+
+            switch (Run?.State ?? AiState.None)
+            {
+                case AiState.Thinking: parts.Add("ai-thinking"); break;
+                case AiState.Streaming: parts.Add("ai-streaming"); break;
+                case AiState.Generated: parts.Add("ai-generated"); break;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Pointing the meter at the orb is one-time wiring, not a per-frame call.
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            _attached = true;
+            await _module.InvokeVoidAsync("attachOrb", _el);
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+
+        if (!_attached || _module is null) return;
+
+        try
+        {
+            await _module.InvokeVoidAsync("attachOrb", (object?)null);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (JSException) { /* already torn down */ }
+    }
+}

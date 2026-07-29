@@ -1,0 +1,40 @@
+/* DrylVoiceOrb — the shared aura, bent into a circle. Tokens only; no new colour, no new
+   timing. Everything that moves here either comes from the .ai-aura* primitives in dryl.css or
+   from --voice-level, which the JS module writes straight onto the element. */
+
+.voice-orb {
+    position: relative;
+    isolation: isolate;
+    width: var(--orb-size, 96px);
+    height: var(--orb-size, 96px);
+    flex: 0 0 auto;
+    border-radius: var(--r-pill);
+    display: grid;
+    place-items: center;
+
+    /* The level is a compositor property and nothing else: a scale, never a width or a
+       box-shadow, so a talking orb costs a transform rather than a layout pass. */
+    scale: calc(1 + var(--voice-level, 0) * 0.16);
+    transition: scale var(--dur-fast) var(--ease-out);
+}
+
+/* The body of the orb: a glass sphere, not an accent fill (rule 2.4). The accent shows up in
+   the aura ring and the halo that the primitives already draw around it. */
+.voice-orb-core {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        radial-gradient(120% 120% at 30% 25%, var(--glass-2), transparent 70%),
+        var(--glass-1);
+    border: 1px solid var(--line);
+    backdrop-filter: var(--glass-fx-float);
+    z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .voice-orb {
+        scale: 1;
+        transition: none;
+    }
+}
