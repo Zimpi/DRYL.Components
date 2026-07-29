@@ -79,7 +79,7 @@ Ein einfaches Objekt, kein Fluent-Builder.
 | `Instructions` | `null` | Persona/Tonalität. Der Host reicht denselben Systemprompt durch wie im Textmodus. |
 | `Voice` | `marin` | eine der zehn Stimmen; `marin`/`cedar` sind die besten |
 | `Speed` | `1.0` | 0.25–1.5 |
-| `TurnDetection` | `SemanticVad` | `SemanticVad` / `ServerVad` / `PushToTalk` |
+| `TurnDetection` | `SemanticVad` | `SemanticVad` / `ServerVad` |
 | `ReasoningEffort` | `null` | `low` / `medium` / `high`; nur 2.1 und mini |
 | `TranscriptionModel` | `gpt-4o-transcribe` | ohne das gibt es keinen Nutzertext im Log; auch `whisper-1`, `gpt-4o-mini-transcribe` |
 | `Language` | `null` | ISO-Code für die Transkription |
@@ -270,8 +270,7 @@ Die Statuszeile des Docks spricht den Zustand aus: „Hört zu", „Denkt nach",
 Automatisierbar ist alles außer der eigentlichen WebRTC-Strecke.
 
 - **`DrylVoiceOptions`** — `ToSessionPayload()` erzeugt die erwartete Struktur: Modell, Stimme,
-  Tempo, Turn-Detection, Transkriptionsmodell, Werkzeug-Schemas. `PushToTalk` setzt
-  `turn_detection: null`.
+  Tempo, Turn-Detection, Transkriptionsmodell, Werkzeug-Schemas.
 - **Werkzeug-Brücke** — unbekannter Name ergibt ein Fehler-Output statt einer Exception; ein
   bekannter Name liefert Ergebnis-JSON; die Invocation landet im Run.
 - **`DrylVoiceRun`** — die Phase-/Activity-→-`AiState`-Abbildung; `StopAsync` aus `Idle` ist ein
@@ -306,6 +305,10 @@ Ermessen entschieden und leicht zu drehen:
    Textmodus hätte nur eine Hälfte des Gesprächs.
 5. **`IdleTimeout` 2 min / `MaxDuration` 30 min** — eine offene Sprachsession kostet pro Minute,
    auch wenn niemand redet. Beides ist konfigurierbar.
-6. **Die Sprach-Session bekommt denselben Systemprompt wie der Textmodus**, ergänzt um einen
+6. **Kein Push-to-Talk.** Es stand als dritte Turn-Detection-Variante im Raum, braucht aber
+   eigene Bedienelemente und einen zweiten Sendeweg (`input_audio_buffer.commit` +
+   `response.create`) — für ein durchgehendes Gespräch, das ausdrücklich das Ziel war, wäre das
+   ein halb verkabelter Modus, den niemand benutzt. `SemanticVad` und `ServerVad` bleiben.
+7. **Die Sprach-Session bekommt denselben Systemprompt wie der Textmodus**, ergänzt um einen
    kurzen Sprach-Zusatz (kürzer antworten, keine Markdown-Auszeichnung vorlesen, Zahlen
    ausschreiben). Ein vorgelesener Markdown-Block wäre sonst genau das, was er ist: unhörbar.
