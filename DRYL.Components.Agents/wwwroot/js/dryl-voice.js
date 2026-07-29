@@ -68,6 +68,10 @@ export async function start(token, config, dotNet) {
 
         pc.ontrack = (event) => {
             audio.srcObject = event.streams[0];
+            // The microphone click is a user gesture, but this runs a server round trip later,
+            // so the autoplay policy may still refuse. Sticky activation usually carries it —
+            // this is the belt to that pair of braces.
+            audio.play?.().catch(() => { /* the element autoplays or it does not */ });
             meter(state, event.streams[0], 'out');
         };
 
@@ -100,7 +104,11 @@ export async function start(token, config, dotNet) {
         });
 
         if (!response.ok) {
-            throw new Error(`Die Verbindung wurde abgelehnt (${response.status}).`);
+            // The API says why in the body; the status alone cannot tell an expired token from
+            // an unknown model.
+            const detail = await response.text().catch(() => '');
+            throw new Error(
+                `Die Verbindung wurde abgelehnt (${response.status}). ${detail}`.trim());
         }
 
         await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
@@ -161,9 +169,11 @@ function handle(state, raw) {
         case 'response.done':
             state.speaking = false;
             flush(state, event);
-            calls(state, event);
             touch(state);
-            report(state.dotNet, 'OnActivity', 'Listening');
+            // Only back to listening when the turn is actually over. With tool calls pending
+            // the assistant is still working, and saying "listening" over the top of that is
+            // the dock lying about what it is doing.
+            if (!calls(state, event)) report(state.dotNet, 'OnActivity', 'Listening');
             break;
 
         case 'error':
@@ -194,9 +204,10 @@ function flush(state, event) {
 }
 
 // Every function call in a finished response, executed server-side and answered on the channel.
+// Returns whether there was anything to run — the caller needs to know whether the turn is over.
 function calls(state, event) {
     const pending = (event.response?.output ?? []).filter((item) => item.type === 'function_call');
-    if (pending.length === 0) return;
+    if (pending.length === 0) return false;
 
     report(state.dotNet, 'OnActivity', 'Thinking');
 
@@ -215,6 +226,8 @@ function calls(state, event) {
             item: { type: 'function_call_output', call_id: call.call_id, output },
         });
     })).then(() => send(state, { type: 'response.create' }));
+
+    return true;
 }
 
 // Replays the earlier conversation into the session so the voice knows what was written.
@@ -249,6 +262,10 @@ async function report(dotNet, method, ...args) {
 function meter(state, stream, direction) {
     try {
         state.ctx ??= new (window.AudioContext || window.webkitAudioContext)();
+        // A context created outside a gesture starts suspended, and a suspended analyser reads
+        // pure silence — the orb would sit perfectly still through the whole conversation.
+        if (state.ctx.state === 'suspended') state.ctx.resume().catch(() => { /* stays still */ });
+
         const analyser = state.ctx.createAnalyser();
         analyser.fftSize = 256;
         state.ctx.createMediaStreamSource(stream).connect(analyser);
