@@ -61,6 +61,21 @@
                     <div class="dock-actions">@Actions</div>
                 }
 
+                @*  The way in. It only exists while nothing is running: once the session is
+                    live the whole dock is the voice, and the way out is the stop button. *@
+                @if (Voice is not null && !VoiceActive)
+                {
+                    <DrylTooltip Text="@VoiceLabel">
+                        <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    AriaLabel="@VoiceLabel"
+                                    Class="dock-voice-toggle"
+                                    OnClick="StartVoiceAsync">
+                            <DrylIcon Name="Microphone" Size="14" />
+                        </DrylButton>
+                    </DrylTooltip>
+                }
+
                 @if (Log is not null)
                 {
                     <DrylTooltip Text="@LogLabel">
@@ -101,7 +116,7 @@
 
             @*  The context chip: what the next prompt is about. It arrives and leaves with a
                 movement, because a selection appearing is a state change like any other. *@
-            <DrylPresence Visible="@(Selection?.HasSelection == true)"
+            <DrylPresence Visible="@(Selection?.HasSelection == true && !VoiceActive)"
                           Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
                 <div class="dock-context">
                     <DrylIcon Name="Sparkle" Size="12" />
@@ -119,18 +134,48 @@
             </DrylPresence>
 
             @*  Suggestions arrive and leave with a movement, like every other row of the dock. *@
-            <DrylPresence Visible="@(Suggestions is not null)"
+            <DrylPresence Visible="@(Suggestions is not null && !VoiceActive)"
                           Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
                 <div class="dock-suggestions">@Suggestions</div>
             </DrylPresence>
 
-            <DrylChatComposer @ref="_composer"
-                              @bind-Value="_draft"
-                              OnSend="SendAsync"
-                              Disabled="@Busy"
-                              Placeholder="@Placeholder"
-                              AriaLabel="@Title"
-                              Ai="@DockAi" />
+            <DrylPresence Visible="@(!VoiceActive)"
+                          Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
+                <DrylChatComposer @ref="_composer"
+                                  @bind-Value="_draft"
+                                  OnSend="SendAsync"
+                                  Disabled="@Busy"
+                                  Placeholder="@Placeholder"
+                                  AriaLabel="@Title"
+                                  Ai="@DockAi" />
+            </DrylPresence>
+
+            @*  The takeover. While the voice is live the dock IS the conversation: no composer,
+                no chips, one orb and the last thing that was said. It arrives and leaves with a
+                movement like every other row here. *@
+            <DrylPresence Visible="@VoiceActive"
+                          Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
+                <div class="dock-voice">
+                    <DrylVoiceOrb Run="Voice" />
+
+                    @*  Re-keying on the line fades the old one out and the new one in — a new
+                        sentence is a change, not a swap. *@
+                    <div class="dock-voice-line">
+                        <DrylPresence @key="VoiceLine" Visible Appear
+                                      Transition="PresenceTransition.Fade" Speed="PresenceSpeed.Fast">
+                            <span>@VoiceLine</span>
+                        </DrylPresence>
+                    </div>
+
+                    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                Size="DrylButton.ButtonSize.Small"
+                                LeadingIcon="X"
+                                Class="dock-voice-stop"
+                                OnClick="StopVoiceAsync">
+                        @VoiceStopLabel
+                    </DrylButton>
+                </div>
+            </DrylPresence>
         </div>
     </DrylPresence>
 </div>
@@ -174,6 +219,19 @@
     /// </summary>
     [Parameter] public CanvasSelection? Selection { get; set; }
 
+    /// <summary>
+    /// A voice session for this dock. With it the head grows a microphone button, and a live
+    /// session takes the dock over: composer, suggestions and context chip step aside for the
+    /// orb, and the transcript keeps flowing into the <see cref="Log"/>. Without it nothing
+    /// about the dock changes.
+    /// </summary>
+    /// <remarks>Create it with <c>DrylVoiceRunner.Create(…)</c> and hold it in a service, not in
+    /// the page — like the canvas run, it should survive a re-render.</remarks>
+    [Parameter] public DrylVoiceRun? Voice { get; set; }
+
+    /// <summary>Label of the microphone button — tooltip and aria-label both.</summary>
+    [Parameter] public string VoiceLabel { get; set; } = "Talk to the assistant";
+
     /// <summary>Whether the dock is collapsed to a single button. Supports two-way binding.</summary>
     [Parameter] public bool Collapsed { get; set; }
 
@@ -192,6 +250,7 @@
 
     private DrylCanvasRun? _subscribed;
     private CanvasSelection? _subscribedSelection;
+    private DrylVoiceRun? _subscribedVoice;
     private DrylChatComposer? _composer;
     private bool _focusComposer;
     private ElementReference _el;
@@ -224,6 +283,13 @@
                 _subscribedSelection.OnChange += HandleChange;
                 _subscribedSelection.OnPromptRequested += HandlePromptRequested;
             }
+        }
+
+        if (!ReferenceEquals(_subscribedVoice, Voice))
+        {
+            if (_subscribedVoice is not null) _subscribedVoice.OnChange -= HandleChange;
+            _subscribedVoice = Voice;
+            if (_subscribedVoice is not null) _subscribedVoice.OnChange += HandleChange;
         }
     }
 
@@ -305,7 +371,36 @@
         }
     }
 
-    private bool HasError => string.IsNullOrWhiteSpace(Status) && Run?.Error is not null;
+    private bool VoiceActive => Voice?.IsActive == true;
+
+    private const string VoiceStopLabel = "End voice session";
+
+    // What the voice is doing, in one line. English like every other string in this component —
+    // a host that wants it in its own language overrides Status.
+    private string? VoiceStatus => Voice is null ? null : Voice.Phase switch
+    {
+        VoicePhase.Connecting => "Connecting…",
+        VoicePhase.Closing => "Ending…",
+        VoicePhase.Live => Voice.Activity switch
+        {
+            VoiceActivity.Thinking => "Thinking…",
+            VoiceActivity.Speaking => "Speaking…",
+            _ => "Listening…",
+        },
+        _ => null,
+    };
+
+    // The last thing said, whoever said it: one line under the orb, so the user can see they
+    // were understood without opening the whole log.
+    private string? VoiceLine =>
+        Voice is { Transcript.Count: > 0 } voice ? voice.Transcript[^1].Text : null;
+
+    private Task StartVoiceAsync() => Voice?.StartAsync() ?? Task.CompletedTask;
+
+    private Task StopVoiceAsync() => Voice?.StopAsync() ?? Task.CompletedTask;
+
+    private bool HasError => string.IsNullOrWhiteSpace(Status)
+        && (Run?.Error is not null || Voice?.Error is not null);
 
     // A canvas run is created by the host long before anything asks it for an artifact, and
     // DrylRunBase starts at Thinking — so an untouched run would make the dock claim it is
@@ -318,7 +413,10 @@
     // The AI vocabulary of the whole dock: the run's own state, or Thinking while the host is
     // mid-turn — the dock has to breathe before the first artifact node exists.
     private AiState DockAi =>
-        !Working ? AiState.None
+        // A live session outranks everything: while the voice is running, what the AI is doing
+        // IS what the voice is doing.
+        VoiceActive ? Voice!.State
+        : !Working ? AiState.None
         : Run?.State is AiState.Streaming or AiState.Thinking ? Run.State
         : Busy ? AiState.Thinking
         : Run?.State ?? AiState.None;
@@ -328,6 +426,8 @@
         get
         {
             if (!string.IsNullOrWhiteSpace(Status)) return Status!;
+            if (VoiceStatus is { } spoken) return spoken;
+            if (Voice?.Error is { } voiceError) return voiceError.Message;
             if (Run?.Error is { } error) return error.Message;
             if (!Working) return "Idle";
 
@@ -385,6 +485,9 @@
             _subscribedSelection.OnChange -= HandleChange;
             _subscribedSelection.OnPromptRequested -= HandlePromptRequested;
         }
+
+        // Only the subscription — the run itself belongs to the host and outlives this dock.
+        if (_subscribedVoice is not null) _subscribedVoice.OnChange -= HandleChange;
 
         if (_shown)
         {

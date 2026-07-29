@@ -198,4 +198,109 @@ public class DrylCanvasDockTests : BunitContext
         Assert.Empty(cut.FindAll(".dock-actions"));
         Assert.Empty(cut.FindAll(".dock-suggestions"));
     }
+
+    // ── Voice ────────────────────────────────────────────────────────────────
+
+    private static DrylVoiceRun VoiceRun() =>
+        new DrylVoiceRunner(new DRYL.Components.Tests.Agents.Voice.NoopJsRuntime())
+            .Create(new DrylVoiceOptions { ApiKey = "sk-test" });
+
+    [Fact]
+    public void Without_a_voice_run_the_dock_is_exactly_what_it_was()
+    {
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Run, new DrylCanvasRun()));
+
+        Assert.Empty(cut.FindAll(".dock-voice-toggle"));
+        Assert.Empty(cut.FindAll(".dock-voice"));
+        Assert.NotNull(cut.Find(".chat-composer"));
+    }
+
+    [Fact]
+    public void An_idle_voice_run_offers_a_microphone()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, VoiceRun())
+            .Add(x => x.VoiceLabel, "Mit dem Assistenten sprechen"));
+
+        var button = cut.Find(".dock-voice-toggle");
+        Assert.Equal("Mit dem Assistenten sprechen", button.GetAttribute("aria-label"));
+        Assert.NotNull(cut.Find(".chat-composer"));
+    }
+
+    [Fact]
+    public void A_live_session_takes_the_dock_over()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, voice));
+
+        Assert.NotNull(cut.Find(".dock-voice .voice-orb"));
+        Assert.NotNull(cut.Find(".dock-voice-stop"));
+        // The way in is gone while the session runs; the way out is the stop button.
+        Assert.Empty(cut.FindAll(".dock-voice-toggle"));
+        // And the composer is gone: you are talking, not typing.
+        Assert.Empty(cut.FindAll(".chat-composer"));
+    }
+
+    [Fact]
+    public void The_status_line_says_what_the_voice_is_doing()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+        voice.OnActivity(nameof(VoiceActivity.Speaking));
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, voice));
+
+        Assert.Contains("Speaking", cut.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
+    public void A_host_status_still_wins_over_the_voice()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, voice)
+            .Add(x => x.Status, "Schritt 2 von 3"));
+
+        Assert.Contains("Schritt 2 von 3", cut.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
+    public void The_last_spoken_line_is_shown_under_the_orb()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+        voice.OnTranscript(nameof(VoiceRole.User), "Zeig mir die Projekte");
+        voice.OnTranscript(nameof(VoiceRole.Assistant), "Ist gebaut.");
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, voice));
+
+        Assert.Contains("Ist gebaut.", cut.Find(".dock-voice-line").TextContent);
+    }
+
+    [Fact]
+    public void A_voice_failure_is_reported_where_every_other_failure_is()
+    {
+        var voice = VoiceRun();
+        voice.OnFailed("Kein Zugriff auf das Mikrofon.");
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, voice));
+
+        var status = cut.Find(".dock-status");
+        Assert.Contains("Mikrofon", status.TextContent);
+        Assert.Contains("is-error", status.ClassList);
+    }
 }
