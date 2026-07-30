@@ -14,6 +14,9 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Changed
+- `DRYL.Components.Agents` (Agents 0.16.1) — Minimum `Microsoft.Agents.AI` raised from 1.13.0 to 1.15.0. No API of this package changes; consumers pinned to 1.13.x need to move up with it.
+
 ## [2.20.1] — 2026-07-30
 
 Two bugs breaking the same promise: a surface belongs to the theme, and a panel belongs over the page — not inside the card it was born in.
