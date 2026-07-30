@@ -1,4 +1,4 @@
-.rating-wrapper {
+﻿.rating-wrapper {
     position: relative;
     display: inline-flex;
     border-radius: var(--r-md);
@@ -47,34 +47,34 @@
 /* ── AI mode — stars carry the state, no wrapper frame ── */
 
 .rating-wrapper.ai-aura .rating-btn--filled {
-    color: var(--accent-a);
-    filter: drop-shadow(0 0 5px rgba(124, 92, 255, 0.65));
+    color: var(--ai-a);
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--ai-a) 65%, transparent));
 }
 
 .rating-wrapper.ai-aura .rating-btn:not(.rating-btn--filled) {
-    color: rgba(124, 92, 255, 0.28);
+    color: color-mix(in srgb, var(--ai-a) 28%, transparent);
 }
 
 .rating-wrapper.ai-aura .rating-btn:hover:not(:disabled) {
-    color: var(--accent-b);
-    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8));
+    color: var(--ai-b);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ai-b) 80%, transparent));
     transform: scale(1.15);
 }
 
 /* Thinking — slow breathing glow */
 @keyframes rating-star-breathe {
-    0%, 100% { filter: drop-shadow(0 0 3px rgba(124, 92, 255, 0.35)); opacity: 0.55; }
-    50%       { filter: drop-shadow(0 0 11px rgba(124, 92, 255, 1));   opacity: 1; }
+    0%, 100% { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ai-a) 35%, transparent)); opacity: 0.55; }
+    50%      { filter: drop-shadow(0 0 11px var(--ai-a));                                     opacity: 1; }
 }
 
 .rating-wrapper.ai-thinking .rating-btn--filled {
     animation: rating-star-breathe 2s var(--ease-in-out) infinite;
 }
 
-/* Streaming — violet→cyan wave left to right */
+/* Streaming — accent-a→accent-b wave left to right */
 @keyframes rating-star-stream {
-    0%, 100% { color: var(--accent-a); filter: drop-shadow(0 0 4px rgba(124, 92, 255, 0.6)); }
-    50%       { color: var(--accent-b); filter: drop-shadow(0 0 9px  rgba(34,  211, 238, 0.9)); }
+    0%, 100% { color: var(--ai-a); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ai-a) 60%, transparent)); }
+    50%      { color: var(--ai-b); filter: drop-shadow(0 0 9px color-mix(in srgb, var(--ai-b) 90%, transparent)); }
 }
 
 .rating-wrapper.ai-streaming .rating-btn--filled {
@@ -91,11 +91,11 @@
 .rating-wrapper.ai-streaming .rating-btn:nth-child(9).rating-btn--filled  { animation-delay: 1.12s; }
 .rating-wrapper.ai-streaming .rating-btn:nth-child(10).rating-btn--filled { animation-delay: 1.26s; }
 
-/* Generated — one-shot flash: white → cyan → violet settle */
+/* Generated — one-shot flash: knob → accent-b → accent-a settle */
 @keyframes rating-star-generated {
-    0%   { color: var(--knob);    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--knob) 90%, transparent)) drop-shadow(0 0 8px rgba(34,211,238,0.8)); }
-    35%  { color: var(--accent-b); filter: drop-shadow(0 0 12px rgba(34,  211, 238, 0.85)); }
-    100% { color: var(--accent-a); filter: drop-shadow(0 0 5px  rgba(124, 92,  255, 0.6)); }
+    0%   { color: var(--knob);    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--knob) 90%, transparent)) drop-shadow(0 0 8px color-mix(in srgb, var(--ai-b) 80%, transparent)); }
+    35%  { color: var(--ai-b); filter: drop-shadow(0 0 12px color-mix(in srgb, var(--ai-b) 85%, transparent)); }
+    100% { color: var(--ai-a); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--ai-a) 60%, transparent)); }
 }
 
 .rating-wrapper.ai-generated .rating-btn--filled {

@@ -1,4 +1,4 @@
-/* ── DrylImage ─────────────────────────────────────────────────
+﻿/* ── DrylImage ─────────────────────────────────────────────────
    A responsive image frame. Two layout modes:
      • --ratio   : the frame owns an aspect-ratio; the image fills it
                    absolutely (object-fit) — no layout shift.
@@ -92,7 +92,7 @@
     z-index: 2;
     background:
         radial-gradient(60% 60% at 30% 30%, var(--accent-soft), transparent 70%),
-        radial-gradient(55% 55% at 75% 68%, rgba(34, 211, 238, 0.20), transparent 70%);
+        radial-gradient(55% 55% at 75% 68%, color-mix(in srgb, var(--accent-b) 20%, transparent), transparent 70%);
     background-size: 180% 180%, 165% 165%;
     mix-blend-mode: screen;
     animation: img-think 7s var(--ease-in-out) infinite alternate;

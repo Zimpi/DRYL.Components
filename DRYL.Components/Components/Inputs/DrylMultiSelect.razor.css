@@ -25,7 +25,8 @@
 .multiselect-trigger.select--open {
     border-color: var(--accent-line);
     background: var(--glass-2);
-    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12), 0 0 24px rgba(124, 92, 255, 0.18);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                0 0 24px color-mix(in srgb, var(--accent-a) 18%, transparent);
 }
 
 .multiselect-trigger:focus-visible { outline: none; }
@@ -45,20 +46,22 @@
 /* .input-error / .input-success in dryl.css only target .input/.textarea/.select —
    replicate the same visual tokens for the multiselect trigger. */
 
-.multiselect-trigger.input-error { border-color: rgba(248, 113, 113, 0.5); }
+.multiselect-trigger.input-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
 .multiselect-trigger.input-error:focus,
 .multiselect-trigger.input-error.select--open {
     border-color: var(--danger);
     background: var(--glass-2);
-    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12), 0 0 24px rgba(248, 113, 113, 0.18);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 12%, transparent),
+                0 0 24px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 
-.multiselect-trigger.input-success { border-color: rgba(52, 211, 153, 0.5); }
+.multiselect-trigger.input-success { border-color: color-mix(in srgb, var(--success) 50%, transparent); }
 .multiselect-trigger.input-success:focus,
 .multiselect-trigger.input-success.select--open {
     border-color: var(--success);
     background: var(--glass-2);
-    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12), 0 0 24px rgba(52, 211, 153, 0.18);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 12%, transparent),
+                0 0 24px color-mix(in srgb, var(--success) 18%, transparent);
 }
 
 /* ── Option rows ─────────────────────────────────────────── */
@@ -85,15 +88,15 @@
 .select-option:hover,
 .select-option.is-highlighted { background: var(--glass-2); color: var(--fg); }
 
-/* Selected rows get a permanent violet tint so checked state reads
+/* Selected rows get a permanent accent tint so checked state reads
    at a glance without only relying on the checkbox. */
 .select-option.is-selected {
     color: var(--fg);
-    background: rgba(124, 92, 255, 0.08);
+    background: color-mix(in srgb, var(--accent-a) 8%, transparent);
 }
 
 .select-option.is-selected.is-highlighted {
-    background: rgba(124, 92, 255, 0.15);
+    background: color-mix(in srgb, var(--accent-a) 15%, transparent);
 }
 
 /* ── Checkbox column ─────────────────────────────────────── */
@@ -110,24 +113,23 @@
 
 /* ── Dropdown panel ──────────────────────────────────────── */
 
+/* Positioning (and the enter animation) is provided by the DrylPopover
+   wrapper, which portals the panel to <body> so it escapes any ancestor
+   overflow / backdrop-filter containing block. This is just the surface. */
 .select-panel {
-    position: absolute;
-    top: calc(100% + var(--sp-1));
-    left: 0;
     width: 100%;
-    z-index: var(--z-drawer);
     background: var(--panel-float);
     backdrop-filter: var(--glass-fx-float);
     -webkit-backdrop-filter: var(--glass-fx-float);
     border: 1px solid var(--line-strong);
-    border-top-color: rgba(124, 92, 255, 0.35);
+    border-top-color: color-mix(in srgb, var(--accent-a) 35%, transparent);
     border-radius: var(--r-md);
-    box-shadow: var(--shadow-lg), 0 0 24px rgba(124, 92, 255, 0.08);
+    box-shadow: var(--shadow-lg),
+                0 0 24px color-mix(in srgb, var(--accent-a) 8%, transparent);
     padding: var(--sp-1) 0;
     max-height: 240px;
     overflow-y: auto;
     outline: none;
-    animation: menu-in var(--dur-med) var(--ease-out) both;
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
 }

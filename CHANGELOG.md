@@ -14,22 +14,31 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [2.20.0] — 2026-07-29
+## [2.20.1] — 2026-07-30
 
-Der Assistent bekommt eine Stimme. Ein Dock, das bisher getippt wurde, lässt sich jetzt besprechen — mit denselben Werkzeugen, demselben Verlauf und ohne dass eine einzige Audiodatei den Server berührt.
-
-### Added
-- `DrylVoiceRunner` / `DrylVoiceRun` / `DrylVoiceOptions` (Agents 0.16.0) — **Neu:** Sprachsitzungen über die OpenAI-Realtime-API. Der Browser hält eine WebRTC-Verbindung direkt zum Modell (Mikrofon rein, Stimme raus, ein Datenkanal für die Ereignisse); der Server prägt nur das kurzlebige `ek_…`-Token und führt jeden Werkzeugaufruf aus. Der API-Schlüssel verlässt den Server nie, und weil die ganze Session im Token steckt, kann der Browser weder Instructions noch Modell noch Werkzeugliste verändern. Konfiguriert wird ausschließlich in C# — `Model`, `Instructions`, `Voice`, `Speed`, `TurnDetection`, `ReasoningEffort`, `TranscriptionModel`, `Language`, `Tools`, `IdleTimeout`, `MaxDuration`, `BaseUrl`, `SafetyIdentifier`. Es gibt bewusst kein Einstellungs-UI.
-- `DrylVoiceOrb` (Agents 0.16.0) — **Neue Komponente:** die sichtbare Stimme. Gebaut aus den vorhandenen `.ai-aura`-Primitiven, also ohne eine einzige neue Farbe oder Dauer; die fünf `AiState`-Werte tragen sie wie jede andere KI-Fläche. Der Lautstärkepegel bleibt im Browser und schreibt eine CSS-Variable direkt auf das Element — ein Pegel, der über Interop liefe, wären sechzig Renderdurchläufe pro Sekunde für eine Dekoration.
-- `DrylCanvasDock` (Agents 0.16.0) — Neue Parameter `Voice` und `VoiceLabel`. Mit einem Sprach-Run wächst dem Kopf ein Mikrofon-Knopf; läuft die Sitzung, wird das Dock zum Sprach-Panel: Composer, Vorschläge und Kontext-Chip weichen, Orb, letzte gesprochene Zeile und ein Beenden-Knopf treten an ihre Stelle. Ohne `Voice` ändert sich am Dock nichts.
-- `DrylIcon` — Neues Icon `Microphone` (lucide: mic).
+Two bugs breaking the same promise: a surface belongs to the theme, and a panel belongs over the page — not inside the card it was born in.
 
 ### Fixed
-- `DrylCanvasDock` (Agents 0.16.0) — Die Dock-Fläche war durchsichtig. Sie erbte von `.glass-card` einen 4-%-Weiß-Verlauf mit `backdrop-filter: none`, also die Behandlung für Flächen *im* Fluss — das Dock schwebt aber über dem Canvas, und man las die Seite glatt durch es hindurch. Sie trägt jetzt `--panel-float` und echtes `--glass-fx-float` (Regel 2.3). Aufgefallen erst, als die Sprach-Übernahme die Fläche groß und weitgehend leer machte.
+- `DrylMultiSelect` — The listbox panel was clipped by the surrounding card. It was the last dropdown in the library still sitting on its own `position: absolute` panel, while `DrylSelect` / `DrylAutocomplete` / `DrylDatePicker` / `DrylTimePicker` had long since moved to `DrylPopover`. So any ancestor with `overflow` or `backdrop-filter` clipped it — on the docs site, the `overflow: hidden` example card. It now sits on `DrylPopover`, is portaled to `<body>` and positions itself against the viewport. It inherits the primitive's entrance animation along the way, plus `aria-activedescendant` and `dryl.keynav` (arrow keys no longer scroll the page while you walk the options).
+- `DrylPopover` — `Block="true"` stretched the anchor but not the trigger's content. Whatever the consumer puts in `TriggerContent` is a flex item at `flex: 0 1 auto`, so it sat at its intrinsic width: a block dropdown rendered narrower than the column it was placed in. Affected `DrylAutocomplete`, `DrylDatePicker`, `DrylTimePicker` — and would have hit `DrylMultiSelect` on its way over. The rule needs `::deep`, because the trigger's children carry the *consumer's* scope attribute, not the popover's.
+- **Theme awareness** — Replaced 46 hardcoded accent and semantic colours across 15 components: they were nailed down as `rgba(124, 92, 255, …)` / `rgba(248, 113, 113, …)` and stayed violet or red while `DrylThemeProvider` recoloured the rest of the surface. Now uniformly `color-mix(in srgb, var(--accent-a|--accent-b|--ai-a|--ai-b|--danger|--success|--warning) N%, transparent)`. Affected: `DrylMultiSelect`, `DrylSelect`, `DrylRating`, `DrylChipInput`, `DrylInputOtp`, `DrylInputPassword`, `DrylSlider`, `DrylValidationSummary`, `DrylSkeleton`, `DrylSpinner`, `DrylNotifications`, `DrylImage`, `DrylTimelineItem`, `DrylStepper`, `DrylCommandPalette`. AI surfaces read `--ai-a` / `--ai-b` rather than the accent tokens — the same values, but the contract the `.ai-aura` primitives use.
+
+## [2.20.0] — 2026-07-29
+
+The assistant gets a voice. A dock that used to be typed into can now be spoken to — same tools, same history, and without a single audio frame touching the server.
+
+### Added
+- `DrylVoiceRunner` / `DrylVoiceRun` / `DrylVoiceOptions` (Agents 0.16.0) — **New:** voice sessions over the OpenAI Realtime API. The browser holds a WebRTC connection straight to the model (microphone in, voice out, one data channel for the events); the server only mints the short-lived `ek_…` token and executes every tool call. The API key never leaves the server, and because the whole session is baked into the token, the browser can change neither the instructions nor the model nor the tool list. Configuration is C#-only — `Model`, `Instructions`, `Voice`, `Speed`, `TurnDetection`, `ReasoningEffort`, `TranscriptionModel`, `Language`, `Tools`, `IdleTimeout`, `MaxDuration`, `BaseUrl`, `SafetyIdentifier`. There is deliberately no settings UI.
+- `DrylVoiceOrb` (Agents 0.16.0) — **New component:** the visible voice. Built from the existing `.ai-aura` primitives, so without a single new colour or duration; the five `AiState` values carry it like any other AI surface. The volume level stays in the browser and writes a CSS variable directly onto the element — a level travelling through interop would be sixty render passes per second for a decoration.
+- `DrylCanvasDock` (Agents 0.16.0) — New `Voice` and `VoiceLabel` parameters. Given a voice run, the head grows a microphone button; while the session is live the dock becomes the voice panel: composer, suggestions and context chip step aside, and the orb, the last spoken line and an end button take their place. Without `Voice` nothing about the dock changes.
+- `DrylIcon` — New `Microphone` icon (lucide: mic).
+
+### Fixed
+- `DrylCanvasDock` (Agents 0.16.0) — The dock surface was see-through. It inherited a 4% white gradient with `backdrop-filter: none` from `.glass-card` — the treatment for surfaces *in* the flow — but the dock floats over the canvas, and you could read the page straight through it. It now carries `--panel-float` and a real `--glass-fx-float` (rule 2.3). Only noticed once the voice takeover made the surface large and mostly empty.
 
 ## [2.19.0] — 2026-07-27
 
-Zwei Dinge, die auf schnellen Geräten unsichtbar waren und auf allen anderen wehtaten: getippte Zeichen verschwanden wieder aus den Eingabefeldern, und die Bibliothek verlangte GPU-Arbeit für Effekte, die niemand sehen konnte.
+Two things invisible on fast machines and painful on every other one: typed characters vanished back out of input fields, and the library charged GPU work for effects nobody could see.
 
 ### Changed
 - **Glass surfaces** — Frost is now charged only where it can be seen. A surface that floats over scrolling content (topbar, sidebar, popover, menu, tooltip, toast, dialog) keeps its real `backdrop-filter`; a surface in the flow (`.glass`, `.glass-card`, `.expansion`, `.alert`, `.btn-secondary`) keeps the translucent fill and drops the blur, because the page's own smooth background behind it is what the blur was blurring. Measured on the component overview: 95 frosted surfaces down to 5, GPU draw per frame 2.77 ms → 1.11 ms, with an average pixel difference of 0.84 of 255. Opt back in per app with `--glass-fx-flow`.
@@ -51,7 +60,7 @@ Zwei Dinge, die auf schnellen Geräten unsichtbar waren und auf allen anderen we
 
 ## [2.18.0] — 2026-07-26
 
-Zwei Lücken, die beim Bau einer echten Steuerzentrale auffielen: ein Formular konnte keinen Langtext aufnehmen, und das Dock gehörte ausschließlich sich selbst.
+Two gaps that showed up while building a real control centre: a form could not hold long text, and the dock belonged exclusively to itself.
 
 ### Added
 - `DrylCanvas` — New catalog node type `textarea`: the multi-line sibling of `inputText`, with `rows` (2..20, default 4). A form in an artifact can now hold a Markdown body or a long description instead of squeezing it into a single line.
@@ -70,12 +79,12 @@ Zwei Lücken, die beim Bau einer echten Steuerzentrale auffielen: ein Formular k
 
 ## [2.17.1] — 2026-07-26
 
-Sidequest R — **Responsive**. Ein Artefakt weiß jetzt, wie breit es wirklich ist: der Canvas-Body ist ein Container-Kontext, kein Widget rechnet mehr mit dem Viewport, und das Donut-Rad passt sich seinem Platz an statt ihn zu überlaufen.
+Sidequest R — **Responsive**. An artifact now knows how wide it really is: the canvas body is a container context, no widget measures against the viewport any more, and the donut fits its slot instead of overflowing it.
 
 ### Fixed
-- `DrylDonutChart` — Das Rad war immer so breit wie hoch (`Height`, Standard 260 px), unabhängig vom Slot, und lief in jedem schmaleren Container an beiden Seiten heraus (gemessen: 220 px Rad in einem 200-px-Slot, 10 px Überstand je Seite). Es nimmt jetzt `min(Höhe, verfügbare Breite)` — Segmente, Tooltip-Anker und Mitte skalieren mit.
-- `DrylCanvas` — Der Canvas-Body ist ein benannter Container-Kontext (`canvas`): die Nodes richten sich nach der Breite des Canvas, nicht nach der des Viewports — dieselbe Spec liegt einmal in einer schmalen Chat-Spalte und einen Morph später im Vollbild.
-- `DrylCanvas` — Kein seitliches Scrollen mehr: die auch im verborgenen Zustand gelayouteten Chart-Tooltips hatten die Scrollbreite des Body über seine Breite hinausgeschoben (330 zu 329 bei 375 px, 322 zu 318 in einem 320-px-Slot) und boten eine Scroll-Möglichkeit zu einer Blase, die der Canvas an seiner Kante ohnehin abschneidet. Ein Widget mit horizontalem Bedarf scrollt weiterhin in sich selbst.
+- `DrylDonutChart` — The wheel was always as wide as it was tall (`Height`, default 260 px) regardless of its slot, and overflowed both sides of any narrower container (measured: a 220 px wheel in a 200 px slot, 10 px over each edge). It now takes `min(height, available width)` — segments, tooltip anchors and the centre scale with it.
+- `DrylCanvas` — The canvas body is a named container context (`canvas`): nodes size themselves against the canvas's width, not the viewport's — the same spec sits in a narrow chat column one moment and full-screen a morph later.
+- `DrylCanvas` — No more sideways scrolling: chart tooltips, which are laid out even while hidden, had pushed the body's scroll width past its own width (330 vs 329 at 375 px, 322 vs 318 in a 320 px slot) and offered a scroll to a bubble the canvas clips at its edge anyway. A widget with genuine horizontal needs still scrolls inside itself.
 
 ## [2.17.0] — 2026-07-26
 

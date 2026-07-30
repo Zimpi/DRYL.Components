@@ -1,4 +1,4 @@
-.timeline-item {
+﻿.timeline-item {
     display: flex;
     gap: var(--sp-3);
 }
@@ -24,9 +24,9 @@
 }
 
 .timeline-marker--accent  { border-color: var(--accent-line);          color: var(--accent-a); }
-.timeline-marker--success { border-color: rgba(52,211,153,0.5);        color: var(--success); }
-.timeline-marker--warning { border-color: rgba(251,191,36,0.5);        color: var(--warning); }
-.timeline-marker--danger  { border-color: rgba(248,113,113,0.5);       color: var(--danger); }
+.timeline-marker--success { border-color: color-mix(in srgb, var(--success) 50%, transparent);        color: var(--success); }
+.timeline-marker--warning { border-color: color-mix(in srgb, var(--warning) 50%, transparent);        color: var(--warning); }
+.timeline-marker--danger  { border-color: color-mix(in srgb, var(--danger) 50%, transparent);       color: var(--danger); }
 
 .timeline-dot {
     width: 7px;

@@ -1,4 +1,4 @@
-/* ── DrylSkeleton ─────────────────────────────────────────────
+﻿/* ── DrylSkeleton ─────────────────────────────────────────────
    Extends the global .skel shimmer primitive from dryl.css with:
    • Size-token system (sz-sm / sz-md / sz-lg) via CSS custom props
    • Variant-specific shapes and layouts
@@ -132,14 +132,14 @@
    geometry on the 500%-wide strip).
    ─────────────────────────────────────────────────────────── */
 .skel-wrap.ai-aura.ai-streaming .skel {
-    background: rgba(124, 92, 255, 0.06);
+    background: color-mix(in srgb, var(--ai-a) 6%, transparent);
 }
 .skel-wrap.ai-aura.ai-streaming .skel::before {
     background: linear-gradient(
         90deg,
-        rgba(124, 92, 255, 0.06) 0%,
-        rgba(34, 211, 238, 0.18) 50%,
-        rgba(124, 92, 255, 0.06) 100%
+        color-mix(in srgb, var(--ai-a) 6%, transparent) 0%,
+        color-mix(in srgb, var(--ai-b) 18%, transparent) 50%,
+        color-mix(in srgb, var(--ai-a) 6%, transparent) 100%
     );
     background-size: 40% 100%;
     animation-duration: 1.2s;

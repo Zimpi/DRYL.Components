@@ -1,4 +1,4 @@
-/* ── Palette shell ─────────────────────────────────────────────────────────── */
+﻿/* ── Palette shell ─────────────────────────────────────────────────────────── */
 
 .cmd-palette {
     position: relative;
@@ -154,7 +154,7 @@
 /* AI intent item — accent tint on icon */
 .cmd-item--ai .cmd-item-icon {
     color: var(--accent-a);
-    border-color: rgba(124, 92, 255, 0.25);
+    border-color: color-mix(in srgb, var(--ai-a) 25%, transparent);
 }
 
 .cmd-item-icon {

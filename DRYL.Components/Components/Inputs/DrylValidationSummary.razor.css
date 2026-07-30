@@ -1,11 +1,11 @@
-.validation-summary {
+﻿.validation-summary {
     display: flex;
     align-items: flex-start;
     gap: var(--sp-3);
     padding: var(--sp-4);
-    border: 1px solid rgba(248, 113, 113, 0.4);
+    border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
     border-radius: var(--r-md);
-    background: rgba(248, 113, 113, 0.08);
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
 }

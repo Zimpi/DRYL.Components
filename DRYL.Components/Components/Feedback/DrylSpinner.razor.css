@@ -1,4 +1,4 @@
-/* ── DrylSpinner ─────────────────────────────────────────────
+﻿/* ── DrylSpinner ─────────────────────────────────────────────
    All dimensions reference tokens defined on the wrapper so they
    cascade to every child without repeating the size values.
    Continuous animation durations are NOT --dur-* (those are for
@@ -120,7 +120,7 @@
     height:        30%;
     border-radius: 50%;
     background:    var(--accent-grad);
-    box-shadow:    0 0 6px var(--accent-soft), 0 0 14px rgba(124, 92, 255, 0.45);
+    box-shadow:    0 0 6px var(--accent-soft), 0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent);
     transform:     translate(-50%, -50%);
     animation:     dryl-pulse-core 2.2s var(--ease-in-out) infinite;
 }

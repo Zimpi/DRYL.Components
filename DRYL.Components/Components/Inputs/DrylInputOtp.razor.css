@@ -1,4 +1,4 @@
-.otp-wrapper {
+﻿.otp-wrapper {
     position: relative;
     display: inline-flex;
     border-radius: var(--r-md);
@@ -56,8 +56,8 @@
     border-color: var(--accent-line);
     background: var(--glass-2);
     box-shadow: 0 0 0 1px var(--accent-line),
-                0 0 0 4px rgba(124, 92, 255, 0.12),
-                0 0 24px rgba(124, 92, 255, 0.18);
+                0 0 0 4px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                0 0 24px color-mix(in srgb, var(--accent-a) 18%, transparent);
 }
 
 .otp-box:focus-visible { outline: none; }
@@ -68,7 +68,7 @@
 
 .otp-box--error:focus {
     border-color: var(--danger);
-    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
 .otp-box--success {
@@ -77,7 +77,7 @@
 
 .otp-box--success:focus {
     border-color: var(--success);
-    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 12%, transparent);
 }
 
 .otp-box:disabled {

@@ -17,6 +17,18 @@
     width: 100%;
 }
 
+/* Block mode stretches the anchor — the trigger slot has to pass that width
+   through to whatever the consumer put inside it. Its children come from
+   TriggerContent, so they carry the CONSUMER's scope attribute, not ours;
+   ::deep is what lets this rule reach them. Without it they are flex items at
+   `flex: 0 1 auto` and sit at their intrinsic width, so a Block dropdown
+   (select / multi-select / autocomplete / date + time picker) renders narrower
+   than the column it was placed in. */
+.popover-anchor--block .popover-trigger ::deep > * {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 /* The panel wrapper is always rendered (so Blazor never removes the node and
    JS can safely portal it to <body>), and positioned with position:fixed by
    dryl.popover (JS) so it escapes any ancestor overflow / backdrop-filter

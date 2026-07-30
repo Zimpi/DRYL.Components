@@ -217,6 +217,8 @@ The `<Version>` in the `.csproj` is the **single source of truth** that drives p
 
 The file lives at the repository root and follows [Keep a Changelog](https://keepachangelog.com/) (v1.1.0) format with [Semantic Versioning](https://semver.org/).
 
+**Write it in English — always, without exception.** `CHANGELOG.md` is public-facing: it ships in the NuGet package, and every release cut from it becomes a GitHub Release read by people who do not speak German. This holds for the release intro line as much as for the bullets, and it holds no matter what language the conversation that produced the change was in. Same rule for `README.md`, XML doc comments and every other artefact a consumer of the library sees.
+
 Accumulate entries under `[Unreleased]` as you work. **When you bump `<Version>` (§7.0), cut a release in the changelog in the same commit:** rename the `[Unreleased]` block to `## [X.Y.Z] - YYYY-MM-DD` (the version you just set, today's date) and start a fresh, empty `[Unreleased]` above it. That keeps every published version traceable to its entries.
 
 Pick the right sub-heading for each change:

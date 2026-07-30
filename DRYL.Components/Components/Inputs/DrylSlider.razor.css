@@ -1,4 +1,4 @@
-.slider-wrap {
+﻿.slider-wrap {
     position: relative;
     padding: var(--sp-1) 0;
 }
@@ -53,12 +53,12 @@
 }
 
 .dryl-slider:focus::-webkit-slider-thumb {
-    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-a) 35%, transparent), 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
     transform: scale(1.1);
 }
 
 .dryl-slider:focus::-moz-range-thumb {
-    box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.35), 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-a) 35%, transparent), 0 1px 4px color-mix(in srgb, var(--backdrop) 83.333%, transparent);
 }
 
 .dryl-slider:active::-webkit-slider-thumb { cursor: grabbing; }

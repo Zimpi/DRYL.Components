@@ -1,4 +1,4 @@
-/* ── Root ───────────────────────────────────────────────── */
+﻿/* ── Root ───────────────────────────────────────────────── */
 
 .stepper {
     display: flex;
@@ -124,7 +124,7 @@
 .step-indicator.is-active {
     background: transparent;
     border: 2px solid transparent;
-    box-shadow: 0 0 0 2px var(--accent-a), 0 0 12px rgba(124, 92, 255, 0.4);
+    box-shadow: 0 0 0 2px var(--accent-a), 0 0 12px color-mix(in srgb, var(--accent-a) 40%, transparent);
     color: var(--fg);
 }
 

@@ -1,4 +1,4 @@
-.chip-input-inner {
+﻿.chip-input-inner {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -24,8 +24,8 @@
     border-color: var(--accent-line);
     background: var(--glass-2);
     box-shadow: 0 0 0 1px var(--accent-line),
-                0 0 0 4px rgba(124, 92, 255, 0.12),
-                0 0 24px rgba(124, 92, 255, 0.18);
+                0 0 0 4px color-mix(in srgb, var(--accent-a) 12%, transparent),
+                0 0 24px color-mix(in srgb, var(--accent-a) 18%, transparent);
 }
 
 .chip-input-inner--error {
@@ -34,7 +34,7 @@
 
 .chip-input-inner--error:focus-within {
     border-color: var(--danger);
-    box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.12);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
 .chip-input-inner--success {
@@ -43,7 +43,7 @@
 
 .chip-input-inner--success:focus-within {
     border-color: var(--success);
-    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 12%, transparent);
 }
 
 .chip-input-inner--disabled {

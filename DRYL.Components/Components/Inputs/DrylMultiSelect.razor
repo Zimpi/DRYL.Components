@@ -5,6 +5,11 @@
 @*  ─────────────────────────────────────────────────────────
     DrylMultiSelect — multi-selection dropdown.
 
+    Built on the shared DrylPopover primitive (anchor, positioning and
+    click-outside dismissal), so the listbox is portaled to <body> and
+    escapes any ancestor overflow / backdrop-filter containing block —
+    e.g. a glass card that would otherwise clip it.
+
     Usage:
       <DrylMultiSelect @bind-SelectedValues="_selected"
                        Label="Tags"
@@ -32,97 +37,105 @@
         <label class="field-label" for="@_triggerId">@Label</label>
     }
 
-    <div class="menu-anchor menu-anchor--block" @ref="_anchor">
-        <div class="@WrapperCssClass">
-            <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+    <DrylPopover @ref="_popover"
+                 @bind-Open="_isOpen"
+                 Block="true"
+                 MatchTriggerWidth="true"
+                 TriggerTogglesOpen="false"
+                 Surface="false"
+                 CloseOnEscape="false"
+                 OnClose="ResetHighlight">
+        <TriggerContent>
+            <div class="@WrapperCssClass">
+                <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
-            @* Trigger *@
-            <div id="@_triggerId"
-                 class="@TriggerCssClass"
-                 tabindex="@(Disabled ? -1 : 0)"
-                 role="combobox"
-                 aria-haspopup="listbox"
-                 aria-expanded="@(_isOpen ? "true" : "false")"
-                 aria-controls="@_listboxId"
-                 aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                 aria-describedby="@(ShowHelper ? _helperId : null)"
-                 @onclick="Toggle"
-                 @onkeydown="HandleKeyDown">
+                @* Trigger *@
+                <div id="@_triggerId"
+                     @ref="_trigger"
+                     class="@TriggerCssClass"
+                     tabindex="@(Disabled ? -1 : 0)"
+                     role="combobox"
+                     aria-haspopup="listbox"
+                     aria-expanded="@(_isOpen ? "true" : "false")"
+                     aria-controls="@_listboxId"
+                     aria-activedescendant="@ActiveDescendant"
+                     aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                     aria-describedby="@(ShowHelper ? _helperId : null)"
+                     @onclick="Toggle"
+                     @onkeydown="HandleKeyDown">
 
-                @if (SelectedValues.Count == 0)
-                {
-                    <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? "Select options…")</span>
-                }
-                else
-                {
-                    <div class="multiselect-chips">
-                        @foreach (var val in VisibleChips)
-                        {
-                            var v = val;
-                            var lbl = _items.FirstOrDefault(i => i.Value == v)?.Label ?? v;
-                            <span class="chip">
-                                <span class="chip-text">@lbl</span>
-                                <button type="button" class="chip-remove"
-                                        tabindex="-1"
-                                        aria-label="@($"Remove {lbl}")"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="() => RemoveValue(v)">
-                                    <DrylIcon Name="X" Size="10" />
-                                </button>
-                            </span>
-                        }
-                        @if (OverflowCount > 0)
-                        {
-                            <span class="chip-overflow">+@OverflowCount</span>
-                        }
-                    </div>
-                }
-            </div>
-
-            @* Listbox panel *@
-            @if (_isOpen)
-            {
-                <div id="@_listboxId"
-                     role="listbox"
-                     class="select-panel"
-                     aria-multiselectable="true"
-                     @ref="_panel"
-                     aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
-
-                    @if (_items.Count == 0)
+                    @if (SelectedValues.Count == 0)
                     {
-                        <div class="select-empty">No options</div>
+                        <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? "Select options…")</span>
                     }
                     else
                     {
-                        for (int i = 0; i < _items.Count; i++)
-                        {
-                            var item  = _items[i];
-                            var idx   = i;
-                            var isHl  = idx == _highlightedIndex;
-                            var isSel = SelectedValues.Contains(item.Value);
-
-                            <div id="@($"msopt-{_triggerId}-{idx}")"
-                                 role="option"
-                                 class="@OptionCss(isHl, isSel)"
-                                 aria-selected="@(isSel ? "true" : "false")"
-                                 @onclick="() => ToggleItem(item)"
-                                 @onmouseenter="() => _highlightedIndex = idx"
-                                 @onmousedown:preventDefault
-                                 @key="idx">
-                                <input type="checkbox" class="checkbox multiselect-check"
-                                       checked="@isSel"
-                                       tabindex="-1"
-                                       @onclick:stopPropagation="true"
-                                       @onchange="() => ToggleItem(item)" />
-                                <span>@item.Label</span>
-                            </div>
-                        }
+                        <div class="multiselect-chips">
+                            @foreach (var val in VisibleChips)
+                            {
+                                var v = val;
+                                var lbl = _items.FirstOrDefault(i => i.Value == v)?.Label ?? v;
+                                <span class="chip">
+                                    <span class="chip-text">@lbl</span>
+                                    <button type="button" class="chip-remove"
+                                            tabindex="-1"
+                                            aria-label="@($"Remove {lbl}")"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => RemoveValue(v)">
+                                        <DrylIcon Name="X" Size="10" />
+                                    </button>
+                                </span>
+                            }
+                            @if (OverflowCount > 0)
+                            {
+                                <span class="chip-overflow">+@OverflowCount</span>
+                            }
+                        </div>
                     }
                 </div>
-            }
-        </div>
-    </div>
+            </div>
+        </TriggerContent>
+        <PanelContent>
+            @* Listbox panel *@
+            <div id="@_listboxId"
+                 role="listbox"
+                 class="select-panel"
+                 aria-multiselectable="true"
+                 aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
+
+                @if (_items.Count == 0)
+                {
+                    <div class="select-empty">No options</div>
+                }
+                else
+                {
+                    for (int i = 0; i < _items.Count; i++)
+                    {
+                        var item  = _items[i];
+                        var idx   = i;
+                        var isHl  = idx == _highlightedIndex;
+                        var isSel = SelectedValues.Contains(item.Value);
+
+                        <div id="@($"msopt-{_triggerId}-{idx}")"
+                             role="option"
+                             class="@OptionCss(isHl, isSel)"
+                             aria-selected="@(isSel ? "true" : "false")"
+                             @onclick="() => ToggleItem(item)"
+                             @onmouseenter="() => _highlightedIndex = idx"
+                             @onmousedown:preventDefault
+                             @key="idx">
+                            <input type="checkbox" class="checkbox multiselect-check"
+                                   checked="@isSel"
+                                   tabindex="-1"
+                                   @onclick:stopPropagation="true"
+                                   @onchange="() => ToggleItem(item)" />
+                            <span>@item.Label</span>
+                        </div>
+                    }
+                }
+            </div>
+        </PanelContent>
+    </DrylPopover>
 
     @if (!string.IsNullOrEmpty(HelperText))
     {
@@ -179,11 +192,10 @@
     private List<SelectItem> _items = [];
     private bool _isOpen;
     private int _highlightedIndex = -1;
-    private bool _jsReady;
 
-    private ElementReference _anchor;
-    private ElementReference _panel;
-    private DotNetObjectReference<DrylMultiSelect>? _dotnetRef;
+    private DrylPopover? _popover;
+    private ElementReference _trigger;
+    private bool _attached;
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
@@ -198,19 +210,22 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender || _attached) return;
+        // Suppress the browser's default page-scroll for the navigation keys so
+        // HandleKeyDown can move the option highlight. Tab/Enter/Escape stay live.
+        try
         {
-            _jsReady = true;
-            _dotnetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("dryl.menu.attach", _anchor, _dotnetRef);
+            await JS.InvokeVoidAsync("dryl.keynav.attach", _trigger);
+            _attached = true;
         }
+        catch (JSDisconnectedException) { /* circuit closing during prerender — ignore */ }
     }
 
     private void Toggle()
     {
         if (Disabled) return;
         _isOpen = !_isOpen;
-        if (_isOpen) _highlightedIndex = -1;
+        _highlightedIndex = -1;
     }
 
     private async Task ToggleItem(SelectItem item)
@@ -239,14 +254,14 @@
             case "ArrowDown":
                 if (!_isOpen) { _isOpen = true; _highlightedIndex = 0; break; }
                 _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
-                await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
+                await ScrollHighlightedIntoView();
                 break;
 
             case "ArrowUp":
                 if (_isOpen && _highlightedIndex > 0)
                 {
                     _highlightedIndex--;
-                    await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _panel, _highlightedIndex);
+                    await ScrollHighlightedIntoView();
                 }
                 break;
 
@@ -261,23 +276,28 @@
             case "Escape":
             case "Tab":
                 _isOpen = false;
+                _highlightedIndex = -1;
                 break;
         }
     }
 
-    /// <summary>Called by the JS click-outside listener.</summary>
-    [JSInvokable]
-    public void Close()
+    private async Task ScrollHighlightedIntoView()
     {
-        _isOpen = false;
-        StateHasChanged();
+        if (_popover is not null)
+            await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _popover.PanelElement, _highlightedIndex);
     }
+
+    /// <summary>Called by DrylPopover when it closes itself (click-outside).</summary>
+    private void ResetHighlight() => _highlightedIndex = -1;
 
     private IEnumerable<string> VisibleChips =>
         SelectedValues.Take(MaxVisibleChips);
 
     private int OverflowCount =>
         Math.Max(0, SelectedValues.Count - MaxVisibleChips);
+
+    private string? ActiveDescendant =>
+        _isOpen && _highlightedIndex >= 0 ? $"msopt-{_triggerId}-{_highlightedIndex}" : null;
 
     private string WrapperCssClass
     {
@@ -315,12 +335,9 @@
     public async ValueTask DisposeAsync()
     {
         _aura.Dispose();
-        if (_jsReady)
-        {
-            try { await JS.InvokeVoidAsync("dryl.menu.detach", _anchor); }
-            catch (JSDisconnectedException) { /* circuit closing */ }
-            catch (JSException) { /* element already gone */ }
-        }
-        _dotnetRef?.Dispose();
+        if (!_attached) return;
+        try { await JS.InvokeVoidAsync("dryl.keynav.detach", _trigger); }
+        catch (JSDisconnectedException) { /* circuit already gone — ignore */ }
+        catch (JSException) { /* element/listener already gone — ignore */ }
     }
 }
