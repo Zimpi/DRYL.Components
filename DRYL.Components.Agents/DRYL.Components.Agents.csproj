@@ -43,7 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Agents.AI" Version="1.13.0" />
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.15.0" />
   </ItemGroup>
 
   <!-- The Components.Web metapackage version must track the target framework. -->
