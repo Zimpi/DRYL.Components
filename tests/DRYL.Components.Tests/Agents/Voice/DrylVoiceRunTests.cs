@@ -159,6 +159,134 @@ public class DrylVoiceRunTests
         Assert.Contains("drei Projekte", await run.OnToolCallAsync("call_1", "count_projects", ""));
     }
 
+    // ── continuing a turn the model ended on its own ─────────────────────────
+
+    [Fact]
+    public async Task Without_a_predicate_a_finished_turn_stays_finished()
+    {
+        // The default has to be the old behaviour: a plain conversation gives the floor back
+        // after every answer, and a host that never opted in must not suddenly be talked at.
+        var run = Run();
+        run.OnConnected();
+
+        Assert.False(await run.OnTurnEndedAsync());
+    }
+
+    [Fact]
+    public async Task Open_work_sends_the_model_back_to_it()
+    {
+        var run = Run();
+        run.OnConnected();
+        run.ShouldContinue = () => ValueTask.FromResult(true);
+
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.Equal(AiState.Thinking, run.State);   // the dock keeps breathing, not listening
+    }
+
+    [Fact]
+    public async Task Finished_work_hands_the_floor_back()
+    {
+        var run = Run();
+        run.OnConnected();
+        run.ShouldContinue = () => ValueTask.FromResult(false);
+
+        Assert.False(await run.OnTurnEndedAsync());
+    }
+
+    [Fact]
+    public async Task A_turn_ending_outside_a_live_session_continues_nothing()
+    {
+        // response.done can arrive as the session is being torn down; prompting a connection
+        // that is on its way out would be an error event and, before this, a dead session.
+        var run = Run();
+        run.ShouldContinue = () => ValueTask.FromResult(true);
+
+        Assert.False(await run.OnTurnEndedAsync());
+    }
+
+    [Fact]
+    public async Task A_predicate_that_never_goes_false_still_runs_out_of_turns()
+    {
+        // The backstop. A task the model cannot finish would otherwise have it nudging itself
+        // forever — billed per minute, and impossible to interrupt politely.
+        var run = Run();
+        run.OnConnected();
+        run.MaxAutoContinuations = 3;
+        run.ShouldContinue = () => ValueTask.FromResult(true);
+
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.False(await run.OnTurnEndedAsync());
+    }
+
+    [Fact]
+    public async Task Running_a_tool_earns_the_budget_back()
+    {
+        // Only fruitless turns are capped. A long plan that is actually progressing must not run
+        // out of continuations precisely because it is going well.
+        var options = new DrylVoiceOptions { ApiKey = "sk-test" };
+        options.Tools.Add(AIFunctionFactory.Create(() => "ok", "list_projects"));
+        var run = Run(options);
+        run.OnConnected();
+        run.MaxAutoContinuations = 2;
+        run.ShouldContinue = () => ValueTask.FromResult(true);
+
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.False(await run.OnTurnEndedAsync());
+
+        await run.OnToolCallAsync("call_1", "list_projects", "{}");
+
+        Assert.True(await run.OnTurnEndedAsync());
+    }
+
+    [Fact]
+    public async Task The_user_speaking_earns_the_budget_back()
+    {
+        var run = Run();
+        run.OnConnected();
+        run.MaxAutoContinuations = 1;
+        run.ShouldContinue = () => ValueTask.FromResult(true);
+
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.False(await run.OnTurnEndedAsync());
+
+        run.OnActivity(nameof(VoiceActivity.UserSpeaking));
+
+        Assert.True(await run.OnTurnEndedAsync());
+    }
+
+    [Fact]
+    public async Task A_throwing_predicate_ends_the_turn_instead_of_the_session()
+    {
+        var run = Run();
+        run.OnConnected();
+        run.ShouldContinue = () => throw new InvalidOperationException("Taskliste weg");
+
+        Assert.False(await run.OnTurnEndedAsync());
+        Assert.Equal(VoicePhase.Live, run.Phase);    // the conversation carries on regardless
+        Assert.Null(run.Error);
+    }
+
+    [Fact]
+    public async Task A_new_session_starts_with_a_full_budget()
+    {
+        var run = Run();
+        run.OnConnected();
+        run.MaxAutoContinuations = 1;
+        run.ShouldContinue = () => ValueTask.FromResult(true);
+
+        Assert.True(await run.OnTurnEndedAsync());
+        Assert.False(await run.OnTurnEndedAsync());
+
+        run.OnClosed();
+        run.MarkConnecting();
+        run.OnConnected();
+
+        Assert.True(await run.OnTurnEndedAsync());
+    }
+
     [Fact]
     public void A_failure_settles_the_run_instead_of_leaving_it_breathing()
     {

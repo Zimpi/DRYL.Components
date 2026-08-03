@@ -35,6 +35,9 @@ export async function start(token, config, dotNet) {
         maxTimer: 0,
         closed: false,
         speaking: false,
+        // Bumped whenever the user takes the floor. Anything that was decided before the bump
+        // belongs to a conversation that has moved on and must not be sent.
+        turn: 0,
         // Spoken answers arrive as deltas keyed by item; a turn is only worth a transcript line
         // once it is finished.
         answers: new Map(),
@@ -87,6 +90,10 @@ export async function start(token, config, dotNet) {
         const channel = pc.createDataChannel('oai-events');
         state.channel = channel;
         channel.onmessage = (event) => handle(state, event.data);
+        // The other half of not tearing down on every `error` event: a session that really is
+        // over closes this channel, and that signal — unlike a complaint on it — cannot be
+        // mistaken for something recoverable.
+        channel.onclose = () => teardown(state, 'OnClosed');
         channel.onopen = async () => {
             seed(state, config.history);
             state.idleMs = config.idleMs ?? 0;
@@ -136,6 +143,7 @@ function handle(state, raw) {
 
     switch (event.type) {
         case 'input_audio_buffer.speech_started':
+            state.turn++;
             touch(state);
             report(state.dotNet, 'OnActivity', 'UserSpeaking');
             break;
@@ -173,15 +181,20 @@ function handle(state, raw) {
             // Only back to listening when the turn is actually over. With tool calls pending
             // the assistant is still working, and saying "listening" over the top of that is
             // the dock lying about what it is doing.
-            if (!calls(state, event)) report(state.dotNet, 'OnActivity', 'Listening');
+            if (!calls(state, event)) resume(state);
             break;
 
         case 'error':
-            report(
-                state.dotNet,
-                'OnFailed',
-                event.error?.message ?? 'Die Sprachsitzung meldete einen Fehler.');
-            teardown(state, null);
+            // A live session survives most of what arrives here — a response.create that raced
+            // the user starting to speak is the common one, and it looks exactly like a dead
+            // session does. Tearing the peer connection down for it threw away a conversation
+            // that was working. A session that really is gone still closes: the transport says
+            // so through oniceconnectionstatechange and the channel closing, which is the one
+            // signal that cannot be mistaken for a recoverable complaint.
+            console.warn(
+                '[dryl-voice]',
+                event.error?.code ?? 'error',
+                event.error?.message ?? '');
             break;
     }
 }
@@ -210,6 +223,7 @@ function calls(state, event) {
     if (pending.length === 0) return false;
 
     report(state.dotNet, 'OnActivity', 'Thinking');
+    const at = state.turn;
 
     Promise.all(pending.map(async (call) => {
         let output;
@@ -221,13 +235,39 @@ function calls(state, event) {
             // answer, or the conversation stops dead with no way back.
             output = JSON.stringify({ error: err?.message ?? 'Der Werkzeugaufruf schlug fehl.' });
         }
+        // The result goes back whatever else happened — it belongs to a call the model made, and
+        // an unanswered call sits in the conversation forever.
         send(state, {
             type: 'conversation.item.create',
             item: { type: 'function_call_output', call_id: call.call_id, output },
         });
-    })).then(() => send(state, { type: 'response.create' }));
+    })).then(() => request(state, at));
 
     return true;
+}
+
+// A turn that ended without a tool call is where a spoken agent quietly gives up. Nothing in the
+// protocol starts another one, so "ich schaue mal eben nach" becomes the last thing that ever
+// happens and the user has to ask whether it is still working. .NET owns the decision, because
+// it is the side that knows whether there is anything left on the plan.
+async function resume(state) {
+    const at = state.turn;
+
+    let more = false;
+    try { more = await state.dotNet.invokeMethodAsync('OnTurnEndedAsync'); }
+    catch { /* circuit gone — the page is on its way out anyway */ }
+
+    if (state.closed || state.turn !== at) return;   // the user took over while .NET decided
+
+    if (more) send(state, { type: 'response.create' });
+    else report(state.dotNet, 'OnActivity', 'Listening');
+}
+
+// Asks the model for another turn, unless the floor changed hands since `at`. Sending on top of
+// a response the user's own speech already started is the collision the API rejects.
+function request(state, at) {
+    if (state.closed || state.turn !== at) return;
+    send(state, { type: 'response.create' });
 }
 
 // Replays the earlier conversation into the session so the voice knows what was written.

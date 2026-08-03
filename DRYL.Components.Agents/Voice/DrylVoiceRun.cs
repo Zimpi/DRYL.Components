@@ -63,6 +63,7 @@ public sealed class DrylVoiceRun : DrylRunBase
     private IJSObjectReference? _module;
     private bool _attached;      // the JS module actually loaded (prerender guard)
     private bool _starting;
+    private int _autoTurns;      // consecutive turns continued without the user saying anything
 
     internal DrylVoiceRun(DrylVoiceRunner runner, DrylVoiceOptions options)
     {
@@ -97,6 +98,43 @@ public sealed class DrylVoiceRun : DrylRunBase
     /// without an explicit history, which is what the dock's microphone button does.
     /// </summary>
     public IEnumerable<DrylVoiceMessage>? SeedHistory { get; set; }
+
+    /// <summary>
+    /// Asked after the model finished a turn <em>without</em> calling a tool: return true and the
+    /// session prompts it to carry on by itself, return false and it goes back to listening.
+    /// Null — the default — means a turn always ends the model's part, which is right for a plain
+    /// conversation and wrong for anything with a plan.
+    /// </summary>
+    /// <remarks>
+    /// <para>A realtime session has no agent loop of its own. The only thing the protocol
+    /// continues by itself is a turn that carried a function call: its results go back and the
+    /// next response follows. A turn that was <em>only</em> speech ends there, and nothing ever
+    /// starts another one — so an assistant that says "ich lege mal eine Liste an" and stops
+    /// talking is not thinking, it is finished, and it waits for the user to poke it.</para>
+    /// <para>Wire this to whatever the host uses to know there is work left — an open task list,
+    /// a queue, a half-written document:</para>
+    /// <code>
+    /// voice.ShouldContinue = () =>
+    ///     ValueTask.FromResult(tasks.Items.Any(t => t.Status != AssistantTaskStatus.Done));
+    /// </code>
+    /// <para>The predicate runs on the circuit and may be async, but it sits between two spoken
+    /// turns — keep it to reading state that is already in memory. A database round trip here is
+    /// silence the user hears.</para>
+    /// </remarks>
+    public Func<ValueTask<bool>>? ShouldContinue { get; set; }
+
+    /// <summary>
+    /// How many turns in a row may be continued by <see cref="ShouldContinue"/> before the session
+    /// hands the floor back, however the predicate answers.
+    /// </summary>
+    /// <remarks>
+    /// The backstop for a predicate that never goes false — a task the model cannot finish would
+    /// otherwise loop forever, and an assistant talking to itself is both a bill and a thing the
+    /// user cannot interrupt politely. Only <em>fruitless</em> turns count: a turn that ran a tool
+    /// is progress and resets the counter, as does the user speaking. So this caps how often the
+    /// model may be nudged while achieving nothing, not how long it may work.
+    /// </remarks>
+    public int MaxAutoContinuations { get; set; } = 6;
 
     /// <summary>
     /// Opens a session: the browser asks for the microphone, the server mints the token, and the
@@ -182,6 +220,7 @@ public sealed class DrylVoiceRun : DrylRunBase
         Error = null;                            // a new attempt does not carry the old failure
         _transcript.Clear();                     // a session is a conversation; a new one starts empty
         ClearToolCalls();                        // …and so is its trace
+        _autoTurns = 0;                          // …and it does not inherit the last one's budget
         State = AiState.Thinking;
         Raise();
     }
@@ -204,6 +243,10 @@ public sealed class DrylVoiceRun : DrylRunBase
 
         if (Enum.TryParse<VoiceActivity>(activity, ignoreCase: true, out var parsed))
             Activity = parsed;
+
+        // The user talking is the thing the continuation budget exists to protect: they now have
+        // the floor, and whatever happens after this is a fresh errand, not the old one spinning.
+        if (Activity is VoiceActivity.UserSpeaking) _autoTurns = 0;
 
         Sync();
     }
@@ -243,6 +286,11 @@ public sealed class DrylVoiceRun : DrylRunBase
         };
         AddToolCall(invocation);
 
+        // Running a tool is the model doing the work rather than talking about it, so the budget
+        // for fruitless nudges starts over. Without this a long plan would run out of turns
+        // halfway through precisely because it was going well.
+        _autoTurns = 0;
+
         // The browser only ever supplies a name. What runs is whatever the host put in the tool
         // list — a manipulated page cannot invent a tool.
         var tool = Options.FindTool(name);
@@ -269,6 +317,49 @@ public sealed class DrylVoiceRun : DrylRunBase
         }
 
         static string Fail(string message) => new JsonObject { ["error"] = message }.ToJsonString();
+    }
+
+    /// <summary>
+    /// Asked by the browser when a turn ended with no tool call, to decide whether the model
+    /// should be prompted to carry on. True means the session sends it back to work.
+    /// </summary>
+    /// <remarks>Public because it is <c>[JSInvokable]</c>; the answer comes entirely from
+    /// <see cref="ShouldContinue"/> and <see cref="MaxAutoContinuations"/>.</remarks>
+    [JSInvokable]
+    public async Task<bool> OnTurnEndedAsync()
+    {
+        if (Phase is not VoicePhase.Live || ShouldContinue is null) return false;
+
+        if (_autoTurns >= MaxAutoContinuations)
+        {
+            // Spent. Handing the floor back is the only honest move: the user can see the plan
+            // is unfinished and say so, which is far better than a model nudging itself forever.
+            _autoTurns = 0;
+            return false;
+        }
+
+        bool more;
+        try
+        {
+            more = await ShouldContinue().ConfigureAwait(false);
+        }
+        catch
+        {
+            // A host predicate that throws must not wedge the conversation — the session is fine,
+            // and going back to listening still leaves the user able to talk.
+            return false;
+        }
+
+        if (!more)
+        {
+            _autoTurns = 0;
+            return false;
+        }
+
+        _autoTurns++;
+        Activity = VoiceActivity.Thinking;
+        Sync();
+        return true;
     }
 
     /// <summary>Something went wrong; the session is over.</summary>
