@@ -986,6 +986,59 @@ DRYL is **spec-driven**. `specs/` and `code/` are one artifact.
 
 ---
 
+## How work happens here — the order is binding
+
+Never skip a stage, never start at a later one because the work "looks small".
+Each stage has a rulebook; read it when you enter the stage.
+
+**1. Idea** → `harness/ideas.md`
+A new feature, a larger change, anything not yet in `specs/` starts as a
+dialogue, not as code. The Product Owner brings the idea; you challenge it,
+check feasibility against `harness/`, `specs/` and `code/`, and maintain
+`ideas/I{n} …md` while it matures. A new token, a new animation, a new
+`AiState` or a new dependency is a **blocker needing maintainer sign-off** —
+surface it here, not in the code. The idea leaves this stage as `Ready`.
+
+**2. Spec** → `harness/requirements.md`
+A `Ready` idea becomes Epics/Features/Stories under `specs/`, with a `Meta`
+block naming its `State` and its `Source` files, and INVEST acceptance
+criteria. Nothing is implemented from an idea document — only from a spec.
+
+**3. Plan**
+Non-trivial work gets a written implementation plan before any edit: exact
+files per task, exact commands, a verification step per task, and one commit
+per task. A task is the smallest unit that carries its own verification.
+
+**4. Implementation**
+Work the plan task by task. For multi-task plans, dispatch **one fresh
+subagent per task**:
+
+- Hand the subagent only its own task, the interfaces it touches, and the
+  binding constraints — never the whole plan and never the session's history.
+- Never run two implementation subagents in parallel on the same branch.
+- After each task, a **separate** reviewer checks two things: does it match
+  the spec, and is it good work. The implementer's own self-review never
+  replaces this.
+- Track progress in a file, not only in your head. A lost controller
+  re-running finished tasks is the most expensive failure mode there is.
+- Findings go back to the implementer that wrote the code. Never fix them in
+  the coordinating session — those fixes skip review.
+
+**5. Verification, then the claim** — in that order
+Never report work as done, fixed or passing before running the commands that
+prove it and reading their output. Evidence first, assertion second. For this
+repository the evidence is: `dotnet build DRYL.slnx -c Release`,
+`dotnet test DRYL.slnx -c Release`, `node scripts/check-light-sync.mjs`,
+`node scripts/validate-light-contrast.mjs`,
+`node scripts/check-harness-links.mjs`, and both color modes checked by eye.
+If a step was skipped, say so. If tests fail, say so with the output.
+
+**6. Close the loop** → `harness/releasing.md`
+Spec `State` updated, `CHANGELOG.md` entry written, `<Version>` bumped,
+`ComponentCatalog` registered.
+
+---
+
 ## Read before you work
 
 | What you are doing | Read first |
@@ -1059,7 +1112,9 @@ Propose adding it and ask the maintainer. That is the bar for tokens
 wc -l CLAUDE.md
 ```
 
-Erwartet: unter 100 Zeilen (vorher 275). Deutlich darüber heißt, dass Detail zurückgesickert ist, das in eine `harness/`-Datei gehört.
+Erwartet: unter 150 Zeilen (vorher 275). Der Workflow-Abschnitt ist bewusst in `CLAUDE.md` und nicht in einer eigenen Harness-Datei — er muss immer im Kontext liegen, weil er die Reihenfolge aller anderen Regeln bestimmt. Deutlich über 150 heißt, dass Regeldetail zurückgesickert ist, das in eine `harness/`-Datei gehört.
+
+Prüfe zusätzlich, dass die sechs Stufen des Workflow-Abschnitts vollständig sind und in dieser Reihenfolge stehen: Idea · Spec · Plan · Implementation · Verification · Close the loop.
 
 - [ ] **Step 3: Commit**
 
