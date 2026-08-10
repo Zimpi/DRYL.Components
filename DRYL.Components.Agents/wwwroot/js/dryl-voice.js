@@ -12,6 +12,21 @@
 let session = null;   // one voice session per page — a second microphone is not a feature
 let orb = null;
 
+// How often one turn may be re-requested after a transient refusal before the floor goes back to
+// the user. Each attempt waits the delay the server itself asked for, so this is a duration in
+// disguise: enough to ride out a token-per-minute window, not enough to hammer a broken account.
+const MAX_RETRIES = 5;
+
+// Failures that mean "not now" rather than "not ever". Everything else is a real error and must
+// not be retried — repeating a rejected request that will stay rejected only burns quota.
+const RETRY_CODES = new Set(['rate_limit_exceeded', 'server_error']);
+
+// Opt-in tracing: set `window.__drylVoiceDebug = true` in the console before starting a session.
+// Off by default and free when off; every continuation decision reports why it went the way it did.
+function trace(...args) {
+    if (globalThis.__drylVoiceDebug) console.log('[dryl-voice]', ...args);
+}
+
 /** Points the level meter at the orb element. Safe to call before or after start(). */
 export function attachOrb(element) {
     orb = element || null;
@@ -33,6 +48,10 @@ export async function start(token, config, dotNet) {
         idleMs: 0,
         idleTimer: 0,
         maxTimer: 0,
+        // A turn the server refused for being too soon: how often it has been re-requested, and
+        // the pending wait. Cleared whenever a turn actually runs or the user takes the floor.
+        retries: 0,
+        retryTimer: 0,
         closed: false,
         speaking: false,
         // Bumped whenever the user takes the floor. Anything that was decided before the bump
@@ -144,6 +163,11 @@ function handle(state, raw) {
     switch (event.type) {
         case 'input_audio_buffer.speech_started':
             state.turn++;
+            trace('speech_started → turn', state.turn);
+            // The user has the floor. A turn still waiting out a rate limit belongs to the
+            // errand they just interrupted; firing it now would talk over them.
+            clearTimeout(state.retryTimer);
+            state.retries = 0;
             touch(state);
             report(state.dotNet, 'OnActivity', 'UserSpeaking');
             break;
@@ -176,8 +200,22 @@ function handle(state, raw) {
 
         case 'response.done':
             state.speaking = false;
+            trace('response.done', {
+                status: event.response?.status,
+                output: (event.response?.output ?? []).map((i) => i.type),
+                turn: state.turn,
+            });
             flush(state, event);
             touch(state);
+
+            // A turn the server refused never happened: no audio, no tokens, no tool — the
+            // usage block comes back all zeroes. Treating that as a finished turn is what left
+            // the assistant mute mid-plan, because the continuation budget was spent on turns
+            // that never ran. Re-request it instead, after the wait the server asked for.
+            if (defer(state, event.response)) break;
+
+            state.retries = 0;
+
             // Only back to listening when the turn is actually over. With tool calls pending
             // the assistant is still working, and saying "listening" over the top of that is
             // the dock lying about what it is doing.
@@ -224,6 +262,8 @@ function calls(state, event) {
 
     report(state.dotNet, 'OnActivity', 'Thinking');
     const at = state.turn;
+    const started = performance.now();
+    trace('calls: running', pending.map((c) => c.name), { at });
 
     Promise.all(pending.map(async (call) => {
         let output;
@@ -241,9 +281,62 @@ function calls(state, event) {
             type: 'conversation.item.create',
             item: { type: 'function_call_output', call_id: call.call_id, output },
         });
-    })).then(() => request(state, at));
+    })).then(() => {
+        trace('calls: done after', Math.round(performance.now() - started), 'ms');
+        request(state, at);
+    });
 
     return true;
+}
+
+// Re-requests a turn the server refused as premature, and reports whether it took ownership of
+// this `response.done`. A token-per-minute limit is the everyday case: the account is fine, the
+// session is fine, and the only thing wrong is the clock — the API even names the wait.
+function defer(state, response) {
+    if (response?.status !== 'failed') return false;
+
+    const error = response.status_details?.error;
+    if (!error || !RETRY_CODES.has(error.code)) {
+        // A real failure. Nothing here can fix it, so say so plainly rather than retrying into
+        // a wall; the user keeps the floor and the session stays up.
+        console.warn('[dryl-voice]', error?.code ?? 'response failed', error?.message ?? '');
+        report(state.dotNet, 'OnActivity', 'Listening');
+        return true;
+    }
+
+    if (state.retries >= MAX_RETRIES) {
+        console.warn(
+            `[dryl-voice] Gave up after ${MAX_RETRIES} attempts:`, error.message ?? error.code);
+        state.retries = 0;
+        report(state.dotNet, 'OnActivity', 'Listening');
+        return true;
+    }
+
+    const at = state.turn;
+    state.retries++;
+    const wait = backoff(error.message, state.retries);
+    trace(`rate limited — retry ${state.retries}/${MAX_RETRIES} in ${wait}ms`);
+
+    clearTimeout(state.retryTimer);
+    state.retryTimer = setTimeout(() => {
+        if (state.closed || state.turn !== at) return;   // the user took over while we waited
+        trace('retrying response.create');
+        send(state, { type: 'response.create' });
+    }, wait);
+
+    return true;
+}
+
+// How long to wait before asking again. The server states the exact remaining window ("Please try
+// again in 1.911s"); its own number beats any guess we could make. The margin covers the clock
+// skew between its measurement and our timer — coming back a hair too early just burns a retry.
+function backoff(message, attempt) {
+    const hint = /try again in ([\d.]+)\s*(ms|s)\b/i.exec(message ?? '');
+    if (hint) {
+        const ms = parseFloat(hint[1]) * (hint[2].toLowerCase() === 's' ? 1000 : 1);
+        if (Number.isFinite(ms)) return Math.min(Math.round(ms) + 250, 10000);
+    }
+    return Math.min(500 * 2 ** (attempt - 1), 10000);   // no hint given — widen the gap instead
 }
 
 // A turn that ended without a tool call is where a spoken agent quietly gives up. Nothing in the
@@ -255,18 +348,32 @@ async function resume(state) {
 
     let more = false;
     try { more = await state.dotNet.invokeMethodAsync('OnTurnEndedAsync'); }
-    catch { /* circuit gone — the page is on its way out anyway */ }
+    catch (err) { trace('resume: .NET unreachable', err?.message); }
 
-    if (state.closed || state.turn !== at) return;   // the user took over while .NET decided
+    trace('resume: OnTurnEndedAsync →', more, { at, turn: state.turn, closed: state.closed });
 
-    if (more) send(state, { type: 'response.create' });
-    else report(state.dotNet, 'OnActivity', 'Listening');
+    if (state.closed || state.turn !== at) {
+        trace('resume: dropped — the floor changed hands while .NET decided', { at, turn: state.turn });
+        return;   // the user took over while .NET decided
+    }
+
+    if (more) {
+        trace('resume: sending response.create');
+        send(state, { type: 'response.create' });
+    } else {
+        report(state.dotNet, 'OnActivity', 'Listening');
+    }
 }
 
 // Asks the model for another turn, unless the floor changed hands since `at`. Sending on top of
 // a response the user's own speech already started is the collision the API rejects.
 function request(state, at) {
-    if (state.closed || state.turn !== at) return;
+    if (state.closed || state.turn !== at) {
+        trace('request: dropped after tool results — the tool output stays unanswered',
+            { at, turn: state.turn, closed: state.closed });
+        return;
+    }
+    trace('request: sending response.create');
     send(state, { type: 'response.create' });
 }
 
@@ -359,6 +466,7 @@ function teardown(state, notify) {
 
     clearTimeout(state.idleTimer);
     clearTimeout(state.maxTimer);
+    clearTimeout(state.retryTimer);
     if (state.raf) cancelAnimationFrame(state.raf);
 
     try { state.channel?.close(); } catch { /* already gone */ }
