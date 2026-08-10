@@ -1,0 +1,305 @@
+# Spec Rules
+
+How specs under `specs/` are structured and written. DRYL is spec-driven:
+`specs/` and `code/` are one artifact, kept in sync in both directions.
+
+Idea intake happens before any spec exists — see `ideas.md`.
+
+Every rule has a stable ID. IDs are never reused: if a rule is dropped, its
+number is burned. The `SPEC` block is currently contiguous — `SPEC-01` …
+`SPEC-09`, no gaps — because it was written in one pass; later rules are
+appended as `SPEC-10` and upwards.
+
+**Status** — `binding` blocks the merge · `default` needs a reason in the PR ·
+`guidance` is a recommendation.
+**Enforced** — how compliance is established: `script`, `grep` or `review`.
+
+Related rule files: [`code.md`](code.md), [`design.md`](design.md),
+[`uiux.md`](uiux.md), [`ai.md`](ai.md), [`releasing.md`](releasing.md).
+Reference documents without IDs: [`tokens.md`](tokens.md),
+[`patterns.md`](patterns.md), [`conventions.md`](conventions.md),
+[`theming.md`](theming.md).
+
+---
+
+### SPEC-01 — Specs and code are one artifact
+
+Status: **binding** | Enforced: **review**
+
+Every change to a component's behaviour or public API updates its spec in the
+same commit. A spec that no longer matches its code goes back to
+`State: Modified` — never leave it on `Implemented`. Do not write code for a
+component whose spec you have not read.
+
+Check: the component's spec file was touched in the same commit as its code
+
+### SPEC-02 — Folder and file structure
+
+Status: **binding** | Enforced: **review**
+
+Specs live under `specs/` in a three-level hierarchy:
+
+```
+specs/
+├── E{n} {Category}/
+│   ├── _Api.md              shared enums, parameter contracts, services
+│   ├── _Interop.md          JS interop surface, DI services, cleanup duties
+│   ├── F{n} {DrylComponent}.md
+│   └── F{n} {DrylComponent}/        only when one file is no longer enough
+│       └── S{n} {Aspect}.md
+```
+
+- **E** = component **category**. The category list is `defined in phase B` —
+  do not invent one. It follows the existing folders under
+  `code/DRYL.Components/` (`Components/Actions`, `Data`, `Feedback`, `Inputs`,
+  `Layout`, `Navigation`, `Surfaces`, `AI`, plus `Canvas`, `Dialogs`,
+  `Motion`, `Theming`, `Toasts`, `Notifications` and the agents categories).
+- **F** = **one component, one file**. A `Dryl*.razor` maps to exactly one
+  spec file; that one-to-one mapping is what makes the sync checkable
+  (`SPEC-03`).
+- **S** = an aspect of a single component, used **only** when the component is
+  too big for one file. Then `F{n} {DrylComponent}.md` becomes the folder
+  `F{n} {DrylComponent}/` holding the story files. The candidates are
+  `DrylDataGrid`, `DrylCanvas` and `DrylVoiceRun`; nothing else is split
+  without a reason stated in the PR.
+
+Numbering starts at 1 per level (`F1`, `F2`, … per category; `S1`, `S2`, … per
+component) and stays stable: new entries are appended at the end, never
+inserted in between. The E/F/S numbering follows from the file path and is
+**not** duplicated in the file's H1.
+
+The template this convention was adapted from carried a third companion file,
+`_Menüstruktur.md`, for menu placement. It is deliberately dropped: DRYL's
+navigation is the `ComponentCatalog` in `DRYL.Website`, whose maintenance
+[`releasing.md`](releasing.md) already requires under `REL-04`. A second,
+hand-written navigation list would only drift from it.
+
+Check: every directory under `specs/` matches `E{n} {Category}`, every spec
+file matches `F{n} {DrylComponent}.md` or `F{n} {DrylComponent}/S{n} {Aspect}.md`,
+and each category carries `_Api.md` and `_Interop.md` (reviewer check; folded
+into `scripts/check-spec-coverage.mjs` in phase B).
+
+### SPEC-03 — Every spec names its State and its Source
+
+Status: **binding** | Enforced: **review**
+
+Every spec file carries a `## Meta` block directly after its H1, with exactly
+two mandatory fields:
+
+```markdown
+## Meta
+- **State:** Modified | Implemented
+- **Source:** code/DRYL.Components/Dialogs/DrylDialog.razor
+              code/DRYL.Components/Dialogs/DrylDialog.razor.css
+```
+
+`Source` lists the code files the spec describes. Without it, "the spec
+mirrors the code" is an assertion. With it, it is an invariant that is
+checkable in **two directions**:
+
+- Every path named in a `Source` block exists — no spec describes deleted
+  code.
+- Every `Dryl*.razor` under `code/` appears in exactly one spec — no component
+  without a spec, none captured twice.
+
+The second direction is also the progress meter for phase C: it answers
+"x of 127 components covered" directly. The checking script
+`scripts/check-spec-coverage.mjs` is built in **phase B**; until it exists,
+this rule is `review`-enforced.
+
+The full spec format:
+
+```markdown
+# DrylDialog
+
+## Meta
+- **State:** Modified | Implemented
+- **Source:** code/DRYL.Components/Dialogs/DrylDialog.razor
+
+## User Story
+As a Blazor developer, I want …, so that ….
+
+## Description
+What the component does, what it is for, how it is used. No implementation.
+
+## Public API
+Parameters, enums, `EventCallback`s, `RenderFragment`s — the outward contract.
+
+## Acceptance Criteria
+- …
+```
+
+The role in the `## User Story` is the **consuming Blazor developer** — the
+person who installs the NuGet package and places the component on a page — not
+an end user and not a maintainer.
+
+For large specs, acceptance criteria may be grouped into thematic `###`
+subsections (e.g. "Focus handling", "Sizing").
+
+Check: every file under `specs/` has an H1 followed by a `## Meta` block
+carrying both `State` and `Source`; every `Source` path exists; every
+`Dryl*.razor` under `code/` appears in exactly one `Source` block (reviewer
+check until `scripts/check-spec-coverage.mjs` lands in phase B).
+
+### SPEC-04 — Keeping `State` honest
+
+Status: **binding** | Enforced: **review**
+
+`State` makes visible, at a glance, which specs currently match the code
+(`Implemented`) and which do not (`Modified` — the spec was changed, or was
+never implemented).
+
+| State | Meaning |
+|---|---|
+| **`Modified`** | The spec was newly written, or changed in substance since the last implementation; the code does **not** (or no longer) reflect it. |
+| **`Implemented`** | Spec and code are in sync — every acceptance criterion is implemented. |
+
+Maintenance rules:
+
+- **Every change in substance** to an `Implemented` spec sets it back to
+  `Modified` — including tightening a single acceptance criterion or editing
+  the `## Description`.
+- **As soon as the implementation matches the spec**, the state is set to
+  `Implemented` — in the same session in which the code was reconciled with
+  the spec.
+- **Code-only changes without a spec change** (bug fixes, refactoring,
+  performance work) do **not** change the state.
+- **Spec and code changed together in one session**: go straight to
+  `Implemented`, without writing `Modified` as an intermediate state.
+- `State` is the source of truth about the sync status and is checked
+  explicitly on every spec edit. When in doubt, set `Modified` — drift is the
+  main enemy.
+
+Check: the reviewer confirms the `State` value against the diff — a spec whose
+body changed in substance and whose state is still `Implemented` blocks the
+merge.
+
+### SPEC-05 — Cross-cutting requirements per component
+
+Status: **binding** | Enforced: **review**
+
+Some requirements repeat across every component. They are **not an optional
+extra**; they are part of the minimum delivery for each one, and this list is
+walked whenever a component spec is written. Every component spec evidences:
+
+- **Both color modes** verified (`DESIGN-02` in [`design.md`](design.md)).
+- **Enter and exit animation** present, or the exception explicitly justified
+  (`DESIGN-11`, `DESIGN-12`).
+- **Keyboard operation and a11y behaviour** described (`UX-01`, `UX-05` in
+  [`uiux.md`](uiux.md)).
+- **AI-mode decision made explicitly** — a "no" is written down with its
+  reason, exactly like a "yes" (`AI-05` in [`ai.md`](ai.md)).
+- **A sample page** under `samples/` (`CODE-20` in [`code.md`](code.md)).
+- **An entry in the `ComponentCatalog`** (`REL-04` in
+  [`releasing.md`](releasing.md)).
+
+The template this list replaces made the same point about outgoing-email
+logging, and the reason carries over unchanged: **the mechanism existing
+technically does not satisfy the requirement.** In that project the backend
+endpoints and workflows were long in place while the surface a user could
+actually reach was still missing, because "technically already there, visible
+not yet" was allowed to pass as done. The same split here would be an
+`AiState` wired up with no aura on screen, or a component with no catalog
+entry: shipped in the assembly, absent from the library.
+
+Check: the reviewer walks all six points against the spec; each is either
+evidenced in the spec text or carries a written exception.
+
+### SPEC-06 — Acceptance criteria follow INVEST
+
+Status: **binding** | Enforced: **review**
+
+Acceptance criteria satisfy the INVEST principles:
+
+- **I**ndependent — worded as self-contained as possible; references to other
+  specs only when materially unavoidable (then as "see `S{n}`").
+- **N**egotiable — criteria describe behaviour, not implementation.
+- **V**aluable — every criterion delivers value to the consuming developer or
+  the end user of their app.
+- **E**stimable — concrete enough that the effort can be estimated.
+- **S**mall — **atomic**: one criterion states exactly one checkable fact.
+  Compound statements are split.
+- **T**estable — every criterion has an unambiguous pass/fail.
+
+```markdown
+- ✅ "`Variant` defaults to `ButtonVariant.Primary`."
+- ✅ "`Variant` accepts exactly the four values of `ButtonVariant`."
+- ❌ "Variant: enum, four values, defaults to Primary." (not atomic)
+- ❌ "All inputs are validated." (not testable — what is "all"?)
+```
+
+Check: the reviewer reads each criterion against the six letters; a compound
+or untestable criterion blocks the merge.
+
+### SPEC-07 — Behaviour, not appearance: name the token, never the value
+
+Status: **binding** | Enforced: **review**
+
+The template this convention was adapted from delimited **UI against
+backend** — business logic belongs to the backend, the UI only displays its
+result. A component library has no backend, so that delimitation is replaced
+by **behaviour against appearance**: acceptance criteria describe observable
+behaviour, and where appearance is part of the behaviour they name the design
+token, never the literal value. Literal values live in `dryl.css` and are
+documented in [`tokens.md`](tokens.md); repeating one in a spec creates a
+second source of truth that silently goes stale (`DESIGN-01`).
+
+```markdown
+- ✅ "The border uses `--line-strong` on hover."
+- ❌ "The border turns 1px #2a2a35 on hover."
+```
+
+Verb conventions:
+
+- "is visible / is disabled / is focused" — for component states.
+- "the `OnClosed` callback fires" — for `EventCallback`s.
+- "the aura is removed from the surface" — for AI state transitions.
+- "the component renders …" — for markup and slot output.
+- "matches the format `{…}`" — for string, URL or file formats.
+
+Parameter names, enum values, callback names and CSS custom property names
+stand in backticks and in the exact spelling used in the category's `_Api.md`
+(e.g. `Variant`, `ButtonVariant.Primary`, `AiState.Streaming`, `OnClosed`,
+`DrylTooltip`, `--line-strong`).
+
+Check: no acceptance criterion contains a literal color, length, duration or
+easing value; every API name appears in backticks and matches its spelling in
+`_Api.md` (reviewer check).
+
+### SPEC-08 — Specs are written in English
+
+Status: **binding** | Enforced: **review**
+
+Specs are written in English, without exception, and regardless of the
+language of the conversation that produced them. The reason is the one behind
+`REL-02` in [`releasing.md`](releasing.md): specs describe a public library
+and are read by people who do not speak German. This covers spec bodies,
+acceptance criteria, `_Api.md` and `_Interop.md`.
+
+Check: the reviewer confirms the spec contains no non-English prose.
+
+### SPEC-09 — Cite selectors, symbols and paths — never line numbers
+
+Status: **binding** | Enforced: **review**
+
+Evidence and references in a spec — or in any harness rule document — cite
+CSS selectors, symbol names, type names and file paths. They never cite line
+numbers. A line number is silently false after the next edit above it: nothing
+fails, nothing warns, and the citation now points at unrelated code while
+still reading as precise. Two attempts at building this harness failed exactly
+this way, on rule documents that cited line numbers into a source file.
+
+```markdown
+- ✅ "the `.ai-aura-comet` keyframes in `dryl.css`"
+- ✅ "`DrylDialog.CloseAsync` in `code/DRYL.Components/Dialogs/DrylDialog.razor.cs`"
+- ❌ "dryl.css:412"
+- ❌ "see DrylDialog.razor lines 30–48"
+```
+
+A range that genuinely needs to be pointed at is quoted instead: paste the
+selector or the signature, so the reference carries its own proof of what it
+meant.
+
+Check: `rg -n ':[0-9]+|line[s]? [0-9]+' harness/ specs/` returns no citation
+of a source location by line number (reviewer confirms remaining hits are not
+line-number citations).
