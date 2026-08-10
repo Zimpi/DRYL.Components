@@ -3,9 +3,9 @@ name: Publish
 # Continuous delivery for the DRYL packages.
 #
 # Two packages ship independently from this one workflow:
-#   * DRYL.Components         — version in DRYL.Components/DRYL.Components.csproj,
+#   * DRYL.Components         — version in code/DRYL.Components/DRYL.Components.csproj,
 #                               released under the tag  v<version>
-#   * DRYL.Components.Agents  — version in DRYL.Components.Agents/DRYL.Components.Agents.csproj,
+#   * DRYL.Components.Agents  — version in code/DRYL.Components.Agents/DRYL.Components.Agents.csproj,
 #                               released under the tag  agents-v<version>
 #
 # On every push to main we read <Version> from each csproj. For each package, if
@@ -52,14 +52,14 @@ jobs:
       - name: Read versions from csproj
         id: read
         run: |
-          core=$(grep -oPm1 '(?<=<Version>)[^<]+' DRYL.Components/DRYL.Components.csproj)
-          agents=$(grep -oPm1 '(?<=<Version>)[^<]+' DRYL.Components.Agents/DRYL.Components.Agents.csproj)
+          core=$(grep -oPm1 '(?<=<Version>)[^<]+' code/DRYL.Components/DRYL.Components.csproj)
+          agents=$(grep -oPm1 '(?<=<Version>)[^<]+' code/DRYL.Components.Agents/DRYL.Components.Agents.csproj)
           if [ -z "$core" ]; then
-            echo "::error::Could not read <Version> from DRYL.Components/DRYL.Components.csproj"
+            echo "::error::Could not read <Version> from code/DRYL.Components/DRYL.Components.csproj"
             exit 1
           fi
           if [ -z "$agents" ]; then
-            echo "::error::Could not read <Version> from DRYL.Components.Agents/DRYL.Components.Agents.csproj"
+            echo "::error::Could not read <Version> from code/DRYL.Components.Agents/DRYL.Components.Agents.csproj"
             exit 1
           fi
           echo "core_version=$core" >> "$GITHUB_OUTPUT"
@@ -125,14 +125,14 @@ jobs:
       - name: Pack DRYL.Components
         if: env.CORE_PUBLISH == 'true'
         run: >
-          dotnet pack DRYL.Components/DRYL.Components.csproj
+          dotnet pack code/DRYL.Components/DRYL.Components.csproj
           -c Release --no-build
           -o artifacts/core
 
       - name: Pack DRYL.Components.Agents
         if: env.AGENTS_PUBLISH == 'true'
         run: >
-          dotnet pack DRYL.Components.Agents/DRYL.Components.Agents.csproj
+          dotnet pack code/DRYL.Components.Agents/DRYL.Components.Agents.csproj
           -c Release --no-build
           -o artifacts/agents
 

@@ -8,7 +8,7 @@ push to `main` that changes the published version number is a release.
 ## How it works
 
 The source of truth for the published version is
-**`DRYL.Components/DRYL.Components.csproj` → `<Version>`**.
+**`code/DRYL.Components/DRYL.Components.csproj` → `<Version>`**.
 
 On every push to `main`, the [`Publish`](.github/workflows/publish.yml) workflow:
 

@@ -10,7 +10,7 @@ DRYL has a single source of truth for *how* components are built:
 [`CLAUDE.md`](CLAUDE.md). It applies to humans and AI agents alike. The short version:
 
 - **Tokens, not literals.** Every color, spacing, radius, shadow, duration and
-  easing references a CSS variable from [`DRYL.Components/wwwroot/dryl.css`](DRYL.Components/wwwroot/dryl.css).
+  easing references a CSS variable from [`code/DRYL.Components/wwwroot/dryl.css`](code/DRYL.Components/wwwroot/dryl.css).
   See [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md).
 - **Dark only.** No light theme, no `prefers-color-scheme` overrides.
 - **Glass surfaces, accents glow.** Translucent layers; accent colors only as

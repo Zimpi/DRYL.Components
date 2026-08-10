@@ -204,7 +204,7 @@ Every commit that touches library code **must** also update `CHANGELOG.md` and, 
 
 ### 7.0 Versioning & release — you own the version
 
-DRYL ships continuously. **You are the version owner**, not the maintainer. Every push to `main` is a potential release: the `Publish` workflow (`.github/workflows/publish.yml`) reads `<Version>` from `DRYL.Components/DRYL.Components.csproj`, and if no `v<Version>` tag exists yet, it builds, tests, packs and publishes that version to nuget.org, then tags it and cuts a GitHub Release.
+DRYL ships continuously. **You are the version owner**, not the maintainer. Every push to `main` is a potential release: the `Publish` workflow (`.github/workflows/publish.yml`) reads `<Version>` from `code/DRYL.Components/DRYL.Components.csproj`, and if no `v<Version>` tag exists yet, it builds, tests, packs and publishes that version to nuget.org, then tags it and cuts a GitHub Release.
 
 The `<Version>` in the `.csproj` is the **single source of truth** that drives publishing. Therefore:
 

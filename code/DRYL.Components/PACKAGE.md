@@ -31,8 +31,8 @@ Most Blazor component libraries are ports of Bootstrap or Material — safe, neu
 - **Light & dark, one identity.** Translucent glass layers on a deep-dark or luminous-light ground — following the user's system by default, switchable and persisted at runtime.
 - **Accents glow, never scream.** A violet-to-cyan gradient lives in 1px borders, glow rings and tiny indicators — never as a background fill.
 - **Motion is intentional.** Three durations, three easings, system-wide. Nothing flickers, nothing crawls. Every component animates its enter, exit and state changes.
-- **One token file.** Every color, spacing, radius, shadow and duration is a CSS variable in [`dryl.css`](DRYL.Components/wwwroot/dryl.css).
-- **~90 components, zero npm dependencies.** No JS framework underneath, no third-party package — just CSS, Razor, and a single hand-written interop file ([`dryl.js`](DRYL.Components/wwwroot/js/dryl.js)) for the DOM-level concerns Blazor can't do alone (focus traps, portals, clipboard).
+- **One token file.** Every color, spacing, radius, shadow and duration is a CSS variable in [`dryl.css`](https://github.com/Zimpi/DRYL.Components/blob/main/code/DRYL.Components/wwwroot/dryl.css).
+- **~90 components, zero npm dependencies.** No JS framework underneath, no third-party package — just CSS, Razor, and a single hand-written interop file ([`dryl.js`](https://github.com/Zimpi/DRYL.Components/blob/main/code/DRYL.Components/wwwroot/js/dryl.js)) for the DOM-level concerns Blazor can't do alone (focus traps, portals, clipboard).
 - **Accessible by default.** Keyboard-reachable, ARIA-labeled, visible focus rings — and AI activity announced via `aria-live`.
 
 ---
