@@ -41,17 +41,44 @@ visible focus indicator (a `box-shadow` ring, a `border-color` change tied to
 Check: `rg -n 'outline:\s*none' code/` locates every candidate — currently
 **36 hits** (13 in `dryl.css`, 23 across component `.razor.css` files). A
 raw count does not establish compliance: the rule is about whether each
-`outline: none` is paired with a replacement ring, and that pairing sits in
-surrounding lines the grep does not evaluate (e.g. `dryl.css:888` suppresses
-`outline` on the base `.input`/`.textarea`/`.select` selector while a
-`:focus` rule a few lines above already supplies a `box-shadow` ring — visible
-inspection is required to see that). This is why the check is
-**review-enforced**, not grep-enforced: the grep is the starting point that
-locates every candidate line, and a human confirms each one has a replacement
-ring nearby. Spot-checked in `dryl.css` (lines 888, 1506, 1549, 2738, 3261,
-3561, 3856) — each is paired with an adjacent `box-shadow`/`border-color`
-ring; the full set of 36 has not been individually re-verified for this
-document and should be walked during phase C.
+`outline: none` is paired with a replacement ring, and that pairing does not
+sit in a fixed position (same line, "a few lines above/below") relative to
+the `outline: none` — it can sit on an entirely different selector governed
+by a different pseudo-class. `dryl.css:880–906` is the concrete case: the
+base rule `.input, .textarea, .select { … outline: none; }` at line 888 sets
+`outline: none` unconditionally; the replacement ring is not adjacent to it
+at all — it is on `.input:focus, .textarea:focus, .select:focus` at lines
+891–899 (three lines *below* 888, not above), which sets `border-color` and a
+three-layer `box-shadow` glow. Immediately after that, a **second**,
+deliberate `outline: none` sits at line 906 on
+`.input:focus-visible, .textarea:focus-visible, .select:focus-visible`, with
+its own comment explaining why: "The global `:focus-visible` rule adds a
+bright cyan outline that clashes with the violet glow above. Suppress it
+here — the glow already satisfies WCAG focus visibility." So one selector
+family accounts for two of the 36 grep hits (888 and 906), and the ring that
+justifies both lives on a third, unrelated-by-pseudo-class rule (`:focus`,
+not `:focus-visible`) that a same-line or same-block grep would never
+associate with either hit.
+
+This is exactly why a stronger paired check does not work cleanly here: a
+"does this `outline: none` selector have a `:focus`/`:focus-visible` sibling
+rule containing `box-shadow` in the same file" grep was tried against
+`dryl.css` and produces both false negatives (a bare class token like
+`.select` also appears in unrelated rules earlier in the file, so "does
+`box-shadow` appear anywhere near a later occurrence of the class name" is
+not a reliable signal) and misses the 888/906 case's actual shape (the ring
+sits on a *different* pseudo-class variant of a *multi-selector* group, not
+on the same selector as the `outline: none` it replaces). No grep pattern
+tested reliably separates "replaced" from "not replaced" without manual
+reading. This is why the check stays **review-enforced**, not grep-enforced:
+the grep is the starting point that locates every candidate line, and a
+human reads the surrounding rule to confirm a replacement ring exists.
+Spot-checked in `dryl.css` (lines 888, 906, 1506, 1549, 2738, 3261, 3561,
+3856) — each is paired with a `box-shadow`/`border-color` ring somewhere in
+its rule's neighborhood, per the detailed 888/906 case above and simpler
+adjacent-block pairings at the other six sites; the full set of 36 has not
+been individually re-verified for this document and should be walked during
+phase C.
 
 ### UX-03 — Contrast floor
 
