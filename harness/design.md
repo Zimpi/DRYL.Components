@@ -136,15 +136,18 @@ Three durations: `--dur-fast` (140ms), `--dur-med` (240ms), `--dur-slow`
 Don't invent new ones. Don't use `linear`. Don't use durations under 100ms
 (feels glitchy) or over 600ms (feels broken).
 
-Check: `rg -n 'transition:.*[0-9]+m?s|animation:.*[0-9]+m?s' code/` names only
-`--dur-*` / `--ease-*` — currently **9 pre-existing hits** using literal ms
-values instead of tokens (`dryl.css` drift/shimmer/skeleton/spin keyframes,
-`DrylSpinner.razor.css`, `DrylReconnectModal.razor.css`). Several of these are
-documented exceptions elsewhere — `tokens.md` explicitly permits `linear` for
-loaders/progress spinners and lets AI/aurora ambient animations run outside
-the `--dur-*` scale — but the grep as specified does not distinguish
-exceptions from violations, so the check is **not clean** as written; see
-phase C.
+Check: `rg -n '(transition|animation)\s*:[^;]*[0-9]+(\.[0-9]+)?m?s\b' code/` —
+matches a literal numeric duration (not `var(--dur-*)`) anywhere inside a
+`transition`/`animation` shorthand, even when the easing on the same line is
+already tokenized. Returns nothing when every duration is a token — currently
+**31 pre-existing hits** (`dryl.css` drift/shimmer/skeleton/spin/toast/AI-aura
+keyframes, `DrylSpinner.razor.css`, `DrylReconnectModal.razor.css`,
+`DrylRating.razor.css`, `DrylMessage.razor.css`, and more). Some are
+documented exceptions in `tokens.md` (loaders/progress bars may use `linear`;
+AI/aurora ambient animations intentionally run outside the `--dur-*` scale),
+but the command above does not exclude them — no exclusion is encoded in the
+check, so its count is the literal, reproducible one. The check is **not
+clean**; see phase C.
 
 ### DESIGN-11 — Every component is animated
 
