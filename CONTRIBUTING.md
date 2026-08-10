@@ -11,7 +11,7 @@ DRYL has a single source of truth for *how* components are built:
 
 - **Tokens, not literals.** Every color, spacing, radius, shadow, duration and
   easing references a CSS variable from [`code/DRYL.Components/wwwroot/dryl.css`](code/DRYL.Components/wwwroot/dryl.css).
-  See [`DESIGN_TOKENS.md`](DESIGN_TOKENS.md).
+  See [`harness/tokens.md`](harness/tokens.md).
 - **Dark only.** No light theme, no `prefers-color-scheme` overrides.
 - **Glass surfaces, accents glow.** Translucent layers; accent colors only as
   gradients, 1px borders, glow rings or small indicators.
@@ -20,7 +20,7 @@ DRYL has a single source of truth for *how* components are built:
   primitives — never a per-component AI state.
 - **Strongly-typed parameters.** `enum` for variants, never `string`.
 - **Follow the API conventions.** Public parameter / event / enum / slot naming
-  must match [`CONVENTIONS.md`](CONVENTIONS.md). These are frozen at 1.0.
+  must match [`harness/conventions.md`](harness/conventions.md). These are frozen at 1.0.
 - **Accessibility is not optional.** Keyboard-reachable, ARIA-labeled, visible
   focus rings; icon-only buttons always get a `DrylTooltip`.
 
@@ -48,7 +48,7 @@ dotnet run --project samples/DRYL.Components.Demo
 1. **Open an issue first** for anything non-trivial (new component, API change).
 2. Fork & branch from `main` (`feature/...` or `fix/...`).
 3. Follow the component checklist in [`CLAUDE.md`](CLAUDE.md) §3 and the patterns
-   in [`COMPONENT_PATTERNS.md`](COMPONENT_PATTERNS.md).
+   in [`harness/patterns.md`](harness/patterns.md).
 4. Add/extend tests under [`tests/DRYL.Components.Tests`](tests/DRYL.Components.Tests).
 5. **Update the docs** — every change to library code updates
    [`CHANGELOG.md`](CHANGELOG.md) (`[Unreleased]`) and, if a component is new or

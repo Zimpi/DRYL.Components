@@ -427,7 +427,7 @@ All animations are suppressed under `prefers-reduced-motion: reduce` — the aur
 
 Prefer the component wiring: on the host root add the classes from
 `AiAuraCss.Append(...)` and drop `<DrylAuraElements Aura="_aura" GenTick="_genTick" />`
-as the first child (see `COMPONENT_PATTERNS.md`). The raw markup it produces is:
+as the first child (see `patterns.md`). The raw markup it produces is:
 
 ```html
 <div class="glass-card ai-aura ai-thinking">   <!-- + ai-aura--aurora for the Aurora variant -->

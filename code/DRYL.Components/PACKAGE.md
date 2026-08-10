@@ -60,7 +60,7 @@ await Theme.SetAccentAsync("#f59e0b", "#f43f5e"); // or Theme.SetThemeAsync(Dryl
 Ships with curated presets — **Nebula** (default), **Ember**, **Verdant**,
 **Mono** — and a dedicated, opt-in **AI accent** so AI moments can glow in their
 own color. The dark glass core stays fixed by design, so a theme can't break the
-look. Full guide: [`THEMING.md`](THEMING.md).
+look. Full guide: [`theming.md`](https://github.com/Zimpi/DRYL.Components/blob/main/harness/theming.md).
 
 ---
 

@@ -40,7 +40,7 @@ The version bump follows [Semantic Versioning](https://semver.org/):
 | New component or feature        | MINOR |
 | Bug fix / visual / docs tweak   | PATCH |
 
-The public API surface frozen at 1.0 is defined by [`CONVENTIONS.md`](CONVENTIONS.md).
+The public API surface frozen at 1.0 is defined by [`harness/conventions.md`](harness/conventions.md).
 After 1.0, any rename of a public parameter / event / enum / slot is a **MAJOR**
 change.
 

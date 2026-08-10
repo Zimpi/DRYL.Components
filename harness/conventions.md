@@ -4,7 +4,7 @@ These rules define the **public API surface** of every DRYL component. They are
 binding for the 1.0 API freeze: after `1.0.0`, changing any of these on an
 existing component is a breaking change (MAJOR bump). They codify patterns the
 library already follows — see `CLAUDE.md` for the design-system rules and
-`COMPONENT_PATTERNS.md` for component structure.
+`patterns.md` for component structure.
 
 ## 1. Naming
 
