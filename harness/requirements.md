@@ -46,6 +46,7 @@ specs/
 │   ├── _Interop.md          JS interop surface, DI services, cleanup duties
 │   ├── F{n} {DrylComponent}.md
 │   └── F{n} {DrylComponent}/        only when one file is no longer enough
+│       ├── _Component.md            the component's Meta block: State + Source
 │       └── S{n} {Aspect}.md
 ```
 
@@ -59,9 +60,13 @@ specs/
   (`SPEC-03`).
 - **S** = an aspect of a single component, used **only** when the component is
   too big for one file. Then `F{n} {DrylComponent}.md` becomes the folder
-  `F{n} {DrylComponent}/` holding the story files. The candidates are
-  `DrylDataGrid`, `DrylCanvas` and `DrylVoiceRun`; nothing else is split
-  without a reason stated in the PR.
+  `F{n} {DrylComponent}/`, which holds one `_Component.md` plus the `S{n}`
+  story files. The candidates are the library's three largest components —
+  `DrylTable` (`code/DRYL.Components/Components/Data/DrylTable.razor`),
+  `DrylCommandPalette`
+  (`code/DRYL.Components/Components/Navigation/DrylCommandPalette.razor`) and
+  `DrylCanvas` (`code/DRYL.Components/Components/AI/DrylCanvas.razor`);
+  nothing else is split without a reason stated in the PR.
 
 Numbering starts at 1 per level (`F1`, `F2`, … per category; `S1`, `S2`, … per
 component) and stays stable: new entries are appended at the end, never
@@ -76,21 +81,23 @@ hand-written navigation list would only drift from it.
 
 Check: every directory under `specs/` matches `E{n} {Category}`, every spec
 file matches `F{n} {DrylComponent}.md` or `F{n} {DrylComponent}/S{n} {Aspect}.md`,
-and each category carries `_Api.md` and `_Interop.md` (reviewer check; folded
-into `scripts/check-spec-coverage.mjs` in phase B).
+every split folder carries exactly one `_Component.md`, and each category
+carries `_Api.md` and `_Interop.md` (reviewer check; folded into
+`scripts/check-spec-coverage.mjs` in phase B).
 
 ### SPEC-03 — Every spec names its State and its Source
 
 Status: **binding** | Enforced: **review**
 
-Every spec file carries a `## Meta` block directly after its H1, with exactly
-two mandatory fields:
+Every **component spec** carries a `## Meta` block directly after its H1, with
+exactly two mandatory fields:
 
 ```markdown
 ## Meta
 - **State:** Modified | Implemented
-- **Source:** code/DRYL.Components/Dialogs/DrylDialog.razor
-              code/DRYL.Components/Dialogs/DrylDialog.razor.css
+- **Source:** code/DRYL.Components/Components/Surfaces/DrylPopover.razor
+              code/DRYL.Components/Components/Surfaces/DrylPopover.razor.css
+              code/DRYL.Components/Components/Surfaces/PopoverPlacement.cs
 ```
 
 `Source` lists the code files the spec describes. Without it, "the spec
@@ -99,22 +106,46 @@ checkable in **two directions**:
 
 - Every path named in a `Source` block exists — no spec describes deleted
   code.
-- Every `Dryl*.razor` under `code/` appears in exactly one spec — no component
-  without a spec, none captured twice.
+- Every `Dryl*.razor` under `code/` appears in the `Source` of **exactly one
+  component spec** — that is, of one `F{n} {DrylComponent}.md` or one
+  `F{n} {DrylComponent}/_Component.md`. No component without a spec, none
+  captured twice.
 
 The second direction is also the progress meter for phase C: it answers
 "x of 127 components covered" directly. The checking script
 `scripts/check-spec-coverage.mjs` is built in **phase B**; until it exists,
 this rule is `review`-enforced.
 
-The full spec format:
+#### `Source` format
+
+Written so a script can parse it without guessing:
+
+- **One path per line.** The first path sits on the `- **Source:**` line
+  itself; each further path is a continuation line, indented with whitespace
+  and carrying nothing but the path — no bullet, no comma, no backticks.
+- **Repo-root-relative, forward slashes**, no leading `./` and no leading `/`
+  (`code/DRYL.Components/Components/Surfaces/DrylPopover.razor`).
+- **Must be listed:** the component's `.razor` file, and its `.razor.cs`
+  codebehind and `.razor.css` isolated stylesheet where they exist.
+- **May be listed:** other files the spec describes and that no other spec
+  claims — an enum or options type owned by the component (e.g.
+  `PopoverPlacement.cs`), a service or reference type it is the spec for
+  (e.g. `code/DRYL.Components/Dialogs/DrylDialogService.cs`).
+- **Never listed:** `dryl.css`, `_Imports.razor` and anything else shared
+  across components — a shared file claimed by one spec would falsely read as
+  covered. Shared surface belongs in `_Api.md` or `_Interop.md`.
+
+The order is `.razor` first, then the rest; the check is order-independent.
+
+#### The component spec format
 
 ```markdown
-# DrylDialog
+# DrylPopover
 
 ## Meta
 - **State:** Modified | Implemented
-- **Source:** code/DRYL.Components/Dialogs/DrylDialog.razor
+- **Source:** code/DRYL.Components/Components/Surfaces/DrylPopover.razor
+              code/DRYL.Components/Components/Surfaces/DrylPopover.razor.css
 
 ## User Story
 As a Blazor developer, I want …, so that ….
@@ -134,12 +165,43 @@ person who installs the NuGet package and places the component on a page — not
 an end user and not a maintainer.
 
 For large specs, acceptance criteria may be grouped into thematic `###`
-subsections (e.g. "Focus handling", "Sizing").
+subsections (e.g. "Focus handling", "Placement").
 
-Check: every file under `specs/` has an H1 followed by a `## Meta` block
-carrying both `State` and `Source`; every `Source` path exists; every
-`Dryl*.razor` under `code/` appears in exactly one `Source` block (reviewer
-check until `scripts/check-spec-coverage.mjs` lands in phase B).
+#### Split components
+
+When a component is split into `F{n} {DrylComponent}/` (`SPEC-02`), `Source`
+stays at the **component** level, never at the story level:
+
+- `F{n} {DrylComponent}/_Component.md` carries the `## Meta` block with
+  `Source` **and** the component's rolled-up `State`. It is the component
+  spec for that component — the one place its files are claimed.
+- Each `S{n} {Aspect}.md` inside carries a `## Meta` block with `State` only
+  and **no `Source`**. Its state is per-aspect; `_Component.md` is
+  `Implemented` only when every `S{n}` beside it is.
+
+This keeps "exactly one spec claims each `Dryl*.razor`" true for split and
+unsplit components alike.
+
+#### The underscore-prefixed companion files
+
+`_Api.md`, `_Interop.md` and `_Component.md` are **not** component specs. A
+leading underscore marks a file that the coverage check does not treat as
+claiming a component — except `_Component.md`, which is the component spec of
+its own folder.
+
+| File | Scope | Purpose | Meta block |
+|---|---|---|---|
+| `_Api.md` | category | Shared enums, parameter contracts and services of the category — the data contract of the library, and what the 1.0 freeze binds. Minimum structure: an H1 naming the category, then one `##` section per shared type, each listing its members with the exact spelling used in code. | **No** `Meta` block: no `State`, no `Source`. It is a reference for the specs around it, not a unit of implementation. |
+| `_Interop.md` | category | The JS interop surface the category uses (`dryl.js` entry points), the DI services it registers, and the cleanup duties each imposes (`CODE-05` in [`code.md`](code.md)). Minimum structure: an H1, then `## Interop`, `## Services` and `## Cleanup` sections; empty sections are written as "none". | **No** `Meta` block: no `State`, no `Source`. |
+| `_Component.md` | one component | The `Meta` block of a split component plus its `## Description` and `## Public API`; the acceptance criteria live in the `S{n}` files. | **Yes** — `State` **and** `Source`, exactly as an `F{n} {DrylComponent}.md`. |
+
+Check: every component spec — every `F{n} {DrylComponent}.md` and every
+`F{n} {DrylComponent}/_Component.md` — has an H1 followed by a `## Meta` block
+carrying both `State` and `Source`; every `S{n}` file carries `State` and no
+`Source`; `_Api.md` and `_Interop.md` carry neither; every `Source` path
+exists and is repo-root-relative; every `Dryl*.razor` under `code/` appears in
+exactly one `Source` block (reviewer check until
+`scripts/check-spec-coverage.mjs` lands in phase B).
 
 ### SPEC-04 — Keeping `State` honest
 
@@ -202,8 +264,16 @@ not yet" was allowed to pass as done. The same split here would be an
 `AiState` wired up with no aura on screen, or a component with no catalog
 entry: shipped in the assembly, absent from the library.
 
-Check: the reviewer walks all six points against the spec; each is either
-evidenced in the spec text or carries a written exception.
+Check: the reviewer walks all six points against the spec. Five of them —
+both color modes, keyboard and a11y behaviour, the AI-mode decision, the
+sample page, the `ComponentCatalog` entry — must be **evidenced in the spec
+text**; a spec missing any of them is incomplete and blocks the merge. There
+is no written-exception route for them: `DESIGN-02` and `REL-04` are binding
+without an exception clause, and an explicit, reasoned "this component gets no
+`Ai` parameter" **is** compliance with `AI-05`, not a waiver of it. Only the
+enter/exit animation point may instead carry a written exception, and only on
+the terms `DESIGN-11` already sets: the rare component with genuinely nothing
+to animate, said so explicitly.
 
 ### SPEC-06 — Acceptance criteria follow INVEST
 
@@ -252,14 +322,14 @@ second source of truth that silently goes stale (`DESIGN-01`).
 Verb conventions:
 
 - "is visible / is disabled / is focused" — for component states.
-- "the `OnClosed` callback fires" — for `EventCallback`s.
+- "the `OnClose` callback fires" — for `EventCallback`s.
 - "the aura is removed from the surface" — for AI state transitions.
 - "the component renders …" — for markup and slot output.
 - "matches the format `{…}`" — for string, URL or file formats.
 
 Parameter names, enum values, callback names and CSS custom property names
 stand in backticks and in the exact spelling used in the category's `_Api.md`
-(e.g. `Variant`, `ButtonVariant.Primary`, `AiState.Streaming`, `OnClosed`,
+(e.g. `Variant`, `ButtonVariant.Primary`, `AiState.Streaming`, `OnClose`,
 `DrylTooltip`, `--line-strong`).
 
 Check: no acceptance criterion contains a literal color, length, duration or
@@ -290,10 +360,10 @@ still reading as precise. Two attempts at building this harness failed exactly
 this way, on rule documents that cited line numbers into a source file.
 
 ```markdown
-- ✅ "the `.ai-aura-comet` keyframes in `dryl.css`"
-- ✅ "`DrylDialog.CloseAsync` in `code/DRYL.Components/Dialogs/DrylDialog.razor.cs`"
-- ❌ "dryl.css:412"
-- ❌ "see DrylDialog.razor lines 30–48"
+- ✅ "the `.ai-aura-comet` rule and the `ai-comet-spin` keyframes in `dryl.css`"
+- ✅ "`DrylPopover.Close` in `code/DRYL.Components/Components/Surfaces/DrylPopover.razor`"
+- ❌ "dryl.css:4128"
+- ❌ "see DrylPopover.razor lines 148–174"
 ```
 
 A range that genuinely needs to be pointed at is quoted instead: paste the
