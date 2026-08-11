@@ -62,6 +62,7 @@ value and references a delay token.
 | `ai-generated-lift` | `720ms` | `var(--dur-choreo)` | 180 ms slower |
 | `ai-aura-bloom` | `900ms` | `var(--dur-choreo)` | none |
 | `ai-comet-retire` | `1100ms … 800ms` | `var(--dur-choreo) … var(--delay-long)` | 200 ms quicker, delay unchanged |
+| `tbl-row-ai-flash` | `1600ms` | `var(--dur-choreo)` | 700 ms quicker; the row flash tightens noticeably |
 | `DrylImage.razor.css` `img-sharpen` | `var(--img-blur-dur, 2000ms)` | `var(--img-blur-dur)` | none — see below |
 | `drift-a/b/c`, `shimmer`, `skel` | bare `ease-in-out` | `var(--ease-in-out)` | a marginally different curve |
 
@@ -83,8 +84,10 @@ parameter, a consumer-facing knob, and stays where it is. The fallback is droppe
 ## Impact
 
 - **Harness:** three new tokens, a maintainer blocker under `DESIGN-03` and `DESIGN-10`
-  — signed off 2026-08-11 (see `## Decisions`). `DESIGN-10` gains the delay sentence and
-  the `--dur-choreo` scope note; its `Check:` line drops from 9 pre-existing hits to 0.
+  — signed off 2026-08-11 (see `## Decisions`). `DESIGN-10` gains the delay sentence
+  (scoped to the shorthand), the `--dur-choreo` scope note, and a repaired multi-line
+  check; its `Check:` line drops from 9 pre-existing hits to 0 — against the *fixed*
+  check, which sees eleven call sites rather than nine.
   `harness/tokens.md` documents all three. No new `AiState`, no new dependency.
 - **Specs:** none exist yet. Eight of the nine debts live in `dryl.css`, which belongs to
   no component and therefore to no spec — so, unlike the `DESIGN-07` debts, this work is
@@ -118,9 +121,30 @@ parameter, a consumer-facing knob, and stays where it is. The fallback is droppe
   intent — a beat's offset — and collapse to `--delay-short: 200ms`. `--delay-long:
   800ms` is a hold before retirement. Numbered tokens (`--delay-1/2/3`) would have
   preserved every value but carry no intent, unlike `--dur-fast/med/slow`.
-- 2026-08-11: **The four conspicuous timing changes are reviewed in the browser before
-  the commit** — toast shine, progress bar, `ai-generated-lift`, `ai-comet-retire` — in
-  both colour modes, per the standing verification bar in `CLAUDE.md`.
+- 2026-08-11: **The conspicuous timing changes are reviewed in the browser before the
+  commit** — toast shine, progress bar, `ai-generated-lift`, `ai-comet-retire` and
+  `tbl-row-ai-flash` — in both colour modes, per the standing verification bar in
+  `CLAUDE.md`.
+- 2026-08-11: **`tbl-row-ai-flash` (1600 ms) converges on `--dur-choreo` too**, found
+  while verifying the inventory before planning. It is a sixth over-600 ms one-shot that
+  this document did not list, because the `DESIGN-10` check misses it (below). 700 ms is
+  the largest single change in this work and joins the browser review. Raising
+  `--dur-choreo` to meet it halfway was rejected for the same reason a fifth token was:
+  the vocabulary is the point.
+- 2026-08-11: **The `DESIGN-10` check has a hole and is fixed as part of this work.** Its
+  regex requires `animation:` on the same line as the literal, so a wrapped multi-line
+  declaration slips through — which is exactly why `tbl-row-ai-flash` and the second
+  `ai-comet-retire` call site (`dryl.css:4291`) never appeared in the count of nine.
+  Retokenising only the nine would have turned the check green while leaving real debt
+  behind, which is the failure mode `CLAUDE.md` warns about when it says never to read a
+  hit count as evidence of a clean codebase.
+- 2026-08-11: **The delay sentence governs delays in the `animation`/`transition`
+  shorthand only.** Read literally it would also bind the eight `.stagger >
+  *:nth-child(n)` offsets (60–420 ms) and five `calc(var(--i) * 30ms)` staggers — but
+  those are arithmetic progressions built from a step, not beats chosen by eye, and
+  `--reveal-step: 60ms` already exists as the token for that. A step multiplied by an
+  index stays free; `0ms` is never a design value. This keeps the change at the three
+  delays the rule actually counts.
 
 ## Open Points
 
