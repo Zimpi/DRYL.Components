@@ -58,8 +58,12 @@ The total stays at 127; only the distribution changes.
 
 **Why `E1 Foundation` and not a sixteenth category.** The category *list* is out
 of scope (`SPEC-02`, phase B), and the categories map one-to-one onto folders —
-so a new `Components/Providers/` folder with no category would break exactly the
-property `scripts/check-spec-coverage.mjs` verifies. `E1 Foundation` is the
+so a new `Components/Providers/` folder with no category would leave that
+one-to-one claim false. Note what enforces it: `check-spec-coverage.mjs` reads
+only the category *names* out of the `SPEC-02` table, never the source-folder
+column. It verifies that `specs/` and the table agree and that every
+`Dryl*.razor` is claimed exactly once — the path-to-category mapping itself is
+`review`-enforced, not script-enforced. `E1 Foundation` is the
 resolution: it already holds "the public surface that belongs to no single
 component — the theming types, the DI registration, the motion primitives", which
 is precisely what these five components are. It becomes the category's source
@@ -124,8 +128,10 @@ names concrete paths, so a move afterwards means touching every spec it affects.
 - **Specs:** none exist yet, which is exactly why this is worth deciding now.
   Every `Source` block records concrete paths; deciding after phase C means
   editing the specs of every component that moves. `specs/E1 Foundation/` gains
-  five `F{n}` files it would not otherwise have had, and `check-spec-coverage.mjs`
-  re-derives all counts rather than trusting the table.
+  five `F{n}` files it would not otherwise have had. The per-category counts in
+  the `SPEC-02` table are documentation and are maintained by hand — the script
+  derives only the total (127) from the file system, by counting `Dryl*.razor`
+  under `code/`; that total is unchanged by every move here.
 - **Public API:** none. **Verified 2026-08-11, not assumed:** every `.razor`
   under `Components/` and `Dialogs/` declares `@namespace` explicitly, and every
   `.cs` beside them declares its own `namespace` line — 46 × `DRYL.Components`,
@@ -148,10 +154,11 @@ names concrete paths, so a move afterwards means touching every spec it affects.
   commit — while deferring it means editing the `Source` block of every affected
   spec a second time after 127 are written.
 - 2026-08-11: The provider group moves to `Components/Providers/` as the source
-  folder of **`E1 Foundation`**, not into a sixteenth category. A new folder
-  without a category would break the one-to-one property that
-  `check-spec-coverage.mjs` verifies, and the category list is out of scope here;
-  `E1` already owns exactly this "belongs to no single component" surface. The
+  folder of **`E1 Foundation`**, not into a sixteenth category. The category list
+  is out of scope here, and `E1` already owns exactly this "belongs to no single
+  component" surface. A folder without a category would not fail any script —
+  the one-to-one mapping is review-enforced — but it would make `SPEC-02`'s
+  wording untrue, which is the same debt this idea exists to remove. The
   Tech Lead raised the collision — direction A as originally written would have
   required opening the category list.
 - 2026-08-11: The chat stack stays in `Components/Surfaces/`. Same constraint:
