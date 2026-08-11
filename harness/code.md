@@ -18,19 +18,29 @@ separates hard code rules from process checklists.
 
 Status: **binding** | Enforced: **grep**
 
-- **Components:** PascalCase, `Dryl` prefix → `DrylButton`, `DrylDataGrid`,
-  `DrylInputText`.
+- **Public components:** PascalCase, `Dryl` prefix → `DrylButton`,
+  `DrylTable`, `DrylInputText`.
 - **CSS classes:** kebab-case, no prefix → `.btn`, `.glass-card`,
   `.badge-success`.
 - **Files:** `DrylButton.razor` + `DrylButton.razor.cs` (if codebehind) +
   `DrylButton.razor.css` (if isolated styles).
 - **Namespaces:** `DRYL.Components` (or sub-namespace by category).
 
-Check: `find code -name '*.razor' -not -name '_*' -not -path '*/obj/*' -not -path '*/bin/*' | grep -v '/Dryl'`
-should return nothing — currently **2 pre-existing hits**:
-`code/DRYL.Components/Canvas/CanvasNodeView.razor` and
-`code/DRYL.Components/Components/Data/Charts/Internal/ChartFrame.razor`, see
-phase C.
+**Internal building blocks deliberately carry no prefix.** A component a
+consumer can neither place nor parameterise — one that lives under an
+`Internal/` folder, or is reachable only through `internal` cascading
+parameters — is not part of the public surface. The prefix is namespace
+hygiene for someone else's code; on an internal part it only blurs the line
+between what is public and what is not. The **absence** of the prefix is the
+signal, and such components belong under an `Internal/` folder so the check
+can see it.
+
+Check: `find code -name '*.razor' -not -name '_*' -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/Internal/*' | grep -v '/Dryl'`
+should return nothing — currently **1 pre-existing hit**:
+`code/DRYL.Components/Canvas/CanvasNodeView.razor` is internal (it takes only
+`internal` cascading parameters and is rendered solely by `DrylCanvas`) but
+does not sit under an `Internal/` folder, so the check cannot tell. Moving it
+to `Canvas/Internal/` clears this; see `docs/2026-08-11-red-rule-triage.md`.
 
 ### CODE-02 — Parameters are strongly typed
 

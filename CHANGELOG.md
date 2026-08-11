@@ -24,6 +24,7 @@ Version bump guide:
 
 ### Changed
 - `DRYL.Components.Agents` (Agents 0.16.1) — Minimum `Microsoft.Agents.AI` raised from 1.13.0 to 1.15.0. No API of this package changes; consumers pinned to 1.13.x need to move up with it.
+- `DESIGN-01`, `DESIGN-10`, `CODE-01` — Rule scope corrected after triaging the harness's pre-existing violations. `DESIGN-01` exempts alpha-channel contexts (`mask`, `clip-path`), where a color literal is a stencil rather than a design choice. `DESIGN-10` now governs transitions and one-shot animations only; continuous `infinite` motion (spinners, shimmers, ambient drift) keeps its own rhythm and may use `linear`, while the easing tokens still bind. `CODE-01` applies to public components; internal building blocks under `Internal/` deliberately carry no `Dryl` prefix. No component code changed
 - `prototype/` and `samples/` — Removed. The prototype was a proof-of-concept reference the library has long outgrown; `samples/` held no tracked demo pages. Demos live in `DRYL.Website` and are surfaced through its `ComponentCatalog`. Consumers are unaffected — neither directory shipped in either package
 - Repository layout — Library projects moved to `code/`, the rules split out of `CLAUDE.md` into `harness/` with stable rule IDs, and `specs/` + `ideas/` added for spec-driven development. Consumers are unaffected: package IDs, assembly names and the `_content/DRYL.Components/…` asset paths are unchanged
 

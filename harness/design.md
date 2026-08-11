@@ -25,10 +25,14 @@ every easing curve must reference a CSS variable. The full list lives in
 ✅ `background: var(--glass-1);`
 ❌ `background: rgba(255,255,255,0.03);`
 
-Check: `rg -n '#[0-9a-fA-F]{3,8}\b|rgba?\(' code/*/**/*.razor.css` returns
-nothing — currently **2 pre-existing hits**: literal `#fff` stops inside a
-`mask`/`-webkit-mask` gradient in `DrylSpinner.razor.css` (lines 50–51), see
-phase C.
+**Alpha-channel contexts are exempt.** In `mask`, `-webkit-mask`, `mask-image`
+and `clip-path`, a color is not a color — only its alpha is read. `#fff` means
+"keep this area", `transparent` means "cut it out". Those are stencils, not
+design decisions: no token could replace them, and they are identical in both
+color modes.
+
+Check: `rg -n '#[0-9a-fA-F]{3,8}\b|rgba?\(' code/*/**/*.razor.css | rg -v 'mask|clip-path'`
+returns nothing — **clean**.
 
 ### DESIGN-02 — Two modes, one identity
 
@@ -130,24 +134,43 @@ a small indicator — never as the fill of a large surface (reviewer check).
 
 Status: **binding** | Enforced: **grep**
 
+This rule governs **transitions and one-shot animations** — anything that
+moves the UI from one state to another and then stops.
+
 Three durations: `--dur-fast` (140ms), `--dur-med` (240ms), `--dur-slow`
 (420ms). Three easings: `--ease-out`, `--ease-in-out`, `--ease-spring`.
 
 Don't invent new ones. Don't use `linear`. Don't use durations under 100ms
 (feels glitchy) or over 600ms (feels broken).
 
-Check: `rg -n '(transition|animation)\s*:[^;]*[0-9]+(\.[0-9]+)?m?s\b' code/` —
-matches a literal numeric duration (not `var(--dur-*)`) anywhere inside a
+**Continuous motion is a different thing and is not bound by the duration
+scale.** An `infinite` animation — a spinner, a skeleton shimmer, a breathing
+pulse, the ambient aurora drift — has a rhythm that *is* the effect, measured
+in seconds rather than milliseconds. Applying the transition scale to it
+breaks it: a spinner needs `linear`, because rotation eased with `--ease-out`
+stutters once per revolution, and a shimmer at 420ms is a strobe rather than a
+sign of waiting. For continuous motion:
+
+- The duration is free, chosen for the rhythm the effect needs.
+- `linear` is allowed, and is required for anything that rotates.
+- The easing **tokens** still bind wherever easing is applied at all — write
+  `var(--ease-in-out)`, never the bare `ease-in-out` keyword; they are not the
+  same curve.
+- `prefers-reduced-motion` binds unchanged (`UX-06` in [`uiux.md`](uiux.md)).
+
+Check: `rg -n '(transition|animation)\s*:[^;]*[0-9]+(\.[0-9]+)?m?s\b' code/ | rg -v 'infinite'`
+— matches a literal numeric duration (not `var(--dur-*)`) inside a
 `transition`/`animation` shorthand, even when the easing on the same line is
-already tokenized. Returns nothing when every duration is a token — currently
-**31 pre-existing hits** (`dryl.css` drift/shimmer/skeleton/spin/toast/AI-aura
-keyframes, `DrylSpinner.razor.css`, `DrylReconnectModal.razor.css`,
-`DrylRating.razor.css`, `DrylMessage.razor.css`, and more). Some are
-documented exceptions in `tokens.md` (loaders/progress bars may use `linear`;
-AI/aurora ambient animations intentionally run outside the `--dur-*` scale),
-but the command above does not exclude them — no exclusion is encoded in the
-check, so its count is the literal, reproducible one. The check is **not
-clean**; see phase C.
+already tokenized, and excludes continuous motion. Currently **9 pre-existing
+hits**: `.fade-in` (480ms), `.stagger > *` (520ms), the toast shine (1300ms
+with a 220ms delay) and toast icon pop (literal 120ms delay on a tokenized
+duration), the progress bar's `transition: width 600ms`, `ai-generated-lift`
+(720ms), `ai-aura-bloom` (900ms), `ai-comet-retire` (1100ms) — all in
+`dryl.css` — and `DrylImage.razor.css`'s `var(--img-blur-dur, 2000ms)` literal
+fallback. Six of them exceed 600ms and would breach this rule even as tokens;
+whether the AI-aura and toast choreographies get a fourth duration token or
+are shortened to `--dur-slow` is an open maintainer decision under
+`DESIGN-03`. See `docs/2026-08-11-red-rule-triage.md`.
 
 ### DESIGN-11 — Every component is animated
 
