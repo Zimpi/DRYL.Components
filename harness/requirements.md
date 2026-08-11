@@ -50,11 +50,44 @@ specs/
 │       └── S{n} {Aspect}.md
 ```
 
-- **E** = component **category**. The category list is `defined in phase B` —
-  do not invent one. It follows the existing folders under
-  `code/DRYL.Components/` (`Components/Actions`, `Data`, `Feedback`, `Inputs`,
-  `Layout`, `Navigation`, `Surfaces`, `AI`, plus `Canvas`, `Dialogs`,
-  `Motion`, `Theming`, `Toasts`, `Notifications` and the agents categories).
+- **E** = component **category**. The list is fixed below — do not invent one,
+  and do not file a component outside it. Categories follow the folders under
+  `code/` one-to-one, so a component's category is derivable from its path and
+  therefore checkable by script.
+
+| E | Category | Source folder | Components |
+|---|---|---|---:|
+| `E1` | Foundation | — (no components) | 0 |
+| `E2` | Actions | `code/DRYL.Components/Components/Actions/` | 3 |
+| `E3` | AI | `code/DRYL.Components/Components/AI/` | 8 |
+| `E4` | Charts | `code/DRYL.Components/Components/Data/Charts/` | 4 |
+| `E5` | Data | `code/DRYL.Components/Components/Data/` | 21 |
+| `E6` | Dialogs | `code/DRYL.Components/Dialogs/` | 2 |
+| `E7` | Feedback | `code/DRYL.Components/Components/Feedback/` | 8 |
+| `E8` | Inputs | `code/DRYL.Components/Components/Inputs/` | 23 |
+| `E9` | Layout | `code/DRYL.Components/Components/Layout/` | 22 |
+| `E10` | Navigation | `code/DRYL.Components/Components/Navigation/` | 6 |
+| `E11` | Surfaces | `code/DRYL.Components/Components/Surfaces/` | 15 |
+| `E12` | Agent Runtime | `code/DRYL.Components.Agents/Agents/`, `/Display/` | 5 |
+| `E13` | Agent Tools | `code/DRYL.Components.Agents/Tools/` | 3 |
+| `E14` | Agent Canvas | `code/DRYL.Components.Agents/Canvas/` | 2 |
+| `E15` | Agent Inputs | `code/DRYL.Components.Agents/Field/`, `/CommandPalette/`, `/Voice/`, `/Generation/` | 5 |
+| | | **Total** | **127** |
+
+**A category may be componentless.** `E1 Foundation` carries no `F{n}` file at
+all — it holds the public surface that belongs to no single component: the
+theming types, the DI registration, `AiState`/`AiAura`, the motion primitives
+and the token surface of `dryl.css`. That surface is bound by the 1.0 freeze
+and would otherwise have no place to be documented. A componentless category
+carries `_Api.md` and `_Interop.md` and nothing else.
+
+`E12`–`E15` bundle the agents package's eight folders by theme. Four of those
+folders hold exactly one component; a category apiece, each with two companion
+files reading "none", would be ceremony without return.
+
+The component counts are a statement of fact at the time of writing, not a
+budget — a new component raises its category's count and the total, and both
+are re-derived by `scripts/check-spec-coverage.mjs` rather than trusted.
 - **F** = **one component, one file**. A `Dryl*.razor` maps to exactly one
   spec file; that one-to-one mapping is what makes the sync checkable
   (`SPEC-03`).
