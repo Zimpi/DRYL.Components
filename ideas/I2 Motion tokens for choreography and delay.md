@@ -146,6 +146,24 @@ parameter, a consumer-facing knob, and stays where it is. The fallback is droppe
   index stays free; `0ms` is never a design value. This keeps the change at the three
   delays the rule actually counts.
 
+- 2026-08-11: **Implemented.** Tokens and the eleven call sites landed in `a689ba1`
+  (`<Version>` 2.21.0, MINOR — the tokens are consumer-overridable surface), the harness
+  in `f1329c9`. The `DESIGN-10` grep was replaced by
+  `scripts/check-motion-tokens.mjs`, which judges each comma-separated segment of a
+  shorthand separately; counter-checked at 16 violations against the old tree and 0
+  against the new one. Evidence: build 0 errors, 1004/1004 tests, light-sync in sync,
+  contrast 10 PASS / 0 FAIL, harness links OK.
+- 2026-08-11: **The five visible timing changes were reviewed in the browser and
+  accepted** by the Product Owner — row flash, toast shine, progress bar, the AI-aura
+  sequence and the sharper `--ease-in-out` curve on the skeleton pulse. Two side effects
+  found during that review and accepted as they stand: the toast icon pop and shine now
+  start together (both on `--delay-short`, previously 100 ms apart), and
+  `ai-generated-lift` now overlaps `ai-comet-retire` by 100 ms, where the two used to be
+  separated by an 80 ms pause.
+- 2026-08-11: `State` stays **`Ready`**, not `Adopted`, as with `I3`: `IDEA-07` reserves
+  `Adopted` for an idea carried into specs, and the token surface is documented in
+  `harness/tokens.md` until phase C fills `specs/E1 Foundation/_Api.md`.
+
 ## Open Points
 
 *(none — Definition of Ready met; Product Owner confirmed 2026-08-11)*
