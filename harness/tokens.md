@@ -319,11 +319,32 @@ enum (e.g. `DrylStack.CollapseBelow="Breakpoint.Md"`).
 ## Motion
 
 ### Durations
-| Token         | Value | Use                                          |
-| ------------- | ----- | -------------------------------------------- |
-| `--dur-fast`  | 140ms | Hover state, button press                    |
-| `--dur-med`   | 240ms | Most transitions (background, color, border) |
-| `--dur-slow`  | 420ms | Layout shifts, modal entry, large reveals    |
+| Token          | Value | Use                                          |
+| -------------- | ----- | -------------------------------------------- |
+| `--dur-fast`   | 140ms | Hover state, button press                    |
+| `--dur-med`    | 240ms | Most transitions (background, color, border) |
+| `--dur-slow`   | 420ms | Layout shifts, modal entry, large reveals    |
+| `--dur-choreo` | 900ms | **Multi-step one-shot choreography only** — aura bloom, comet retire, row flash |
+
+**`--dur-choreo` is not a fourth step of the scale.** The three above cover
+transitions; `DESIGN-10` caps those at 600ms because anything slower reads as
+broken. A choreography is a different animal: it plays once, tells a small
+story in several beats, and shortening it to 420ms does not produce a faster
+version of the gesture but a different gesture. Never put it on a `transition`.
+It is scoped by the comment beside it in `dryl.css`, exactly as `--ease-viscous`
+is.
+
+### Delays
+| Token           | Value | Use                                                     |
+| --------------- | ----- | -------------------------------------------------------- |
+| `--delay-short` | 200ms | A beat's offset, so two things do not land at once       |
+| `--delay-long`  | 800ms | A hold before something retires itself                   |
+
+A delay inside an `animation` / `transition` shorthand is a design value and
+reads one of these (`DESIGN-10`). Two things are not delays in that sense and
+stay literal: `0s`, which says "no delay", and a stagger step multiplied by an
+index — `calc(var(--reveal-step) * var(--i))` — which is arithmetic rather than
+a value chosen by eye.
 
 ### Easing curves
 | Token            | Value                          | Use                                |
@@ -347,8 +368,8 @@ Two utility classes drive every page-level entry animation. Use them; don't writ
 
 | Class       | Behavior                                                                                                  | Use                                                                                                    |
 | ----------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `.fade-in`  | 480ms `--ease-out`, opacity 0→1 + `translateY(6px)→0`                                                     | Apply to the **outer wrapper** of every page so content rises softly into view on navigation.          |
-| `.stagger`  | 520ms `--ease-out` per child via `rise` keyframe, with delays `0, 60, 120 … 420ms` for children 1 through 8 | Apply to a **container of card/grid items** so they cascade in. Children 9+ all fire at delay 0 — keep groups small (≤ 8 visually significant items). |
+| `.fade-in`  | `--dur-slow` `--ease-out`, opacity 0→1 + `translateY(6px)→0`                                              | Apply to the **outer wrapper** of every page so content rises softly into view on navigation.          |
+| `.stagger`  | `--dur-slow` `--ease-out` per child via `rise` keyframe, with delays `0, 60, 120 … 420ms` for children 1 through 8 | Apply to a **container of card/grid items** so they cascade in. Children 9+ all fire at delay 0 — keep groups small (≤ 8 visually significant items). |
 
 ```html
 <div class="col fade-in">
@@ -416,8 +437,8 @@ AI mode is the one place where ambient (looping) animations exceed the standard 
 | Comet orbit (Active / Thinking / Streaming / Generated) | 9s / 3.2s / 5s / 6s | `linear` |
 | Halo breathe (Active / Thinking / Streaming / Generated) | 6s / 1.6s / 2.6s / 5s | `--ease-in-out` |
 | Streaming sheen sweep     | 2.4s  | `--ease-in-out`  |
-| Generated bloom + lift    | 900ms / 720ms | `--ease-out` |
-| Comet afterglow retire    | 1.1s (800ms delay) | `--ease-out` |
+| Generated bloom + lift    | `--dur-choreo` (both) | `--ease-out` |
+| Comet afterglow retire    | `--dur-choreo`, `--delay-long` | `--ease-out` |
 | Graceful exit dissolve    | `--dur-slow` (420ms) | `--ease-out` |
 | Indicator pulse / shimmer | 2.4s / 3.6s (Active), 1s / 1.4s (Thinking), 1.6s / 2.2s (Streaming) | `--ease-in-out` |
 

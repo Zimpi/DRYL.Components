@@ -60,7 +60,8 @@ repository the evidence is: `dotnet build DRYL.slnx -c Release`,
 `dotnet test DRYL.slnx -c Release`, `node scripts/check-light-sync.mjs`,
 `node scripts/validate-light-contrast.mjs`,
 `node scripts/check-harness-links.mjs`,
-`node scripts/check-spec-coverage.mjs`, and both color modes checked by eye.
+`node scripts/check-spec-coverage.mjs`,
+`node scripts/check-motion-tokens.mjs`, and both color modes checked by eye.
 The coverage check exits non-zero until every component has a spec; during
 phase C its `x/127 components covered` line is the progress meter, and a rising
 number is the evidence — not a green exit.

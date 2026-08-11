@@ -132,7 +132,7 @@ a small indicator — never as the fill of a large surface (reviewer check).
 
 ### DESIGN-10 — Fixed motion vocabulary
 
-Status: **binding** | Enforced: **grep**
+Status: **binding** | Enforced: **script**
 
 This rule governs **transitions and one-shot animations** — anything that
 moves the UI from one state to another and then stops.
@@ -142,6 +142,22 @@ Three durations: `--dur-fast` (140ms), `--dur-med` (240ms), `--dur-slow`
 
 Don't invent new ones. Don't use `linear`. Don't use durations under 100ms
 (feels glitchy) or over 600ms (feels broken).
+
+**A delay is a design value too.** An `animation-delay` or `transition-delay`
+inside an `animation` / `transition` shorthand reads `--delay-short` (200ms,
+a beat's offset so two things do not land at once) or `--delay-long` (800ms, a
+hold before something retires itself). It sets the rhythm of a choreography and
+is chosen by eye exactly as a duration is. Two exceptions, both of them values
+nobody chose: `0s` says "no delay" rather than "this much delay", and a stagger
+step multiplied by an index — `calc(var(--reveal-step) * var(--i))` — is
+arithmetic, not rhythm.
+
+**One duration sits outside the scale.** `--dur-choreo` (900ms) is for
+multi-step one-shot choreography — an aura bloom, a comet retiring, a row
+flash — where the 600ms ceiling would not produce a faster version of the
+gesture but a different one. It is **not** for transitions, which stay on the
+three-step scale; the discipline is in the scope comment beside the token, the
+same construction `--ease-viscous` already uses.
 
 **Continuous motion is a different thing and is not bound by the duration
 scale.** An `infinite` animation — a spinner, a skeleton shimmer, a breathing
@@ -158,19 +174,22 @@ sign of waiting. For continuous motion:
   same curve.
 - `prefers-reduced-motion` binds unchanged (`UX-06` in [`uiux.md`](uiux.md)).
 
-Check: `rg -n '(transition|animation)\s*:[^;]*[0-9]+(\.[0-9]+)?m?s\b' code/ | rg -v 'infinite'`
-— matches a literal numeric duration (not `var(--dur-*)`) inside a
-`transition`/`animation` shorthand, even when the easing on the same line is
-already tokenized, and excludes continuous motion. Currently **9 pre-existing
-hits**: `.fade-in` (480ms), `.stagger > *` (520ms), the toast shine (1300ms
-with a 220ms delay) and toast icon pop (literal 120ms delay on a tokenized
-duration), the progress bar's `transition: width 600ms`, `ai-generated-lift`
-(720ms), `ai-aura-bloom` (900ms), `ai-comet-retire` (1100ms) — all in
-`dryl.css` — and `DrylImage.razor.css`'s `var(--img-blur-dur, 2000ms)` literal
-fallback. Six of them exceed 600ms and would breach this rule even as tokens;
-whether the AI-aura and toast choreographies get a fourth duration token or
-are shortened to `--dur-slow` is an open maintainer decision under
-`DESIGN-03`. See `docs/2026-08-11-red-rule-triage.md`.
+Check: `node scripts/check-motion-tokens.mjs` — **currently clean**, and the
+green is the whole point of how it reads. The check splits every
+`transition`/`animation` shorthand into its comma-separated segments and judges
+each on its own, because a single declaration may mix a continuous animation
+with a one-shot: `.ai-aura.ai-generated .ai-aura-glow` does exactly that. The
+grep this replaced tested whole lines, so that one-shot hid behind its
+neighbour's `infinite` — and a second violation, `tbl-row-ai-flash` at 1600ms,
+hid behind nothing more than a line break, since the regex wanted `animation:`
+and the literal on the same line. Both were invisible while the rule reported
+"9 pre-existing hits", which is why a hit count is never evidence of a clean
+codebase.
+
+The nine known debts, plus those two, were retokenised on 2026-08-11; five
+choreographies converged on `--dur-choreo` and their timing changed visibly, in
+one case by 700ms. See `docs/2026-08-11-red-rule-triage.md` and
+`ideas/I2 Motion tokens for choreography and delay.md`.
 
 ### DESIGN-11 — Every component is animated
 
