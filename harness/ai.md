@@ -61,37 +61,64 @@ classes rather than defining new ones.
 
 ### AI-03 — The opt-in parameter is always named `Ai` and defaults to `AiState.None`
 
-Status: **binding** | Enforced: **grep**
+Status: **binding** | Enforced: **grep** + **review**
 
-The opt-in parameter is always named `Ai` (of type `AiState`) and defaults to
+The **opt-in** parameter — the one that turns AI styling on for an otherwise
+ordinary component — is always named `Ai` (of type `AiState`) and defaults to
 `AiState.None`. AI mode must be **off by default** so existing consumers see
 no change.
 
+Not every `AiState` parameter is an opt-in. The binding test is a property of
+the component, readable from its code, not a category a component claims for
+itself:
+
+> **Does the component still render something meaningful with `AiState.None`?**
+> **Yes** → the parameter is an opt-in. It is named `Ai` and defaults to
+> `AiState.None`.
+> **No** → the value is the component's content or its control input. It
+> carries its own descriptive name, and its default is that component's
+> decision.
+
+Where the parameter is not an opt-in, this rule was never about it. That is a
+narrowing of the rule's subject, **not** an exemption for a category of
+component: "AI-native" is self-declared and would grow by itself, while the
+`AiState.None` test is checkable by reading the component. The reasoning is in
+`ideas/I1 AI parameter naming for AI-native components.md`.
+
 Check: `grep -rn '\[Parameter\] public AiState' code/DRYL.Components code/DRYL.Components.Agents`
-— currently **44 hits**, of which **8 are pre-existing violations** of this
-rule (not named `Ai`, or not defaulting to `AiState.None`), see phase C:
+— currently **44 hits**. The grep half establishes the naming and the default;
+"is this an opt-in" is not greppable, so the legitimate non-opt-ins are named
+here explicitly, the way `CODE-01` names its own. A named list is verifiable;
+a category is not.
 
-- **7 violate the name only** — parameter present, still defaults to
-  `AiState.None`, but is called something other than `Ai`:
-  `DrylAiScope.razor` (`AiState? State`), `DrylToolCallGroup.razor`
-  (`State`), `DrylToolCall.razor` (`State`), `DrylCanvas.razor` (`State`),
-  `DrylAiStream.razor` (`SettleTo`), `DrylAiGenerate.razor` (`SettleTo`),
-  `DrylAiBuild.razor` (`SettleTo`).
-- **1 violates both halves** — `DrylAiIndicator.razor`: parameter is named
-  `State`, **and** it defaults to `AiState.Active`, not `AiState.None`, so
-  the component is visibly in AI mode out of the box (its own doc comment
-  confirms the pill renders by default).
+**Five legitimate non-opt-ins** — each renders nothing meaningful with
+`AiState.None`, so each keeps its own name and default:
 
-All 8 sit under `code/DRYL.Components/Components/AI/` or
-`code/DRYL.Components.Agents/Generation/` — components whose entire purpose
-is already AI. Whether AI-native components like these should be exempt from
-the `Ai`-naming and `AiState.None`-default requirement, or should be renamed
-to conform, is **open and unresolved** — `CLAUDE.md` §2.10 and §5 state the
-requirement unconditionally, with no such carve-out, and no maintainer
-review of one has happened. This document does not grant an exemption; the
-36 remaining hits (the opt-in pattern on non-AI-native components, e.g.
-`DrylInputText.razor`, `DrylTable.razor`, `DrylAlert.razor`) are clean, and
-the 8 above stand as documented violations pending a maintainer decision.
+- `DrylAiIndicator.razor` (`State`, default `AiState.Active`) — the value the
+  pill displays, not a switch. With `None` it renders nothing at all.
+- `DrylAiStream.razor`, `DrylAiGenerate.razor`, `DrylAiBuild.razor`
+  (`SettleTo`, default `AiState.None`) — not a switch: the state to settle to
+  *after* the `AiState.Generated` reveal. The live state comes from the stream
+  itself.
+- `DrylAiScope.razor` (`AiState? State`, no default) — a broadcast override.
+  `null` means "follow `IDrylAiActivityService`", `None` means "actively force
+  AI off"; they are two different things, and a default of `AiState.None`
+  would break the component.
+
+**Three genuine violations**, being renamed `State` → `Ai` under `I1`:
+`DrylToolCall.razor`, `DrylToolCallGroup.razor`, `DrylCanvas.razor`. Each
+renders its own content with `AiState.None` — the tool-call card, the group
+summary, the artifact tree — so each parameter is an opt-in. The rename is
+staged: `Ai` is added, `State` stays as an `[Obsolete]` alias delegating to it
+until the next planned `3.0.0` (`REL-01` in
+[`releasing.md`](releasing.md)). The remaining hits — the opt-in pattern on
+ordinary components, e.g. `DrylInputText.razor`, `DrylTable.razor`,
+`DrylAlert.razor` — are clean.
+
+The review half: every **new** `AiState` parameter is read against the
+`AiState.None` test before merge. One that passes the test and is not named
+`Ai` blocks the merge; one that fails it is named for what it is, and the
+reason is stated in its spec.
 
 ### AI-04 — Never invent a new AI animation, color, gradient or duration
 

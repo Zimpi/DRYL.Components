@@ -7,9 +7,9 @@ DRYL is **glassy, alive — and AI-native**: translucent layers on a deep-dark o
 luminous-light ground, following the user's system by default, with accents that
 glow instead of shouting. Every component reads from CSS variables in
 `code/DRYL.Components/wwwroot/dryl.css` — never a hardcoded color, size, radius,
-shadow or duration. AI is a first-class state of the UI: AI-aware components take
-an `Ai` parameter of type `AiState` that drives one shared visual vocabulary, so a
-user can feel where the AI is at work without reading a label.
+shadow or duration. AI is a first-class state of the UI: a component that opts into
+AI styling takes an `Ai` parameter of type `AiState` that drives one shared visual
+vocabulary, so a user can feel where the AI is at work without reading a label.
 
 DRYL is **spec-driven**: a component's spec and its code are one artifact.
 
