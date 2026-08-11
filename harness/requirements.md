@@ -35,7 +35,7 @@ Check: the component's spec file was touched in the same commit as its code
 
 ### SPEC-02 — Folder and file structure
 
-Status: **binding** | Enforced: **review**
+Status: **binding** | Enforced: **script**
 
 Specs live under `specs/` in a three-level hierarchy:
 
@@ -112,15 +112,15 @@ navigation is the `ComponentCatalog` in `DRYL.Website`, whose maintenance
 [`releasing.md`](releasing.md) already requires under `REL-04`. A second,
 hand-written navigation list would only drift from it.
 
-Check: every directory under `specs/` matches `E{n} {Category}`, every spec
-file matches `F{n} {DrylComponent}.md` or `F{n} {DrylComponent}/S{n} {Aspect}.md`,
-every split folder carries exactly one `_Component.md`, and each category
-carries `_Api.md` and `_Interop.md` (reviewer check; folded into
-`scripts/check-spec-coverage.mjs` in phase B).
+Check: `node scripts/check-spec-coverage.mjs` — every directory under `specs/`
+matches `E{n} {Category}` and appears in the table above, every category in the
+table exists under `specs/`, every spec file matches `F{n} {DrylComponent}.md`
+or `F{n} {DrylComponent}/S{n} {Aspect}.md`, every split folder carries exactly
+one `_Component.md`, and each category carries `_Api.md` and `_Interop.md`.
 
 ### SPEC-03 — Every spec names its State and its Source
 
-Status: **binding** | Enforced: **review**
+Status: **binding** | Enforced: **script**
 
 Every **component spec** carries a `## Meta` block directly after its H1, with
 exactly two mandatory fields:
@@ -145,9 +145,8 @@ checkable in **two directions**:
   captured twice.
 
 The second direction is also the progress meter for phase C: it answers
-"x of 127 components covered" directly. The checking script
-`scripts/check-spec-coverage.mjs` is built in **phase B**; until it exists,
-this rule is `review`-enforced.
+"x of 127 components covered" directly — `scripts/check-spec-coverage.mjs`
+prints exactly that line and exits non-zero until it reads `127/127`.
 
 #### `Source` format
 
@@ -233,8 +232,7 @@ Check: every component spec — every `F{n} {DrylComponent}.md` and every
 carrying both `State` and `Source`; every `S{n}` file carries `State` and no
 `Source`; `_Api.md` and `_Interop.md` carry neither; every `Source` path
 exists and is repo-root-relative; every `Dryl*.razor` under `code/` appears in
-exactly one `Source` block (reviewer check until
-`scripts/check-spec-coverage.mjs` lands in phase B).
+exactly one `Source` block — `node scripts/check-spec-coverage.mjs`.
 
 ### SPEC-04 — Keeping `State` honest
 

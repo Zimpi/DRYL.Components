@@ -58,9 +58,12 @@ Never report work as done, fixed or passing before running the commands that
 prove it and reading their output. Evidence first, assertion second. For this
 repository the evidence is: `dotnet build DRYL.slnx -c Release`,
 `dotnet test DRYL.slnx -c Release`, `node scripts/check-light-sync.mjs`,
-`node scripts/validate-light-contrast.mjs`, and both color modes checked by eye.
-The harness link check is `node scripts/check-harness-links.mjs` — it does not
-exist in `scripts/` yet; run it as part of the evidence once it lands.
+`node scripts/validate-light-contrast.mjs`,
+`node scripts/check-harness-links.mjs`,
+`node scripts/check-spec-coverage.mjs`, and both color modes checked by eye.
+The coverage check exits non-zero until every component has a spec; during
+phase C its `x/127 components covered` line is the progress meter, and a rising
+number is the evidence — not a green exit.
 If a step was skipped, say so. If tests fail, say so with the output.
 
 **6. Close the loop** → [`harness/releasing.md`](harness/releasing.md)
