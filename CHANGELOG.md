@@ -14,6 +14,17 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.21.0] — 2026-08-11
+
+The motion vocabulary gains the words it was missing. `DESIGN-10` fixes three durations and three easings, but six one-shot choreographies ran past its 600 ms ceiling and three delays were bare literals — so the rule forbade the value and offered no token, and every author wrote the literal anyway.
+
+### Added
+- **Three motion tokens** — `--dur-choreo` (900ms) for multi-step one-shot choreography, deliberately outside the transition scale and carrying a scope comment, as `--ease-viscous` already does; `--delay-short` (200ms) for a beat's offset so two things do not land at once; `--delay-long` (800ms) for a hold before something retires itself. All three are mode-neutral and consumer-overridable like the rest of the token surface — see `harness/theming.md`
+
+### Changed
+- **Motion literals replaced by tokens across `dryl.css`** — Eleven call sites and five bare `ease-in-out` keywords. Five choreographies converge on `--dur-choreo` and their timing shifts visibly: the AI table-row flash is 700ms quicker (1600 → 900), the toast shine 400ms quicker, the progress bar 180ms quicker, `ai-comet-retire` 200ms quicker, and `ai-generated-lift` 180ms *slower*. `ai-aura-bloom` was already at 900ms and is unchanged; `.fade-in`, `.stagger` and the toast icon pop shift by under 100ms. The five ambient animations (`drift-a/b/c`, `shimmer`, `skel`) keep their free rhythm and only swap the bare `ease-in-out` keyword for `var(--ease-in-out)` — not the same curve. Consumers who override the motion tokens in their own theme control all of this
+- `DrylImage` — Dropped the unreachable `2000ms` fallback in `var(--img-blur-dur, 2000ms)`. The variable is set inline under exactly the condition that adds the class consuming it (`Ai == AiState.Streaming && !Progress.HasValue`), so the fallback could never apply. The public `BlurDuration` parameter keeps its `2000` default and its behaviour
+
 ## [2.20.2] — 2026-08-11
 
 ### Added

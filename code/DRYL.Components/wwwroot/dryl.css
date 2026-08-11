@@ -168,6 +168,9 @@
   --dur-fast:    140ms;
   --dur-med:     240ms;
   --dur-slow:    420ms;
+  --dur-choreo:  900ms;  /* multi-step one-shot choreography; not for transitions */
+  --delay-short: 200ms;  /* a beat's offset, so two things do not land at once */
+  --delay-long:  800ms;  /* a hold before something retires itself */
   --reveal-step: 60ms;   /* stagger step between successive DrylReveal children */
 
   /* Layering */
@@ -504,7 +507,7 @@ body::before {
   left: -10vw;
   top: 10vh;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent-a) 55%, transparent), transparent 60%);
-  animation: drift-a 22s ease-in-out infinite alternate;
+  animation: drift-a 22s var(--ease-in-out) infinite alternate;
 }
 .aurora::after {
   width: 45vw;
@@ -512,7 +515,7 @@ body::before {
   right: -5vw;
   top: -10vh;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent-b) 38%, transparent), transparent 60%);
-  animation: drift-b 28s ease-in-out infinite alternate;
+  animation: drift-b 28s var(--ease-in-out) infinite alternate;
 }
 .aurora .orb {
   width: 40vw;
@@ -520,7 +523,7 @@ body::before {
   left: 40%;
   bottom: -20vh;
   background: radial-gradient(circle, color-mix(in srgb, var(--accent-a) 30%, transparent), transparent 60%);
-  animation: drift-c 34s ease-in-out infinite alternate;
+  animation: drift-c 34s var(--ease-in-out) infinite alternate;
 }
 
 @keyframes drift-a {
@@ -1165,10 +1168,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .divider { height: 1px; background: var(--line); width: 100%; }
 .divider-v { width: 1px; background: var(--line); align-self: stretch; }
 
-.fade-in { animation: fadeIn 480ms var(--ease-out) both; }
+.fade-in { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-.stagger > * { animation: rise 520ms var(--ease-out) both; }
+.stagger > * { animation: rise var(--dur-slow) var(--ease-out) both; }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
 .stagger > *:nth-child(2) { animation-delay: 60ms; }
 .stagger > *:nth-child(3) { animation-delay: 120ms; }
@@ -1619,7 +1622,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   position: absolute;
   inset: 0;
   background: linear-gradient(120deg, transparent 30%, var(--shimmer-strong) 50%, transparent 70%);
-  animation: shimmer 4s ease-in-out infinite;
+  animation: shimmer 4s var(--ease-in-out) infinite;
   z-index: 1;
   pointer-events: none;
 }
@@ -2111,7 +2114,7 @@ code, .code-inline {
 .tbl-root .tbl tbody tr.tbl-row--ai-enter td {
   animation:
     tbl-row-ai-rise var(--dur-slow) var(--ease-out) both,
-    tbl-row-ai-flash 1600ms var(--ease-out) both;
+    tbl-row-ai-flash var(--dur-choreo) var(--ease-out) both;
 }
 
 /* AI mode on the table wrapper — the .tbl-root has overflow:hidden so it can
@@ -3140,7 +3143,7 @@ td.tbl-td-editing select {
   border-radius: inherit;
   background: linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--shimmer) 41%, transparent) 50%, transparent 70%);
   transform: translateX(-100%);
-  animation: toast-shine 1300ms var(--ease-out) 220ms both;
+  animation: toast-shine var(--dur-choreo) var(--ease-out) var(--delay-short) both;
   pointer-events: none;
   z-index: 3;
   mix-blend-mode: overlay;
@@ -3199,7 +3202,7 @@ td.tbl-td-editing select {
   background: var(--glass-2);
   color: var(--fg-muted);
   border: 1px solid var(--line-strong);
-  animation: toast-icon-pop var(--dur-slow) var(--ease-spring) 120ms both;
+  animation: toast-icon-pop var(--dur-slow) var(--ease-spring) var(--delay-short) both;
   position: relative;
   z-index: 2;
   flex-shrink: 0;
@@ -3434,7 +3437,7 @@ td.tbl-td-editing select {
   width: 500%;
   background: linear-gradient(90deg, var(--glass-1) 0%, var(--glass-3) 50%, var(--glass-1) 100%);
   background-size: 40% 100%;
-  animation: skel 1.4s ease-in-out infinite;
+  animation: skel 1.4s var(--ease-in-out) infinite;
 }
 @keyframes skel { 0% { translate: -80% 0; } 100% { translate: 0 0; } }
 
@@ -3463,7 +3466,7 @@ td.tbl-td-editing select {
   background: var(--accent-grad);
   border-radius: var(--r-pill);
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent-a) 50%, transparent);
-  transition: width 600ms var(--ease-out);
+  transition: width var(--dur-slow) var(--ease-out);
 }
 
 /* DrylProgress — wrapper, label row, sizes, variants, indeterminate */
@@ -4244,7 +4247,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 /* ── Generated one-shot ── gentle lift + a bright bloom flashing inward from the
    edge, then settling. Render <div class="ai-aura-wash"></div> only while Generated. */
-.ai-aura.ai-generated { animation: ai-generated-lift 720ms var(--ease-out) both; }
+.ai-aura.ai-generated { animation: ai-generated-lift var(--dur-choreo) var(--ease-out) both; }
 @keyframes ai-generated-lift {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -4262,7 +4265,7 @@ body.dryl-scroll-locked { overflow: hidden; }
     inset 0 0 0 1px var(--ai-core),
     inset 0 0 22px color-mix(in srgb, var(--ai-hot) 26%, transparent),
     0 0 30px color-mix(in srgb, var(--ai-hot) 34%, transparent);
-  animation: ai-aura-bloom 900ms var(--ease-out) both;
+  animation: ai-aura-bloom var(--dur-choreo) var(--ease-out) both;
 }
 @keyframes ai-aura-bloom {
   0%   { opacity: 0; transform: scale(1.012); }
@@ -4278,7 +4281,7 @@ body.dryl-scroll-locked { overflow: hidden; }
    nothing left to say. The retire fade runs on the static wrapper (opacity →
    compositor); the spin keeps its base ai-comet-spin animation on the ::before. */
 .ai-aura.ai-generated .ai-aura-comet {
-  animation: ai-comet-retire 1100ms var(--ease-out) 800ms forwards;
+  animation: ai-comet-retire var(--dur-choreo) var(--ease-out) var(--delay-long) forwards;
 }
 /* The halo retires with it — it keeps breathing through the bloom, then fades out
    on the same beat. A host that composes an AuraLifecycle unmounts the aura
@@ -4288,7 +4291,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .ai-aura.ai-generated .ai-aura-glow {
   animation:
     ai-aura-breathe var(--aura-halo-dur) var(--ease-in-out) infinite,
-    ai-comet-retire 1100ms var(--ease-out) 800ms forwards;
+    ai-comet-retire var(--dur-choreo) var(--ease-out) var(--delay-long) forwards;
 }
 /* visibility: hidden at the end tells the compositor to stop drawing the
    (still spinning) comet surface entirely — a retired comet must not keep

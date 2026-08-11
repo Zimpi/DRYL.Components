@@ -104,7 +104,7 @@
 
 /* ─── AI · Streaming — sharpen from blur ────────────────────── */
 .img-el--stream-auto {
-    animation: img-sharpen var(--img-blur-dur, 2000ms) var(--ease-out) forwards;
+    animation: img-sharpen var(--img-blur-dur) var(--ease-out) forwards;
 }
 @keyframes img-sharpen {
     from { filter: blur(12px); }
