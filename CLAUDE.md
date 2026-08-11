@@ -140,8 +140,8 @@ hit count as evidence that the codebase is clean.
 |---|---|
 | `code/` | The two library projects (`DRYL.Components`, `DRYL.Components.Agents`) |
 | `harness/` | The rules — this file routes to them |
-| `specs/` | One spec per component; the contract (not created yet) |
-| `ideas/` | Ideas in dialogue, before they become specs (not created yet) |
+| `specs/` | One spec per component; the contract. Fifteen categories, filled in phase C |
+| `ideas/` | Ideas in dialogue, before they become specs |
 | `tests/` | bUnit tests (`DRYL.Components.Tests`) |
-| `scripts/` | Token sync and contrast checks |
+| `scripts/` | Token sync, contrast, harness-link and spec-coverage checks |
 | `docs/` | Screenshots, gifs, plans and archive |

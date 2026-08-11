@@ -1,10 +1,5 @@
 # Idea Rules
 
-> **Status: not yet active.** These rules take effect in phase B, once
-> `specs/` holds real specs. The feasibility check in `IDEA-05` reads
-> `specs/`; until there is something to read, the process would be empty
-> ceremony. Until then this file documents the intended process.
-
 How a rough feature idea becomes a mature, documented idea — **before** any
 spec or code exists. Once an idea is `Ready`, it is carried over into specs
 following [`requirements.md`](requirements.md).
