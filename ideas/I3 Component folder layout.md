@@ -139,9 +139,10 @@ names concrete paths, so a move afterwards means touching every spec it affects.
   either project is folder-derived, so a move is API-neutral as long as the
   moved `.cs` files keep their declaration. `_Imports.razor` lists namespaces,
   never folders, and is untouched. No `REL-01` MAJOR.
-- **Code:** roughly 30 files move under direction A, plus their `.razor.css` and
-  `.razor.cs` companions. `git blame` needs `--follow` afterwards. No behavioural
-  change, so the existing test suite is the regression net.
+- **Code:** 18 files move, companions (`.razor.css`, owned enums) included — the
+  early estimate of "roughly 30" counted companions that turned out not to exist.
+  `git blame` needs `--follow` afterwards. No behavioural change, so the existing
+  test suite is the regression net.
 
 ## Decisions
 
@@ -170,6 +171,17 @@ names concrete paths, so a move afterwards means touching every spec it affects.
   so the folder move alone turns it green; adopting `ChartFrame`'s
   `DRYL.Components.Internal` would add reference churn in `DrylCanvas` for no
   gain in rule compliance.
+- 2026-08-11: **Implemented.** The 18 moves landed as pure renames in `b1048e5`
+  (with `<Version>` 2.20.2 and the changelog release cut); `SPEC-02` and
+  `specs/E1 Foundation/_Api.md` followed in `ddf1d35`. Evidence: build 0 errors,
+  1004/1004 tests pass, `check-spec-coverage` reports no violations and still
+  `0/127`, `check-light-sync` and `validate-light-contrast` pass,
+  `check-harness-links` OK. Two `SPEC-02` sentences that overstated the script's
+  enforcement were corrected in the same commit.
+- 2026-08-11: `State` stays **`Ready`**, not `Adopted`, even though the code has
+  moved. `IDEA-07` defines `Adopted` as "carried into specs" and requires the
+  document to link at least one path under `specs/`. The component specs are
+  written in phase C; this idea becomes `Adopted` then, not on implementation.
 
 ## Open Points
 

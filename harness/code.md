@@ -36,11 +36,14 @@ signal, and such components belong under an `Internal/` folder so the check
 can see it.
 
 Check: `find code -name '*.razor' -not -name '_*' -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/Internal/*' | grep -v '/Dryl'`
-should return nothing — currently **1 pre-existing hit**:
-`code/DRYL.Components/Canvas/CanvasNodeView.razor` is internal (it takes only
-`internal` cascading parameters and is rendered solely by `DrylCanvas`) but
-does not sit under an `Internal/` folder, so the check cannot tell. Moving it
-to `Canvas/Internal/` clears this; see `docs/2026-08-11-red-rule-triage.md`.
+should return nothing — and **currently does**. The rule's one pre-existing hit
+was `CanvasNodeView.razor`: internal in fact (it takes only `internal` cascading
+parameters and is rendered solely by `DrylCanvas`) but sitting directly under
+`Canvas/`, where the check could not tell it apart from a forgotten public
+component. It moved to `Canvas/Internal/` on 2026-08-11 and the rule is clean.
+It keeps `@namespace DRYL.Components.Canvas` — the folder is what this check
+reads, not the namespace. See `docs/2026-08-11-red-rule-triage.md` and
+`ideas/I3 Component folder layout.md`.
 
 ### CODE-02 — Parameters are strongly typed
 
