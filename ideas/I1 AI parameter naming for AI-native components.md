@@ -1,7 +1,7 @@
 # AI parameter naming for AI-native components
 
 ## Meta
-- **State:** Draft
+- **State:** Ready
 
 ## Problem
 
@@ -30,45 +30,65 @@ whichever neighbour its author happened to read.
 
 ## Solution Idea
 
-*Open — this is the decision to be made. Two candidate directions, neither adopted:*
+**Direction C — narrow `AI-03` to the parameter it actually means, rather than exempting
+a category of component.**
 
-**A — Carve out AI-native components in `AI-03`.**
-The argument: `AI-03`'s stated purpose is that AI styling is *opt-in* so existing
-consumers see no change. For a component whose entire reason to exist is displaying AI
-state, there is nothing to opt into, and `AiState.None` as a default would make
-`DrylAiIndicator` render nothing at all. Under this direction the exemption must come
-with a binding definition of "AI-native", or the exemption grows by itself — the
-plausible test is a component that has no meaningful appearance with AI absent.
+Reading the eight declarations shows they are not one deviation repeated eight times.
+They are four different things, and only one of them is what `AI-03` governs:
 
-**B — Rename the eight to conform.**
-The argument: one rule, no categories, nothing to adjudicate per component. The cost is
-a MAJOR break for eight public parameters, and `DrylAiIndicator` still needs an answer
-for its default, since `None` would make it useless.
+| Component | Parameter | What it actually is |
+|---|---|---|
+| `DrylToolCall`, `DrylToolCallGroup`, `DrylCanvas` | `State`, default `None` | A genuine opt-in switch. Exactly what `AI-03` means. |
+| `DrylAiStream`, `DrylAiGenerate`, `DrylAiBuild` | `SettleTo`, default `None` | Not a switch. The state to settle to *after* the `AiState.Generated` reveal; the live state comes from the stream itself. |
+| `DrylAiScope` | `AiState? State`, no default | A broadcast override. `null` means "follow `IDrylAiActivityService`", `None` means "actively force AI off" — two different things. A default of `AiState.None` would break the component. |
+| `DrylAiIndicator` | `State`, default `Active` | The value being displayed, not an opt-in. With `None` the component renders nothing at all. |
 
-A split is possible — the seven name-only cases and `DrylAiIndicator` are not the same
-problem — but a split answer needs its own justification, not just convenience.
+`AI-03` governs **the opt-in parameter** — the one that turns AI styling on for an
+otherwise ordinary component. Where the parameter is something else, the rule was never
+about it.
+
+The binding test is a property of the component, checkable by reading it, not a
+self-declared category:
+
+> **Does the component still render something meaningful with `AiState.None`?**
+> Yes → the parameter is an opt-in; it is named `Ai` and defaults to `AiState.None`.
+> No → the value is the component's content or its control input; it carries its own
+> descriptive name, and its default is that component's decision.
+
+This is the test `I1` had already noted as plausible ("a component that has no
+meaningful appearance with AI absent"), without the category "AI-native" that, as this
+document argued, would grow by itself.
+
+**Consequence:** five of the eight stop being violations because they are not opt-ins.
+Three are genuine violations and are renamed `State` → `Ai`.
 
 ## Scope
 
 - **In scope:** the name and default of the `AiState` parameter on the eight named
-  components; the wording of `AI-03`; if a carve-out is chosen, the binding definition
-  of "AI-native".
+  components; the wording and the `Check:` line of `AI-03`; the binding test above.
 - **Out of scope:** the `AiState` enum itself and its five values (`AI-01`); the aura
   primitives (`AI-02`); the aura lifecycle (`AI-06`, `AI-07`); every other component's
   `Ai` parameter.
 
 ## Impact
 
-- **Harness:** `AI-03` in `../harness/ai.md` — either gains a scoped exemption with a
-  definition, or is left unchanged and the code moves to it. `AI-05` is untouched
-  either way. No new token, animation, `AiState` value or dependency is involved, so no
-  `IDEA-05` blocker applies.
+- **Harness:** `AI-03` in `../harness/ai.md` is narrowed to the opt-in parameter and
+  gains the `AiState.None` test. Its `Check:` can no longer be pure `grep` — "is an
+  opt-in" is not greppable — so, as with `CODE-01`, the check names the legitimate
+  non-opt-ins explicitly and `Enforced` becomes `grep` + `review`. A named list is
+  verifiable; a category is not. No new token, animation, `AiState` value or dependency
+  is involved, so no `IDEA-05` blocker applies.
 - **Specs:** none exist yet. This decision determines what phase C records in the
-  `## Public API` section of eight component specs, which is why it comes first.
-- **Public API:** direction B renames eight public parameters — MAJOR under `REL-01`,
-  with `@bind-` call sites in `DRYL.Website` to follow. Direction A changes no API.
-- **Code:** direction A touches no component code. Direction B touches the eight
-  components plus every consumer of them.
+  `## Public API` section of eight component specs, which is why it comes first. The
+  five non-opt-ins are documented with their own parameter names and a one-line reason.
+- **Public API:** three renames (`DrylToolCall`, `DrylToolCallGroup`, `DrylCanvas`).
+  `DRYL.Components` is at `2.20.1`, so a removal would be MAJOR under `REL-01`. It is
+  therefore staged: `Ai` is added as the parameter, `State` stays as an `[Obsolete]`
+  alias that delegates to it — MINOR now, removal in the next planned `3.0.0`.
+  Consumers get a compiler warning naming the replacement instead of a break.
+- **Code:** three components in `code/DRYL.Components/Components/AI/`, plus their
+  `@bind-`/attribute call sites in `DRYL.Website`, which keep working through the alias.
+  The other five components are not touched.
 
 ## Decisions
 
@@ -77,11 +97,23 @@ problem — but a split answer needs its own justification, not just convenience
   rejected in review as an implementer amending a binding rule to make a red check look
   green. The rule stays as the source states it and the deviations are recorded as
   pre-existing violations until the Product Owner decides.
+- 2026-08-11: **Direction C adopted** over A (exempt AI-native components) and B (rename
+  all eight). A was rejected because "AI-native" is a self-declared category with no
+  checkable boundary — this document's own concern about the exemption spreading. B was
+  rejected because renaming `SettleTo` to `Ai` would misstate what the parameter does,
+  and `DrylAiScope` would still need a special case for its `null` default. C keeps one
+  rule, adds no category, and its boundary is a property of the component.
+- 2026-08-11: **The binding test is `AiState.None`.** A component that still renders
+  meaningfully with `None` has an opt-in and must name it `Ai`. One that renders nothing
+  does not, and names its parameter for what it is.
+- 2026-08-11: **`DrylAiIndicator` keeps `State` and its `AiState.Active` default.** It
+  renders nothing with `None`; the parameter is the value it displays, not a switch.
+  Under the test it is not an `AI-03` case at all — no exemption is needed for it.
+- 2026-08-11: **The three renames are staged, not immediate.** `Ai` is added and `State`
+  becomes an `[Obsolete]` delegating alias — MINOR now, removal in the next planned
+  `3.0.0`. A sole MAJOR spent on three parameter names is not worth forcing every
+  consumer to migrate at once, and the compiler warning carries the migration hint.
 
 ## Open Points
 
-- Direction A or B, or a justified split between the seven and `DrylAiIndicator`.
-- If A: the binding definition of "AI-native" that keeps the exemption from spreading.
-- If A: whether `DrylAiIndicator`'s `AiState.Active` default is right, or whether it
-  should default to a different non-`None` value.
-- If B: the target version for the break, and whether it lands before or after 1.0.
+*(none — Definition of Ready met; Product Owner confirmed 2026-08-11)*
