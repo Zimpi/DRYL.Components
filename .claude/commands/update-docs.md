@@ -33,7 +33,7 @@ Update CHANGELOG.md and README.md after a change to the library.
 ## What does NOT need a changelog entry
 
 - Internal refactoring with no visible effect
-- Changes to `samples/` demo pages only
+- Changes to demo pages in `DRYL.Website` only
 - Typo fixes in comments or XML doc strings
 - CI/build configuration
 

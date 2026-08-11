@@ -119,10 +119,13 @@ Follow this checklist for every new component:
    to `_Imports.razor` if it's a new namespace.
 6. **Provide an XML doc comment** on the class and on each `[Parameter]`.
    This is a library — IntelliSense matters.
-7. **Add a one-page usage demo** under `samples/Pages/Demo<Component>.razor`
-   showing every variant, size, and state.
-8. **Verify in the prototype.** Open `prototype/DRYL Design System.html` and
-   find a similar component on the Components page. The visual should match.
+7. **Add a demo page in `DRYL.Website`** showing every variant, size and
+   state, and register the component in its `ComponentCatalog` (`REL-04` in
+   [`releasing.md`](releasing.md)). Demos live in the website, not in this
+   repository — there is no samples project here.
+8. **Verify in both color modes** against the rendered component on
+   components.dryl.dev, and against the closest existing component in
+   `code/DRYL.Components/Components/`. The visual must sit in the same family.
 
 Check: reviewer walks the eight steps against the PR before approving.
 
@@ -144,8 +147,8 @@ Before you start coding a new component, confirm:
    `DrylToggle`), the default is **no AI parameter**. See `ai.md`.
 6. **Form-integration** — does it participate in `EditForm`? Should it
    implement `InputBase<T>`?
-7. **Sample page** — should the demo go into the existing samples app, or do
-   we need a new section? See `SPEC-05` in `requirements.md`.
+7. **Demo page** — where does the demo go in `DRYL.Website`: an existing
+   section or a new one? See `SPEC-05` in `requirements.md`.
 
 If any of these are unclear, **ask** before writing code.
 

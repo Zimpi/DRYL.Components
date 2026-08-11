@@ -251,7 +251,7 @@ walked whenever a component spec is written. Every component spec evidences:
   [`uiux.md`](uiux.md)).
 - **AI-mode decision made explicitly** — a "no" is written down with its
   reason, exactly like a "yes" (`AI-05` in [`ai.md`](ai.md)).
-- **A sample page** under `samples/` (`CODE-20` in [`code.md`](code.md)).
+- **A demo page in `DRYL.Website`** (`CODE-20` in [`code.md`](code.md)) — demos live in the website, not in this repository.
 - **An entry in the `ComponentCatalog`** (`REL-04` in
   [`releasing.md`](releasing.md)).
 

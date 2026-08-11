@@ -162,7 +162,7 @@ src/DRYL/
 - [ ] `[Parameter(CaptureUnmatchedValues = true)]` is included for pass-through attributes.
 - [ ] All CSS classes used are defined in `dryl.css`. If not, propose adding the token, do not inline.
 - [ ] Accessibility: keyboard-reachable, ARIA labels for icon-only, `:focus-visible` not overridden.
-- [ ] A demo page in `samples/Pages/Demo<Component>.razor` shows every variant + size + state.
+- [ ] A demo page in `DRYL.Website` shows every variant + size + state, and the component is registered in its `ComponentCatalog`.
 
 ---
 

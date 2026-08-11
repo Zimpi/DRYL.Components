@@ -140,7 +140,5 @@ hit count as evidence that the codebase is clean.
 | `specs/` | One spec per component; the contract (not created yet) |
 | `ideas/` | Ideas in dialogue, before they become specs (not created yet) |
 | `tests/` | bUnit tests (`DRYL.Components.Tests`) |
-| `samples/` | The demo app; no tracked demo pages at present |
-| `prototype/` | The visual reference (`DRYL Design System.html`) |
 | `scripts/` | Token sync and contrast checks |
 | `docs/` | Screenshots, gifs, plans and archive |

@@ -56,7 +56,7 @@ Pre-release versions use the SemVer pre-release suffix directly in `<Version>`,
 e.g. `1.0.0-rc.1`. The tag becomes `v1.0.0-rc.1` and NuGet treats it as a
 pre-release, hidden from the default "stable only" listing.
 
-Changes that do **not** touch shippable library code (docs, samples, CI, tests
+Changes that do **not** touch shippable library code (docs, CI, tests
 only) should leave `<Version>` untouched — the push is a no-op and publishes
 nothing. That is expected and correct. See `REL-03`.
 
@@ -139,8 +139,8 @@ entirely English; no violation found.
 
 Status: **default** | Enforced: **review**
 
-If a change does **not** touch shippable library code (docs, samples, CI,
-tests only), leave the version alone. A push with an unchanged version finds
+If a change does **not** touch shippable library code (docs, CI, tests
+only), leave the version alone. A push with an unchanged version finds
 the tag already present and is a clean no-op — nothing is published, and that
 is correct, not a bug.
 
@@ -148,14 +148,14 @@ The following do **not** need a changelog entry either, for the same reason —
 they carry no shippable, consumer-visible change:
 
 - Internal refactoring with no visible effect
-- Changes to `samples/` demo pages only
+- Changes to demo pages in `DRYL.Website` only
 - Typo fixes in comments or XML doc strings
 - Changes to CI/build configuration
 
-Check: reviewer confirms a docs/samples/CI/tests-only PR leaves `<Version>`
+Check: reviewer confirms a docs/CI/tests-only PR leaves `<Version>`
 unchanged — no automated scan documented yet, since "touches shippable
 library code" is a judgment call a script cannot make reliably (e.g. a
-`samples/`-only change and a `code/DRYL.Components/`-only change are both
+`harness/`-only change and a `code/DRYL.Components/`-only change are both
 just diffs).
 
 ### REL-04 — Register the component in `ComponentCatalog` (`DRYL.Website`)

@@ -39,8 +39,7 @@ dotnet build DRYL.slnx -c Release
 # Run the test suite (bUnit + xUnit)
 dotnet test DRYL.slnx -c Release
 
-# Run the demo / showcase app
-dotnet run --project samples/DRYL.Components.Demo
+# Demos live in the separate DRYL.Website repository, not here.
 ```
 
 ## Workflow
