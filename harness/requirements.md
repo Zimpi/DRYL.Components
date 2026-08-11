@@ -8,7 +8,7 @@ Idea intake happens before any spec exists — see `ideas.md`.
 Every rule has a stable ID. IDs are never reused: if a rule is dropped, its
 number is burned. The `SPEC` block is currently contiguous — `SPEC-01` …
 `SPEC-09`, no gaps — because it was written in one pass; later rules are
-appended as `SPEC-10` and upwards.
+appended with the next unused number in sequence.
 
 **Status** — `binding` blocks the merge · `default` needs a reason in the PR ·
 `guidance` is a recommendation.
