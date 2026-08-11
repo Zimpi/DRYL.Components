@@ -52,42 +52,62 @@ specs/
 
 - **E** = component **category**. The list is fixed below — do not invent one,
   and do not file a component outside it. Categories follow the folders under
-  `code/` one-to-one, so a component's category is derivable from its path and
-  therefore checkable by script.
+  `code/` one-to-one, so a component's category is derivable from its path.
+  Note what enforces which half: the script checks that `specs/` and the table
+  agree on the category *list*, and that every component is claimed by exactly
+  one spec. That a component sits in the category its path implies is
+  **review-enforced** — the script reads the category names out of the table,
+  never the source-folder column. Because the mapping is a convention rather
+  than a check, a folder that misplaces a component quietly misplaces its spec
+  too; that is what made the moves of 2026-08-11 worth doing before the specs
+  were written.
 
 | E | Category | Source folder | Components |
 |---|---|---|---:|
-| `E1` | Foundation | — (no components) | 0 |
+| `E1` | Foundation | `code/DRYL.Components/Components/Providers/` | 5 |
 | `E2` | Actions | `code/DRYL.Components/Components/Actions/` | 3 |
 | `E3` | AI | `code/DRYL.Components/Components/AI/` | 8 |
 | `E4` | Charts | `code/DRYL.Components/Components/Data/Charts/` | 4 |
 | `E5` | Data | `code/DRYL.Components/Components/Data/` | 21 |
-| `E6` | Dialogs | `code/DRYL.Components/Dialogs/` | 2 |
+| `E6` | Dialogs | `code/DRYL.Components/Dialogs/` | 4 |
 | `E7` | Feedback | `code/DRYL.Components/Components/Feedback/` | 8 |
 | `E8` | Inputs | `code/DRYL.Components/Components/Inputs/` | 23 |
-| `E9` | Layout | `code/DRYL.Components/Components/Layout/` | 22 |
-| `E10` | Navigation | `code/DRYL.Components/Components/Navigation/` | 6 |
-| `E11` | Surfaces | `code/DRYL.Components/Components/Surfaces/` | 15 |
+| `E9` | Layout | `code/DRYL.Components/Components/Layout/` | 16 |
+| `E10` | Navigation | `code/DRYL.Components/Components/Navigation/` | 12 |
+| `E11` | Surfaces | `code/DRYL.Components/Components/Surfaces/` | 8 |
 | `E12` | Agent Runtime | `code/DRYL.Components.Agents/Agents/`, `/Display/` | 5 |
 | `E13` | Agent Tools | `code/DRYL.Components.Agents/Tools/` | 3 |
 | `E14` | Agent Canvas | `code/DRYL.Components.Agents/Canvas/` | 2 |
 | `E15` | Agent Inputs | `code/DRYL.Components.Agents/Field/`, `/CommandPalette/`, `/Voice/`, `/Generation/` | 5 |
 | | | **Total** | **127** |
 
-**A category may be componentless.** `E1 Foundation` carries no `F{n}` file at
-all — it holds the public surface that belongs to no single component: the
-theming types, the DI registration, `AiState`/`AiAura`, the motion primitives
-and the token surface of `dryl.css`. That surface is bound by the 1.0 freeze
-and would otherwise have no place to be documented. A componentless category
-carries `_Api.md` and `_Interop.md` and nothing else.
+**A category may be componentless** — it then carries `_Api.md` and
+`_Interop.md` and nothing else. No category is currently in that position, but
+the structure allows it, because a category's companion files can be worth
+having on their own.
+
+`E1 Foundation` is the case that shows why. Its subject is not a family of
+widgets but the library's own footing: the public surface that belongs to no
+single component — the theming types, the DI registration, `AiState`/`AiAura`,
+the motion primitives and the token surface of `dryl.css`. That surface is bound
+by the 1.0 freeze and would otherwise have no place to be documented, and it
+lives in the category's companion files rather than in any `F{n}`. Since
+2026-08-11 the category *also* owns `Components/Providers/`: the five components
+a consumer mounts once in the layout rather than places on a page
+(`DrylThemeProvider`, `DrylToastProvider`, `DrylPresence`, `DrylReconnectModal`,
+`DrylColorModeToggle`), which are footing in the same sense. The reasoning is in
+`ideas/I3 Component folder layout.md`.
 
 `E12`–`E15` bundle the agents package's eight folders by theme. Four of those
 folders hold exactly one component; a category apiece, each with two companion
 files reading "none", would be ceremony without return.
 
 The component counts are a statement of fact at the time of writing, not a
-budget — a new component raises its category's count and the total, and both
-are re-derived by `scripts/check-spec-coverage.mjs` rather than trusted.
+budget — a new component raises its category's count and the total. Only the
+**total** is re-derived rather than trusted: `scripts/check-spec-coverage.mjs`
+counts `Dryl*.razor` under `code/` and reports `x/127`. The per-category counts
+are maintained by hand and are documentation, so a move between categories
+means editing this table in the same commit.
 - **F** = **one component, one file**. A `Dryl*.razor` maps to exactly one
   spec file; that one-to-one mapping is what makes the sync checkable
   (`SPEC-03`).
