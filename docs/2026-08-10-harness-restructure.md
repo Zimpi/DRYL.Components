@@ -223,11 +223,13 @@ Fremdprojekt, deutsch, Business-App-Zuschnitt) auf eine Komponentenbibliothek.
 |---|---|---|
 | `E{n}` | Komponenten-**Kategorie** | `E4 Overlays` |
 | `F{n}` | Eine **Komponente**, eine Datei | `F1 DrylDialog.md` |
-| `S{n}` | Nur bei zu großen Komponenten: Aspekt | `F3 DrylDataGrid/S2 Sorting.md` |
+| `S{n}` | Nur bei zu großen Komponenten: Aspekt | `F3 DrylTable/S2 Sorting.md` |
 
 Bei 127 Komponenten ergibt das rund 127 Feature-Dateien und eine Handvoll aufgeteilter
 Ordner. Eine `.razor` entspricht genau einer Spec — das macht den Sync prüfbar.
-Kandidaten für die Aufteilung sind `DrylDataGrid`, `DrylCanvas` und `DrylVoiceRun`.
+Kandidaten für die Aufteilung sind `DrylTable`, `DrylCommandPalette` und `DrylCanvas`
+(die drei größten real vorhandenen Komponenten; `DrylDataGrid` und `DrylVoiceRun`
+existieren in diesem Repository nicht — korrigiert nach Task 9).
 
 Die Kategorien orientieren sich an der bestehenden Ordnerstruktur
 (`Components/Actions`, `Data`, `Feedback`, `Inputs`, `Layout`, `Navigation`,
@@ -253,8 +255,9 @@ nie dazwischen eingeschoben.
 
 ## Meta
 - **State:** Modified | Implemented
-- **Source:** code/DRYL.Components/Dialogs/DrylDialog.razor
-              code/DRYL.Components/Dialogs/DrylDialog.razor.css
+- **Source:** code/DRYL.Components/Components/Surfaces/DrylPopover.razor
+              code/DRYL.Components/Components/Surfaces/DrylPopover.razor.css
+              code/DRYL.Components/Components/Surfaces/PopoverPlacement.cs
 
 ## User Story
 As a Blazor developer, I want …, so that …
@@ -279,6 +282,12 @@ Skript prüfbar:
 - Jeder in `Source` genannte Pfad existiert → keine Spec beschreibt gelöschten Code.
 - Jede `Dryl*.razor` unter `code/` erscheint in genau einer Spec → keine Komponente
   ohne Spec, keine doppelt erfasst.
+
+`Source` sitzt auf **Komponenten**ebene, nie auf Story-Ebene: bei einer Komponente
+in einer Datei in ihrer `F{n} X.md`, bei einer aufgeteilten Komponente in
+`F{n} X/_Component.md`. Die `S{n}`-Dateien tragen nur ihren eigenen `State`.
+Sonst erschiene eine `.razor` in drei Specs und die Invariante „genau eine"
+wäre gebrochen (Befund aus Task 9).
 
 Das Feld ist zugleich der Fortschrittsmesser für Phase C: die zweite Prüfung liefert
 direkt „x von 127 Komponenten abgedeckt". Das zugehörige Prüfskript entsteht in
