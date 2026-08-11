@@ -14,6 +14,8 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.20.2] — 2026-08-11
+
 ### Added
 - `DrylVoiceRun` (Agents 0.17.0) — New `ShouldContinue` and `MaxAutoContinuations` parameters: a voice session can now carry on working by itself. A realtime session has no agent loop — the protocol only continues a turn that carried a tool call, so a turn that was *only* speech ended the model's part and nothing ever started another one. An assistant working through a plan would announce "let me go and check", stop talking, and sit there until the user asked whether it was still working. `ShouldContinue` is asked after every tool-less turn and, returning true, sends the model back to work; wire it to whatever knows there is work left (an open task list, a queue). It is null by default, so a plain conversation is unchanged. `MaxAutoContinuations` (6) caps consecutive *fruitless* turns — running a tool or the user speaking resets the budget, so it bounds a model talking to itself without limiting one that is making progress.
 
@@ -28,6 +30,7 @@ Version bump guide:
 - `prototype/` and `samples/` — Removed. The prototype was a proof-of-concept reference the library has long outgrown; `samples/` held no tracked demo pages. Demos live in `DRYL.Website` and are surfaced through its `ComponentCatalog`. Consumers are unaffected — neither directory shipped in either package
 - Repository layout — Library projects moved to `code/`, the rules split out of `CLAUDE.md` into `harness/` with stable rule IDs, and `specs/` + `ideas/` added for spec-driven development. Consumers are unaffected: package IDs, assembly names and the `_content/DRYL.Components/…` asset paths are unchanged
 - Spec structure — The fifteen spec categories are fixed in `SPEC-02` and scaffolded under `specs/`, and `scripts/check-spec-coverage.mjs` now enforces that every `Dryl*.razor` is claimed by exactly one spec. It reports `x/127 components covered`; the specs themselves are written per category in the phase that follows. Documentation and tooling only — no library code is touched, so no version is bumped
+- Component folder layout — Eighteen files moved so that a component's folder matches what it is. `DrylNavGroup`, `DrylNavLink`, `DrylTabs`, `DrylTab`, `DrylStepper` and `DrylStep` left `Components/Layout/` for `Components/Navigation/`, where someone looking for tabs looks first. The five pieces of mount-once plumbing — `DrylThemeProvider`, `DrylToastProvider`, `DrylPresence`, `DrylReconnectModal`, `DrylColorModeToggle` — left `Components/Surfaces/` for a new `Components/Providers/`; they were never surfaces. `DrylDialog` and `DrylDialogProvider` joined `DrylAlertDialog` and `DrylConfirmDialog` in `Dialogs/`, so one feature no longer lives in two folders. **Consumers are unaffected:** every component declares its own `@namespace`, so no `using` changes, no type moves, no renamed parameters — the folder was never part of the public API. The timing is deliberate: the per-component specs land next and record concrete source paths, which would otherwise have to be rewritten afterwards
 
 ## [2.20.1] — 2026-07-30
 
