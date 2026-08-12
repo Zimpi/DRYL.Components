@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.23.0] — 2026-08-12
+
+### Fixed
+- `DrylSplitButton` — The caret segment now shows a tooltip on hover and on keyboard focus. It is an icon-only button, and `UX-05` requires every button that renders only an icon to be wrapped in a `DrylTooltip` naming its action; the caret had an `aria-label` but no tooltip, so a sighted mouse user got no hint at all what the chevron opened. The bubble's text is the component's existing `MenuAriaLabel` parameter (default `More actions`), so there is no new parameter to set and the two cannot drift apart — set `MenuAriaLabel` and you set both. **The accessible name is unchanged**: the caret keeps the same `aria-label` it had, and the tooltip bubble is a decorative `aria-hidden` portal, so screen readers announce exactly what they announced before. The joined segment look is unchanged too — the caret's rules in `dryl.css` reach it through a descendant selector, so the tooltip's wrapper `span` sits between them harmlessly, and focus still returns to the caret when the menu closes
+
 ## [2.22.1] — 2026-08-13
 
 ### Fixed

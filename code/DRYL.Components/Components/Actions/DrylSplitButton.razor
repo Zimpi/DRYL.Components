@@ -8,7 +8,7 @@
 
     Usage:
       <DrylSplitButton OnClick="Save">
-          Save
+          <ChildContent>Save</ChildContent>
           <MenuItems>
               <DrylMenuItem Icon="Copy" OnClick="SaveAndNew">Save &amp; new</DrylMenuItem>
               <DrylMenuItem Icon="X"    OnClick="SaveAndClose">Save &amp; close</DrylMenuItem>
@@ -18,6 +18,8 @@
     • The main button and caret share Variant / Size and read as one control.
     • Secondary (default) and Ghost segment most cleanly; Danger works too.
     • The caret is a labelled icon button (a11y) that opens the DrylMenu.
+      Being icon-only it is wrapped in a DrylTooltip carrying the same
+      text as its aria-label, MenuAriaLabel (UX-05).
     ───────────────────────────────────────────────────────── *@
 
 <div class="@CssClass" @attributes="AdditionalAttributes">
@@ -33,11 +35,13 @@
 
     <DrylMenu Placement="MenuPlacement" Label="@MenuLabel">
         <Trigger>
-            <DrylButton Variant="Variant"
-                        Size="Size"
-                        Disabled="Disabled"
-                        AriaLabel="@MenuAriaLabel"
-                        LeadingIcon="ChevronDown" />
+            <DrylTooltip Text="@MenuAriaLabel">
+                <DrylButton Variant="Variant"
+                            Size="Size"
+                            Disabled="Disabled"
+                            AriaLabel="@MenuAriaLabel"
+                            LeadingIcon="ChevronDown" />
+            </DrylTooltip>
         </Trigger>
         <Items>
             @MenuItems

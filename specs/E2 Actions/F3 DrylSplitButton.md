@@ -35,7 +35,9 @@ and the CSS that joins them. Everything else is the primitives':
 
 What the component contributes to accessibility is exactly two names: the
 caret's `aria-label`, from `MenuAriaLabel`, and the panel's `aria-label`, from
-`MenuLabel`.
+`MenuLabel`. Because the caret is icon-only, it is additionally wrapped in a
+`DrylTooltip` (`UX-05`) whose text is that same `MenuAriaLabel`, so the visible
+hint and the announced name are one string by construction.
 
 The caret's styling reaches through the menu's markup. `.split-btn > .popover-anchor`
 and `.split-btn > .popover-anchor .btn` in
@@ -307,28 +309,36 @@ runtime surprise.
 ### `UX-05` and the caret
 
 - The caret renders an icon and no visible label, so `UX-05` applies to it.
-- The caret is wrapped in a `DrylTooltip` whose text names the same action as
-  `MenuAriaLabel` (`UX-05`). — **not met by the code today; see the deviations
-  section.**
+- The caret is wrapped in a `DrylTooltip` inside the menu's trigger slot
+  (`UX-05`).
+- The tooltip's text is `MenuAriaLabel`, so the bubble and the caret's
+  accessible name are always the same string and cannot drift apart.
+- The component exposes no separate parameter for the tooltip's text.
+- The tooltip's placement is the tooltip's own default, which the component does
+  not set.
+- The tooltip adds nothing to the caret's accessible name, because the bubble is
+  a decorative body-level portal that the library's script marks `aria-hidden`.
 - The duty cannot be discharged at the call site: the caret is rendered by this
   component and the trigger slot is not exposed, so a consumer has nothing to
   wrap.
-- Wrapping the caret in a `DrylTooltip` inside the trigger slot would **not**
-  break the segment styling, because the caret is matched by a descendant
-  selector below the popover's anchor rather than by a child selector.
+- The tooltip wrapper does **not** break the segment styling, because the caret
+  is matched by a descendant selector below the popover's anchor rather than by
+  a child selector.
+- The tooltip wrapper does **not** break the focus return to the caret, because
+  `dryl.menu.focusTrigger` also finds the caret through a descendant selector
+  below the popover's trigger element.
 
   This is where `DrylSplitButton` differs from `DrylButtonGroup`. In the group,
   every rule that produces the segmented look selects `> .btn`, so a
   `DrylTooltip` wrapper — whose root is a `span` carrying `tt-wrap` — displaces
   the segment out of the contract and `UX-05` and the segmentation cannot both
   be satisfied. Here the caret's two rules are `.split-btn > .popover-anchor`
-  (which would still match, since the tooltip would sit *below* the anchor, not
-  above it) and `.split-btn > .popover-anchor .btn` (a descendant selector, which
-  matches through any wrapper). `.tt-wrap` is `display: inline-flex`, so it also
-  passes the trigger's flex layout through. The library gap that blocks the fix
-  in `DrylButtonGroup` does **not** exist here; what is missing is only the
-  tooltip itself, and adding it is a code change this spec deliberately does not
-  make.
+  (which still matches, since the tooltip sits *below* the anchor, not above it)
+  and `.split-btn > .popover-anchor .btn` (a descendant selector, which matches
+  through any wrapper). `.tt-wrap` is `display: inline-flex`, so it also passes
+  the trigger's flex layout through. The library gap that blocks the fix in
+  `DrylButtonGroup` does **not** exist here, which is why the tooltip could be
+  added to this component and not to that one.
 
 ### AI mode
 
@@ -465,7 +475,8 @@ runtime surprise.
   component and fixed in that one; it is not this component's `@if` to wrap.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above: two
   native buttons, two tab stops, no arrow-key movement between them, an
-  `aria-label` on the caret from `MenuAriaLabel` and one on the panel from
+  `aria-label` on the caret from `MenuAriaLabel`, a `DrylTooltip` around the
+  caret carrying that same text (`UX-05`), one `aria-label` on the panel from
   `MenuLabel`, focus into the panel on open and back to the caret on `Escape` and
   on item choice — and the three things the control does **not** do: no
   `aria-haspopup`, no `aria-expanded`, and no accessible name for a main button
@@ -502,22 +513,13 @@ runtime surprise.
 
 ## Deviations (`State: Modified`)
 
-The spec is newly written and the code does not meet **two** of its criteria.
-They are listed here so the state is checkable rather than asserted; neither is
-fixed in this commit. Four further findings are recorded below them as design
-gaps: each breaks a criterion of no spec and a rule of no number, or belongs to
-another component's spec, so none of them is what `State` rests on.
+The code does not meet **one** of this spec's criteria. It is listed here so the
+state is checkable rather than asserted; it is not fixed in this commit. Three
+further findings are recorded below it as design gaps: each breaks a criterion
+of no spec and a rule of no number, or belongs to another component's spec, so
+none of them is what `State` rests on.
 
-1. **`UX-05` — the caret has no tooltip.** The component renders an icon-only
-   button and no `DrylTooltip` anywhere. `UX-05` is binding and admits no
-   exception, and unlike the icon-only cases in `F1` and `F2` the duty cannot be
-   pushed to the call site, because the trigger is not a slot the consumer fills.
-   The unmet criterion is the second one under "`UX-05` and the caret". The fix is
-   a `DrylTooltip` around the caret inside the trigger slot, with its text equal
-   to `MenuAriaLabel`; the criteria above establish that this breaks none of the
-   segment styling.
-
-2. **The two segments can end up in different AI states.** `Ai` is forwarded to
+1. **The two segments can end up in different AI states.** `Ai` is forwarded to
    the main button only, while the caret — being a `DrylButton` — resolves a
    surrounding `DrylAiScope` on its own. Inside a scope whose state is not
    `AiState.None`, a split button that sets `Ai` explicitly renders its main
@@ -538,7 +540,7 @@ another component's spec, so none of them is what `State` rests on.
   fails on it** — the criterion on the subject describes exactly this and is met —
   and no numbered rule is breached: `AI-03` binds only the `Ai` parameter's name
   and default, both of which are correct, and `AI-05` only whether the parameter
-  exists at all. It is recorded here because closing deviation 2 properly means
+  exists at all. It is recorded here because closing deviation 1 properly means
   deciding this at the same time, not because it moves `State`.
 - **No `aria-haspopup` and no `aria-expanded` on the caret.** No numbered rule
   mandates either, so this stays out of `State` — but it is a
@@ -553,10 +555,3 @@ another component's spec, so none of them is what `State` rests on.
   code that would change is not this component's — it is `DrylPopover`'s `@if` —
   so it belongs to `DrylPopover`'s spec and is recorded here only because it is
   visible through this component.
-- **The component's own usage comment shows a form that does not compile.** The
-  Razor comment at the top of `DrylSplitButton.razor` writes a bare `Save` label
-  followed by a `<MenuItems>` element; because `MenuItems` is a named
-  `RenderFragment`, the label has to be wrapped in `<ChildContent>` as soon as
-  `<MenuItems>` appears — which is what all three instances in
-  `DRYL.Website/Components/Examples/ButtonGroup/Split.razor` do. Documented as a
-  comment defect, not fixed here (this spec changes no code).
