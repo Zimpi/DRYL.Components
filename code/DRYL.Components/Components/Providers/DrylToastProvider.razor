@@ -108,8 +108,9 @@
     {
         if (entry.IsLeaving) return;
         entry.IsLeaving = true;
-        // Garantierter Fallback: DOM-Entfernung nach Exit-Animation (--dur-med 240ms + Puffer).
-        // Falls animationend aus irgendeinem Grund nicht zum slot bubbled, räumt dieser Pfad auf.
+        // Guaranteed fallback: remove from the DOM after the exit animation
+        // (--dur-med 240ms plus a buffer). Should animationend fail to bubble to the
+        // slot for any reason, this path is what cleans up.
         _ = InvokeAsync(async () =>
         {
             StateHasChanged();

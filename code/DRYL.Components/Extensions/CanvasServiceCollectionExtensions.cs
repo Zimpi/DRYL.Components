@@ -94,11 +94,11 @@ public static class CanvasServiceCollectionExtensions
     /// public sealed record ApproveArgs(string OrderId, string? Note = null);
     ///
     /// builder.Services.AddDrylCanvasAction("order.approve",
-    ///     "Gibt einen Auftrag frei.",
+    ///     "Approves an order.",
     ///     async (ApproveArgs a, CanvasActionContext ctx, CancellationToken ct) =>
     ///     {
     ///         await ctx.Services.GetRequiredService&lt;IOrderService&gt;().ApproveAsync(a.OrderId, ct);
-    ///         return CanvasActionResult.Ok("Auftrag freigegeben").Refresh("orders.open");
+    ///         return CanvasActionResult.Ok("Order approved").Refresh("orders.open");
     ///     });
     /// </code>
     /// </summary>

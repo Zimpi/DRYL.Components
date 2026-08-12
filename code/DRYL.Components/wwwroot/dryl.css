@@ -3774,7 +3774,7 @@ body.dryl-scroll-locked { overflow: hidden; }
   flex-direction: column;
   width: 640px;
   max-width: 100%;
-  max-height: 90vh; /* Fallback für Browser ohne dvh */
+  max-height: 90vh; /* fallback for browsers without dvh */
   max-height: 90dvh;
   border-radius: var(--r-lg);
   background: var(--panel-grad);
@@ -3791,7 +3791,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .dialog-lg         { width: 960px; }
 .dialog-fullscreen {
   width: 100vw;
-  height: 100vh; /* Fallback für Browser ohne dvh */
+  height: 100vh; /* fallback for browsers without dvh */
   height: 100dvh;
   max-height: 100vh;
   max-height: 100dvh;
@@ -3884,14 +3884,14 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 .dialog-fullscreen .dialog-body { max-height: none; }
 
-/* Fullscreen-Dialoge respektieren die Safe-Area (iOS Home-Indicator). */
+/* Fullscreen dialogs respect the safe area (iOS home indicator). */
 .dialog-fullscreen .dialog-footer {
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
 }
 
-/* Mobile: nicht-Fullscreen-Dialoge docken als Bottom-Sheet an der
-   Unterkante an — volle Breite, obere Rundung, dvh-begrenzte Höhe.
-   Fullscreen-Dialoge sind davon unberührt (füllen ohnehin alles). */
+/* Mobile: non-fullscreen dialogs dock to the bottom edge as a sheet —
+   full width, rounded top, dvh-bounded height. Fullscreen dialogs are
+   unaffected (they fill everything anyway). */
 @media (max-width: 640px) {
   .dialog-backdrop:not(:has(.dialog-fullscreen)),
   .dialog-layer:not(:has(.dialog-fullscreen)) {
@@ -3969,9 +3969,9 @@ body.dryl-scroll-locked { overflow: hidden; }
 .alert.ai .ico      { background: var(--accent-soft); color: var(--accent-ico); }
 .alert .title { font-weight: 500; font-size: 13px; margin-bottom: 2px; }
 .alert .body { font-size: 12.5px; color: var(--fg-muted); }
-/* Flexibler Textbereich — nimmt verbleibenden Platz ein */
+/* Flexible text area — takes the remaining space */
 .alert-content { flex: 1; min-width: 0; }
-/* Schließen-Button */
+/* Dismiss button */
 .alert.is-dismissible { padding-right: var(--sp-3); }
 .alert-dismiss {
   margin-left: auto;
@@ -3989,8 +3989,8 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 .alert-dismiss:hover { background: var(--glass-3); color: var(--fg); }
 .alert-dismiss:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
-/* AI-Aura auf dem Alert — Rahmen weicht zurück, damit der Gradientring dominiert.
-   Der alert hat kein overflow:hidden, daher funktioniert der Standard-inset -1px. */
+/* AI aura on the alert — the border recedes so the gradient ring dominates.
+   The alert has no overflow:hidden, so the default inset of -1px works. */
 .alert.ai-aura { border-color: var(--accent-line); }
 
 /* Spotlight card */

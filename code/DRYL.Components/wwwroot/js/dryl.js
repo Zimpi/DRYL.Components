@@ -488,14 +488,14 @@ window.dryl.popover = (() => {
 /* --------------------------------------------------------------
  * Toast — auto-dismiss timer and exit animation lifecycle.
  *
- * Timer: setTimeout statt CSS-animationend, damit Blazor-Re-Renders
- * (die das .toast-progress-Element patchen können) den Timer nicht
- * zurücksetzen. Hover-Pause wird explizit per mouseenter/mouseleave
- * auf dem stabilen slot-Element gehandelt.
+ * Timer: setTimeout rather than CSS animationend, so that Blazor re-renders
+ * (which may patch the .toast-progress element) cannot reset it. The hover
+ * pause is handled explicitly via mouseenter/mouseleave on the stable slot
+ * element.
  *
- * Exit: Event-Delegation auf slot (von Blazor per @key erhalten),
- * da animationend bubbled — robuster als direkter Listener auf dem
- * inneren .toast-div, das Blazor bei Klassenänderungen patcht.
+ * Exit: event delegation on the slot (kept alive by Blazor via @key), since
+ * animationend bubbles — more robust than a listener on the inner .toast div,
+ * which Blazor patches whenever its classes change.
  *
  *   OnExpired       — fired by setTimeout after the duration.
  *   OnExitFinished  — fired when toast-out animationend bubbles to slot.
@@ -506,7 +506,7 @@ window.dryl.toast = (() => {
         const toast = slot.querySelector('.toast');
         if (!toast) return;
 
-        // Lese die Duration aus dem inline-style des Progress-Elements.
+        // Read the duration from the progress element's inline style.
         const progress = toast.querySelector('.toast-progress');
         let remaining  = 0;
         let startedAt  = 0;
@@ -534,7 +534,7 @@ window.dryl.toast = (() => {
             remaining = Math.max(0, remaining - (Date.now() - startedAt));
         }
 
-        // Hover-Listener auf stabilem slot-Element (nicht .toast, das gepatcht werden kann).
+        // Hover listeners on the stable slot element (not .toast, which can be patched).
         let onMouseEnter = () => {};
         let onMouseLeave = () => {};
         if (remaining > 0) {
@@ -545,8 +545,8 @@ window.dryl.toast = (() => {
             startTimer();
         }
 
-        // Exit-Detection per Event-Delegation auf slot — animationend bubbled,
-        // slot wird von Blazor via @key stabil gehalten.
+        // Exit detection via event delegation on the slot — animationend bubbles,
+        // and Blazor keeps the slot stable via @key.
         const onSlotAnim = (e) => {
             if (e.animationName === 'toast-out') {
                 clearTimeout(timerId);

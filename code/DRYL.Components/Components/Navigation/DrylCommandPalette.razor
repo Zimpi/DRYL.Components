@@ -73,7 +73,7 @@
                        @onkeydown="HandleKeyDown" />
                 @if (_resolving)
                 {
-                    <DrylAiIndicator State="AiState.Thinking" Class="cmd-ai-pill">Denkt…</DrylAiIndicator>
+                    <DrylAiIndicator State="AiState.Thinking" Class="cmd-ai-pill">Thinking…</DrylAiIndicator>
                 }
                 else if (_isLoading)
                 {
@@ -89,11 +89,11 @@
             {
                 <div class="cmd-args">
                     <div class="cmd-args-head">
-                        <DrylTooltip Text="Zurück">
+                        <DrylTooltip Text="Back">
                             <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                         Size="DrylButton.ButtonSize.Small"
                                         LeadingIcon="ChevronLeft"
-                                        AriaLabel="Zurück"
+                                        AriaLabel="Back"
                                         OnClick="CancelArgFill" />
                         </DrylTooltip>
                         <span class="cmd-args-title">@_fillingCommand.Title</span>
@@ -130,7 +130,7 @@
                         <DrylButton Variant="DrylButton.ButtonVariant.Primary"
                                     Class="cmd-args-confirm"
                                     OnClick="ConfirmArgFill">
-                            Ausführen
+                            Run
                         </DrylButton>
                     </div>
                 </div>
@@ -710,7 +710,7 @@
         if (cmd.Destructive && _dialogs is not null)
         {
             var result = await _dialogs.ShowConfirmAsync(
-                "Aktion bestätigen", cmd.Title, "Ausführen", "Abbrechen");
+                "Confirm action", cmd.Title, "Run", "Cancel");
             if (result.Canceled) return;
         }
         await CloseAsync();

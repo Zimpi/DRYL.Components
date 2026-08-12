@@ -2,24 +2,24 @@
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
-    DrylAlert — Feedback-Banner für Hinweise, Statusmeldungen und KI-Inhalte.
+    DrylAlert — feedback banner for notices, status messages and AI content.
 
     Usage:
-      <DrylAlert Kind="AlertKind.Success" Title="Gespeichert">
-          Alle Änderungen wurden erfolgreich übernommen.
+      <DrylAlert Kind="AlertKind.Success" Title="Saved">
+          All changes were applied successfully.
       </DrylAlert>
 
-      <DrylAlert Kind="AlertKind.Ai" Title="KI-generierter Inhalt"
+      <DrylAlert Kind="AlertKind.Ai" Title="AI-generated content"
                  Ai="AiState.Generated" Dismissible OnDismiss="HandleDismiss">
-          Der folgende Inhalt wurde von einem KI-Modell erzeugt und sollte
-          vor der Verwendung geprüft werden.
+          The following content was produced by an AI model and should be
+          reviewed before use.
       </DrylAlert>
 
-    • Kind bestimmt Icon und Akzentfarbe (Info / Success / Warning / Danger / Ai).
-    • Ai treibt den animierten Gradientrahmen — unabhängig von Kind wählbar,
-      damit z. B. ein Warning-Alert signalisieren kann, dass die Prüfung noch läuft.
-    • Icon="" unterdrückt das Icon komplett.
-    • Dismissible zeigt einen Schließen-Button; OnDismiss liefert das Callback.
+    • Kind picks the icon and accent colour (Info / Success / Warning / Danger / Ai).
+    • Ai drives the animated gradient border — chosen independently of Kind, so a
+      Warning alert can signal that its check is still running.
+    • Icon="" suppresses the icon entirely.
+    • Dismissible shows a dismiss button; OnDismiss delivers the callback.
     ───────────────────────────────────────────────────────── *@
 
 <div class="@CssClass"
@@ -27,7 +27,7 @@
      aria-live="@AriaLive"
      @attributes="AdditionalAttributes">
 
-    @* AI-Aura-Overlays — gemountet solange die Aura präsent ist (live oder ausklingend) *@
+    @* AI aura overlays — mounted while the aura is present (live or fading out) *@
     <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     @* Icon-Chip *@
@@ -38,7 +38,7 @@
         </div>
     }
 
-    @* Textbereich: Titel + Body *@
+    @* Text area: title + body *@
     <div class="alert-content">
         @if (!string.IsNullOrEmpty(Title))
         {
@@ -50,12 +50,12 @@
         }
     </div>
 
-    @* Optionaler Schließen-Button *@
+    @* Optional dismiss button *@
     @if (Dismissible)
     {
         <button class="alert-dismiss"
                 type="button"
-                aria-label="Benachrichtigung schließen"
+                aria-label="Dismiss notification"
                 @onclick="HandleDismiss">
             <DrylIcon Name="X" Size="14" />
         </button>
@@ -63,36 +63,36 @@
 </div>
 
 @code {
-    /// <summary>Semantische Variante — steuert Icon und Akzentfarbe.</summary>
+    /// <summary>Semantic variant — drives the icon and the accent colour.</summary>
     [Parameter] public AlertKind Kind { get; set; } = AlertKind.Info;
 
-    /// <summary>Optionaler Titel, der fett über dem Body-Text erscheint.</summary>
+    /// <summary>Optional title, shown in bold above the body text.</summary>
     [Parameter] public string? Title { get; set; }
 
-    /// <summary>Icon-Override. Leerstring <c>""</c> unterdrückt das Icon komplett.</summary>
+    /// <summary>Icon override. An empty string <c>""</c> suppresses the icon entirely.</summary>
     [Parameter] public string? Icon { get; set; }
 
-    /// <summary>Wenn true, wird ein Schließen-Button angezeigt.</summary>
+    /// <summary>When true, a dismiss button is shown.</summary>
     [Parameter] public bool Dismissible { get; set; }
 
-    /// <summary>Wird ausgelöst, wenn der Nutzer den Alert schließt.</summary>
+    /// <summary>Raised when the user dismisses the alert.</summary>
     [Parameter] public EventCallback OnDismiss { get; set; }
 
-    /// <summary>AI-Ambient-Zustand — treibt Gradientrahmen, Glow und Reveal-Animation.</summary>
+    /// <summary>Ambient AI state — drives the gradient border, the glow and the reveal animation.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    /// <summary>AI-Aura-Variante. <c>null</c> lassen, um einen umgebenden <c>DrylAiScope</c> zu erben (letztlich <see cref="AiAura.Comet"/>).</summary>
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
-    /// <summary>Umgebender AI-Scope (von <c>DrylAiScope</c> bereitgestellt); löst die Aura-Variante auf.</summary>
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); resolves the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
 
-    /// <summary>Body-Inhalt des Alerts.</summary>
+    /// <summary>Body content of the alert.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    /// <summary>Pass-through HTML-Attribute (z. B. data-*, style für Layout-Overrides).</summary>
+    /// <summary>Pass-through HTML attributes (e.g. data-*, style for layout overrides).</summary>
     [Parameter(CaptureUnmatchedValues = true)]
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
@@ -105,7 +105,7 @@
 
     protected override void OnParametersSet()
     {
-        // Wash-Element neu ankern, damit die One-Shot-Animation erneut abspielt.
+        // Re-anchor the wash element so the one-shot animation replays.
         if (Ai == AiState.Generated && _prevAi != AiState.Generated)
             _genTick++;
         _prevAi = Ai;
@@ -118,7 +118,7 @@
     {
         get
         {
-            // Expliziter Override gewinnt; "" = kein Icon
+            // An explicit override wins; "" means no icon
             if (Icon is not null) return Icon.Length == 0 ? null : Icon;
             return Kind switch
             {
@@ -131,8 +131,8 @@
         }
     }
 
-    // Danger/Warning → role="alert" + aria-live="assertive" (unterbricht Screen-Reader)
-    // Alle anderen   → role="status"  + aria-live="polite"
+    // Danger/Warning -> role="alert" + aria-live="assertive" (interrupts the screen reader)
+    // everything else -> role="status" + aria-live="polite"
     private string AriaRole  => Kind == AlertKind.Danger || Kind == AlertKind.Warning ? "alert"      : "status";
     private string AriaLive  => Kind == AlertKind.Danger || Kind == AlertKind.Warning ? "assertive"  : "polite";
 
@@ -165,6 +165,6 @@
             await OnDismiss.InvokeAsync();
     }
 
-    /// <summary>Semantische Variante des Alerts.</summary>
+    /// <summary>Semantic variant of the alert.</summary>
     public enum AlertKind { Info, Success, Warning, Danger, Ai }
 }
