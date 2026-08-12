@@ -34,12 +34,12 @@
        exit — the overlay lingers, fading, for one --dur-slow beat after leaving AI mode. *@
     @if (_aura.Present)
     {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-comet"></div>
-        <div class="ai-aura-glow"></div>
+        <div class="ai-aura-ring" aria-hidden="true"></div>
+        <div class="ai-aura-comet" aria-hidden="true"></div>
+        <div class="ai-aura-glow" aria-hidden="true"></div>
         @if (!_aura.Exiting && _aura.RenderState is AiState.Active or AiState.Generated)
         {
-            <div class="ai-aura-wash" @key="_genKey"></div>
+            <div class="ai-aura-wash" aria-hidden="true" @key="_genKey"></div>
         }
     }
 

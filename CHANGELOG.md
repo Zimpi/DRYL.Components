@@ -14,6 +14,12 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.22.1] — 2026-08-13
+
+### Fixed
+- `DrylAuraElements` — The AI aura layers (`.ai-aura-ring`, `.ai-aura-comet`, `.ai-aura-glow`, `.ai-aura-wash`) now carry `aria-hidden="true"`. `UX-07` requires a purely decorative moving indicator to be hidden from assistive technology and names the AI aura as one of its examples; the gliding indicators `.tab-ink` and `.ws-ink` already complied, the aura did not. Every component that embeds `DrylAuraElements` benefits, since the markup is shared. Nothing usable leaves the accessibility tree: the layers are empty, not focusable, take no pointer events, and the component accepts no `ChildContent`, so no host can place content inside them
+- `DrylCard`, `DrylMarkdown`, `DrylImage`, `DrylCommandPalette`, `DrylNotifications` — Same fix applied to their aura layers. These five emit the `.ai-aura*` markup inline instead of embedding `DrylAuraElements`, so the shared fix above did not reach them; they were found by inspecting the rendered page rather than the component source. Their layers are likewise empty and decorative
+
 ## [2.22.0] — 2026-08-12
 
 ### Added

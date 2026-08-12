@@ -1,7 +1,7 @@
 # DrylAuraElements
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/AI/DrylAuraElements.razor
 
 ## User Story
@@ -101,15 +101,14 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
 - The layers hold no text and are not focusable.
 - The layers do not receive pointer events, so the aura never intercepts a click
   meant for the surface underneath.
-- **The layers are exposed to assistive technology.** `UX-07` requires that a
-  purely decorative moving indicator carry `aria-hidden="true"`, and names the AI
-  aura as one of its examples; these four elements carry none. The precedent
-  elsewhere in the library is the gliding indicator, which does: `.tab-ink` in
-  `DrylTabs` and `.ws-ink` in `DrylCanvasWorkspace` both carry it.
-  **This criterion is not met by the current code** and is the reason this spec
-  stands at `State: Modified`. It is stated rather than fixed here because the
-  markup is shared by every AI-aware surface in both packages, so the change is a
-  decision of its own rather than a side effect of writing this spec.
+- Every layer is hidden from assistive technology. `UX-07` requires that a purely
+  decorative moving indicator carry `aria-hidden="true"` and names the AI aura as
+  one of its examples; the ring, the comet, the glow and the wash each carry it.
+  This matches the precedent set elsewhere in the library by the gliding
+  indicators, `.tab-ink` in `DrylTabs` and `.ws-ink` in `DrylCanvasWorkspace`.
+- Hiding the layers removes nothing usable from the accessibility tree: they are
+  empty, hold no text and are not focusable, and the component accepts no
+  `ChildContent`, so a host cannot place content inside them.
 
 ### Appearance
 
@@ -137,8 +136,9 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
   rule.
 - **Enter/exit animation** — this component *is* the library's exit animation for
   AI mode: the lifecycle keeps it mounted while it dissolves. See "Motion" above.
-- **Keyboard and a11y** — the "Accessibility" criteria above, including the one the
-  code does not yet meet.
+- **Keyboard and a11y** — the "Accessibility" criteria above. The aura adds no tab
+  stop and no announcement: it is `aria-hidden` on all four layers, takes no pointer
+  events, and never changes the host's focus order (`UX-07`).
 - **AI mode** — yes, and it takes **no** `AiState` parameter: the host has already
   resolved its state and hands down a lifecycle instead. `AI-03` has no subject
   here, since there is no `AiState` parameter to name. See `_Api.md`.

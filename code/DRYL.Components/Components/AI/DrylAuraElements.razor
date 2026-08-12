@@ -18,12 +18,12 @@
 
 @if (Aura.Present)
 {
-    <div class="ai-aura-ring"></div>
-    <div class="ai-aura-comet"></div>
-    <div class="ai-aura-glow"></div>
+    <div class="ai-aura-ring" aria-hidden="true"></div>
+    <div class="ai-aura-comet" aria-hidden="true"></div>
+    <div class="ai-aura-glow" aria-hidden="true"></div>
     @if (Aura.RenderState == AiState.Generated && !Aura.Exiting)
     {
-        <div class="ai-aura-wash" @key="GenTick"></div>
+        <div class="ai-aura-wash" aria-hidden="true" @key="GenTick"></div>
     }
 }
 

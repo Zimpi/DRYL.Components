@@ -79,9 +79,9 @@
                                 @key="item.Id">
                                 @if (item.Ai != AiState.None)
                                 {
-                                    <div class="ai-aura-ring"></div>
-                                    <div class="ai-aura-comet"></div>
-                                    <div class="ai-aura-glow"></div>
+                                    <div class="ai-aura-ring" aria-hidden="true"></div>
+                                    <div class="ai-aura-comet" aria-hidden="true"></div>
+                                    <div class="ai-aura-glow" aria-hidden="true"></div>
                                 }
                                 <button type="button" class="notif-item-main" @onclick="@(() => ItemClickAsync(item))">
                                     <span class="notif-item-icon">

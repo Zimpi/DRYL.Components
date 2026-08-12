@@ -22,12 +22,12 @@
 <div class="@RootCssClass" @attributes="AdditionalAttributes">
     @if (_aura.Present)
     {
-        <div class="ai-aura-ring"></div>
-        <div class="ai-aura-comet"></div>
-        <div class="ai-aura-glow"></div>
+        <div class="ai-aura-ring" aria-hidden="true"></div>
+        <div class="ai-aura-comet" aria-hidden="true"></div>
+        <div class="ai-aura-glow" aria-hidden="true"></div>
         @if (_aura.RenderState == AiState.Generated && !_aura.Exiting)
         {
-            <div class="ai-aura-wash" @key="_genTick"></div>
+            <div class="ai-aura-wash" aria-hidden="true" @key="_genTick"></div>
         }
     }
 
