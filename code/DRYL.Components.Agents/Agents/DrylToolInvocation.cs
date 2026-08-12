@@ -1,9 +1,11 @@
 namespace DRYL.Components.Agents;
 
 /// <summary>
-/// A single agent tool / function call captured from an agent run. Its fields map 1:1
-/// onto the core <c>DrylToolCall</c> presentational component; <see cref="State"/> is
-/// derived from the call's lifecycle so the UI shows the right AI vocabulary.
+/// A single agent tool / function call captured from an agent run. Its fields feed the
+/// core <c>DrylToolCall</c> presentational component — name for name, except that
+/// <see cref="State"/> is passed to that component's <c>Ai</c> parameter (renamed from
+/// <c>State</c> in 2.22.0). <see cref="State"/> is derived from the call's lifecycle so
+/// the UI shows the right AI vocabulary.
 /// </summary>
 public sealed class DrylToolInvocation
 {

@@ -110,9 +110,9 @@ token (`--glass-fx-flow` / `--glass-fx-float`).
 
 Check: `rg -n 'backdrop-filter:\s*blur\(' code/` returns hits only in
 `dryl.css` — currently **6 pre-existing hits outside `dryl.css`**, across
-three components (`DrylChat.razor.css:9-10`,
-`DrylReconnectModal.razor.css:23-24`, `DrylValidationSummary.razor.css:9-10`),
-see phase C.
+three components — the `.chat` rule in `DrylChat.razor.css`, the
+`.reconnect-overlay` rule in `DrylReconnectModal.razor.css`, and the
+`.validation-summary` rule in `DrylValidationSummary.razor.css` — see phase C.
 
 ### DESIGN-08 — Accents glow, never scream
 

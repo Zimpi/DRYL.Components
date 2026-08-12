@@ -35,9 +35,9 @@ DRYL has **one** AI vocabulary. Every AI-aware component reuses the shared
 No component invents its own AI vocabulary.
 
 Check: `rg -n 'enum \w*(Ai|Loading|Generating)\w*State' code/` — currently
-**green**: the only match is `code/DRYL.Components/AiState.cs:14: public enum
-AiState`. No `ChatLoadingState`, `AiBusy`, or other per-component AI state
-enum exists in the codebase today.
+**green**: the only match is the `AiState` declaration in
+`code/DRYL.Components/AiState.cs`. No `ChatLoadingState`, `AiBusy`, or other
+per-component AI state enum exists in the codebase today.
 
 ### AI-02 — The visual comes from the existing primitives
 

@@ -106,9 +106,10 @@ Check: `rg -n 'setTimeout|setInterval' code/*/wwwroot/js/` against
 grep-enforced: the grep pair is a starting point, and a human confirms each
 named timer handle (`timerId`, `settle`, `state.retryTimer`,
 `state.idleTimer`, `state.maxTimer`) is cleared on its teardown path. Manual
-review confirms this holds, with one edge case: `dryl.js:283` is an anonymous
-`setTimeout(fn, 0)` used to move focus on the next tick and holds no stored
-handle — not a leak in practice, but also not an explicitly disposed handle.
+review confirms this holds, with one edge case: the modal `attach` function in
+`dryl.js` uses an anonymous `setTimeout(fn, 0)` to move focus to the first
+focusable element on the next tick, and holds no stored handle — not a leak in
+practice, but also not an explicitly disposed handle.
 
 ---
 
