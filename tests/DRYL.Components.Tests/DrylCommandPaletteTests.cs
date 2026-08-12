@@ -48,7 +48,8 @@ public class DrylCommandPaletteTests : BunitContext
             Assert.Contains(cut.FindAll("[role=option]"), o => o.TextContent.Contains("Run me")),
             TimeSpan.FromSeconds(2));
 
-        cut.FindAll("[role=option]").First(o => o.TextContent.Contains("Run me")).Click();
+        cut.InvokeAsync(() =>
+            cut.FindAll("[role=option]").First(o => o.TextContent.Contains("Run me")).Click());
 
         cut.WaitForAssertion(() =>
         {
@@ -69,7 +70,7 @@ public class DrylCommandPaletteTests : BunitContext
             Assert.Contains(cut.FindAll("[role=option]"), o => o.TextContent.Contains("Status setzen")),
             TimeSpan.FromSeconds(2));
 
-        cut.Find(".cmd-search-input").Input("bezahlt");
+        cut.InvokeAsync(() => cut.Find(".cmd-search-input").Input("bezahlt"));
 
         cut.WaitForAssertion(() =>
             Assert.Contains(cut.FindAll("[role=option]"),
@@ -94,14 +95,18 @@ public class DrylCommandPaletteTests : BunitContext
             Assert.Contains(cut.FindAll("[role=option]"), o => o.TextContent.Contains("Status setzen")),
             TimeSpan.FromSeconds(2));
 
-        cut.FindAll("[role=option]").First(o => o.TextContent.Contains("Status setzen")).Click();
+        // Find and trigger in one dispatch. Apart, a re-render between the two can
+        // retire the element's event handler, and the click then fails with
+        // UnknownEventHandlerIdException — surfacing later, at the next wait.
+        cut.InvokeAsync(() =>
+            cut.FindAll("[role=option]").First(o => o.TextContent.Contains("Status setzen")).Click());
 
         // Arg-fill view is shown with a text input.
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".cmd-args input")),
             TimeSpan.FromSeconds(2));
 
-        cut.Find(".cmd-args input").Input("Paid");
-        cut.Find(".cmd-args-confirm").Click();
+        cut.InvokeAsync(() => cut.Find(".cmd-args input").Input("Paid"));
+        cut.InvokeAsync(() => cut.Find(".cmd-args-confirm").Click());
 
         cut.WaitForAssertion(() =>
         {
