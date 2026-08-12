@@ -15,7 +15,7 @@
 
         <DrylToolCallGroup Count="visible.Count"
                            ActiveLabel="@active?.ToolName"
-                           State="@(active?.State ?? AiState.None)"
+                           Ai="@(active?.State ?? AiState.None)"
                            HasError="@visible.Any(t => !string.IsNullOrEmpty(t.Error))">
             @foreach (var t in visible)
             {

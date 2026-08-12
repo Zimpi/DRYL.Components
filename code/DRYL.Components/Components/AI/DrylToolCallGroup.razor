@@ -20,9 +20,9 @@
 
     Usage:
       <DrylToolCallGroup Count="3" ActiveLabel="get_weather"
-                         State="AiState.Thinking">
-          <DrylToolCall ToolName="get_weather" State="AiState.Thinking" … />
-          <DrylToolCall ToolName="list_cities" State="AiState.Generated" … />
+                         Ai="AiState.Thinking">
+          <DrylToolCall ToolName="get_weather" Ai="AiState.Thinking" … />
+          <DrylToolCall ToolName="list_cities" Ai="AiState.Generated" … />
           …
       </DrylToolCallGroup>
     ───────────────────────────────────────────────────────── *@
@@ -38,7 +38,7 @@
         <span class="tool-group-icon"><DrylIcon Name="Wrench" Size="14" /></span>
         <span class="@LabelCss">@LabelText</span>
         <span class="tool-group-status">
-            <DrylAiIndicator State="@State">@StatusLabel</DrylAiIndicator>
+            <DrylAiIndicator State="@Ai">@StatusLabel</DrylAiIndicator>
         </span>
         <span class="tool-group-chevron @(_expanded ? "tool-group-chevron--open" : null)">
             <DrylIcon Name="ChevronDown" Size="16" />
@@ -65,7 +65,7 @@
     [Parameter] public int Count { get; set; }
 
     /// <summary>
-    /// Name of the tool currently running. When set (and <see cref="State"/> is active) the
+    /// Name of the tool currently running. When set (and <see cref="Ai"/> is active) the
     /// collapsed row tickers this name instead of the count. Leave null when nothing is running.
     /// </summary>
     [Parameter] public string? ActiveLabel { get; set; }
@@ -74,7 +74,15 @@
     /// Overall group state, mapped to the shared AI vocabulary: <c>Thinking</c>/<c>Streaming</c>
     /// while a call is running (the row breathes), <c>None</c> once every call has settled.
     /// </summary>
-    [Parameter] public AiState State { get; set; } = AiState.None;
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Obsolete alias for <see cref="Ai"/>, kept so the rename is not a break.
+    /// Setting it is equivalent to setting <see cref="Ai"/>; setting both on one
+    /// component is not supported, because the markup order would decide.
+    /// </summary>
+    [Obsolete("Renamed to Ai (AI-03). The State alias is removed in 3.0.0.")]
+    [Parameter] public AiState State { get => Ai; set => Ai = value; }
 
     /// <summary>When true a tool has failed; the group auto-expands so the error is not missed.</summary>
     [Parameter] public bool HasError { get; set; }
@@ -113,7 +121,7 @@
     private int _genTick;
     private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
 
-    private bool Active => State is AiState.Thinking or AiState.Streaming;
+    private bool Active => Ai is AiState.Thinking or AiState.Streaming;
 
     protected override void OnParametersSet()
     {
@@ -127,9 +135,9 @@
         if (HasError && !_prevHasError) _expanded = true;
         _prevHasError = HasError;
 
-        if (State == AiState.Generated && _prevState != AiState.Generated) _genTick++;
-        _prevState = State;
-        _aura.Sync(State, () => InvokeAsync(StateHasChanged));
+        if (Ai == AiState.Generated && _prevState != AiState.Generated) _genTick++;
+        _prevState = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
 
     public void Dispose() => _aura.Dispose();
@@ -148,7 +156,7 @@
             : "tool-group-label";
 
     private string StatusLabel =>
-        Active ? (State == AiState.Streaming ? "Streaming" : "Running")
+        Active ? (Ai == AiState.Streaming ? "Streaming" : "Running")
         : HasError ? "Error"
         : "Done";
 
