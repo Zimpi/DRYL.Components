@@ -60,7 +60,7 @@ trailing edge; `Size` matches `DrylButton`'s own default of `Medium`.
 
 | Member | Type | Default | Purpose |
 |---|---|---|---|
-| `ChildContent` | `RenderFragment?` | `null` | The main button's label. |
+| `ChildContent` | `RenderFragment?` | `null` | The main button's label. Must be written as an explicit `<ChildContent>` element whenever `<MenuItems>` is also given. |
 | `MenuItems` | `RenderFragment?` | `null` | The dropdown's contents — intended to hold `DrylMenuItem` components. |
 | `Variant` | `DrylButton.ButtonVariant` | `ButtonVariant.Secondary` | Visual style of **both** segments. |
 | `Size` | `DrylButton.ButtonSize` | `ButtonSize.Medium` | Size of **both** segments. |
@@ -86,6 +86,15 @@ of its own.
 The component exposes no `Aura` parameter, no `AriaLabel` for the main button,
 no `IsSubmit`, no `TrailingIcon`, no `Pressed`, and no parameter for the caret's
 icon.
+
+`MenuItems` is a **named** `RenderFragment`, which changes how the main label is
+written: a split button with no menu items may put its label directly between
+the tags, but as soon as a `<MenuItems>` element appears, Razor requires every
+piece of content to sit in a named fragment, so the label has to be wrapped in
+`<ChildContent>` as well. That is the shape every instance in
+`DRYL.Website/Components/Examples/ButtonGroup/Split.razor` uses, and the shape a
+consumer will almost always need — the mixed form is a compile error, not a
+runtime surprise.
 
 ## Acceptance Criteria
 
@@ -121,6 +130,22 @@ icon.
   `MenuLabel` is `null`.
 - The component adds no key handling of its own, on either segment or on its
   wrapper.
+
+  A few criteria below — the panel's `menu` role, focus moving into the panel on
+  open, the arrow-key and `Tab` behaviour inside it — describe surface this
+  component does not own. They are kept here rather than demoted to prose because
+  `SPEC-05` binds every component spec to evidence its keyboard and a11y
+  behaviour, and for a component that is pure composition the only keyboard
+  behaviour a consumer can observe *is* the composed behaviour: a spec that
+  documented only the parts `DrylSplitButton` writes itself would evidence almost
+  nothing. They also carry the half that genuinely is this component's — that the
+  focus restored on `Escape` and on item choice lands on **the caret** — which
+  cannot be stated without them, since it follows from
+  `dryl.menu.focusTrigger`'s `.popover-trigger button:not([disabled])` selector
+  finding the caret and nothing else inside the anchor. That is the "materially
+  unavoidable" case `SPEC-06`'s Independent letter allows; the authority for each
+  of them is `DrylMenu`'s and `DrylPopover`'s specs, and a change there overrides
+  this file.
 
 ### The structural dependency on `DrylMenu`'s markup
 
@@ -165,8 +190,12 @@ icon.
 - `Disabled` defaults to `false`.
 - `Disabled` is applied to the main button.
 - `Disabled` is applied to the caret button.
-- A disabled caret cannot open the menu, because the disabled segment is a
-  native `button` whose activation the browser suppresses.
+- A disabled caret cannot open the menu: the menu's toggle listens on the
+  trigger wrapper around the caret rather than on the caret itself, and a
+  disabled native `button` dispatches no click for that wrapper to receive.
+- The trigger wrapper offers no clickable area of its own beside the caret,
+  because it shrink-wraps its content, so a disabled caret leaves no gap through
+  which the menu could still be opened.
 - `Loading` defaults to `false`.
 - `Loading` is applied to the main button only.
 - The main button therefore shows a spinner in place of its leading icon and
@@ -243,6 +272,8 @@ icon.
   renders a main button that has no visible label, no accessible name and none
   of the icon-only sizing.
 - Opening the menu moves focus into the panel, onto its first item.
+- Opening a panel that has no items moves focus onto the panel element itself,
+  so focus is never left behind on the caret while the panel is open.
 - `Escape` inside the open panel closes the menu and returns focus to the caret.
 - Choosing a menu item closes the menu and returns focus to the caret.
 - `Tab` inside the open panel closes the menu and does **not** return focus to
@@ -262,6 +293,16 @@ icon.
 
   Second, the key handler lives on the panel. `Escape` therefore only closes the
   menu while focus is inside it — which it is, because opening moves focus there.
+
+  Third, the two missing attributes are a gap against the library's own practice
+  rather than a neutral choice. No numbered rule mandates `aria-haspopup` or
+  `aria-expanded`, which is why they are not counted in this spec's `State`, but
+  every other trigger of this shape in the library emits both: `DrylSelect` and
+  `DrylMultiSelect` with `aria-haspopup="listbox"`, and `DrylDatePicker`,
+  `DrylTimePicker` and `DrylNotifications` with `aria-haspopup="dialog"`, each
+  paired with an `aria-expanded` tracking its own open state. The caret emits
+  neither, so a screen-reader user meets it as an ordinary button and is never
+  told the menu is open.
 
 ### `UX-05` and the caret
 
@@ -315,11 +356,22 @@ icon.
   aura layers inherit their host's radius: the ring squares off where the caret
   joins it.
 - A resting AI-aware main button's outward halo is overlapped on its trailing
-  side by the caret's anchor, which is a positioned element while the resting
-  main button is not.
+  side by the caret's anchor, because the two segments overlap and paint in
+  document order while the halo spreads outside its own segment.
 - That occlusion is lifted while the main button is hovered or focus-visible,
   since those are exactly the two states the split-button rules raise — a resting
   AI state is not among them.
+
+  The occlusion is worth spelling out, because "positioned versus not" is the
+  wrong reading and the neighbouring `.btn` rules invite it. Both segments are
+  positioned: `.btn` itself declares `position: relative` (and `isolation: isolate`,
+  which the shared stylesheet's own comment beside the AI-on-buttons block
+  explains — the button carries no `overflow: hidden`, so the aura's default
+  sizing traces its rounded box and glows outside it untouched), and
+  `.popover-anchor` declares `position: relative` too. Neither declares a
+  `z-index`, so both sit at `auto` and paint in document order — and the caret's
+  anchor is the later sibling. That is the same mechanism `DrylButtonGroup`
+  records for a middle segment's halo.
 
 ### Motion
 
@@ -450,9 +502,11 @@ icon.
 
 ## Deviations (`State: Modified`)
 
-The spec is newly written and the code does not meet three of its criteria. They
-are listed here so the state is checkable rather than asserted; none is fixed in
-this commit.
+The spec is newly written and the code does not meet **two** of its criteria.
+They are listed here so the state is checkable rather than asserted; neither is
+fixed in this commit. Four further findings are recorded below them as design
+gaps: each breaks a criterion of no spec and a rule of no number, or belongs to
+another component's spec, so none of them is what `State` rests on.
 
 1. **`UX-05` — the caret has no tooltip.** The component renders an icon-only
    button and no `DrylTooltip` anywhere. `UX-05` is binding and admits no
@@ -475,17 +529,34 @@ this commit.
    maintainer — forward the resolved state to both segments, or pin the caret to
    `AiState.None` so it is never lit by a scope — and is not made here.
 
-3. **No `Aura`, and no scope resolution of its own.** Because `Ai` is a plain
-   parameter rather than `DrylAiAware`'s, the component has neither the `Aura`
-   parameter nor `EffectiveAi`. A consumer can pin the aura variant on every
-   other AI-aware component in the library but not on this one. This is a gap
-   against the library's own pattern rather than against a numbered rule —
-   `AI-03` binds the `Ai` parameter's name and default, both of which are correct
-   — and it is recorded as the third deviation because closing (2) properly means
-   deciding it at the same time.
+### Recorded design gaps — not deviations
 
-One further finding is recorded rather than counted as a deviation of this spec,
-because the code that would change is not this component's: the menu panel's
-conditional mount in `DrylPopover` is not wrapped in `DrylPresence`
-(`DESIGN-12`), so the panel a split button opens animates in but not out. It
-belongs to `DrylPopover`'s spec.
+- **No `Aura`, and no scope resolution of its own.** Because `Ai` is a plain
+  parameter rather than `DrylAiAware`'s, the component has neither the `Aura`
+  parameter nor `EffectiveAi`. A consumer can pin the aura variant on every other
+  AI-aware component in the library but not on this one. **No criterion above
+  fails on it** — the criterion on the subject describes exactly this and is met —
+  and no numbered rule is breached: `AI-03` binds only the `Ai` parameter's name
+  and default, both of which are correct, and `AI-05` only whether the parameter
+  exists at all. It is recorded here because closing deviation 2 properly means
+  deciding this at the same time, not because it moves `State`.
+- **No `aria-haspopup` and no `aria-expanded` on the caret.** No numbered rule
+  mandates either, so this stays out of `State` — but it is a
+  library-consistency gap rather than a neutral choice: `DrylSelect` and
+  `DrylMultiSelect` emit `aria-haspopup="listbox"` with a live `aria-expanded`,
+  and `DrylDatePicker`, `DrylTimePicker` and `DrylNotifications` emit
+  `aria-haspopup="dialog"` with one. The caret is the same shape of trigger and
+  emits neither, so a screen-reader user is told the split button's second
+  segment is an ordinary button and is never told the menu is open.
+- **The menu panel's conditional mount is not wrapped in `DrylPresence`**
+  (`DESIGN-12`), so the panel a split button opens animates in but not out. The
+  code that would change is not this component's — it is `DrylPopover`'s `@if` —
+  so it belongs to `DrylPopover`'s spec and is recorded here only because it is
+  visible through this component.
+- **The component's own usage comment shows a form that does not compile.** The
+  Razor comment at the top of `DrylSplitButton.razor` writes a bare `Save` label
+  followed by a `<MenuItems>` element; because `MenuItems` is a named
+  `RenderFragment`, the label has to be wrapped in `<ChildContent>` as soon as
+  `<MenuItems>` appears — which is what all three instances in
+  `DRYL.Website/Components/Examples/ButtonGroup/Split.razor` do. Documented as a
+  comment defect, not fixed here (this spec changes no code).
