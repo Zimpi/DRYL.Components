@@ -105,12 +105,12 @@ Status: **binding** | Enforced: **review**
 AI activity changes are announced via `aria-live="polite"`. The precedent is
 `DrylAiIndicator` — mirror it when building new AI-aware feedback.
 
-Check: `code/DRYL.Components/Components/AI/DrylAiIndicator.razor` carries
-`aria-live="polite"` on its status element (confirmed: line 18, with a
-supporting doc comment on line 13 — `Sets aria-live="polite" so state changes
-are announced to assistive tech.`). New AI-aware feedback components are
-reviewed against this precedent (reviewer check; no automated scan
-documented yet).
+Check: in `code/DRYL.Components/Components/AI/DrylAiIndicator.razor`, the root
+`<span>` that carries `role="status"` also carries `aria-live="polite"`, and
+the component's header comment states the intent — `Sets aria-live="polite" so
+state changes are announced to assistive tech.` New AI-aware feedback
+components are reviewed against this precedent (reviewer check; no automated
+scan documented yet).
 
 ### UX-05 — Icon-only buttons always have a tooltip and a matching `aria-label`
 
