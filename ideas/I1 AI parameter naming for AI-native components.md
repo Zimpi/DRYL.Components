@@ -61,6 +61,17 @@ This is the test `I1` had already noted as plausible ("a component that has no
 meaningful appearance with AI absent"), without the category "AI-native" that, as this
 document argued, would grow by itself.
 
+> **Correction, 2026-08-11 (after implementation review).** The `AiState.None`
+> test above, and the claim in the table that `DrylAiIndicator` "renders nothing
+> at all" with `None`, are both wrong: the indicator renders an idle "AI" pill,
+> and every other component here renders its `ChildContent` regardless of the
+> parameter. All eight pass the test, so it separates nothing. The direction and
+> the three renames are unaffected — what carries them is the table's own
+> distinction, switch versus displayed value versus settle state versus broadcast
+> override. `AI-03` and `specs/E3 AI/_Api.md` now ask whether the parameter is a
+> **switch**. The original wording is left standing so the mistake stays visible;
+> see `## Decisions`.
+
 **Consequence:** five of the eight stop being violations because they are not opt-ins.
 Three are genuine violations and are renamed `State` → `Ai`.
 
@@ -108,9 +119,24 @@ Three are genuine violations and are renamed `State` → `Ai`.
 - 2026-08-11: **The binding test is `AiState.None`.** A component that still renders
   meaningfully with `None` has an opt-in and must name it `Ai`. One that renders nothing
   does not, and names its parameter for what it is.
-- 2026-08-11: **`DrylAiIndicator` keeps `State` and its `AiState.Active` default.** It
-  renders nothing with `None`; the parameter is the value it displays, not a switch.
-  Under the test it is not an `AI-03` case at all — no exemption is needed for it.
+  **Superseded the same day, after review:** the test decides nothing, because
+  *every* `AiState` parameter in the library passes it. `DrylAiIndicator` renders
+  its idle pill with `None`; `DrylAiStream`, `DrylAiScope`, `DrylAiGenerate` and
+  `DrylAiBuild` all render their `ChildContent` regardless of the parameter. What
+  actually separates the cases is the distinction this document's own table
+  already drew — switch versus displayed value versus settle state versus
+  broadcast override — so `AI-03` now asks: **is the parameter a switch that
+  turns AI styling on for a component that would otherwise render as an ordinary
+  one?** The three renames are unaffected; only the reason changes.
+- 2026-08-11: **`DrylAiIndicator` keeps `State` and its `AiState.Active` default.** The
+  parameter is the value it displays, not a switch. Under the test it is not an
+  `AI-03` case at all — no exemption is needed for it.
+  **Correction, same day:** the reason given here — "it renders nothing with
+  `None`" — is factually wrong, and it was wrong in this document before it was
+  ever implemented. `DrylAiIndicator.razor` has no state guard: with
+  `AiState.None` it renders a visible pill with the sparkle icon and the label
+  "AI". The conclusion stands, the stated reason does not. See the correction
+  entry below.
 - 2026-08-11: **The three renames are staged, not immediate.** `Ai` is added and `State`
   becomes an `[Obsolete]` delegating alias — MINOR now, removal in the next planned
   `3.0.0`. A sole MAJOR spent on three parameter names is not worth forcing every
@@ -133,6 +159,14 @@ Three are genuine violations and are renamed `State` → `Ai`.
   accent under `DESIGN-08`, and `DrylAiCanvas` adds an aura on its own frame.
   Recorded in `specs/E3 AI/F3 DrylCanvas/S2 AI states.md` so it reads as a
   decision rather than an omission.
+- 2026-08-11: **The `AiState.None` test was wrong and was replaced.** Found by an
+  independent review of the implementation, not during the idea dialogue: the
+  premise in this document's `## Solution Idea` — "`DrylAiIndicator` … renders
+  nothing at all with `None`" — was never checked against
+  `DrylAiIndicator.razor`, and the implementer carried it into `AI-03` unchecked.
+  Both the rule and this document now carry the switch test instead. The lesson
+  is the cheap one: a claim about what a component renders is checkable in
+  thirty seconds, and neither the idea dialogue nor the implementation checked it.
 - 2026-08-11: **A `DESIGN-12` violation surfaced while writing `F1` and was fixed
   in the same commit.** `DrylToolCall`'s collapsible body sat behind a bare `@if`
   and appeared with no transition. `SPEC-05` requires enter/exit animation to be

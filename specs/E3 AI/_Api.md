@@ -15,16 +15,22 @@ settled it. The remaining shared types are filled in during phase C.*
 
 ## The `AiState` parameter contract
 
-Every component in this category takes an `AiState` parameter, but they are not
-all the same kind of parameter. `AI-03` in
+Five of this category's eight components take an `AiState` parameter, and they
+are not all the same kind of parameter. `AI-03` in
 [`../../harness/ai.md`](../../harness/ai.md) governs one of them: the **opt-in**,
 the parameter that turns AI styling on for a component that would otherwise
-render normally. The test is a property of the component:
+render normally. The test asks what the parameter is:
 
-> Does the component still render something meaningful with `AiState.None`?
-> **Yes** → the parameter is an opt-in: named `Ai`, defaulting to `AiState.None`.
-> **No** → the value is the component's content or its control input: it carries
-> its own descriptive name and its own default.
+> Is it a switch that turns AI styling on for a component that would otherwise
+> render as an ordinary one?
+> **Yes** → an opt-in: named `Ai`, defaulting to `AiState.None`.
+> **No** → the value is the component's own content, its settle state, or a
+> broadcast override: it carries its own descriptive name and its own default.
+
+`DrylAuraElements` and `DrylCanvasWorkspace` take no `AiState` parameter at all.
+`DrylAuraElements` renders the aura layers for a host that has already resolved
+its state, driven by an `AuraLifecycle`; `DrylCanvasWorkspace` renders a plain
+`DrylCanvas` and leaves AI to whatever wraps it.
 
 ### `Ai`
 
@@ -37,7 +43,7 @@ than something they are.
 
 ### `State` — obsolete alias
 
-`[Obsolete] [Parameter] public AiState State { get; set; }`
+`[Obsolete] [Parameter] public AiState State { get => Ai; set => Ai = value; }`
 
 On those same three components only, `State` remains as a delegating alias for
 `Ai`. It exists so the rename is not a break: setting it is equivalent to setting
@@ -50,18 +56,20 @@ The alias is removed in the next planned `3.0.0` (`REL-01` in
 
 ### The non-opt-ins of this category
 
-These are not `AI-03` cases. Each renders nothing meaningful with `AiState.None`,
-so each names its parameter for what it is:
+These are not `AI-03` cases. None of them is a switch, so each names its
+parameter for what it is:
 
 | Component | Parameter | What it is |
 |---|---|---|
-| `DrylAiIndicator` | `AiState State`, default `AiState.Active` | The value the pill displays. With `None` the component renders nothing at all, so `None` is not an "off" default — it is an empty component. |
-| `DrylAiStream` | `AiState SettleTo`, default `AiState.None` | The state to settle to *after* the `AiState.Generated` reveal. The live state comes from the stream itself, so this is not a switch. |
-| `DrylAiScope` | `AiState? State`, no default | A broadcast override. `null` means "follow `IDrylAiActivityService`"; `AiState.None` means "actively force AI off". A default of `AiState.None` would collapse the two and break the component. |
+| `DrylAiIndicator` | `AiState State`, default `AiState.Active` | The parameter **is** the component's content: the pill exists to display an AI state, and `State` selects which one — including the idle "AI" label it shows for `None`. Not a switch, so `None` would not mean "off"; it would mean "display idle". |
+| `DrylAiStream` | `AiState SettleTo`, default `AiState.None` | The state to settle to *after* the `AiState.Generated` reveal. The live state comes from the stream itself, so this parameter never turns anything on — it says where to land. |
+| `DrylAiScope` | `AiState? State`, no default | A broadcast override for descendants rather than styling for itself. `null` means "follow `IDrylAiActivityService`"; `AiState.None` means "actively force AI off". A default of `AiState.None` would collapse the two and break the component. |
 
-`DrylAuraElements` takes no `AiState` parameter: it renders the aura layers for a
-host component that has already resolved the state, and is driven by an
-`AuraLifecycle` instead.
+`AI-03` names five legitimate non-opt-ins where this table names three. The two
+missing ones — `DrylAiGenerate` and `DrylAiBuild`, both carrying `SettleTo` for
+the same reason as `DrylAiStream` — live under
+`code/DRYL.Components.Agents/Generation/` and therefore belong to `E15 Agent
+Inputs`, not to this category.
 
 ## Aura resolution
 

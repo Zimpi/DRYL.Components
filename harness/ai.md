@@ -68,22 +68,32 @@ ordinary component — is always named `Ai` (of type `AiState`) and defaults to
 `AiState.None`. AI mode must be **off by default** so existing consumers see
 no change.
 
-Not every `AiState` parameter is an opt-in. The binding test is a property of
-the component, readable from its code, not a category a component claims for
-itself:
+Not every `AiState` parameter is an opt-in. The binding test asks what the
+parameter *is*, and is answered by reading the component — not by the category
+a component claims for itself:
 
-> **Does the component still render something meaningful with `AiState.None`?**
-> **Yes** → the parameter is an opt-in. It is named `Ai` and defaults to
-> `AiState.None`.
-> **No** → the value is the component's content or its control input. It
-> carries its own descriptive name, and its default is that component's
-> decision.
+> **Is the parameter a switch that turns AI styling on for a component that
+> would otherwise render as an ordinary one?**
+> **Yes** → it is an opt-in. It is named `Ai` and defaults to `AiState.None`.
+> **No** → the value is the component's own content, its settle state, or a
+> broadcast override. It carries its own descriptive name, and its default is
+> that component's decision.
 
-Where the parameter is not an opt-in, this rule was never about it. That is a
+Where the parameter is not a switch, this rule was never about it. That is a
 narrowing of the rule's subject, **not** an exemption for a category of
-component: "AI-native" is self-declared and would grow by itself, while the
-`AiState.None` test is checkable by reading the component. The reasoning is in
+component: "AI-native" is self-declared and would grow by itself, while "is
+this a switch" is answered from the component's own code. The reasoning is in
 `ideas/I1 AI parameter naming for AI-native components.md`.
+
+**On an earlier wording of this test.** From 2026-08-11 the test read "does the
+component still render something meaningful with `AiState.None`?", taken from
+`I1`. It was replaced the same day because it decides nothing: *all* eight
+`AiState` parameters in the library answer yes. `DrylAiIndicator` renders an
+idle "AI" pill with `None`, and `DrylAiStream`, `DrylAiScope`, `DrylAiGenerate`
+and `DrylAiBuild` all render their `ChildContent` regardless of the parameter.
+`I1` had asserted the opposite about `DrylAiIndicator` and it went unchecked.
+The conclusions did not change — the three renames were right — but the reason
+given for them was not the one that actually separates the cases.
 
 Check: `grep -rn '\[Parameter\] public AiState' code/DRYL.Components code/DRYL.Components.Agents`
 — currently **47 hits and no violations**. The grep half establishes the naming and the default;
@@ -91,26 +101,30 @@ Check: `grep -rn '\[Parameter\] public AiState' code/DRYL.Components code/DRYL.C
 here explicitly, the way `CODE-01` names its own. A named list is verifiable;
 a category is not.
 
-**Five legitimate non-opt-ins** — each renders nothing meaningful with
-`AiState.None`, so each keeps its own name and default:
+**Five legitimate non-opt-ins** — none of them is a switch, so each keeps its
+own name and default:
 
-- `DrylAiIndicator.razor` (`State`, default `AiState.Active`) — the value the
-  pill displays, not a switch. With `None` it renders nothing at all.
+- `DrylAiIndicator.razor` (`State`, default `AiState.Active`) — the parameter
+  **is the component's content**: the pill's whole job is to display an AI
+  state, and `State` selects which one, down to the idle "AI" label it shows
+  for `None`. Renaming it `Ai` and defaulting it to `None` would say "AI
+  styling off" about a component that is nothing but that display.
 - `DrylAiStream.razor`, `DrylAiGenerate.razor`, `DrylAiBuild.razor`
-  (`SettleTo`, default `AiState.None`) — not a switch: the state to settle to
-  *after* the `AiState.Generated` reveal. The live state comes from the stream
-  itself.
-- `DrylAiScope.razor` (`AiState? State`, no default) — a broadcast override.
-  `null` means "follow `IDrylAiActivityService`", `None` means "actively force
-  AI off"; they are two different things, and a default of `AiState.None`
-  would break the component.
+  (`SettleTo`, default `AiState.None`) — the state to settle to *after* the
+  `AiState.Generated` reveal. The live state comes from the stream itself, so
+  this parameter never turns anything on; it says where to land.
+- `DrylAiScope.razor` (`AiState? State`, no default) — a broadcast override for
+  descendants rather than styling for itself. `null` means "follow
+  `IDrylAiActivityService`", `None` means "actively force AI off"; they are two
+  different things, and a default of `AiState.None` would collapse them.
 
 **Three obsolete aliases, not violations** — `DrylToolCall.razor`,
 `DrylToolCallGroup.razor` and `DrylCanvas.razor` were the rule's three genuine
-violations and were renamed on 2026-08-11. Each renders its own content with
-`AiState.None` — the tool-call card, the group summary, the artifact tree — so
-each parameter is an opt-in and is now called `Ai`. The rename is staged rather
-than immediate: `State` remains as an `[Obsolete]` property delegating to `Ai`
+violations and were renamed on 2026-08-11. Each is an ordinary component with a
+switch bolted on: a card, a summary row and an artifact tree that render
+identically without AI, and whose parameter only adds the aura, the status
+vocabulary or the build line. Each is therefore an opt-in and is now called
+`Ai`. The rename is staged rather than immediate: `State` remains as an `[Obsolete]` property delegating to `Ai`
 until the next planned `3.0.0` (`REL-01` in [`releasing.md`](releasing.md)), so
 the grep still finds three `State` declarations. A Razor call site that sets one
 compiles with `CS0618` naming the replacement.
@@ -120,10 +134,11 @@ The remaining hits — the opt-in pattern on ordinary components, e.g.
 three renamed components' specs are `specs/E3 AI/F1 DrylToolCall.md`,
 `F2 DrylToolCallGroup.md` and `F3 DrylCanvas/`.
 
-The review half: every **new** `AiState` parameter is read against the
-`AiState.None` test before merge. One that passes the test and is not named
-`Ai` blocks the merge; one that fails it is named for what it is, and the
-reason is stated in its spec.
+The review half: every **new** `AiState` parameter is read against the switch
+test before merge. One that is a switch and is not named `Ai` blocks the merge;
+one that is not a switch is named for what it is, and the reason is stated in
+its spec — in the same terms as the five above: content, settle state, or
+broadcast override.
 
 ### AI-04 — Never invent a new AI animation, color, gradient or duration
 
