@@ -327,6 +327,23 @@ runtime surprise.
 - The tooltip wrapper does **not** break the focus return to the caret, because
   `dryl.menu.focusTrigger` also finds the caret through a descendant selector
   below the popover's trigger element.
+- The tooltip wrapper does **not** break the caret's click, because the wrapper
+  is an ordinary `span` and the click bubbles from the caret through it to the
+  popover's trigger element, which is where the handler lives.
+- A **disabled** caret can still show its tooltip, because the text is carried
+  by the wrapper rather than by the button, and the library's script resolves a
+  hovered tooltip by walking up from the event's target.
+
+  That last one is a change in behaviour, small and unasked for, and it is
+  named rather than left to be discovered. A disabled native `button` dispatches
+  no pointer events of its own, but browsers differ in what they hand the
+  element underneath: where the event is retargeted to the parent, the wrapper
+  is hit and the bubble appears; where it is swallowed entirely, nothing
+  appears. So a disabled caret shows its tooltip in some browsers and not in
+  others — never worse than the previous state, in which no caret showed one at
+  all, and arguably better, since a control that explains itself while it is
+  unavailable is more useful than one that stays silent. It is recorded as
+  behaviour the component does not control rather than as a guarantee.
 
   This is where `DrylSplitButton` differs from `DrylButtonGroup`. In the group,
   every rule that produces the segmented look selects `> .btn`, so a
@@ -473,10 +490,11 @@ runtime surprise.
   visibility gate and removes the body in the same frame. That is a `DESIGN-12`
   gap in `DrylPopover`, recorded here because it is visible through this
   component and fixed in that one; it is not this component's `@if` to wrap.
-- **Keyboard and a11y** — the "Keyboard and accessibility" criteria above: two
-  native buttons, two tab stops, no arrow-key movement between them, an
-  `aria-label` on the caret from `MenuAriaLabel`, a `DrylTooltip` around the
-  caret carrying that same text (`UX-05`), one `aria-label` on the panel from
+- **Keyboard and a11y** — the "Keyboard and accessibility" criteria above, and
+  the "`UX-05` and the caret" criteria that follow them: two native buttons, two
+  tab stops, no arrow-key movement between them, an `aria-label` on the caret
+  from `MenuAriaLabel`, a `DrylTooltip` around the caret carrying that same text
+  (`UX-05`), one `aria-label` on the panel from
   `MenuLabel`, focus into the panel on open and back to the caret on `Escape` and
   on item choice — and the three things the control does **not** do: no
   `aria-haspopup`, no `aria-expanded`, and no accessible name for a main button
