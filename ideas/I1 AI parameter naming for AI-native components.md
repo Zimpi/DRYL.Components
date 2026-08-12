@@ -1,7 +1,9 @@
 # AI parameter naming for AI-native components
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** `specs/E3 AI/_Api.md`, `specs/E3 AI/F1 DrylToolCall.md`,
+  `specs/E3 AI/F2 DrylToolCallGroup.md`, `specs/E3 AI/F3 DrylCanvas/`
 
 ## Problem
 
@@ -113,6 +115,38 @@ Three are genuine violations and are renamed `State` → `Ai`.
   becomes an `[Obsolete]` delegating alias — MINOR now, removal in the next planned
   `3.0.0`. A sole MAJOR spent on three parameter names is not worth forcing every
   consumer to migrate at once, and the compiler warning carries the migration hint.
+
+- 2026-08-11: **The compiler warning this document promised was measured, not
+  assumed.** The Razor compiler passes component parameters to
+  `AddComponentParameter` as a string rather than as a property access, so
+  "consumers get a compiler warning" was an assumption. A throwaway `[Obsolete]`
+  on `DrylToolCall.State` produced `CS0618` at every Razor call site — inside the
+  component, in `DrylAgentToolCalls` and across `DRYL.Website`. One limitation:
+  the warning names the generated `*_razor.g.cs` file, not the `.razor` line, so
+  the message text names the replacement parameter itself.
+- 2026-08-11: **`DrylCanvasWorkspace` is not a call site.** The plan expected one;
+  it renders a plain `DrylCanvas` with no AI state at all. The only library call
+  sites were `DrylAgentToolCalls` (both tool-call components) and `DrylAiCanvas`.
+- 2026-08-11: **`DrylCanvas` carries no aura**, which this document had not
+  noticed: no `Aura` parameter, no `.ai-aura` classes. `Ai` drives the build line
+  and the waiting skeletons only. An artifact tree is too large a surface for the
+  accent under `DESIGN-08`, and `DrylAiCanvas` adds an aura on its own frame.
+  Recorded in `specs/E3 AI/F3 DrylCanvas/S2 AI states.md` so it reads as a
+  decision rather than an omission.
+- 2026-08-11: **A `DESIGN-12` violation surfaced while writing `F1` and was fixed
+  in the same commit.** `DrylToolCall`'s collapsible body sat behind a bare `@if`
+  and appeared with no transition. `SPEC-05` requires enter/exit animation to be
+  evidenced in the spec text and exempts only components with nothing to animate,
+  so it could not be written around. The body now uses the same
+  `grid-template-rows` disclosure as `DrylToolCallGroup`. Outside this idea's
+  scope, but not separable from delivering its spec.
+
+## Outcome
+
+Implemented 2026-08-11 over `docs/2026-08-11-i1-plan.md`, tasks 1–8.
+`DRYL.Components` `2.22.0`, `DRYL.Components.Agents` `0.17.4`. `AI-03` is
+`grep` + `review` and green at 47 hits with no violations; phase C stands at
+`3/127`.
 
 ## Open Points
 

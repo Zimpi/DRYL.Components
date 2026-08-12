@@ -86,7 +86,7 @@ component: "AI-native" is self-declared and would grow by itself, while the
 `ideas/I1 AI parameter naming for AI-native components.md`.
 
 Check: `grep -rn '\[Parameter\] public AiState' code/DRYL.Components code/DRYL.Components.Agents`
-— currently **44 hits**. The grep half establishes the naming and the default;
+— currently **47 hits and no violations**. The grep half establishes the naming and the default;
 "is this an opt-in" is not greppable, so the legitimate non-opt-ins are named
 here explicitly, the way `CODE-01` names its own. A named list is verifiable;
 a category is not.
@@ -105,15 +105,20 @@ a category is not.
   AI off"; they are two different things, and a default of `AiState.None`
   would break the component.
 
-**Three genuine violations**, being renamed `State` → `Ai` under `I1`:
-`DrylToolCall.razor`, `DrylToolCallGroup.razor`, `DrylCanvas.razor`. Each
-renders its own content with `AiState.None` — the tool-call card, the group
-summary, the artifact tree — so each parameter is an opt-in. The rename is
-staged: `Ai` is added, `State` stays as an `[Obsolete]` alias delegating to it
-until the next planned `3.0.0` (`REL-01` in
-[`releasing.md`](releasing.md)). The remaining hits — the opt-in pattern on
-ordinary components, e.g. `DrylInputText.razor`, `DrylTable.razor`,
-`DrylAlert.razor` — are clean.
+**Three obsolete aliases, not violations** — `DrylToolCall.razor`,
+`DrylToolCallGroup.razor` and `DrylCanvas.razor` were the rule's three genuine
+violations and were renamed on 2026-08-11. Each renders its own content with
+`AiState.None` — the tool-call card, the group summary, the artifact tree — so
+each parameter is an opt-in and is now called `Ai`. The rename is staged rather
+than immediate: `State` remains as an `[Obsolete]` property delegating to `Ai`
+until the next planned `3.0.0` (`REL-01` in [`releasing.md`](releasing.md)), so
+the grep still finds three `State` declarations. A Razor call site that sets one
+compiles with `CS0618` naming the replacement.
+
+The remaining hits — the opt-in pattern on ordinary components, e.g.
+`DrylInputText.razor`, `DrylTable.razor`, `DrylAlert.razor` — are clean. The
+three renamed components' specs are `specs/E3 AI/F1 DrylToolCall.md`,
+`F2 DrylToolCallGroup.md` and `F3 DrylCanvas/`.
 
 The review half: every **new** `AiState` parameter is read against the
 `AiState.None` test before merge. One that passes the test and is not named
