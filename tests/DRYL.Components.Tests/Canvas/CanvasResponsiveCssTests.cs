@@ -21,10 +21,10 @@ public class CanvasResponsiveCssTests
         throw new FileNotFoundException(string.Join('/', parts) + " not found from " + AppContext.BaseDirectory);
     }
 
-    private static string ReadDrylCss() => ReadCss("DRYL.Components", "wwwroot", "dryl.css");
+    private static string ReadDrylCss() => ReadCss("code", "DRYL.Components", "wwwroot", "dryl.css");
 
     private static string ReadCanvasCss() =>
-        ReadCss("DRYL.Components", "Components", "AI", "DrylCanvas.razor.css");
+        ReadCss("code", "DRYL.Components", "Components", "AI", "DrylCanvas.razor.css");
 
     [Fact]
     public void Donut_root_is_a_query_container()

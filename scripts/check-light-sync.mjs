@@ -1,7 +1,7 @@
 // Verifies the two LIGHT-TOKEN-SET copies in dryl.css are identical.
 import { readFileSync } from "node:fs";
 
-const css = readFileSync(new URL("../DRYL.Components/wwwroot/dryl.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../code/DRYL.Components/wwwroot/dryl.css", import.meta.url), "utf8");
 const blocks = [];
 const re = /LIGHT-TOKEN-SET — copy [12]\/2 \*\//g;
 let m;

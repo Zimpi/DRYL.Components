@@ -1,0 +1,176 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylToolCallGroup — collapses a run of agent tool calls into one
+    quiet, gently-pulsing summary row that expands to reveal every
+    individual DrylToolCall.
+
+    A long agent turn can fire many tools; stacking them all as full
+    cards reads as noise. Collapsed, the group shows a single line:
+    while a call is running it tickers the active tool name and breathes
+    the shared AI aura (Aurora — the calm variant, so it never shouts);
+    once the run settles it shows "N tool calls · Done" and goes still.
+    Expanding reveals the stacked cards passed as ChildContent.
+
+    The summary is driven by explicit, strongly-typed parameters (a
+    component can't introspect its ChildContent), so callers pass the
+    count, the active tool name and the overall AiState alongside the
+    cards. DrylAgentToolCalls derives all of these from a run.
+
+    Usage:
+      <DrylToolCallGroup Count="3" ActiveLabel="get_weather"
+                         Ai="AiState.Thinking">
+          <DrylToolCall ToolName="get_weather" Ai="AiState.Thinking" … />
+          <DrylToolCall ToolName="list_cities" Ai="AiState.Generated" … />
+          …
+      </DrylToolCallGroup>
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" @attributes="AdditionalAttributes">
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+
+    <button type="button"
+            class="tool-group-head"
+            aria-expanded="@(_expanded ? "true" : "false")"
+            aria-controls="@_bodyId"
+            @onclick="Toggle">
+        <span class="tool-group-icon"><DrylIcon Name="Wrench" Size="14" /></span>
+        <span class="@LabelCss">@LabelText</span>
+        <span class="tool-group-status">
+            <DrylAiIndicator State="@Ai">@StatusLabel</DrylAiIndicator>
+        </span>
+        <span class="tool-group-chevron @(_expanded ? "tool-group-chevron--open" : null)">
+            <DrylIcon Name="ChevronDown" Size="16" />
+        </span>
+    </button>
+
+    @* grid-template-rows 0fr → 1fr disclosure (same trick as DrylExpansion):
+       the body animates open without ever squeezing its content, and stays
+       in the DOM while collapsed so inner card state is preserved. *@
+    <div id="@_bodyId"
+         class="tool-group-body"
+         role="region"
+         inert="@(!_expanded)"
+         aria-hidden="@(_expanded ? null : "true")">
+        <div class="tool-group-body-inner">
+            <div class="tool-group-body-content">
+                @ChildContent
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>Total number of tool calls represented, shown once the run settles ("N tool calls").</summary>
+    [Parameter] public int Count { get; set; }
+
+    /// <summary>
+    /// Name of the tool currently running. When set (and <see cref="Ai"/> is active) the
+    /// collapsed row tickers this name instead of the count. Leave null when nothing is running.
+    /// </summary>
+    [Parameter] public string? ActiveLabel { get; set; }
+
+    /// <summary>
+    /// Overall group state, mapped to the shared AI vocabulary: <c>Thinking</c>/<c>Streaming</c>
+    /// while a call is running (the row breathes), <c>None</c> once every call has settled.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Obsolete alias for <see cref="Ai"/>, kept so the rename is not a break.
+    /// Setting it is equivalent to setting <see cref="Ai"/>; setting both on one
+    /// component is not supported, because the markup order would decide.
+    /// </summary>
+    [Obsolete("Renamed to Ai (AI-03). The State alias is removed in 3.0.0.")]
+    [Parameter] public AiState State { get => Ai; set => Ai = value; }
+
+    /// <summary>When true a tool has failed; the group auto-expands so the error is not missed.</summary>
+    [Parameter] public bool HasError { get; set; }
+
+    /// <summary>The individual <see cref="DrylToolCall"/> cards, revealed when the group is expanded.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Initial expanded state of the group. Default <c>false</c> (collapsed).</summary>
+    [Parameter] public bool DefaultExpanded { get; set; }
+
+    /// <summary>
+    /// AI aura variant for the ambient pulse. Leave <c>null</c> to inherit a surrounding
+    /// <c>DrylAiScope</c>, ultimately falling back to <see cref="AiAura.Aurora"/> — the calm
+    /// variant, chosen so a collapsed group stays discreet.
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Surrounding AI scope, if any (used only to resolve the aura variant).</summary>
+    [CascadingParameter] private DRYL.Components.Ai.AiScope? Scope { get; set; }
+
+    // Unlike most hosts we default to Aurora, not Comet: a group is a dense, secondary surface.
+    private AiAura EffectiveAura => Aura ?? Scope?.Aura ?? AiAura.Aurora;
+
+    /// <summary>Extra CSS class(es) merged onto the group's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly string _bodyId = $"dryl-tool-group-{Guid.NewGuid():N}";
+    private bool _expanded;
+    private bool _initialised;
+    private bool _prevHasError;
+    private AiState _prevState = AiState.None;
+    private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
+
+    private bool Active => Ai is AiState.Thinking or AiState.Streaming;
+
+    protected override void OnParametersSet()
+    {
+        if (!_initialised)
+        {
+            _expanded = DefaultExpanded;
+            _initialised = true;
+        }
+
+        // A tool failing must never be swallowed by the collapsed summary — reveal it once.
+        if (HasError && !_prevHasError) _expanded = true;
+        _prevHasError = HasError;
+
+        if (Ai == AiState.Generated && _prevState != AiState.Generated) _genTick++;
+        _prevState = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+    }
+
+    public void Dispose() => _aura.Dispose();
+
+    private void Toggle() => _expanded = !_expanded;
+
+    // Ticker while a call runs; the settled count otherwise (singular/plural).
+    private string LabelText =>
+        Active && !string.IsNullOrEmpty(ActiveLabel)
+            ? ActiveLabel!
+            : $"{Count} tool call{(Count == 1 ? "" : "s")}";
+
+    private string LabelCss =>
+        Active && !string.IsNullOrEmpty(ActiveLabel)
+            ? "tool-group-label tool-group-label--ticker"
+            : "tool-group-label";
+
+    private string StatusLabel =>
+        Active ? (Ai == AiState.Streaming ? "Streaming" : "Running")
+        : HasError ? "Error"
+        : "Done";
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "tool-group" };
+            if (_expanded) parts.Add("is-open");
+            if (HasError) parts.Add("tool-group--error");
+            DRYL.Components.Ai.AiAuraCss.Append(parts, _aura, EffectiveAura);
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+}

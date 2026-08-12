@@ -1,4 +1,7 @@
 {
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": false
+  },
   "permissions": {
     "allow": [
       "Read(//c/Users/janzi/Desktop/DRYL/**)",

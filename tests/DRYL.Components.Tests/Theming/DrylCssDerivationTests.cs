@@ -13,7 +13,7 @@ public class DrylCssDerivationTests
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            var candidate = Path.Combine(dir.FullName, "DRYL.Components", "wwwroot", "dryl.css");
+            var candidate = Path.Combine(dir.FullName, "code", "DRYL.Components", "wwwroot", "dryl.css");
             if (File.Exists(candidate)) return File.ReadAllText(candidate);
             dir = dir.Parent;
         }

@@ -9,7 +9,7 @@
 - [ ] New component
 - [ ] New parameter / feature on an existing component
 - [ ] Bug fix
-- [ ] Docs / samples only
+- [ ] Docs only
 - [ ] Refactor / internal (no public API change)
 
 ## Design-system checklist (see CLAUDE.md)

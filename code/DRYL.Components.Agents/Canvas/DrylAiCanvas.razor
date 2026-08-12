@@ -1,0 +1,222 @@
+@namespace DRYL.Components.Agents
+@using DRYL.Components.Ai
+@using DRYL.Components.Canvas
+@using DRYL.Components.Motion
+@inject IDrylViewTransition ViewTransition
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylAiCanvas — the AI-authored canvas: DrylCanvas plus a run.
+
+    The rendering itself lives in DrylCanvas (core). This component adds
+    everything that is specific to an AI being the artifact's author:
+
+      * the DrylCanvasRun subscription — spec, state, error, change stamps
+      * the AI aura that breathes with the run state and flashes on completion
+      * a DrylAiIndicator in the header doubling as a live element counter
+      * the aria-live announcements (building / updated / ready / failed)
+      * the view-transition morph when a second create_artifact replaces the
+        whole artifact — the old tree morphs into the new one instead of snapping
+      * forwarding the measured body width to the run, so the next generation is
+        authored for the space the artifact actually has
+
+    Usage:
+      <DrylAiCanvas Run="_canvasRun"
+                    OnInteraction="i => _chat.Send(i.ToPromptMessage())" />
+    ───────────────────────────────────────────────────────── *@
+
+<DrylCanvas Spec="Run?.Spec"
+            Ai="@(Run?.State ?? AiState.None)"
+            Error="@(Run?.Error?.Message)"
+            Announcement="@_announcement"
+            EmptyText="Ask the assistant to create one."
+            Epoch="@(Run?.ArtifactEpoch ?? 0)"
+            Pulse="Run?.Pulse"
+            OnInteraction="OnInteraction"
+            OnAction="OnAction"
+            OnPurge="HandlePurge"
+            Selection="Selection"
+            OnEdit="OnEdit"
+            OnWidthChanged="HandleWidth"
+            AllowExpand="AllowExpand"
+            Class="@RootCssClass"
+            @attributes="AdditionalAttributes">
+    <Overlay>
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+    </Overlay>
+    <HeaderTools>
+        <DrylAiIndicator State="@(Run?.State ?? AiState.None)">@StatusLabel</DrylAiIndicator>
+    </HeaderTools>
+</DrylCanvas>
+
+@code {
+    /// <summary>The canvas run to render. Rebinding to a different run resets the interactive form state.</summary>
+    [Parameter] public DrylCanvasRun? Run { get; set; }
+
+    /// <summary>Raised when the user triggers a button intent inside the artifact.
+    /// Send <c>interaction.ToPromptMessage()</c> as the next chat turn to route it to the AI.</summary>
+    [Parameter] public EventCallback<CanvasInteraction> OnInteraction { get; set; }
+
+    /// <summary>Raised after every completed action button in the artifact — successful or not.
+    /// The canvas has already applied the result (patch, refresh, toast, inline error) by then.</summary>
+    [Parameter] public EventCallback<CanvasActionOutcome> OnAction { get; set; }
+
+    /// <summary>Opt-in for direct manipulation — see <c>DrylCanvas.Selection</c>. Share the same
+    /// instance with <c>DrylCanvasDock</c> so the selected element travels into the next prompt.</summary>
+    [Parameter] public CanvasSelection? Selection { get; set; }
+
+    /// <summary>Raised after every completed direct manipulation — see <c>DrylCanvas.OnEdit</c>.</summary>
+    [Parameter] public EventCallback<CanvasEdit> OnEdit { get; set; }
+
+    /// <summary>
+    /// Whether the header offers an expand-to-fullscreen button. The expanded canvas is an
+    /// overlay, not a modal — it neither traps focus nor blocks the page, and <c>Escape</c>
+    /// collapses it. Set to <c>false</c> for canvases embedded in a surface that owns its own
+    /// layering (a dialog, a fixed side panel).
+    /// </summary>
+    [Parameter] public bool AllowExpand { get; set; } = true;
+
+    /// <summary>Extra CSS class(es) merged onto the canvas root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private DrylCanvasRun? _subscribed;
+    private int _lastWidth;     // last measured body width, replayed onto a newly bound run
+
+    private int _genTick;
+    private AiState _prevState = AiState.None;
+    private readonly AuraLifecycle _aura = new();
+    private string? _announcement;
+
+    // The CanvasSpec instance the DOM currently shows. A different instance arriving through
+    // OnChange means a whole new artifact replaced the old one — the one case that gets a
+    // view-transition morph (see HandleChange).
+    private CanvasSpec? _renderedSpec;
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_subscribed, Run))
+        {
+            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            _subscribed = Run;
+            if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+            // A run bound after the first measurement would otherwise stay width-blind until
+            // the next resize — replay what we already know onto it.
+            if (_lastWidth > 0) _subscribed?.ReportWidth(_lastWidth);
+        }
+
+        SyncRunState();
+        // A parameter-driven render is never a morph: whatever we are about to draw
+        // becomes the rendered spec.
+        _renderedSpec = Run?.Spec;
+    }
+
+    private void HandleWidth(int width)
+    {
+        _lastWidth = width;
+        Run?.ReportWidth(width);
+    }
+
+    private void HandlePurge(string id) => Run?.Purge(id);
+
+    private void SyncRunState()
+    {
+        var state = Run?.State ?? AiState.None;
+        if (state == AiState.Generated && _prevState != AiState.Generated) _genTick++;
+        _prevState = state;
+        _aura.Sync(state, () => InvokeAsync(StateHasChanged));
+        UpdateAnnouncement();
+    }
+
+    private void HandleChange() => InvokeAsync(async () =>
+    {
+        // The C# state has already moved on, but the DOM still shows the old tree — exactly
+        // the window document.startViewTransition needs. A brand-new CanvasSpec instance means
+        // a second create_artifact replaced the artifact wholesale; morph old into new instead
+        // of letting the old tree vanish untransitioned. The very first artifact has no "old"
+        // picture worth morphing, so it keeps the node-by-node reveal choreography.
+        // Except when the swap came from a view switch: DrylCanvasWorkspace owns that morph, and
+        // nesting two view transitions loses one of the mutations.
+        var switched = Run?.ConsumeSwapMorphSuppression() == true;
+        var swap = !switched && _renderedSpec is not null && !ReferenceEquals(_renderedSpec, Run?.Spec);
+
+        SyncRunState();
+
+        if (swap)
+        {
+            await ViewTransition.RunAsync(() =>
+            {
+                _renderedSpec = Run?.Spec;
+                StateHasChanged();
+            });
+            return;
+        }
+
+        _renderedSpec = Run?.Spec;
+        StateHasChanged();
+    });
+
+    // Keeps the aria-live region in step with the run so screen-reader users hear where
+    // the AI is at work without reading a label (rule 2.9).
+    private void UpdateAnnouncement()
+    {
+        if (Run is null) { _announcement = null; return; }
+
+        if (Run.Error is not null)
+        {
+            _announcement = "Artifact failed.";
+            return;
+        }
+
+        _announcement = Run.State switch
+        {
+            AiState.Streaming => "Building artifact…",
+            AiState.Generated when Run.Round > 1 =>
+                FormattableString.Invariant($"Artifact updated, {Run.ChangedIds.Count} changes."),
+            AiState.Generated => "Artifact ready.",
+            _ => _announcement,
+        };
+    }
+
+    // While building, the status pill doubles as a live element counter — the artifact
+    // visibly grows even in the moments no new node happens to be revealed.
+    private string StatusLabel => (Run?.State ?? AiState.None) switch
+    {
+        AiState.Streaming => BuildingLabel,
+        AiState.Thinking => "Working",
+        AiState.Generated => "Ready",
+        _ => "Idle",
+    };
+
+    private string BuildingLabel
+    {
+        get
+        {
+            var n = Run?.NodeCount ?? 0;
+            if (n == 0) return "Building";
+            return FormattableString.Invariant($"Building · {n} element{(n == 1 ? "" : "s")}");
+        }
+    }
+
+    // The whole surface is an AI aura host (the shared DrylToolCall idiom): an ai-aura
+    // ring/comet that breathes with the run state and flashes once on completion.
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "ai-canvas" };
+            AiAuraCss.Append(parts, _aura, AiAura.Comet);
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _aura.Dispose();
+    }
+}

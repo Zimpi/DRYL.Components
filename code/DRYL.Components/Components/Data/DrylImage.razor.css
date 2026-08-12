@@ -1,0 +1,130 @@
+﻿/* ── DrylImage ─────────────────────────────────────────────────
+   A responsive image frame. Two layout modes:
+     • --ratio   : the frame owns an aspect-ratio; the image fills it
+                   absolutely (object-fit) — no layout shift.
+     • --natural : the frame wraps the image's intrinsic height; while
+                   loading, the skeleton defines the box and the image
+                   sits behind it until it loads.
+   AI inner effects build only on tokens + the shared .ai-aura* family.
+   No overflow:hidden — children round to the frame so the .ai-aura-glow
+   can still breathe outside the box. */
+
+.img-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+    background: var(--glass-1);
+}
+
+/* Keep the rotating ring flush inside the frame (it isn't clipped). */
+.img-wrap .ai-aura-ring { inset: 0; }
+
+/* ─── Rounding (children inherit) ───────────────────────────── */
+.img-wrap--r-none { border-radius: 0; }
+.img-wrap--r-sm   { border-radius: var(--r-sm); }
+.img-wrap--r-md   { border-radius: var(--r-md); }
+.img-wrap--r-lg   { border-radius: var(--r-lg); }
+.img-wrap--r-full { border-radius: var(--r-pill); }
+
+.img-wrap--border { border: 1px solid var(--line); }
+.img-wrap--shadow { box-shadow: var(--shadow-sm); }
+
+/* ─── The image ─────────────────────────────────────────────── */
+.img-el {
+    display: block;
+    width: 100%;
+    border-radius: inherit;
+    background: var(--glass-1);
+    opacity: 0;
+    transition: opacity var(--dur-med) var(--ease-out);
+}
+.img-el.is-loaded { opacity: 1; }
+
+/* Ratio mode — frame has aspect-ratio (set inline); image fills it. */
+.img-wrap--ratio .img-el {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+}
+
+/* Natural mode — image flows once loaded; before that it sits behind
+   the in-flow skeleton so it contributes no extra height. */
+.img-wrap--natural .img-el { height: auto; }
+.img-wrap--natural .img-el:not(.is-loaded) {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+}
+
+/* ─── Skeleton overlay ──────────────────────────────────────── */
+.img-skel { z-index: 2; border-radius: inherit; }
+.img-wrap--ratio .img-skel { position: absolute; inset: 0; }
+.img-wrap--ratio .img-skel ::deep .skel-wrap,
+.img-wrap--ratio .img-skel ::deep .skel-rect { height: 100%; }
+.img-wrap--natural .img-skel { position: static; }
+
+/* ─── Error fallback ────────────────────────────────────────── */
+.img-fallback {
+    z-index: 2;
+    border-radius: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: var(--sp-6);
+    min-height: 120px;
+    background: var(--glass-1);
+    border: 1px dashed var(--line-strong);
+    color: var(--fg-dim);
+    text-align: center;
+}
+.img-wrap--ratio .img-fallback { position: absolute; inset: 0; }
+.img-fallback-text { font-size: 12.5px; color: var(--fg-muted); }
+
+/* ─── AI · Thinking — drifting violet→cyan cloud over the image ─ */
+.img--thinking::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 2;
+    background:
+        radial-gradient(60% 60% at 30% 30%, var(--accent-soft), transparent 70%),
+        radial-gradient(55% 55% at 75% 68%, color-mix(in srgb, var(--accent-b) 20%, transparent), transparent 70%);
+    background-size: 180% 180%, 165% 165%;
+    mix-blend-mode: screen;
+    animation: img-think 7s var(--ease-in-out) infinite alternate;
+}
+@keyframes img-think {
+    from { background-position: 0% 0%, 100% 100%; opacity: 0.7; }
+    to   { background-position: 100% 100%, 0% 0%; opacity: 1; }
+}
+
+/* ─── AI · Streaming — sharpen from blur ────────────────────── */
+.img-el--stream-auto {
+    animation: img-sharpen var(--img-blur-dur) var(--ease-out) forwards;
+}
+@keyframes img-sharpen {
+    from { filter: blur(12px); }
+    to   { filter: blur(0); }
+}
+/* Progress-driven: blur amount is set inline; just ease between values. */
+.img-el--stream-progress { transition: filter var(--dur-med) var(--ease-out); }
+
+/* ─── AI · Generated — one-shot scale-in reveal ─────────────── */
+.img--generated .img-el {
+    animation: img-reveal var(--dur-slow) var(--ease-out) both;
+}
+@keyframes img-reveal {
+    from { opacity: 0; transform: scale(1.03); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Reduced motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .img--thinking::after { animation: none; }
+    .img-el--stream-auto  { animation: none; filter: none; }
+    .img--generated .img-el { animation: none; }
+}

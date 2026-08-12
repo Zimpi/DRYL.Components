@@ -66,4 +66,20 @@ public class DrylExpansionTests : BunitContext
         Assert.False(fired);
         Assert.Equal("false", cut.Find("button.expansion-header").GetAttribute("aria-expanded"));
     }
+
+    [Fact]
+    public void Collapsed_body_is_inert_so_its_content_leaves_the_tab_order()
+    {
+        // The body animates on a grid track and therefore stays in the DOM while
+        // closed. inert keeps whatever it contains out of the tab order, which
+        // aria-hidden alone does not do (WCAG 4.1.2, UX-07).
+        var cut = Render<DrylExpansion>(ps => ps
+            .Add(p => p.Title, "Panel")
+            .AddChildContent("<button type=\"button\">inner</button>"));
+
+        var body = cut.Find(".expansion-body");
+        Assert.Equal("true", body.GetAttribute("aria-hidden"));
+        Assert.NotNull(body.GetAttribute("inert"));
+        Assert.NotEmpty(body.QuerySelectorAll("button"));
+    }
 }

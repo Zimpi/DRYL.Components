@@ -1,0 +1,622 @@
+@namespace DRYL.Components
+@using DRYL.Components.Ai
+@using DRYL.Components.Canvas
+@using DRYL.Components.Motion
+@using Microsoft.Extensions.Logging
+@inject IJSRuntime JS
+@inject IServiceProvider Services
+@inject IDrylViewTransition ViewTransition
+@implements IAsyncDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCanvas — renders a CanvasSpec as a live tree of curated DRYL components.
+
+    Deliberately dumb: a spec goes in, interactions come out. It knows nothing about
+    where the spec came from — code, a database, a saved document or an AI generation
+    (that last one is DrylAiCanvas, which wraps this component and adds the run,
+    the aura and the streaming choreography).
+
+    The header carries the artifact title, the consumer's HeaderTools slot, a refresh
+    button (only once the artifact actually has a data binding) and an
+    expand-to-fullscreen button; a visually-hidden aria-live region announces whatever
+    the host puts in Announcement. The body recursively renders the spec's root via
+    CanvasNodeView, which receives the shared CanvasContext as one IsFixed cascade.
+
+    Nodes may bind to registered host data sources ("data": { "source", "params",
+    "refresh" }); CanvasDataBinder resolves them, dedupes by source+params and refreshes
+    on interval, on a form field change, on Invalidate and on the refresh button.
+
+    Usage:
+      <DrylCanvas Spec="_spec" OnInteraction="HandleInteraction" />
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" style="@VtStyle" data-vt-depth="" tabindex="-1" popover="@PopoverMode"
+     @ref="_rootEl" @onkeydown="OnKeyDown" @attributes="AdditionalAttributes">
+    @Overlay
+
+    <div class="canvas-head">
+        <span class="canvas-title">@(Spec?.Title ?? "Artifact")</span>
+        <div class="canvas-head-tools">
+            @HeaderTools
+            @if (_binder?.HasBindings == true)
+            {
+                <DrylTooltip Text="@RefreshLabel">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="@RefreshLabel" Loading="_binder.Busy" OnClick="RefreshAsync">
+                        <DrylIcon Name="Refresh" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+            }
+            @if (AllowExpand)
+            {
+                <DrylTooltip Text="@ExpandLabel">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                                AriaLabel="@ExpandLabel" Pressed="_expanded" OnClick="ToggleExpandAsync">
+                        <DrylIcon Name="@(_expanded ? "Minimize" : "Maximize")" Size="14" />
+                    </DrylButton>
+                </DrylTooltip>
+            }
+        </div>
+    </div>
+
+    @*  Live build line — the canvas's heartbeat while an author (AI or data load) is at work.
+        Reuses the existing indeterminate DrylProgress (transform-only, reduced-motion aware)
+        rather than hand-rolling a bar; DrylPresence gives it an exit, not just an enter. *@
+    <DrylPresence Visible="IsBusy" Appear Transition="PresenceTransition.Fade" Speed="PresenceSpeed.Fast">
+        <div class="canvas-build" aria-hidden="true">
+            <DrylProgress Indeterminate Size="ProgressSize.Small" />
+        </div>
+    </DrylPresence>
+
+    <div class="canvas-live" aria-live="polite">@Announcement</div>
+
+    @*  A second region on purpose: a selection message must not overwrite what the AI just
+        announced, and vice versa. *@
+    <div class="canvas-live" aria-live="polite">@_selectionAnnouncement</div>
+
+    <div class="canvas-body" @ref="_bodyEl">
+        @if (Error is not null)
+        {
+            <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="Artifact failed">@Error</DrylAlert>
+        }
+        else if (Spec?.Root is { } root)
+        {
+            <CascadingValue Value="_ctx" IsFixed="true">
+                <CanvasNodeView Node="root" IsRoot="true" />
+            </CascadingValue>
+        }
+        else
+        {
+            <DrylEmptyState Title="No artifact yet">@EmptyText</DrylEmptyState>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The artifact to render. May be mutated in place by its owner (patches, streaming);
+    /// call <c>StateHasChanged</c> on the host when it changes.</summary>
+    [Parameter] public CanvasSpec? Spec { get; set; }
+
+    /// <summary>The canvas's AI state. <see cref="AiState.Streaming"/> / <see cref="AiState.Thinking"/>
+    /// show the build line and render not-yet-valid nodes as "waiting…" skeletons rather than as
+    /// finished-broken placeholders. Default: <see cref="AiState.None"/>.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Obsolete alias for <see cref="Ai"/>, kept so the rename is not a break.
+    /// Setting it is equivalent to setting <see cref="Ai"/>; setting both on one
+    /// component is not supported, because the markup order would decide.
+    /// </summary>
+    [Obsolete("Renamed to Ai (AI-03). The State alias is removed in 3.0.0.")]
+    [Parameter] public AiState State { get => Ai; set => Ai = value; }
+
+    /// <summary>A fatal error for the whole artifact — rendered as an alert instead of the tree.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>Text announced to assistive tech through the canvas's <c>aria-live</c> region.</summary>
+    [Parameter] public string? Announcement { get; set; }
+
+    /// <summary>Message shown when there is no artifact yet.</summary>
+    [Parameter] public string? EmptyText { get; set; } = "Nothing to show yet.";
+
+    /// <summary>Bump this to reset the interactive form state — a fresh artifact recycles field
+    /// names, and the previous artifact's user input must not leak into it.</summary>
+    [Parameter] public int Epoch { get; set; }
+
+    /// <summary>The change-pulse stamps to render. Supply the tracker a patch author already
+    /// stamps into (e.g. <c>DrylCanvasRun.Pulse</c>); otherwise the canvas owns its own, which the
+    /// data binder stamps on every refresh that actually changed a value.</summary>
+    [Parameter] public CanvasPulseTracker? Pulse { get; set; }
+
+    /// <summary>
+    /// Opt-in for direct manipulation: hand the canvas a selection and its nodes become pickable —
+    /// by click or keyboard, with a toolbar to prompt about the selected element, pin, duplicate,
+    /// remove or reorder it. Share the same instance with <c>DrylCanvasDock</c> and its context
+    /// chip carries the element into the next prompt. Without it nothing about the canvas changes.
+    /// </summary>
+    [Parameter] public CanvasSelection? Selection { get; set; }
+
+    /// <summary>Raised when the user triggers a button intent inside the artifact — and when a
+    /// registered action's result asked for it, carrying the ready-made chat turn in
+    /// <see cref="CanvasInteraction.Message"/>.</summary>
+    [Parameter] public EventCallback<CanvasInteraction> OnInteraction { get; set; }
+
+    /// <summary>Raised after every completed action button — successful or not. The canvas has
+    /// already applied the result (patch, refresh, toast, inline error) by then; this is for the
+    /// host's own logging or reactions.</summary>
+    [Parameter] public EventCallback<CanvasActionOutcome> OnAction { get; set; }
+
+    /// <summary>
+    /// Raised after every completed direct manipulation — pin, duplicate, remove, reorder. Bump
+    /// your workspace's <c>Revision</c> and set <c>RevisionLabel</c> from
+    /// <see cref="CanvasEdit.Label"/> to make the user's own change a version like an AI round.
+    /// </summary>
+    [Parameter] public EventCallback<CanvasEdit> OnEdit { get; set; }
+
+    /// <summary>Raised with a node id once its exit animation finished — the owner of the spec
+    /// drops it from the tree (see <c>DrylCanvasRun.Purge</c>).</summary>
+    [Parameter] public EventCallback<string> OnPurge { get; set; }
+
+    /// <summary>
+    /// Called with the measured usable body width in CSS px whenever it moves past a deadband.
+    /// An artifact author can then budget its layout for the space it really has.
+    /// <para>A plain delegate rather than an <c>EventCallback</c> on purpose: an EventCallback
+    /// bound to a component re-renders it, and dragging a window must never re-render the
+    /// artifact tree. Nothing on screen depends on this value.</para>
+    /// </summary>
+    [Parameter] public Action<int>? OnWidthChanged { get; set; }
+
+    /// <summary>
+    /// Whether the header offers an expand-to-fullscreen button. The expanded canvas is an
+    /// overlay, not a modal — it neither traps focus nor blocks the page, and <c>Escape</c>
+    /// collapses it. Set to <c>false</c> for canvases embedded in a surface that owns its own
+    /// layering (a dialog, a fixed side panel).
+    /// </summary>
+    [Parameter] public bool AllowExpand { get; set; } = true;
+
+    /// <summary>Extra controls in the header's tool row, left of refresh and expand.</summary>
+    [Parameter] public RenderFragment? HeaderTools { get; set; }
+
+    /// <summary>Absolutely-positioned decoration rendered as the first child of the canvas root
+    /// (e.g. an AI aura). Never part of the document flow.</summary>
+    [Parameter] public RenderFragment? Overlay { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the canvas root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // The body element — dryl.motion.autoFlip watches its [data-cid] children so
+    // artifact reflows (nodes appearing/reordering) glide instead of snapping.
+    private ElementReference _bodyEl;
+    private bool _flipAttached; // prerender guard — set only after a successful interop call
+
+    private const string WidthModulePath = "./_content/DRYL.Components/js/dryl-canvas.js";
+    private IJSObjectReference? _widthModule;
+    private DotNetObjectReference<DrylCanvas>? _selfRef;
+
+    private ElementReference _rootEl;
+    private bool _expanded;
+    private bool _expandedApplied;  // the top-layer state the DOM is actually in
+
+    private readonly CanvasContext _ctx = new();
+    private CanvasDataBinder? _binder;
+    private CanvasActionRunner? _runner;
+    private int _epoch;
+    private CanvasSpec? _boundSpec;
+
+    private CanvasSelection? _subscribedSelection;
+    private string? _selectionAnnouncement;
+    private bool _reorderAttached;
+
+    // Per-instance view-transition-name. Must be document-globally unique while in the DOM:
+    // a duplicate name voids the entire transition, so two canvases on one page each get
+    // their own counter value.
+    private static int _vtSeq;
+    private readonly string _vtName = FormattableString.Invariant($"dryl-canvas-{Interlocked.Increment(ref _vtSeq)}");
+
+    /// <summary>The shared per-canvas context — form state, pulse tracker and data binder.
+    /// Exposed so a wrapper (e.g. <c>DrylAiCanvas</c>) can read the live field values.</summary>
+    public CanvasContext Context => _ctx;
+
+    protected override void OnInitialized()
+    {
+        // Without a host that owns the spec (a plain DrylCanvas fed from code or a document),
+        // nobody would ever drop the node and it would linger as an invisible, Removing-flagged
+        // element. Purge it ourselves.
+        _ctx.Purge = id => OnPurge.HasDelegate ? OnPurge.InvokeAsync(id) : PurgeSelf(id);
+        // The binder is optional: without a registered source there is nothing to bind, and a
+        // host that never called AddDrylComponents must still be able to render a spec.
+        var data = Services.GetService(typeof(ICanvasDataService)) as ICanvasDataService;
+        if (data is { Descriptors.Count: > 0 })
+        {
+            _binder = new CanvasDataBinder(data, _ctx.Form, _ctx.Pulse,
+                Services.GetService(typeof(ILogger<CanvasDataBinder>)) as ILogger);
+            _binder.OnChanged += HandleBinderChanged;
+            _ctx.Binder = _binder;
+        }
+
+        // The canvas owns the spec, so it is the only place a patch may touch it.
+        _ctx.Patch = op => Spec is null ? $"op '{op.Op}': there is no artifact to patch." : ApplyOp(op);
+
+        // Direct manipulation: the canvas is the only place that sees the whole tree, so it is
+        // the only place that can turn "one step up" or "duplicate this" into a node.
+        _ctx.Navigate = Navigate;
+        _ctx.Command = (id, command) => RunCommandAsync(id, command);
+
+        // Actions are optional in exactly the way data sources are: without a registration a
+        // button falls back to its intent and nothing about today's behaviour changes.
+        var actions = Services.GetService(typeof(ICanvasActionService)) as ICanvasActionService;
+        if (actions is { Descriptors.Count: > 0 })
+        {
+            _runner = new CanvasActionRunner(actions, data, _ctx.Form, Services,
+                Services.GetService(typeof(ILogger<CanvasActionRunner>)) as ILogger)
+            {
+                Patch = op => _ctx.Patch(op),
+                Ask = i => OnInteraction.InvokeAsync(i),
+                Completed = o => OnAction.InvokeAsync(o),
+            };
+            _runner.OnChanged += HandleBinderChanged;
+            _ctx.Actions = _runner;
+        }
+    }
+
+    // An action result's ops go through the same patcher and the same pulse tracker as an AI
+    // setProps — one language for "something changed here", whoever changed it.
+    private string? ApplyOp(CanvasOp op)
+    {
+        var reason = CanvasPatcher.Apply(Spec!, op);
+        if (reason is null && op.Op == "setProps" && op.Id is not null) _ctx.Pulse.Stamp(op.Id);
+        return reason;
+    }
+
+    protected override void OnParametersSet()
+    {
+        _ctx.State = Ai;
+        _ctx.Intent = OnInteraction;
+        if (Pulse is not null && !ReferenceEquals(_ctx.Pulse, Pulse)) _ctx.Pulse = Pulse;
+
+        // A fresh artifact means a fresh form — wipe user input from the previous one so
+        // recycled field names show the new values. The CanvasFormState instance is kept
+        // (the cascade is IsFixed); Clear() empties it in place.
+        if (Epoch != _epoch)
+        {
+            _epoch = Epoch;
+            _ctx.Form.Clear();
+        }
+
+        if (!ReferenceEquals(_subscribedSelection, Selection))
+        {
+            if (_subscribedSelection is not null) _subscribedSelection.OnChange -= HandleSelectionChanged;
+            _subscribedSelection = Selection;
+            if (_subscribedSelection is not null) _subscribedSelection.OnChange += HandleSelectionChanged;
+            _ctx.Selection = Selection;
+        }
+
+        // The node that owns the tab stop while nothing is selected.
+        Selection?.SetFallback(Spec?.Root?.Children?.FirstOrDefault()?.Id);
+
+        // A different spec instance is a different artifact — nothing bound to the old one
+        // may keep loading or keep showing a stale value.
+        if (!ReferenceEquals(_boundSpec, Spec))
+        {
+            _boundSpec = Spec;
+            _binder?.Reset();
+            // …and a selection into the old artifact means nothing in the new one.
+            Selection?.Clear();
+        }
+    }
+
+    private void HandleSelectionChanged()
+    {
+        _selectionAnnouncement = Selection is { HasSelection: true, Label: { } label, Type: { } type }
+            ? $"Selected: {label}, {type}"
+            : "Selection cleared.";
+        InvokeAsync(StateHasChanged);
+    }
+
+    // Resolving a keyboard step needs the whole tree, which only this component has.
+    private bool Navigate(string fromId, CanvasNav direction)
+    {
+        if (Spec?.Root is not { } root || Selection is null) return false;
+
+        var node = CanvasTree.Find(root, fromId);
+        if (node is null) return false;
+
+        var target = direction switch
+        {
+            CanvasNav.FirstChild => node.Children?.FirstOrDefault(c => !c.Removing),
+            CanvasNav.Parent => CanvasTree.FindParent(root, fromId) is { } p && p.Id != root.Id ? p : null,
+            _ => Sibling(root, node, direction),
+        };
+
+        if (target is null) return false;
+        Selection.Select(target, focus: true);
+        return true;
+    }
+
+    // Every structural change is one CanvasOp through the one patcher — that is what makes the
+    // presence, FLIP and pulse layers animate a user edit exactly like an AI edit (A8).
+    private async Task RunCommandAsync(string id, CanvasNodeCommand command, int? targetIndex = null)
+    {
+        if (Spec?.Root is not { } root || Selection is null) return;
+        var node = CanvasTree.Find(root, id);
+        if (node is null) return;
+
+        var label = CanvasLabel.For(node);
+        var done = command switch
+        {
+            CanvasNodeCommand.TogglePin => TogglePin(node),
+            CanvasNodeCommand.Duplicate => Duplicate(root, node),
+            CanvasNodeCommand.Remove => Remove(node),
+            _ => Reorder(root, node, command == CanvasNodeCommand.MoveUp ? -1 : 1, targetIndex),
+        };
+        if (!done) return;
+
+        _selectionAnnouncement = command switch
+        {
+            CanvasNodeCommand.TogglePin => node.Locked ? $"{label} pinned." : $"{label} unpinned.",
+            CanvasNodeCommand.Duplicate => $"{label} duplicated.",
+            CanvasNodeCommand.Remove => $"{label} removed.",
+            _ => PositionAnnouncement(root, node, label),
+        };
+
+        StateHasChanged();
+        await OnEdit.InvokeAsync(new CanvasEdit(id, command, EditLabel(command, label)));
+    }
+
+    private static string EditLabel(CanvasNodeCommand command, string label) => command switch
+    {
+        CanvasNodeCommand.TogglePin => $"Pinned {label}",
+        CanvasNodeCommand.Duplicate => $"Duplicated {label}",
+        CanvasNodeCommand.Remove => $"Removed {label}",
+        _ => $"Moved {label}",
+    };
+
+    // The pin is metadata, not content: it never goes through the patcher and never pulses.
+    // The movement the user sees is the toolbar button changing state.
+    private bool TogglePin(CanvasNode node)
+    {
+        node.Locked = !node.Locked;
+        node.Version++;
+        Selection!.Select(node);
+        return true;
+    }
+
+    private bool Duplicate(CanvasNode root, CanvasNode node)
+    {
+        var parent = CanvasTree.FindParent(root, node.Id);
+        if (parent?.Children is null || node.Locked) return false;
+
+        var copy = CanvasNodeClone.Duplicate(node, CanvasTree.CollectIds(root));
+        var index = parent.Children.IndexOf(node) + 1;
+        if (_ctx.Patch!(new CanvasOp
+        {
+            Op = "insert", Parent = parent.Id, Index = index, Node = copy,
+        }) is not null) return false;
+
+        Selection!.Select(copy);
+        return true;
+    }
+
+    private bool Remove(CanvasNode node)
+    {
+        if (node.Locked) return false;
+        if (_ctx.Patch!(new CanvasOp { Op = "remove", Id = node.Id }) is not null) return false;
+
+        Selection!.Clear();
+        return true;
+    }
+
+    // One slot up or down among the siblings, or straight to targetIndex when a drop named one.
+    private bool Reorder(CanvasNode root, CanvasNode node, int delta, int? targetIndex = null)
+    {
+        var parent = CanvasTree.FindParent(root, node.Id);
+        if (parent?.Children is null || node.Locked || parent.Locked) return false;
+
+        var index = targetIndex ?? parent.Children.IndexOf(node) + delta;
+        if (index < 0 || index >= parent.Children.Count) return false;
+
+        return _ctx.Patch!(new CanvasOp
+        {
+            Op = "move", Id = node.Id, Parent = parent.Id, Index = index,
+        }) is null;
+    }
+
+    private static string PositionAnnouncement(CanvasNode root, CanvasNode node, string label)
+    {
+        var siblings = CanvasTree.FindParent(root, node.Id)?.Children;
+        if (siblings is null) return $"{label} moved.";
+        return FormattableString.Invariant(
+            $"{label} moved to position {siblings.IndexOf(node) + 1} of {siblings.Count}.");
+    }
+
+    private Task PurgeSelf(string id)
+    {
+        if (Spec?.Root is not { } root) return Task.CompletedTask;
+        var parent = CanvasTree.FindParent(root, id);
+        var node = parent?.Children?.FirstOrDefault(c => c.Id == id);
+        if (parent?.Children is null || node is null) return Task.CompletedTask;
+
+        parent.Children.Remove(node);
+        parent.Version++;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Test seam: bUnit never plays the exit transition that would call
+    /// <c>DrylPresence.OnExited</c>, so a test drives the purge directly.</summary>
+    internal Task PurgeForTest(string id) => _ctx.Purge!(id);
+
+    private static CanvasNode? Sibling(CanvasNode root, CanvasNode node, CanvasNav direction)
+    {
+        var parent = CanvasTree.FindParent(root, node.Id);
+        var siblings = parent?.Children?.Where(c => !c.Removing).ToList();
+        if (siblings is not { Count: > 0 }) return null;
+
+        var index = siblings.IndexOf(node);
+        if (index < 0) return null;
+
+        return direction switch
+        {
+            CanvasNav.Previous => index > 0 ? siblings[index - 1] : null,
+            CanvasNav.Next => index < siblings.Count - 1 ? siblings[index + 1] : null,
+            CanvasNav.First => siblings[0],
+            CanvasNav.Last => siblings[^1],
+            _ => null,
+        };
+    }
+
+    private void HandleBinderChanged() => InvokeAsync(StateHasChanged);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Promote/demote BEFORE signalling the render: a fullscreen canvas only really covers
+        // the viewport from the top layer (see dryl.topLayer), and the browser must see the
+        // finished state before it snapshots "new". The one frame in which the popover
+        // attribute is present but not yet shown (display: none) never paints — we are inside
+        // the view transition's update callback, during which the browser holds rendering.
+        if (_expandedApplied != _expanded)
+        {
+            _expandedApplied = _expanded;
+            try { await JS.InvokeVoidAsync(_expanded ? "dryl.topLayer.show" : "dryl.topLayer.hide", _rootEl); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        // Unconditional, cheap no-op when no transition is in flight — this is what tells the
+        // browser the "new" state has reached the DOM and it may take the second snapshot.
+        // It also covers a transition a wrapper started around a spec swap.
+        ViewTransition.SignalRendered();
+
+        if (!firstRender) return;
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.motion.autoFlip", _bodyEl);
+            _flipAttached = true;
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+
+        // Watch the body's usable width and report it, so an artifact author can budget its
+        // layout for the space the artifact actually has.
+        try
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            _widthModule = await JS.InvokeAsync<IJSObjectReference>("import", WidthModulePath);
+            await _widthModule.InvokeVoidAsync("observe", _bodyEl, _selfRef);
+
+            // Reorder is opt-in with the selection: a canvas nobody may edit needs no gesture.
+            if (Selection is not null)
+            {
+                await _widthModule.InvokeVoidAsync("initReorder", _bodyEl, _selfRef);
+                _reorderAttached = true;
+            }
+        }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+    }
+
+    /// <summary>JS bridge: receives the measured body width (CSS px) from the resize observer.
+    /// Not part of the component's supported API.</summary>
+    [JSInvokable]
+    public void OnWidthMeasured(int width) => OnWidthChanged?.Invoke(width);
+
+    /// <summary>JS bridge: the reorder gesture dropped node <paramref name="id"/> at
+    /// <paramref name="index"/> among its siblings. Not part of the component's supported API.</summary>
+    /// <param name="id">The dragged node's id.</param>
+    /// <param name="index">Its new index among its siblings.</param>
+    [JSInvokable]
+    public async Task OnNodeReorder(string id, int index)
+    {
+        if (Spec?.Root is not { } root) return;
+        var node = CanvasTree.Find(root, id);
+        var parent = CanvasTree.FindParent(root, id);
+        if (node is null || parent?.Children is null) return;
+        if (node.Locked || parent.Locked) return;
+
+        var current = parent.Children.IndexOf(node);
+        if (index == current || index < 0 || index >= parent.Children.Count) return;
+
+        await RunCommandAsync(
+            id, index < current ? CanvasNodeCommand.MoveUp : CanvasNodeCommand.MoveDown, index);
+    }
+
+    private Task RefreshAsync() => _binder?.RefreshAllAsync() ?? Task.CompletedTask;
+
+    // The morph between inline and fullscreen is a view transition, so the CSS only has to
+    // describe the destination, never the movement.
+    private Task ToggleExpandAsync() =>
+        ViewTransition.RunAsync(() =>
+        {
+            _expanded = !_expanded;
+            StateHasChanged();
+        });
+
+    private Task OnKeyDown(KeyboardEventArgs e) =>
+        _expanded && e.Key == "Escape" ? ToggleExpandAsync() : Task.CompletedTask;
+
+    private bool IsBusy => Ai is AiState.Streaming or AiState.Thinking || _binder?.Busy == true;
+
+    private string ExpandLabel => _expanded ? "Exit fullscreen" : "Expand artifact";
+
+    private const string RefreshLabel = "Refresh data";
+
+    // "manual" (not "auto"): we own Escape and must stay in step with _expanded, so no
+    // light-dismiss behind the component's back. A browser without the Popover API ignores
+    // the attribute entirely and the CSS fallback takes over.
+    private string? PopoverMode => _expanded ? "manual" : null;
+
+    // Rendered on the root so an expand — and any morph a wrapper runs around a spec swap —
+    // moves the whole surface. dryl-depth adds the mercury merge; data-vt-depth is the marker
+    // the JS bridge keys on to lazily inject the #dryl-merge filter.
+    private string VtStyle => FormattableString.Invariant(
+        $"view-transition-name: {_vtName}; view-transition-class: dryl-depth");
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "canvas", "glass-card" };
+            if (_expanded) parts.Add("is-expanded");
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_runner is not null) _runner.OnChanged -= HandleBinderChanged;
+
+        if (_subscribedSelection is not null) _subscribedSelection.OnChange -= HandleSelectionChanged;
+
+        if (_binder is not null)
+        {
+            _binder.OnChanged -= HandleBinderChanged;
+            await _binder.DisposeAsync();
+        }
+
+        if (_flipAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.stopAutoFlip", _bodyEl); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        if (_widthModule is not null)
+        {
+            try
+            {
+                if (_reorderAttached) await _widthModule.InvokeVoidAsync("disposeReorder", _bodyEl);
+                await _widthModule.InvokeVoidAsync("unobserve", _bodyEl);
+                await _widthModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+
+        _selfRef?.Dispose();
+    }
+}

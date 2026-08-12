@@ -1,0 +1,170 @@
+@namespace DRYL.Components
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylToolCall — visualises a single agent tool / function call:
+    the tool name, a live status pill, and a collapsible body holding
+    the arguments and result (rendered as JSON in a DrylCodeBlock).
+
+    The status is expressed through the shared AiState vocabulary:
+      Thinking  → the call is running
+      Streaming → the result is arriving incrementally
+      Generated → the call just completed (one-shot reveal)
+      None      → idle / historical
+
+    Usage:
+      <DrylToolCall ToolName="get_weather"
+                    Ai="AiState.Thinking"
+                    Arguments="@_argsJson" />
+
+      <DrylToolCall ToolName="get_weather" Ai="AiState.Generated"
+                    Arguments="@_argsJson" Result="@_resultJson" />
+
+    Stack several inside a DrylTimeline for a full agent trace.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass" @attributes="AdditionalAttributes">
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+
+    <button type="button"
+            class="tool-call-head"
+            aria-expanded="@(_expanded ? "true" : "false")"
+            aria-controls="@_bodyId"
+            @onclick="Toggle">
+        <span class="tool-call-icon"><DrylIcon Name="Wrench" Size="14" /></span>
+        <span class="tool-call-name">@ToolName</span>
+        <span class="tool-call-status">
+            <DrylAiIndicator State="@Ai">@StatusLabel</DrylAiIndicator>
+        </span>
+        <span class="tool-call-chevron @(_expanded ? "tool-call-chevron--open" : null)">
+            <DrylIcon Name="ChevronDown" Size="16" />
+        </span>
+    </button>
+
+    @* grid-template-rows 0fr → 1fr disclosure (same trick as DrylToolCallGroup):
+       the body animates open without ever squeezing its content, and stays in
+       the DOM while collapsed so an expanded code block keeps its state. *@
+    <div id="@_bodyId"
+         class="tool-call-body"
+         role="region"
+         inert="@(!_expanded)"
+         aria-hidden="@(_expanded ? null : "true")">
+        <div class="tool-call-body-inner">
+            <div class="tool-call-body-content">
+                @if (!string.IsNullOrEmpty(Arguments))
+                {
+                    <div class="tool-call-section">
+                        <span class="tool-call-section-label">Arguments</span>
+                        <DrylCodeBlock Code="@Arguments" Language="json" />
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(Error))
+                {
+                    <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="Tool error">@Error</DrylAlert>
+                }
+                else if (!string.IsNullOrEmpty(Result))
+                {
+                    <div class="tool-call-section">
+                        <span class="tool-call-section-label">Result</span>
+                        <DrylCodeBlock Code="@Result" Language="json" />
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>The name of the tool / function being called.</summary>
+    [Parameter] public string? ToolName { get; set; }
+
+    /// <summary>The call arguments, typically JSON. Shown in the collapsible body.</summary>
+    [Parameter] public string? Arguments { get; set; }
+
+    /// <summary>The call result, typically JSON. Shown when no <see cref="Error"/> is set.</summary>
+    [Parameter] public string? Result { get; set; }
+
+    /// <summary>An error message; when set, replaces the result with a danger alert.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>
+    /// Call status, mapped to the shared AI vocabulary:
+    /// <c>Thinking</c> = running, <c>Streaming</c> = result arriving,
+    /// <c>Generated</c> = just completed, <c>None</c> = idle / historical.
+    /// </summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Obsolete alias for <see cref="Ai"/>, kept so the rename is not a break.
+    /// Setting it is equivalent to setting <see cref="Ai"/>; setting both on one
+    /// component is not supported, because the markup order would decide.
+    /// </summary>
+    [Obsolete("Renamed to Ai (AI-03). The State alias is removed in 3.0.0.")]
+    [Parameter] public AiState State { get => Ai; set => Ai = value; }
+
+    /// <summary>
+    /// AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c>
+    /// (ultimately <see cref="AiAura.Comet"/>); the tool-call <see cref="Ai"/> stays
+    /// explicit and is never taken from the scope.
+    /// </summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>The surrounding AI scope, if any (used only to resolve the aura variant).</summary>
+    [CascadingParameter] private DRYL.Components.Ai.AiScope? Scope { get; set; }
+
+    private AiAura EffectiveAura => DRYL.Components.Ai.AiScope.ResolveAura(Aura, Scope);
+
+    /// <summary>Initial expanded state of the body. Default <c>false</c>.</summary>
+    [Parameter] public bool DefaultExpanded { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the tool-call's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private readonly string _bodyId = $"dryl-tool-{Guid.NewGuid():N}";
+    private bool _expanded;
+    private bool _initialised;
+    private AiState _prevState = AiState.None;
+    private int _genTick;
+    private readonly DRYL.Components.Ai.AuraLifecycle _aura = new();
+
+    protected override void OnParametersSet()
+    {
+        if (!_initialised)
+        {
+            _expanded = DefaultExpanded;
+            _initialised = true;
+        }
+        if (Ai == AiState.Generated && _prevState != AiState.Generated) _genTick++;
+        _prevState = Ai;
+        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+    }
+
+    public void Dispose() => _aura.Dispose();
+
+    private void Toggle() => _expanded = !_expanded;
+
+    private string StatusLabel => Ai switch
+    {
+        AiState.Thinking  => "Running",
+        AiState.Streaming => "Streaming",
+        AiState.Generated => "Done",
+        AiState.Active    => "Active",
+        _                 => "Idle"
+    };
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "tool-call" };
+            if (_expanded) parts.Add("is-open");
+            DRYL.Components.Ai.AiAuraCss.Append(parts, _aura, EffectiveAura);
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
+}

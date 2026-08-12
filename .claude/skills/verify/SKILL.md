@@ -36,6 +36,20 @@ launch profile (Development env, port 5044) serves them correctly.
 - Screenshots land in the repo root (Playwright server cwd) — delete them
   afterwards; they don't belong in the project.
 
-## Unit tests (CI's job, not verification)
+## This skill is one input, not the whole bar
 
-`dotnet test tests/DRYL.Components.Tests` from the repo root (bUnit).
+Driving the component in a browser is what this file covers. It does **not**
+replace the evidence list in [`CLAUDE.md`](../../../CLAUDE.md) stage 5, which a
+change must clear before it is reported as done:
+
+```bash
+dotnet build DRYL.slnx -c Release
+dotnet test DRYL.slnx -c Release          # bUnit, tests/DRYL.Components.Tests
+node scripts/check-light-sync.mjs
+node scripts/validate-light-contrast.mjs
+node scripts/check-harness-links.mjs
+node scripts/check-spec-coverage.mjs
+```
+
+Both colour modes are checked by eye — that part is what the browser session
+above is for, and `DESIGN-02` has no exception route.
