@@ -48,11 +48,12 @@ slots, the first with the caret `DrylButton`; it holds no open state. See
 `code/DRYL.Components/Extensions/ServiceCollectionExtensions.cs` registers nothing
 on their behalf — every entry it makes belongs to another category.
 
-`DrylButton` does read one ambient value, and it is not a service: the
-`[CascadingParameter]` `DRYL.Components.Ai.AiScope`, supplied by a surrounding
-`DrylAiScope`. A cascading parameter needs no registration and no resolution
-guard, which is why a `DrylButton` works unchanged in an application that never
-called `AddDrylComponents()`.
+`DrylButton` and `DrylSplitButton` each read one ambient value, and it is not a
+service: the `[CascadingParameter]` named `Scope`, of type
+`DRYL.Components.Ai.AiScope`, supplied by a surrounding `DrylAiScope`. Both
+inherit it from `DrylAiAware`. A cascading parameter needs no registration and no
+resolution guard, which is why either component works unchanged in an application
+that never called `AddDrylComponents()`.
 
 ## Cleanup
 

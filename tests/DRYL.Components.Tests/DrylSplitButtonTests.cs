@@ -149,4 +149,48 @@ public class DrylSplitButtonTests : BunitContext
         foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
             Assert.Contains("ai-aura--aurora", segment.ClassList);
     }
+
+    [Fact]
+    public void Without_an_Aura_both_segments_take_the_Comet_default()
+    {
+        // Comet is the default variant and writes no class of its own — the Aurora
+        // marker being absent is what "not pinned to Aurora" looks like in the DOM.
+        var cut = Render<DrylSplitButton>(ps => ps
+            .Add(p => p.Ai, AiState.Thinking)
+            .AddChildContent("Save"));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+        {
+            Assert.Contains("ai-aura", segment.ClassList);
+            Assert.DoesNotContain("ai-aura--aurora", segment.ClassList);
+        }
+    }
+
+    [Fact]
+    public void An_explicit_Aura_beats_the_scopes_aura_on_both_segments()
+    {
+        var cut = Render<DrylAiScope>(ps => ps
+            .Add(p => p.State, AiState.Thinking)
+            .Add(p => p.Aura, AiAura.Comet)
+            .AddChildContent<DrylSplitButton>(sp => sp
+                .Add(p => p.Aura, AiAura.Aurora)
+                .AddChildContent("Save")));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+            Assert.Contains("ai-aura--aurora", segment.ClassList);
+    }
+
+    [Fact]
+    public void A_split_button_with_no_Ai_stays_plain_on_both_segments()
+    {
+        // AI-03: the parameter is an opt-in, so an unconfigured split button is an
+        // ordinary control — on the caret as much as on the main button.
+        var cut = Render<DrylSplitButton>(ps => ps.AddChildContent("Save"));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+        {
+            Assert.DoesNotContain("ai-aura", segment.ClassList);
+            Assert.DoesNotContain("ai-thinking", segment.ClassList);
+        }
+    }
 }

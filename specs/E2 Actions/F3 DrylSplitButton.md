@@ -361,29 +361,37 @@ runtime surprise.
 
 - `Ai` defaults to `AiState.None`, so a split button that was never given the
   parameter renders as an ordinary control (`AI-03`).
-- `Ai` is inherited from `DrylAiAware` rather than declared on this component,
-  with the same name, the same `AiState` type and the same `AiState.None`
-  default.
-- The component therefore carries the base class's `[CascadingParameter]`
-  `AiScope` and resolves the surrounding scope itself, in `EffectiveAi`.
-- `EffectiveAi` is forwarded to **both** segments.
-- Each segment, being a `DrylButton`, still runs `AiScope.Resolve` on what it was
-  given — but it is given an already-resolved value, and resolving it a second
-  time against the same scope changes nothing: a non-`None` state wins over the
-  scope, and a `None` one can only arise when the scope is `None` as well. The
-  two segments therefore cannot diverge.
+- `Ai` is named `Ai`, is of type `AiState`, and is inherited from `DrylAiAware`
+  rather than declared on this component.
+- The component reads a surrounding `DrylAiScope` through the base class's
+  `[CascadingParameter]` named `Scope`.
+- The component resolves that scope itself, in `EffectiveAi`.
+- `EffectiveAi` is forwarded to the main button.
+- `EffectiveAi` is forwarded to the caret button.
 - Both segments of one split button render the same effective AI state.
 - Outside any `DrylAiScope`, setting `Ai` lights **both** segments.
 - Inside a `DrylAiScope`, a split button that leaves `Ai` at `AiState.None` puts
   both segments into the scope's state.
-- Inside a `DrylAiScope`, a split button that sets `Ai` explicitly puts both
-  segments into the **explicit** state, because the explicit value wins in the
-  one resolution this component performs.
-- `Aura` is inherited from `DrylAiAware`, defaults to `null`, and its resolved
-  value `EffectiveAura` is likewise forwarded to both segments, so the aura
-  variant can be pinned on a split button and cannot differ between its halves.
+- An explicit `Ai` other than `AiState.None` wins over a surrounding
+  `DrylAiScope`, on both segments alike.
+- `Aura` is named `Aura`, is of type `AiAura?`, and is likewise inherited from
+  `DrylAiAware`.
+- `Aura` defaults to `null`.
+- `EffectiveAura` is forwarded to the main button.
+- `EffectiveAura` is forwarded to the caret button.
+- An explicit `Aura` wins over a surrounding `DrylAiScope`'s variant, on both
+  segments alike.
 - A split button that leaves `Aura` at `null` follows the surrounding scope's
   variant, ultimately `AiAura.Comet`.
+
+  Two notes on the mechanism, kept out of the criteria above. First, each segment
+  is a `DrylButton` and therefore still runs `AiScope.Resolve` on what it was
+  given — but it is given an already-resolved value, and resolving it a second
+  time against the same scope changes nothing: a non-`None` state wins over the
+  scope, and a `None` one can only arise when the scope's own state is `None` as
+  well. Second, the aura never round-trips at all: `EffectiveAura` is a
+  non-nullable `AiAura`, so the inner buttons receive a pinned variant and never
+  consult the scope for one.
 - The main button's aura ring follows its flattened trailing corners, because the
   aura layers inherit their host's radius: the ring squares off where the caret
   joins it.
@@ -393,6 +401,12 @@ runtime surprise.
 - That occlusion is lifted while the main button is hovered or focus-visible,
   since those are exactly the two states the split-button rules raise — a resting
   AI state is not among them.
+- The caret is lit too, so its own outward halo spreads over the main button's
+  trailing edge, by the same mechanism read the other way: the caret's anchor is
+  the later sibling and paints last. The joined seam therefore carries the
+  caret's glow rather than the main button's, and the control's AI look is
+  asymmetric across it — which is what makes the two segments read as one lit
+  control rather than as two.
 
   The occlusion is worth spelling out, because "positioned versus not" is the
   wrong reading and the neighbouring `.btn` rules invite it. Both segments are
@@ -520,7 +534,7 @@ runtime surprise.
   ("Split button — primary action + variants"). The example shows three split
   buttons: a default one, a `Ghost` one with a `LeadingIcon`, and a `Danger`
   `Small` one; all three set `MenuLabel`, none sets `Block`, `Loading`,
-  `Disabled`, `Ai`, `MenuPlacement`, `MenuAriaLabel` or `Class`. Those parameters
+  `Disabled`, `Ai`, `Aura`, `MenuPlacement`, `MenuAriaLabel` or `Class`. Those parameters
   are therefore undemonstrated, and every criterion about them above rests on
   reading the code and the rules rather than on a rendered example.
 - **`ComponentCatalog`** — **no entry of its own.**

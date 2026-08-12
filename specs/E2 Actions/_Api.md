@@ -88,7 +88,7 @@ The three components take **two** shapes:
 
 | Component | Shape | Consequence |
 |---|---|---|
-| `DrylButton`, `DrylSplitButton` | `@inherits DrylAiAware` | Both have `Ai` (`AiState`, default `AiState.None`) and `Aura` (`AiAura?`, default `null`), plus the `[CascadingParameter]` `AiScope` and the `EffectiveAi` / `EffectiveAura` resolution built on it. An explicit value wins over a surrounding `DrylAiScope`; `Aura` falls back through the scope to `AiAura.Comet`. |
+| `DrylButton`, `DrylSplitButton` | `@inherits DrylAiAware` | Both have `Ai` (`AiState`, default `AiState.None`) and `Aura` (`AiAura?`, default `null`), plus the `[CascadingParameter]` named `Scope` (of type `DRYL.Components.Ai.AiScope`) and the `EffectiveAi` / `EffectiveAura` resolution built on it. An explicit value wins over a surrounding `DrylAiScope`; `Aura` falls back through the scope to `AiAura.Comet`. |
 | `DrylButtonGroup` | Neither | No `Ai`, no `Aura`, no aura of any kind. It is a layout wrapper; AI mode is set on the segments the consumer places inside it. |
 
 Both `Ai` parameters satisfy `AI-03`: named `Ai`, typed `AiState`, defaulting to
