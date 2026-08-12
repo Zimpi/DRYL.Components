@@ -1,7 +1,7 @@
 # DrylSplitButton
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Actions/DrylSplitButton.razor
 
 ## User Story
@@ -73,7 +73,8 @@ trailing edge; `Size` matches `DrylButton`'s own default of `Medium`.
 | `MenuPlacement` | `DrylMenu.MenuPlacement` | `MenuPlacement.BottomEnd` | Where the panel opens relative to the caret. |
 | `MenuLabel` | `string?` | `null` | Accessible name of the menu panel. |
 | `MenuAriaLabel` | `string` | `"More actions"` | Accessible name of the icon-only caret button. |
-| `Ai` | `AiState` | `AiState.None` | The AI opt-in (`AI-03`). Applied to the **main** button only. |
+| `Ai` | `AiState` | `AiState.None` | The AI opt-in (`AI-03`), **inherited from `DrylAiAware`**. Resolved against a surrounding `DrylAiScope` here, once, and the result applied to **both** segments. |
+| `Aura` | `AiAura?` | `null` | The aura variant, **inherited from `DrylAiAware`**. `null` inherits the scope's, ultimately `AiAura.Comet`. Resolved here and applied to **both** segments. |
 | `Block` | `bool` | `false` | Stretches the control to its container's full width. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the wrapper's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the wrapper element. |
@@ -85,9 +86,8 @@ components, so a consumer writes them qualified:
 `MenuPlacement="DrylMenu.MenuPlacement.TopEnd"`. The component declares no enum
 of its own.
 
-The component exposes no `Aura` parameter, no `AriaLabel` for the main button,
-no `IsSubmit`, no `TrailingIcon`, no `Pressed`, and no parameter for the caret's
-icon.
+The component exposes no `AriaLabel` for the main button, no `IsSubmit`, no
+`TrailingIcon`, no `Pressed`, and no parameter for the caret's icon.
 
 `MenuItems` is a **named** `RenderFragment`, which changes how the main label is
 written: a split button with no menu items may put its label directly between
@@ -361,24 +361,29 @@ runtime surprise.
 
 - `Ai` defaults to `AiState.None`, so a split button that was never given the
   parameter renders as an ordinary control (`AI-03`).
-- `Ai` is declared directly on this component rather than inherited from
-  `DrylAiAware`.
-- `Ai` is forwarded to the main button only.
-- The caret receives no `Ai` value from the component.
-- The component declares no cascading parameter for a surrounding `DrylAiScope`
-  and resolves nothing itself.
-- Each segment resolves a surrounding `DrylAiScope` on its own, because each is a
-  `DrylButton` and the button is AI-aware.
-- Outside any `DrylAiScope`, setting `Ai` lights the main button and leaves the
-  caret plain.
-- Inside a `DrylAiScope`, a split button that leaves `Ai` at `AiState.None` puts
-  **both** segments into the scope's state, because each segment inherits it
-  independently.
+- `Ai` is inherited from `DrylAiAware` rather than declared on this component,
+  with the same name, the same `AiState` type and the same `AiState.None`
+  default.
+- The component therefore carries the base class's `[CascadingParameter]`
+  `AiScope` and resolves the surrounding scope itself, in `EffectiveAi`.
+- `EffectiveAi` is forwarded to **both** segments.
+- Each segment, being a `DrylButton`, still runs `AiScope.Resolve` on what it was
+  given — but it is given an already-resolved value, and resolving it a second
+  time against the same scope changes nothing: a non-`None` state wins over the
+  scope, and a `None` one can only arise when the scope is `None` as well. The
+  two segments therefore cannot diverge.
 - Both segments of one split button render the same effective AI state.
-  — **not met by the code today; see the deviations section.**
-- The component exposes no `Aura` parameter, so the aura variant on the main
-  button cannot be pinned and follows the surrounding scope, ultimately
-  `AiAura.Comet`.
+- Outside any `DrylAiScope`, setting `Ai` lights **both** segments.
+- Inside a `DrylAiScope`, a split button that leaves `Ai` at `AiState.None` puts
+  both segments into the scope's state.
+- Inside a `DrylAiScope`, a split button that sets `Ai` explicitly puts both
+  segments into the **explicit** state, because the explicit value wins in the
+  one resolution this component performs.
+- `Aura` is inherited from `DrylAiAware`, defaults to `null`, and its resolved
+  value `EffectiveAura` is likewise forwarded to both segments, so the aura
+  variant can be pinned on a split button and cannot differ between its halves.
+- A split button that leaves `Aura` at `null` follows the surrounding scope's
+  variant, ultimately `AiAura.Comet`.
 - The main button's aura ring follows its flattened trailing corners, because the
   aura layers inherit their host's radius: the ring squares off where the caret
   joins it.
@@ -504,9 +509,10 @@ runtime surprise.
   is a switch on a component that renders as an ordinary control without it. It is
   none of the three non-opt-in shapes the rule names. `AI-05` is satisfied by the
   same fact — this component genuinely can host AI mode, since it owns a main
-  action a model can be working on. What the implementation gets wrong is not
-  *whether* to have the parameter but *how far it reaches*: see the deviations
-  below.
+  action a model can be working on. The parameter is inherited from
+  `DrylAiAware`, which is what makes its reach correct: the component resolves the
+  surrounding scope once and hands the result to both segments, so a control that
+  is drawn as one outline is lit as one.
 - **Demo page** — **no page of its own.** `DrylSplitButton` is demonstrated by
   `DRYL.Website/Components/Examples/ButtonGroup/Split.razor`, which is composed
   into `DRYL.Website/Components/Pages/DemoButtonGroup.razor` — the **Button
@@ -529,37 +535,30 @@ runtime surprise.
   papered over: the fix is a catalog row (and, if it is given one, a page) in
   `DRYL.Website`, which is a different repository and out of this spec's scope.
 
-## Deviations (`State: Modified`)
+## Deviations (`State: Implemented`)
 
-The code does not meet **one** of this spec's criteria. It is listed here so the
-state is checkable rather than asserted; it is not fixed in this commit. Three
-further findings are recorded below it as design gaps: each breaks a criterion
-of no spec and a rule of no number, or belongs to another component's spec, so
-none of them is what `State` rests on.
+**None.** Every acceptance criterion above is met by the code (`SPEC-04`). The
+one deviation this section previously carried — the two segments ending up in
+different AI states — was closed by making the component `@inherits DrylAiAware`
+and forwarding `EffectiveAi` and `EffectiveAura` to both segments, so the scope
+is resolved **once**, here, instead of twice and independently in two
+`DrylButton`s. The regression is held by
+`tests/DRYL.Components.Tests/DrylSplitButtonTests.cs`, which asserts the aura
+classes on both segments outside a scope, inside a scope, and inside a scope that
+disagrees with an explicit `Ai`.
 
-1. **The two segments can end up in different AI states.** `Ai` is forwarded to
-   the main button only, while the caret — being a `DrylButton` — resolves a
-   surrounding `DrylAiScope` on its own. Inside a scope whose state is not
-   `AiState.None`, a split button that sets `Ai` explicitly renders its main
-   button in the explicit state and its caret in the scope's state, so one joined
-   control shows two different auras; and a split button that sets `Ai` while
-   *outside* a scope lights only half of a control that is drawn as one outline.
-   The unmet criterion is "Both segments of one split button render the same
-   effective AI state." Which way to close it is a design decision for the
-   maintainer — forward the resolved state to both segments, or pin the caret to
-   `AiState.None` so it is never lit by a scope — and is not made here.
+The alternative that section used to offer — "pin the caret to `AiState.None` so
+it is never lit by a scope" — **was not expressible in the code and has been
+removed rather than left standing**: `AiScope.Resolve` is
+`explicitAi != AiState.None ? explicitAi : (scope?.State ?? AiState.None)`, so
+`AiState.None` means "inherit the scope", not "off". Passing `AiState.None` to
+the caret would have left it inheriting the scope exactly as before.
 
-### Recorded design gaps — not deviations
+### Recorded gaps — not deviations, and not what `State` rests on
 
-- **No `Aura`, and no scope resolution of its own.** Because `Ai` is a plain
-  parameter rather than `DrylAiAware`'s, the component has neither the `Aura`
-  parameter nor `EffectiveAi`. A consumer can pin the aura variant on every other
-  AI-aware component in the library but not on this one. **No criterion above
-  fails on it** — the criterion on the subject describes exactly this and is met —
-  and no numbered rule is breached: `AI-03` binds only the `Ai` parameter's name
-  and default, both of which are correct, and `AI-05` only whether the parameter
-  exists at all. It is recorded here because closing deviation 1 properly means
-  deciding this at the same time, not because it moves `State`.
+Each of the following breaks a criterion of no spec and a rule of no number, or
+belongs to another component's code and another component's spec.
+
 - **No `aria-haspopup` and no `aria-expanded` on the caret.** No numbered rule
   mandates either, so this stays out of `State` — but it is a
   library-consistency gap rather than a neutral choice: `DrylSelect` and
@@ -573,3 +572,6 @@ none of them is what `State` rests on.
   code that would change is not this component's — it is `DrylPopover`'s `@if` —
   so it belongs to `DrylPopover`'s spec and is recorded here only because it is
   visible through this component.
+- **No demo page and no `ComponentCatalog` entry** (`REL-04`), as the
+  cross-cutting evidence above sets out. Both would live in `DRYL.Website`, a
+  different repository; no acceptance criterion of this spec is about them.

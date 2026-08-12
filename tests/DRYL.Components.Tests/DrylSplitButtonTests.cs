@@ -14,6 +14,7 @@ namespace DRYL.Components.Tests;
 public class DrylSplitButtonTests : BunitContext
 {
     private const string CaretSelector = ".popover-anchor .btn";
+    private const string MainSelector = ".split-btn > .btn";
 
     public DrylSplitButtonTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
@@ -83,5 +84,69 @@ public class DrylSplitButtonTests : BunitContext
         // to the @onclick on .popover-trigger.
         Assert.Contains(cut.FindAll("[role=menuitem]"),
             i => i.TextContent.Contains("Save & close"));
+    }
+
+    // ── AI mode: one control, one effective state on both segments ───────────
+    // The aura classes are written by AiAuraCss.Append into DrylButton's CssClass:
+    // "ai-aura" plus "ai-thinking" / "ai-streaming", and "ai-aura--aurora" for the
+    // Aurora variant. Asserting on those is asserting on what the stylesheet reads.
+
+    [Fact]
+    public void Ai_outside_a_scope_lights_both_segments()
+    {
+        var cut = Render<DrylSplitButton>(ps => ps
+            .Add(p => p.Ai, AiState.Thinking)
+            .AddChildContent("Save"));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+        {
+            Assert.Contains("ai-aura", segment.ClassList);
+            Assert.Contains("ai-thinking", segment.ClassList);
+        }
+    }
+
+    [Fact]
+    public void A_scope_lights_both_segments_when_Ai_is_unset()
+    {
+        var cut = Render<DrylAiScope>(ps => ps
+            .Add(p => p.State, AiState.Streaming)
+            .AddChildContent<DrylSplitButton>(sp => sp.AddChildContent("Save")));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+        {
+            Assert.Contains("ai-aura", segment.ClassList);
+            Assert.Contains("ai-streaming", segment.ClassList);
+        }
+    }
+
+    [Fact]
+    public void An_explicit_Ai_beats_the_scope_on_both_segments()
+    {
+        // The regression test for the deviation: the state is resolved once, by the
+        // split button, and handed to both segments — rather than twice, by two
+        // DrylButtons resolving their own inputs against the same scope.
+        var cut = Render<DrylAiScope>(ps => ps
+            .Add(p => p.State, AiState.Streaming)
+            .AddChildContent<DrylSplitButton>(sp => sp
+                .Add(p => p.Ai, AiState.Thinking)
+                .AddChildContent("Save")));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+        {
+            Assert.Contains("ai-thinking", segment.ClassList);
+            Assert.DoesNotContain("ai-streaming", segment.ClassList);
+        }
+    }
+
+    [Fact]
+    public void An_explicit_Aura_reaches_both_segments()
+    {
+        var cut = Render<DrylSplitButton>(ps => ps
+            .Add(p => p.Ai, AiState.Thinking)
+            .Add(p => p.Aura, AiAura.Aurora)
+            .AddChildContent("Save"));
+
+        foreach (var segment in new[] { cut.Find(MainSelector), cut.Find(CaretSelector) })
+            Assert.Contains("ai-aura--aurora", segment.ClassList);
     }
 }

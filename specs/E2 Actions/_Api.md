@@ -74,8 +74,8 @@ Named here so a consumer knows where to look, with their members deliberately
 | Type | Owner | Used by |
 |---|---|---|
 | `DrylMenu.MenuPlacement` | `E10 Navigation` — nested inside `DrylMenu`, `code/DRYL.Components/Components/Navigation/DrylMenu.razor` | `DrylSplitButton.MenuPlacement`, defaulting to `MenuPlacement.BottomEnd` where a lone `DrylMenu` defaults to `MenuPlacement.BottomStart`. |
-| `AiState` | `E1 Foundation` — `code/DRYL.Components/AiState.cs` | `DrylButton.Ai` (inherited from `DrylAiAware`), `DrylSplitButton.Ai`. |
-| `AiAura` | `E1 Foundation` — `code/DRYL.Components/AiAura.cs` | `DrylButton.Aura` (inherited from `DrylAiAware`). |
+| `AiState` | `E1 Foundation` — `code/DRYL.Components/AiState.cs` | `DrylButton.Ai` and `DrylSplitButton.Ai` (both inherited from `DrylAiAware`). |
+| `AiAura` | `E1 Foundation` — `code/DRYL.Components/AiAura.cs` | `DrylButton.Aura` and `DrylSplitButton.Aura` (both inherited from `DrylAiAware`). |
 
 `AiState` and `AiAura` are documented in
 [`../E1 Foundation/_Api.md`](../E1%20Foundation/_Api.md), under that category's
@@ -84,23 +84,21 @@ listed here.
 
 ## The AI opt-in contract
 
-The three components take three different shapes, and the divergence is real
-rather than an accident of wording:
+The three components take **two** shapes:
 
 | Component | Shape | Consequence |
 |---|---|---|
-| `DrylButton` | `@inherits DrylAiAware` | Has both `Ai` (`AiState`, default `AiState.None`) and `Aura` (`AiAura?`, default `null`), plus the `[CascadingParameter]` `AiScope` and the `EffectiveAi` / `EffectiveAura` resolution built on it. An explicit value wins over a surrounding `DrylAiScope`; `Aura` falls back through the scope to `AiAura.Comet`. |
-| `DrylSplitButton` | A plain `[Parameter] public AiState Ai { get; set; } = AiState.None;` | No `Aura` parameter, no cascading `AiScope`, no resolution of its own. `Ai` is forwarded to the main `DrylButton` only; each segment, being a `DrylButton`, resolves the surrounding scope independently. |
+| `DrylButton`, `DrylSplitButton` | `@inherits DrylAiAware` | Both have `Ai` (`AiState`, default `AiState.None`) and `Aura` (`AiAura?`, default `null`), plus the `[CascadingParameter]` `AiScope` and the `EffectiveAi` / `EffectiveAura` resolution built on it. An explicit value wins over a surrounding `DrylAiScope`; `Aura` falls back through the scope to `AiAura.Comet`. |
 | `DrylButtonGroup` | Neither | No `Ai`, no `Aura`, no aura of any kind. It is a layout wrapper; AI mode is set on the segments the consumer places inside it. |
 
 Both `Ai` parameters satisfy `AI-03`: named `Ai`, typed `AiState`, defaulting to
 `AiState.None`, and a switch on a component that renders as an ordinary control
 without it.
 
-`DrylSplitButton`'s shape has two consumer-visible consequences — the aura variant
-cannot be pinned on it, and its two segments can end up in different AI states
-inside a scope. `F3 DrylSplitButton.md` analyses both in full, under its
-deviations and recorded-design-gaps sections; that analysis is not repeated here.
+`DrylSplitButton` is composed of two `DrylButton`s but resolves the scope **once**
+itself and hands `EffectiveAi` and `EffectiveAura` to both segments, so its two
+halves cannot show different AI states. `F3 DrylSplitButton.md` carries the
+reasoning; it is not repeated here.
 
 ## Shared parameter conventions
 

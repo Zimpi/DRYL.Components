@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@inherits DrylAiAware
 
 @*  ─────────────────────────────────────────────────────────
     DrylSplitButton — a primary action joined to a caret that opens a
@@ -29,7 +30,8 @@
                 Loading="Loading"
                 LeadingIcon="@LeadingIcon"
                 OnClick="OnClick"
-                Ai="Ai">
+                Ai="EffectiveAi"
+                Aura="EffectiveAura">
         @ChildContent
     </DrylButton>
 
@@ -40,7 +42,9 @@
                             Size="Size"
                             Disabled="Disabled"
                             AriaLabel="@MenuAriaLabel"
-                            LeadingIcon="ChevronDown" />
+                            LeadingIcon="ChevronDown"
+                            Ai="EffectiveAi"
+                            Aura="EffectiveAura" />
             </DrylTooltip>
         </Trigger>
         <Items>
@@ -83,8 +87,9 @@
     /// <summary>Accessible label for the caret button (icon-only). Default "More actions".</summary>
     [Parameter] public string MenuAriaLabel { get; set; } = "More actions";
 
-    /// <summary>AI ambient state applied to the main button (rotating gradient ring).</summary>
-    [Parameter] public AiState Ai { get; set; } = AiState.None;
+    // AI ambient state (Ai) and aura variant (Aura) are inherited from DrylAiAware. The
+    // scope is resolved once, here, and the resolved EffectiveAi / EffectiveAura are handed
+    // to both segments — so the two halves of one joined control can never light differently.
 
     /// <summary>If true, the control stretches to its container's full width.</summary>
     [Parameter] public bool Block { get; set; }
