@@ -102,8 +102,26 @@ a tool call's status is a fact about that call, not an ambient mood. This is
 deliberate and is why they do not inherit `DrylAiAware`, whose `EffectiveAi`
 resolves the state through `AiScope.Resolve` (see `E1 Foundation`).
 
+## `AiStreamContext`
+
+`code/DRYL.Components/Ai/AiStreamContext.cs` — the render context `DrylAiStream`
+hands to its `ChildContent`.
+
+| Member | Type | Purpose |
+|---|---|---|
+| `Text` | `string` | The text streamed so far, in arrival order. |
+| `State` | `AiState` | The stream's current state: `Thinking` → `Streaming` → `Generated` → the value of `SettleTo`. |
+
+Both setters are internal: a consumer reads the context, it never drives it. The
+component reuses **one** instance for the lifetime of the stream and mutates it in
+place, so the context is read during render and not cached across renders. It is
+the only shared type this category owns outright — everything else it exposes
+belongs to `E1 Foundation` (`AiState`, `AiAura`, `AiScope`, `AuraLifecycle`,
+`IDrylAiActivityService`) or to the canvas contract below.
+
 ## Remaining shared types
 
 *(phase C — the canvas contract: `CanvasSpec`, `CanvasSelection`,
-`CanvasPulseTracker`, `CanvasInteraction`, `CanvasActionOutcome`, `CanvasEdit`,
-and the stream context types of `DrylAiStream`.)*
+`CanvasPulseTracker`, `CanvasInteraction`, `CanvasActionOutcome`, `CanvasEdit`.
+`CanvasWorkspace`, `CanvasView` and `CanvasHistory` are described in the criteria
+of `F8 DrylCanvasWorkspace.md` and still need their contract stated here.)*
