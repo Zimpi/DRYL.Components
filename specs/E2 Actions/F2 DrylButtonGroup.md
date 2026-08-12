@@ -13,9 +13,10 @@ of the border, corner or overlap CSS myself.
 
 ## Description
 
-`DrylButtonGroup` is a layout wrapper. It renders one `div` carrying `role="group"`,
-an optional `aria-label`, and whatever the consumer put in `ChildContent` — nothing
-else. It places no button of its own: the segments are `DrylButton` components the
+`DrylButtonGroup` is a layout wrapper. It renders one `div` carrying its own class
+list, `role="group"`, an optional `aria-label` and whatever the consumer put in
+`ChildContent` — nothing else. It places no button of its own: the segments are
+`DrylButton` components the
 consumer writes, which is what lets the group serve both a cluster of independent
 actions and an exclusive toggle group driven by each button's `Pressed` parameter.
 
@@ -69,12 +70,21 @@ each `DrylButton` individually.
   group's root element and carries the `.btn` class.
 - A `DrylButton` placed directly inside the group satisfies that contract, because
   the button's root element carries `.btn`.
-- A `DrylButton` wrapped in an intermediate element is not a direct child and
-  therefore keeps all four of its own corners, takes no border overlap and is not
-  raised on interaction — it is placed by the group's flex layout but is not
-  segmented.
+- A `DrylButton` wrapped in an intermediate element is not a direct child, so it
+  keeps all four of its own corners.
+- Such a wrapped button takes no border overlap.
+- Such a wrapped button is not raised on interaction.
+- Such a wrapped button is still placed by the group's flex layout, so the breakage
+  is visual segmentation only, not position.
 - A child that is not a `.btn` is likewise placed by the flex layout and receives no
   segmentation.
+- The first and last positions are decided by element position among **all**
+  children, not among the `.btn` children: a single foreign element in the group —
+  a wrapper, a separator, a conditionally rendered element — shifts which real
+  segments count as first and last.
+- A genuine segment that a foreign element has displaced from the first position
+  therefore loses its rounded leading edge and takes a border pull onto that foreign
+  element, with no diagnostic of any kind.
 - Every segment except the first has its leading corners flattened, so only the first
   segment keeps a rounded leading edge.
 - Every segment except the last has its trailing corners flattened, so only the last
@@ -82,17 +92,24 @@ each `DrylButton` individually.
 - A segment that is neither first nor last has both leading and trailing corners
   flattened and therefore renders square.
 - A group with a **single** segment matches neither of those two conditions, so its
-  one child keeps all four of its own corners and takes no border overlap — it renders
-  exactly as a lone button of the same variant and size.
+  one child keeps all four of its own corners.
+- That single segment also takes no border overlap, since the pull applies only to a
+  child that is not the first.
+- A single segment in a group with `Block` set to `false` therefore renders exactly
+  as a lone button of the same variant and size.
+- A single segment in a group with `Block` set to `true` does **not**: it is
+  stretched to the container's full width, where a lone `DrylButton` is only as wide
+  as its content.
 - Every segment except the first is pulled onto its predecessor by one hairline, so
   the two adjacent borders occupy the same pixels and the cluster reads as one
   outline rather than as a row of touching boxes.
-- The outer corners of the group are the segments' own corners: the group overrides
-  no radius that survives flattening, so a segment sized `ButtonSize.Small` keeps the
-  smaller radius it defines for itself on its outer edge.
-- The group defines no radius of its own for a segment sized `ButtonSize.Large`,
-  which therefore keeps the default button radius on its outer edge — the size adds
-  no distinct radius to be honoured.
+- The group overrides no radius on the corners it does not flatten, so the outer
+  corners of the group are the segments' own corners.
+- A segment sized `ButtonSize.Small` therefore keeps the smaller radius it defines
+  for itself on its outer edge.
+- A segment sized `ButtonSize.Large` defines no radius of its own, so it keeps the
+  default button radius on its outer edge — that size adds no distinct radius for the
+  group to honour.
 - The hovered segment is raised above its neighbours in the stacking order, so the
   border it shares with them is drawn by the hovered segment rather than by the one
   overlapping it.
@@ -112,11 +129,29 @@ each `DrylButton` individually.
 - The group stretches to its container's full width while `Block` is `true`.
 - Every direct `.btn` child receives an equal share of the group's width while
   `Block` is `true`, independent of its label length.
-- The segments are stretched to a common height, so segments of differing content
-  still form one unbroken outline.
+- The group imposes no height on its segments: each segment's height comes from its
+  own `Size`.
+- The group therefore forms one unbroken outline only when its segments share a
+  single `Size`; a group mixing `ButtonSize.Small` with `ButtonSize.Medium` renders
+  segments of differing heights joined along a stepped edge.
+- A segment's height does not depend on its label, so differing label lengths never
+  break the outline on their own.
 - The group applies no gap between segments; the segmented look depends on them
   touching.
 - The group does not wrap its segments onto a second line.
+
+  The height criteria above are worth one note, because the rules read as though
+  they promise otherwise. The group's flex container asks its children to stretch on
+  the cross axis, but stretching only sets a cross size that is otherwise automatic,
+  and every button declares an explicit height for its size. The stretch request is
+  therefore inert here, and mixing sizes inside one group is a visual break the CSS
+  cannot rescue — which is why the component's own usage comment advises a consistent
+  `Variant` and `Size` across the segments. The advice is real; the safety net is not.
+
+  `Block` is undemonstrated: no example under
+  `DRYL.Website/Components/Examples/ButtonGroup/` sets it, and no test covers it. The
+  `SPEC-05` demo-page point is satisfied by the page as a whole, but this parameter's
+  behaviour above rests on reading the rules, not on a rendered example.
 
 ### Class merging and attribute precedence
 
@@ -146,9 +181,12 @@ each `DrylButton` individually.
 - The `aria-label` attribute is omitted when `AriaLabel` is `null`, leaving an
   unnamed `role="group"`.
 - The group itself holds no tab stop: it renders a `div` and sets no `tabindex`.
-- The group adds no key handling of its own — no arrow-key navigation and no roving
-  tab index — so each segment stays an independent tab stop reached with `Tab` and
-  activated with `Enter` or `Space` by virtue of being a native `button` (`UX-01`).
+- The group adds no key handling of its own, so no arrow key moves between segments.
+- The group sets no `tabindex` on its segments, so it establishes no roving tab index.
+- Each segment is therefore an independent tab stop, reached with `Tab` and
+  `Shift+Tab` in DOM order (`UX-01`).
+- Each segment is activated with `Enter` and `Space` by virtue of being a native
+  `button`, without the group contributing anything (`UX-01`).
 - The group changes no focus behaviour of its segments: the shared `:focus-visible`
   ring is the button's own, and the group only raises the focused segment's stacking
   order so the ring is drawn whole.
@@ -165,32 +203,67 @@ each `DrylButton` individually.
 
   Second, `role="group"` without an accessible name adds a grouping boundary that
   screen readers may announce with nothing to announce it as. `UX-01`'s naming
-  baseline makes `AriaLabel` the fix, and every demo in
-  `DRYL.Website/Components/Examples/ButtonGroup/` sets it — but the group in
-  `DRYL.Website/Components/Examples/LineChart/AiStates.razor` does not, so an
-  unlabelled group is reachable in the website today. The component permits it; that
-  is a call-site gap. The same file-level point applies to `UX-05`: the icon-only
+  baseline makes `AriaLabel` the fix. Both groups in
+  `DRYL.Website/Components/Examples/ButtonGroup/Clustered.razor` and both in
+  `.../ButtonGroup/Toggle.razor` set it; `.../ButtonGroup/Split.razor` contains no
+  `DrylButtonGroup` at all, only two `DrylSplitButton`s, so it neither sets nor omits
+  it. The group in `DRYL.Website/Components/Examples/LineChart/AiStates.razor` does
+  omit it, so an unlabelled group is reachable in the website today. The component
+  permits it; that one is a call-site gap.
+
+### `UX-05` against the child contract
+
+- An icon-only segment needs a `DrylTooltip` naming its action (`UX-05`), and the
+  tooltip is an ancestor element, so supplying it is a call-site duty this component
+  cannot discharge.
+- Wrapping a segment in a `DrylTooltip` makes the tooltip's own root element the
+  group's direct child, so that segment is no longer a direct `.btn` child and loses
+  every part of the segmentation contract above.
+- The wrapper also occupies a child position, so it shifts the first/last computation
+  for the segments around it and can break their corners too.
+- Satisfying `UX-05` on an icon-only segment therefore cannot currently be done
+  without breaking the segmented control; the two requirements are in direct
+  conflict.
+
+  This is the finding a consuming developer most needs from this spec, so it is
+  stated as a contract consequence rather than buried. The conflict is real and
+  library-level: `DrylTooltip` renders a `span` carrying `tt-wrap` as its root, and
+  every rule that produces the segmented look selects `> .btn`. The icon-only
   pagination segments in
   `DRYL.Website/Components/Examples/ButtonGroup/Clustered.razor` set `AriaLabel` but
-  are not wrapped in a `DrylTooltip`, which `UX-05` requires. The tooltip wrapper is
-  an ancestor of the button and therefore a call-site duty, not something this
-  component can supply.
+  carry no tooltip — which reads as a call-site oversight and is in fact the only
+  shape that renders correctly today. Closing it needs a library change (a group that
+  tolerates a wrapper, or a tooltip that does not introduce an element), which is out
+  of scope for this spec and is recorded here rather than fixed.
 
 ### AI mode
 
 - The component declares no `Ai` parameter and inherits no AI-aware base, so it
   renders no aura and adds no AI-specific class of its own.
-- A group whose segments are AI-aware shows their auras unchanged: the group applies
-  no `overflow` clipping and defines no stacking context that would cut an aura ring
-  off.
+- The group neither clips nor isolates its segments: it sets no `overflow`, no
+  `isolation`, no `position` and no stacking value, so it forms no stacking context of
+  its own.
+- An AI-aware segment's aura ring nevertheless follows the segment's flattened
+  corners, because the aura layers inherit the host's radius: a middle segment's ring
+  squares off at its inner corners.
+- A resting AI-aware segment's outward halo is occluded on its trailing side by the
+  next segment, because the segments overlap and paint in document order while the
+  halo spreads outside its own segment.
+- That occlusion is lifted for a segment that is hovered, focus-visible or active,
+  since those are exactly the states the group raises in the stacking order — a
+  resting AI state is not among them.
 
 ### Motion
 
-- The group animates nothing of its own: it declares no transition, no animation and
-  no transform, and every moving part of a segmented control — hover, press, focus
-  ring, the `Pressed` highlight — belongs to the segments.
-- The stacking-order raise on hover, focus and the active state steps rather than
-  animating, which is inherent to what it changes.
+- The group declares no transition of its own.
+- The group declares no animation and no transform of its own.
+- Every moving part of a segmented control — hover, press, the focus ring, the
+  `Pressed` highlight — belongs to the segments and is unchanged by the group.
+- The group does write one state-change rule: it raises the hovered, focus-visible
+  or active segment in the stacking order.
+- That raise steps rather than animating, which is inherent to what it changes — a
+  stacking order has no meaningful intermediate value — while the visible transition
+  on those same events remains the segment's own.
 - The component mounts nothing conditionally: `ChildContent` is rendered
   unconditionally, so there is no surface of the group's own that appears or
   disappears (`DESIGN-12`).
@@ -199,13 +272,16 @@ each `DrylButton` individually.
 
 ### Appearance
 
-- The group paints nothing: it sets no background, no border, no radius and no
-  shadow, so the segmented outline is composed entirely from the segments' own
+- The group sets no background and no border of its own.
+- The group sets no radius and no shadow of its own.
+- The segmented outline is therefore composed entirely from the segments' own
   surfaces.
-- The group therefore inherits its color-mode behaviour from its segments and holds
-  no color and no mode-assuming value of its own (`DESIGN-02`).
-- The inner-corner flattening is written with physical leading and trailing corners
-  rather than logical ones, so it does not mirror under `direction: rtl`.
+- The group holds no color and no mode-assuming value, so it branches on no color
+  mode and inherits its color-mode behaviour from its segments (`DESIGN-02`).
+- The inner-corner flattening names physical left and right corners rather than
+  logical ones, so it does not mirror under `direction: rtl`.
+- The border overlap is equally physical — it is written as a leading-side negative
+  margin on the left — so it does not mirror either.
 
   The literals in these rules are worth naming, because the check that would normally
   catch them cannot see this component at all: `DrylButtonGroup` has no isolated
@@ -237,15 +313,22 @@ each `DrylButton` individually.
 - **Enter/exit animation** — **none, and none of the four subsets of `DESIGN-11`
   apply.** This is the explicit written exception `DESIGN-11` allows for the rare
   component that genuinely has nothing to animate, and `SPEC-05` permits it only on
-  those terms. The group has no surface, no state of its own, no marker that moves
-  between targets and no content to reveal; the only property it changes on
-  interaction is a stacking order, which cannot be animated meaningfully. A consumer
-  who mounts a whole group conditionally wraps it in `DrylPresence` on their own side
-  (`DESIGN-12`).
+  those terms. The group has no surface, no marker that moves between targets and no
+  content to reveal. It is not quite true that it writes no state-change rule at all:
+  it raises the hovered, focus-visible or active segment in the stacking order, which
+  is a state change `DESIGN-11` would ordinarily want animated. A stacking order has
+  no animated form, and the visible transition on those same three events is the
+  segment's own — so the exception holds on the merits, with the rule named rather
+  than the case overstated. `DESIGN-11` asks for the exception in the **PR
+  description**, and its Check repeats that; it is written here for permanence and is
+  owed there as well. A consumer who mounts a whole group conditionally wraps it in
+  `DrylPresence` on their own side (`DESIGN-12`).
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above:
   `role="group"`, `aria-label` from `AriaLabel`, no tab stop of the group's own, and
   each segment an independent tab stop with no roving tab index and no arrow-key
-  handling (`UX-01`).
+  handling (`UX-01`). The "`UX-05` against the child contract" criteria record the one
+  place where an accessibility requirement and this component's structural contract
+  cannot both be satisfied today.
 - **AI mode** — **no**, deliberately. `DrylButtonGroup` does not inherit
   `DrylAiAware` and declares no `Ai` parameter. It is a layout wrapper with no
   surface of its own to light up; the aura belongs to the segments, each of which is
@@ -254,7 +337,9 @@ each `DrylButton` individually.
   `AiState` parameter to name. Recorded as compliance with `AI-05`, not as a waiver.
   `DRYL.Website/Components/Examples/LineChart/AiStates.razor` shows the intended
   shape: the group is the plain control, and the AI state it selects is applied to the
-  chart beside it.
+  chart beside it. What the group does not do is stay neutral towards an AI-aware
+  *segment*: the "AI mode" criteria above record that the segmentation reshapes such
+  a segment's aura ring and occludes its resting halo on the trailing side.
 - **Demo page** — `DRYL.Website/Components/Pages/DemoButtonGroup.razor`, routed at
   `/components/button-group`, composing
   `DRYL.Website/Components/Examples/ButtonGroup/Clustered.razor`,
