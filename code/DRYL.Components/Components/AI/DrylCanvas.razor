@@ -100,7 +100,15 @@
     /// <summary>The canvas's AI state. <see cref="AiState.Streaming"/> / <see cref="AiState.Thinking"/>
     /// show the build line and render not-yet-valid nodes as "waiting…" skeletons rather than as
     /// finished-broken placeholders. Default: <see cref="AiState.None"/>.</summary>
-    [Parameter] public AiState State { get; set; } = AiState.None;
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>
+    /// Obsolete alias for <see cref="Ai"/>, kept so the rename is not a break.
+    /// Setting it is equivalent to setting <see cref="Ai"/>; setting both on one
+    /// component is not supported, because the markup order would decide.
+    /// </summary>
+    [Obsolete("Renamed to Ai (AI-03). The State alias is removed in 3.0.0.")]
+    [Parameter] public AiState State { get => Ai; set => Ai = value; }
 
     /// <summary>A fatal error for the whole artifact — rendered as an alert instead of the tree.</summary>
     [Parameter] public string? Error { get; set; }
@@ -266,7 +274,7 @@
 
     protected override void OnParametersSet()
     {
-        _ctx.State = State;
+        _ctx.State = Ai;
         _ctx.Intent = OnInteraction;
         if (Pulse is not null && !ReferenceEquals(_ctx.Pulse, Pulse)) _ctx.Pulse = Pulse;
 
@@ -550,7 +558,7 @@
     private Task OnKeyDown(KeyboardEventArgs e) =>
         _expanded && e.Key == "Escape" ? ToggleExpandAsync() : Task.CompletedTask;
 
-    private bool IsBusy => State is AiState.Streaming or AiState.Thinking || _binder?.Busy == true;
+    private bool IsBusy => Ai is AiState.Streaming or AiState.Thinking || _binder?.Busy == true;
 
     private string ExpandLabel => _expanded ? "Exit fullscreen" : "Expand artifact";
 

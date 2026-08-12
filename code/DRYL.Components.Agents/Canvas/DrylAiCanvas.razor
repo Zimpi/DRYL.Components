@@ -26,7 +26,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <DrylCanvas Spec="Run?.Spec"
-            State="@(Run?.State ?? AiState.None)"
+            Ai="@(Run?.State ?? AiState.None)"
             Error="@(Run?.Error?.Message)"
             Announcement="@_announcement"
             EmptyText="Ask the assistant to create one."

@@ -15,15 +15,18 @@ Version bump guide:
 ## [Unreleased]
 
 ### Added
+- `DrylCanvas` — New `Ai` parameter (`AiState`, defaults to `AiState.None`), the opt-in that turns AI styling on, replacing `State` (see Deprecated). An artifact tree renders in full with `AiState.None` — the parameter only adds the build line and the waiting skeletons — so it is a switch, and `AI-03` requires it to be called `Ai`
 - `DrylToolCallGroup` — New `Ai` parameter (`AiState`, defaults to `AiState.None`), the opt-in that turns AI styling on, replacing `State` (see Deprecated). Same reasoning as `DrylToolCall` below: a collapsed group still shows its count and its status with `AiState.None`, so the parameter is a switch and `AI-03` requires it to be called `Ai`
 - `DrylToolCall` — New `Ai` parameter (`AiState`, defaults to `AiState.None`), the opt-in that turns AI styling on. It replaces `State`, which stays as an obsolete alias so nothing breaks — see Deprecated. `AI-03` requires the opt-in parameter to be called `Ai` on every component that still renders meaningfully with `AiState.None`, and a tool-call card does: it shows the tool name, its status and its arguments whether or not AI styling is on. The reasoning, and why five other AI components keep their own parameter names, is in `ideas/I1 AI parameter naming for AI-native components.md`
 
 ### Deprecated
+- `DrylCanvas.State` — Renamed to `Ai`, on the same terms as the two below: the alias delegates, still works, warns at the call site, and goes away in `3.0.0`
 - `DrylToolCallGroup.State` — Renamed to `Ai`, on the same terms as `DrylToolCall.State` below: the alias delegates, still works, warns at the call site, and goes away in `3.0.0`
 - `DrylToolCall.State` — Renamed to `Ai`. Setting `State` still works and still does exactly what it did; it delegates to `Ai` and raises `CS0618` at the call site naming the replacement. The alias is removed in the next planned `3.0.0`. Note that the compiler reports the generated `*_razor.g.cs` path rather than the `.razor` line, so search for the component name in your own markup
 
 ### Changed
-- `DrylAgentToolCalls` (Agents 0.17.3) — Sets `Ai` instead of `State` on the `DrylToolCallGroup` it renders and on the `DrylToolCall` cards inside it. Internal call sites only, no API of this package changes; the library does not use its own deprecated alias
+- `DrylAgentToolCalls` (Agents 0.17.4) — Sets `Ai` instead of `State` on the `DrylToolCallGroup` it renders and on the `DrylToolCall` cards inside it. Internal call sites only, no API of this package changes; the library does not use its own deprecated alias
+- `DrylAiCanvas` (Agents 0.17.4) — Sets `Ai` instead of `State` on the `DrylCanvas` it wraps. Internal call site only; the `State` it sets on its own `DrylAiIndicator` is unchanged, because that parameter is the displayed value and not an opt-in
 
 ### Fixed
 - `DrylToolCall` — The collapsible body appeared and vanished with no transition: it sat behind a bare `@if`, which `DESIGN-12` does not allow for a visible surface. It now animates open and closed on the `grid-template-rows` `0fr` → `1fr` disclosure its own neighbour `DrylToolCallGroup` already used, honours `prefers-reduced-motion`, and stays in the DOM while collapsed — so an expanded code block inside it keeps its state across a collapse. Found while writing the component's spec
