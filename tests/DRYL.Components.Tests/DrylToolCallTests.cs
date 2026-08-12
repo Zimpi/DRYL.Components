@@ -57,6 +57,56 @@ public class DrylToolCallTests : BunitContext
     }
 
     [Fact]
+    public void Collapsed_body_is_inert_so_its_buttons_leave_the_tab_order()
+    {
+        // The body stays in the DOM to animate, and DrylCodeBlock brings a copy button
+        // with it. Without inert those buttons stay tabbable inside an aria-hidden
+        // subtree — focusable but invisible, and unknown to the accessibility tree
+        // (WCAG 4.1.2, UX-07).
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "get_weather")
+            .Add(p => p.Arguments, "{\"city\":\"Berlin\"}")
+            .Add(p => p.Result, "{\"c\":21}"));
+
+        var body = cut.Find(".tool-call-body");
+        Assert.Equal("true", body.GetAttribute("aria-hidden"));
+        Assert.NotNull(body.GetAttribute("inert"));
+        Assert.NotEmpty(body.QuerySelectorAll("button"));   // the copy buttons are there
+    }
+
+    [Fact]
+    public void Expanded_body_is_not_inert()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "get_weather")
+            .Add(p => p.Arguments, "{\"city\":\"Berlin\"}")
+            .Add(p => p.DefaultExpanded, true));
+
+        var body = cut.Find(".tool-call-body");
+        Assert.Null(body.GetAttribute("inert"));
+        Assert.Null(body.GetAttribute("aria-hidden"));
+        Assert.Contains("is-open", cut.Find(".tool-call").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void Alias_still_wins_on_a_later_render()
+    {
+        // The alias must keep working across render cycles, not just on the first one.
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "get_weather")
+            .Add(p => p.Ai, AiState.Thinking));
+
+#pragma warning disable CS0618 // the alias is exactly what this test pins
+        cut.Render(ps => ps
+            .Add(p => p.ToolName, "get_weather")
+            .Add(p => p.State, AiState.Generated));
+#pragma warning restore CS0618
+
+        Assert.Equal(AiState.Generated, cut.Instance.Ai);
+        Assert.Contains("Done", cut.Find(".tool-call-status").TextContent);
+    }
+
+    [Fact]
     public void Toggling_the_head_opens_the_body()
     {
         var cut = Render<DrylToolCall>(ps => ps.Add(p => p.ToolName, "get_weather"));

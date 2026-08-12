@@ -25,6 +25,10 @@ values are refreshed and how the change is shown.
 
 - Activating the refresh button refreshes every binding of the artifact.
 - A binding declared with `interval:<n>s` refreshes on that interval.
+- An interval below the binder's five-second floor is raised to it, so a spec
+  cannot ask the host for a faster poll than the library is willing to run.
+- A binding declared `manual`, or with an unparseable `refresh`, does not poll at
+  all.
 - One timer serves the whole canvas, not one per bound node.
 - A binding refreshes when a form field it depends on changes.
 - A binding refreshes when the host invalidates its source.

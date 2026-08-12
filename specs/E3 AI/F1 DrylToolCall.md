@@ -21,8 +21,9 @@ in a `DrylCodeBlock`, or a danger `DrylAlert` when the call failed.
 
 The status is not a vocabulary of its own — it is the shared `AiState`, which is
 what lets a tool call, a streaming answer and a generated table all read as the
-same system. `Ai` is an opt-in: with `AiState.None` the card still renders its
-name, its arguments and its result, and simply carries no AI styling.
+same system. `Ai` is a switch, not the card's subject: with `AiState.None` the
+card still renders its name, its arguments and its result, and simply carries no
+AI styling.
 
 The component is a leaf. It does not fetch, poll or own the call; the host passes
 the current values on every render. Several stacked inside a `DrylTimeline` make
@@ -71,8 +72,9 @@ call's lifecycle belongs to the host.
 - The status pill reads "Streaming" when `Ai` is `AiState.Streaming`.
 - The status pill reads "Done" when `Ai` is `AiState.Generated`.
 - The status pill reads "Active" when `Ai` is `AiState.Active`.
-- The card renders its name, arguments and result unchanged when `Ai` is
-  `AiState.None` — the parameter is an opt-in, not a precondition.
+- The card renders its name unchanged when `Ai` is `AiState.None`.
+- The card renders its arguments and its result unchanged when `Ai` is
+  `AiState.None` — the parameter is a switch, not a precondition.
 - Setting the obsolete `State` alias sets `Ai` to the same value.
 - Reading the obsolete `State` alias returns the current value of `Ai`.
 - The aura is removed from the surface once `Ai` returns to `AiState.None`
@@ -96,8 +98,14 @@ call's lifecycle belongs to the host.
 ### Motion
 
 - The body animates open and closed over `--dur-med` with `--ease-in-out`, on
-  the `grid-template-rows` track rather than on the content (`DESIGN-11`,
-  `DESIGN-12`).
+  the `grid-template-rows` track rather than on the content (`DESIGN-11`).
+
+  `DESIGN-12` asks for a `DrylPresence` wrapper around anything that mounts
+  conditionally. This body does not mount conditionally any more, so the rule no
+  longer has a subject here — it is satisfied by removal of the condition, not by
+  the wrapper. The disclosure is preferred over `DrylPresence` because the body
+  must keep its content's state across a collapse, and it is what
+  `DrylToolCallGroup` and `DrylExpansion` already do.
 - The chevron rotates over `--dur-med` with `--ease-in-out` rather than snapping.
 - Both transitions are disabled under `prefers-reduced-motion: reduce`.
 - The sections inside the body carry no transition of their own: they sit inside
@@ -106,20 +114,28 @@ call's lifecycle belongs to the host.
 
 ### Keyboard and accessibility
 
-- The head row is a `<button type="button">`, so it is reachable by <kbd>Tab</kbd>
-  and activates on <kbd>Enter</kbd> and <kbd>Space</kbd> without extra handlers.
+- The head row is a `<button type="button">`.
+- The head row is reachable by <kbd>Tab</kbd>.
+- The head row activates on <kbd>Enter</kbd> and on <kbd>Space</kbd>.
 - The head row carries `aria-expanded` reflecting the body's state.
 - The head row carries `aria-controls` pointing at the body's `id`.
 - The body's `id` is unique per component instance.
 - The body carries `role="region"`.
 - The body carries `aria-hidden="true"` exactly while collapsed, so assistive
   tech does not read content the user cannot see — it is in the DOM either way.
+- The body carries `inert` exactly while collapsed, so nothing inside it can be
+  reached by <kbd>Tab</kbd> while it is invisible. `aria-hidden` alone does not
+  remove an element from the tab order, and the body holds the copy buttons of
+  its code blocks; focusable content inside an `aria-hidden` subtree is a
+  contradiction assistive tech cannot resolve (`UX-07`).
 - The head row shows a focus ring in `--accent-line` on `:focus-visible`.
 
 ### Appearance
 
-- Every color, radius, spacing, duration and easing resolves to a token; the
-  component writes no literal (`DESIGN-01`).
+- Every color resolves to a token (`DESIGN-01`).
+- Every radius, spacing, duration and easing resolves to a token (`DESIGN-01`).
+- Font sizes and letter spacing are written as literals, which `DESIGN-01` does
+  not govern.
 - The component branches on no color mode and holds no mode-assuming value, so
   the same markup serves light and dark (`DESIGN-02`).
 - The card sits in the document flow on `--glass-1` with a `--line` border, and
@@ -135,10 +151,12 @@ call's lifecycle belongs to the host.
   mode-specific rule.
 - **Enter/exit animation** — the disclosure body and the chevron, above. Added
   2026-08-11: the body previously sat behind a bare `@if` and had none, which
-  `DESIGN-12` does not allow.
+  `DESIGN-12` does not allow. The `DESIGN-12` note under "Motion" states how the
+  rule is met.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above.
-- **AI mode** — yes, and it is an opt-in: the card renders meaningfully with
-  `AiState.None`, so `AI-03` requires the parameter to be `Ai`.
+- **AI mode** — yes, and it is an opt-in: the parameter is a switch on a card
+  that would otherwise render as an ordinary one, so `AI-03` requires it to be
+  called `Ai`.
 - **Demo page** — `DRYL.Website/Components/Examples/ToolCall/States.razor` and
   `.../ToolCall/AgentTrace.razor`.
 - **`ComponentCatalog`** — registered as `"Tool Call"` / `tool-call` in

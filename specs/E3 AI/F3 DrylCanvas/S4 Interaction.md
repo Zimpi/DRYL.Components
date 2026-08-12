@@ -61,8 +61,10 @@ direct manipulation of the artifact's own elements.
 - Reordering moves the node one slot among its siblings, or to a named index
   when a drop supplied one.
 - Reordering past either end of the sibling list does nothing.
-- Every structural command is applied as one `CanvasOp` through the one
-  patcher — which is what makes a user's edit animate exactly like an AI's edit.
+- Duplicate, remove and reorder are each applied as one `CanvasOp` through the
+  one patcher — which is what makes a user's edit animate exactly like an AI's
+  edit. Pin is the exception named above: it is metadata, not a change to the
+  artifact, so it bypasses the patcher deliberately.
 - A completed command raises `OnEdit` with a `CanvasEdit` carrying a label
   ("Pinned …", "Duplicated …", "Removed …", "Moved …").
 - A command that was refused raises no `OnEdit`.

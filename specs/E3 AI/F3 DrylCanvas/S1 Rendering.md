@@ -11,8 +11,10 @@ error, or nothing yet.
 ### Header
 
 - The header renders `Spec.Title` as the artifact title.
-- The header renders "Artifact" as the title when `Spec` is `null` or carries no
-  title.
+- The header renders "Artifact" as the title when `Spec` is `null`.
+- The header renders "Artifact" as the title when `Spec.Title` is `null`. A
+  `Spec.Title` that is present but empty renders as empty — the fallback is on
+  `null`, not on blank.
 - The header renders `HeaderTools` in the tool row, before the built-in buttons.
 - The header renders the refresh button only when the artifact has at least one
   data binding (see `S3`).

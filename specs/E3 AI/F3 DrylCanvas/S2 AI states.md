@@ -12,9 +12,10 @@ not do.
 
 - `Ai` defaults to `AiState.None`.
 - `Ai` accepts exactly the five values of `AiState`.
-- The artifact tree, the header and the empty state render unchanged when `Ai`
-  is `AiState.None` — the parameter is an opt-in, not a precondition, which is
-  why `AI-03` requires it to be called `Ai`.
+- The artifact tree renders unchanged when `Ai` is `AiState.None`.
+- The header and the empty state render unchanged when `Ai` is `AiState.None` —
+  the parameter is a switch, not a precondition, which is why `AI-03` requires it
+  to be called `Ai`.
 - Setting the obsolete `State` alias sets `Ai` to the same value.
 - Reading the obsolete `State` alias returns the current value of `Ai`.
 - The value is passed into the shared `CanvasContext`, so the node views resolve

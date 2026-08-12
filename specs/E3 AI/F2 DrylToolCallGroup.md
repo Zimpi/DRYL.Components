@@ -74,7 +74,7 @@ a failed tool is never swallowed by the summary.
 - `Ai` defaults to `AiState.None`.
 - `Ai` accepts exactly the five values of `AiState`.
 - The group renders its count and its status unchanged when `Ai` is
-  `AiState.None` — the parameter is an opt-in, not a precondition.
+  `AiState.None` — the parameter is a switch, not a precondition.
 - Setting the obsolete `State` alias sets `Ai` to the same value.
 - Reading the obsolete `State` alias returns the current value of `Ai`.
 - The aura is removed from the surface once `Ai` returns to `AiState.None`
@@ -104,8 +104,10 @@ a failed tool is never swallowed by the summary.
 ### Motion
 
 - The body animates open and closed over `--dur-med` with `--ease-in-out`, on the
-  `grid-template-rows` track rather than on the content (`DESIGN-11`,
-  `DESIGN-12`).
+  `grid-template-rows` track rather than on the content (`DESIGN-11`). The body
+  does not mount conditionally, so `DESIGN-12`'s `DrylPresence` requirement has
+  no subject here; keeping the cards mounted is what preserves their state
+  across a collapse.
 - The chevron rotates over `--dur-med` with `--ease-in-out` rather than snapping.
 - The head row's color transitions over `--dur-fast` with `--ease-out` on hover.
 - The body and chevron transitions are disabled under
@@ -113,26 +115,32 @@ a failed tool is never swallowed by the summary.
 
 ### Keyboard and accessibility
 
-- The head row is a `<button type="button">`, so it is reachable by <kbd>Tab</kbd>
-  and activates on <kbd>Enter</kbd> and <kbd>Space</kbd> without extra handlers.
+- The head row is a `<button type="button">`.
+- The head row is reachable by <kbd>Tab</kbd>.
+- The head row activates on <kbd>Enter</kbd> and on <kbd>Space</kbd>.
 - The head row carries `aria-expanded` reflecting the body's state.
 - The head row carries `aria-controls` pointing at the body's `id`.
 - The body's `id` is unique per component instance.
 - The body carries `role="region"`.
 - The body carries `aria-hidden="true"` exactly while collapsed, so assistive
   tech does not read the cards the user cannot see.
+- The body carries `inert` exactly while collapsed, so no card head and no copy
+  button inside it can be reached by <kbd>Tab</kbd> while invisible (`UX-07`).
 - The head row shows a focus ring in `--accent-line` on `:focus-visible`.
 
 ### Appearance
 
-- Every color, radius, spacing, duration and easing resolves to a token; the
-  component writes no literal (`DESIGN-01`).
+- Every color resolves to a token (`DESIGN-01`).
+- Every radius, spacing, duration and easing resolves to a token (`DESIGN-01`).
+- Font sizes are written as literals, which `DESIGN-01` does not govern.
 - The component branches on no color mode and holds no mode-assuming value, so
   the same markup serves light and dark (`DESIGN-02`).
 - The group sits in the document flow on `--glass-1` with a `--line` border, and
   hand-writes no `backdrop-filter` (`DESIGN-06`, `DESIGN-07`).
-- The collapsed label is rendered in `--fg-muted` and lifts to `--fg` on hover,
-  so a settled group recedes.
+- The settled label is rendered in `--fg-muted` and lifts to `--fg` on hover, so
+  a settled group recedes.
+- The ticker label is rendered in `--fg` while a tool runs, so the active group
+  reads as foreground.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -143,8 +151,9 @@ a failed tool is never swallowed by the summary.
 - **Enter/exit animation** — the disclosure body, the chevron and the head
   row's hover, above.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above.
-- **AI mode** — yes, and it is an opt-in: the group renders meaningfully with
-  `AiState.None`, so `AI-03` requires the parameter to be `Ai`.
+- **AI mode** — yes, and it is an opt-in: the parameter is a switch on a row
+  that would otherwise render as an ordinary summary, so `AI-03` requires it to
+  be called `Ai`.
 - **Demo page** — `DRYL.Website/Components/Examples/ToolCallGroup/Running.razor`
   and `.../ToolCallGroup/Summary.razor`.
 - **`ComponentCatalog`** — registered as `"Tool Call Group"` / `tool-call-group`

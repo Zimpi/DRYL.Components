@@ -78,9 +78,9 @@ value.
   `IDrylViewTransition`. See `S2` and `S5`.
 - **Keyboard and a11y** — two `aria-live` regions, <kbd>Escape</kbd> to collapse,
   and the selection's keyboard model. See `S1`, `S4` and `S5`.
-- **AI mode** — yes, and it is an opt-in: the artifact tree renders in full with
-  `AiState.None`, so `AI-03` requires the parameter to be `Ai`. Note that the
-  canvas carries no aura — see `S2` for why.
+- **AI mode** — yes, and it is an opt-in: the parameter is a switch on a tree
+  that renders in full without it, so `AI-03` requires it to be called `Ai`. Note
+  that the canvas carries no aura — see `S2` for why.
 - **Demo page** — `DRYL.Website/Components/Examples/Canvas/CatalogTypes.razor`,
   `.../Canvas/DataBinding.razor` and `.../Canvas/Actions.razor`.
 - **`ComponentCatalog`** — registered as `"Canvas"` / `canvas` in

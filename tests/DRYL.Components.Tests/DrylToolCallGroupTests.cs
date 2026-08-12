@@ -69,6 +69,22 @@ public class DrylToolCallGroupTests : BunitContext
     }
 
     [Fact]
+    public void Collapsed_body_is_inert_so_the_cards_leave_the_tab_order()
+    {
+        // A collapsed group keeps its cards in the DOM; each card head is a button, and
+        // each code block inside brings another. Without inert they all stay tabbable
+        // inside an aria-hidden subtree (WCAG 4.1.2, UX-07).
+        var cut = Render<DrylToolCallGroup>(ps => ps
+            .Add(p => p.Count, 1)
+            .AddChildContent("<button type=\"button\">inner</button>"));
+
+        var body = cut.Find(".tool-group-body");
+        Assert.Equal("true", body.GetAttribute("aria-hidden"));
+        Assert.NotNull(body.GetAttribute("inert"));
+        Assert.NotEmpty(body.QuerySelectorAll("button"));
+    }
+
+    [Fact]
     public void Body_stays_in_the_dom_while_collapsed()
     {
         var cut = Render<DrylToolCallGroup>(ps => ps
