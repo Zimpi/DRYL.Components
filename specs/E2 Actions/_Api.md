@@ -14,10 +14,13 @@ types, both of them enums nested inside `DrylButton`.
 
 Declared **nested inside** `DrylButton`, in
 `code/DRYL.Components/Components/Actions/DrylButton.razor`. A consumer therefore
-writes it qualified — `Variant="DrylButton.ButtonVariant.Ghost"` — and that is
-the spelling every call site in the library and in `DRYL.Website` uses. The
-unqualified `ButtonVariant.Ghost` appears only in the components' Razor usage
-comments, which are not compiled call sites.
+writes it qualified — `Variant="DrylButton.ButtonVariant.Ghost"` — and every
+consumer call site in this repository does. The enum is referenced unqualified
+only inside `DrylButton` itself, where it is declared and the short form is
+unavoidable: the parameter defaults and the variant switch in its `CssClass`. In
+any other component the unqualified `ButtonVariant.Ghost` appears only in Razor
+usage comments and in `code/DRYL.Components/PACKAGE.md` — prose, not compiled
+call sites.
 
 | Member | Notes |
 |---|---|
@@ -74,10 +77,10 @@ Named here so a consumer knows where to look, with their members deliberately
 | `AiState` | `E1 Foundation` — `code/DRYL.Components/AiState.cs` | `DrylButton.Ai` (inherited from `DrylAiAware`), `DrylSplitButton.Ai`. |
 | `AiAura` | `E1 Foundation` — `code/DRYL.Components/AiAura.cs` | `DrylButton.Aura` (inherited from `DrylAiAware`). |
 
-`AiState` and `AiAura` are documented in `E1 Foundation`'s companion files, under
-that category's "AI state vocabulary" — which is still a phase-C scaffold at the
-time of writing. That is where their members will be listed; they are not listed
-here even in the meantime.
+`AiState` and `AiAura` are documented in
+[`../E1 Foundation/_Api.md`](../E1%20Foundation/_Api.md), under that category's
+"AI state vocabulary". That is where their members are listed; they are not
+listed here.
 
 ## The AI opt-in contract
 
@@ -113,15 +116,20 @@ freeze binds them:
 
 In all three markups the `@attributes` splat sits **last**, after every attribute
 the component writes itself. Blazor's last-write-wins means a consumer-supplied
-attribute of the same name overrides the component's own value. Concretely, and
-uniformly across the category:
+attribute of the same name overrides the component's own value. The rule is
+uniform; what it lands on is not, since each component splats onto its own root.
+Concretely, per component:
 
-- A consumer-supplied `disabled` disables a `DrylButton` even when `Disabled` and
-  `Loading` are both `false`.
-- A consumer-supplied `type` overrides the one `IsSubmit` selected.
-- A consumer-supplied `role` overrides `DrylButtonGroup`'s `role="group"`.
-- A consumer-supplied `aria-*` attribute — `aria-label`, `aria-pressed` — wins
-  over the one the component produced from `AriaLabel` or `Pressed`.
+- On `DrylButton`: a consumer-supplied `disabled` disables the button even when
+  `Disabled` and `Loading` are both `false`; a `type` overrides the one `IsSubmit`
+  selected; an `aria-label` or `aria-pressed` wins over the one the component
+  produced from `AriaLabel` or `Pressed`.
+- On `DrylButtonGroup`: a consumer-supplied `role` overrides its `role="group"`,
+  and an `aria-label` overrides the one produced from `AriaLabel`.
+- On `DrylSplitButton`: the splat reaches the wrapper `div` only. The component
+  writes no attribute on it besides `class`, and passes nothing through to either
+  segment — so a `disabled` or `type` set here lands on the wrapper and changes
+  neither button.
 
 `class` is **the one exception**: it binds to the `Class` parameter rather than
 being captured as unmatched, so it never reaches the splat and is merged instead
@@ -129,9 +137,5 @@ of overriding.
 
 ## Services
 
-**None.** This category owns no service, registers none, and consumes none. No
-component under `code/DRYL.Components/Components/Actions/` carries an `@inject`
-or `[Inject]` of any kind; `AddDrylComponents()` registers nothing on their
-behalf. The only ambient value any of them reads is the `[CascadingParameter]`
-`AiScope` that `DrylButton` inherits from `DrylAiAware` — a cascading value, not
-a DI service. See [`_Interop.md`](_Interop.md).
+**None** — this category owns no service, registers none and consumes none; the
+evidence is in [`_Interop.md`](_Interop.md), which carries the argument.

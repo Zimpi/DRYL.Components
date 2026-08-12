@@ -32,12 +32,12 @@ from JS back into `DrylPopover`.
 That interop belongs to `E10 Navigation` (`DrylMenu`) and `E11 Surfaces`
 (`DrylPopover`) and is documented there, in
 [`../E10 Navigation/_Interop.md`](../E10%20Navigation/_Interop.md) and
-[`../E11 Surfaces/_Interop.md`](../E11%20Surfaces/_Interop.md) — both of which are
-still phase-C scaffolds at the time of writing. It is named here because a
-consumer of `DrylSplitButton` will observe the behaviour it produces, and it is
-**not** tabulated here because Actions neither calls those entry points nor owns
-their contract. `DrylSplitButton` sets exactly two things on the composed menu —
-its `Placement` and its `Label` — and holds no open state; see
+[`../E11 Surfaces/_Interop.md`](../E11%20Surfaces/_Interop.md). It is named here
+because a consumer of `DrylSplitButton` will observe the behaviour it produces,
+and it is **not** tabulated here because Actions neither calls those entry points
+nor owns their contract. `DrylSplitButton` sets exactly two parameters on the
+composed menu — `Placement` and `Label` — and fills its `Trigger` and `Items`
+slots, the first with the caret `DrylButton`; it holds no open state. See
 `F3 DrylSplitButton.md`.
 
 ## Services
