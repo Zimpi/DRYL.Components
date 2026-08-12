@@ -361,3 +361,57 @@ Phase-C-Normalfall. Der Beleg ist die gestiegene Zahl, nicht der grüne Exit.
 
 Build und Tests laufen, obwohl dieser Plan `code/` nicht anfassen soll: sie sind der
 Nachweis, dass er es tatsächlich nicht getan hat.
+
+---
+
+## Durchführung — Stand 2026-08-12
+
+Alle acht Tasks erledigt. Ein Commit pro Task, `code/` unangetastet.
+
+| Task | Commit | Ergebnis |
+|---|---|---|
+| 1 `F4 DrylAiIndicator` | `500e92f` | `Implemented`, 4/127 |
+| 2 `F5 DrylAiScope` | `2033ff9` | `Implemented`, 5/127 |
+| 3 `F6 DrylAiStream` | `ecdee5d` | `Implemented`, 6/127 |
+| 4 `F7 DrylAuraElements` | `005e98f` | `Modified`, 7/127 |
+| 5 `F8 DrylCanvasWorkspace` | `eaa98c8` | `Implemented`, 8/127 |
+| 6 `_Interop.md` + `_Api.md` | `a82b04a` | Kategorie vollständig |
+| 7 PR-Template | `0b3f3ae` | — |
+| 8 `DRYL.Website/CLAUDE.md` | `5ee0360` | eigenes Repository |
+
+### Was der Plan nicht vorhergesehen hat
+
+- **`DrylAuraElements` trägt kein `aria-hidden`.** `UX-07`(c) verlangt es für einen
+  dekorativen bewegten Indikator und nennt die AI-Aura als Beispiel; `.tab-ink` und
+  `.ws-ink` tragen es, die vier Aura-Ebenen nicht. Task 4 hatte das als „beim
+  Schreiben zu prüfen" vorgemerkt — die Prüfung fiel negativ aus. Als Kriterium
+  formuliert, das der Code nicht erfüllt; **nicht** gefixt, weil das Markup von rund
+  dreißig Komponenten geteilt wird.
+- **Das PR-Template war an zwei weiteren Stellen veraltet**, nicht nur bei
+  „Dark-only": es verlangte ein `README.md`-Komponententabelle-Update, das `REL-04`
+  ausdrücklich verbietet, und erwähnte die Spec überhaupt nicht, obwohl `SPEC-01`
+  sie in denselben Commit legt. Beides in Task 7 mitkorrigiert.
+- **Zwei Exception-Typen, nicht vier.** Der erste Entwurf von `_Interop.md`
+  behauptete vier tolerierte Interop-Fehlermodi. Der Code fängt zwei; nur
+  `DrylCanvasWorkspace` fängt einen dritten (`JSException`), weil seine Leiste in
+  einer `DrylPresence` sitzt. Vor dem Commit korrigiert.
+
+### Verifikation (gelesen, nicht angenommen)
+
+`dotnet build -c Release`: 0 Fehler, 80 Warnungen (alle vorbestehend, überwiegend
+`BL0005` in Tests). `dotnet test -c Release`: 1025/1025 in drei aufeinanderfolgenden
+Läufen. **Der erste Lauf zeigte 2 Fehler**, darunter
+`DrylAiStreamTests.Smooth_mode_reveals_a_burst_gradually_and_completely` — ein
+zeitabhängiger Test, der unter der Last des unmittelbar vorangegangenen
+Release-Builds sein Fenster verpasste. Vier weitere Läufe waren grün. Das ist
+Flakiness in der Testsuite, kein Regressionsbefund dieses Plans, der keinen Code
+angefasst hat; es bleibt aber ein offener Punkt für sich.
+
+`check-light-sync`, `validate-light-contrast`, `check-harness-links`,
+`check-motion-tokens`: alle exit 0. `check-spec-coverage`: `8/127`, weiterhin
+erwartungsgemäß non-zero.
+
+**Nicht durchgeführt:** die Sichtprüfung beider Farbmodi am laufenden Docs-Website.
+Dieser Plan hat keine Zeile CSS und kein Markup geändert, es gibt also nichts Neues
+anzusehen — die Modus-Aussagen der Specs stützen sich auf die beiden Skripte und auf
+gelesene Selektoren, nicht auf einen Augenschein.
