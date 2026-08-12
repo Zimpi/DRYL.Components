@@ -14,6 +14,18 @@ Version bump guide:
 
 ## [Unreleased]
 
+### Added
+- `DrylToolCall` — New `Ai` parameter (`AiState`, defaults to `AiState.None`), the opt-in that turns AI styling on. It replaces `State`, which stays as an obsolete alias so nothing breaks — see Deprecated. `AI-03` requires the opt-in parameter to be called `Ai` on every component that still renders meaningfully with `AiState.None`, and a tool-call card does: it shows the tool name, its status and its arguments whether or not AI styling is on. The reasoning, and why five other AI components keep their own parameter names, is in `ideas/I1 AI parameter naming for AI-native components.md`
+
+### Deprecated
+- `DrylToolCall.State` — Renamed to `Ai`. Setting `State` still works and still does exactly what it did; it delegates to `Ai` and raises `CS0618` at the call site naming the replacement. The alias is removed in the next planned `3.0.0`. Note that the compiler reports the generated `*_razor.g.cs` path rather than the `.razor` line, so search for the component name in your own markup
+
+### Changed
+- `DrylAgentToolCalls` (Agents 0.17.2) — Sets `Ai` instead of `State` on the `DrylToolCall` cards it renders. Internal call site only, no API of this package changes; the library does not use its own deprecated alias
+
+### Fixed
+- `DrylToolCall` — The collapsible body appeared and vanished with no transition: it sat behind a bare `@if`, which `DESIGN-12` does not allow for a visible surface. It now animates open and closed on the `grid-template-rows` `0fr` → `1fr` disclosure its own neighbour `DrylToolCallGroup` already used, honours `prefers-reduced-motion`, and stays in the DOM while collapsed — so an expanded code block inside it keeps its state across a collapse. Found while writing the component's spec
+
 ## [2.21.0] — 2026-08-11
 
 The motion vocabulary gains the words it was missing. `DESIGN-10` fixes three durations and three easings, but six one-shot choreographies ran past its 600 ms ceiling and three delays were bare literals — so the rule forbade the value and offered no token, and every author wrote the literal anyway.

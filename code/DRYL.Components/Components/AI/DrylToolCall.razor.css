@@ -54,7 +54,17 @@
 }
 .tool-call-chevron--open { transform: rotate(180deg); }
 
+/* Disclosure: animate the track, never squeeze the content (DrylExpansion trick). */
 .tool-call-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--dur-med) var(--ease-in-out);
+}
+.tool-call.is-open .tool-call-body { grid-template-rows: 1fr; }
+
+.tool-call-body-inner { overflow: hidden; }
+
+.tool-call-body-content {
     display: flex;
     flex-direction: column;
     gap: var(--sp-3);
@@ -72,4 +82,9 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--fg-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tool-call-body { transition: none; }
+    .tool-call-chevron { transition: none; }
 }
