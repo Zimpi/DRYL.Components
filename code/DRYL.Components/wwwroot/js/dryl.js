@@ -464,10 +464,11 @@ window.dryl.popover = (() => {
         // therefore unfocusable, until the reveal below), but one that focuses
         // into its panel before the portal runs would otherwise lose it in
         // silence. Keep it — it is not the pending-focus mechanism below.
+        // Only the capture belongs here: it has to read activeElement before
+        // the move. The restore waits until after the reveal, further down.
         const focused = document.activeElement;
         const refocus = focused && panel.contains(focused);
         document.body.appendChild(panel);
-        if (refocus) focused.focus();
 
         const reposition = () => place(anchor, panel, placement, matchWidth);
         reposition();
@@ -475,11 +476,20 @@ window.dryl.popover = (() => {
         // .is-open.is-positioned gate in DrylPopover.razor.css).
         panel.classList.add('is-positioned');
 
-        // The panel only became focusable on the line above. A consumer that
-        // asked to focus into it while it was still hidden (DrylMenu, whose
-        // OnAfterRenderAsync runs before ours) parked the request on the node;
-        // honour it now. One-shot: cleared before running, and again in close()
-        // for the request that is never reached because the popover closed.
+        // Both focus moves belong AFTER the line above, because that is what
+        // makes the panel focusable — restoring beside the appendChild would
+        // call focus() on a still-hidden element, which is silently a no-op and
+        // is the very failure this whole mechanism exists to avoid.
+        //
+        // Restore the carried-over focus first (see the hardening note above),
+        // so that an explicit pending request still wins if there is one.
+        if (refocus) focused.focus();
+
+        // A consumer that asked to focus into the panel while it was still
+        // hidden (DrylMenu, whose OnAfterRenderAsync runs before ours) parked
+        // the request on the node; honour it now. One-shot: cleared before
+        // running, and again in close() for the request that is never reached
+        // because the popover closed.
         const pendingFocus = panel.__drylPendingFocus;
         if (pendingFocus) {
             delete panel.__drylPendingFocus;
