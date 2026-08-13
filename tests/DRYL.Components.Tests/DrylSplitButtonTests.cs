@@ -87,6 +87,22 @@ public class DrylSplitButtonTests : BunitContext
     }
 
     [Fact]
+    public void Rendering_claims_the_caret_for_the_menu_role_before_any_click()
+    {
+        // aria-haspopup is about the state before the panel is opened, so the
+        // claim runs at the popover's first render. bUnit never executes
+        // dryl.js and therefore never sees the attribute itself — what it does
+        // see, and what this holds, is the call going out with the panel's role
+        // and the closed state, before anything is clicked.
+        var cut = Render<DrylSplitButton>(ps => ps.AddChildContent("Save"));
+
+        var call = JSInterop.Invocations["dryl.popover.claimTrigger"].Single();
+
+        Assert.Equal("menu", call.Arguments[1]);
+        Assert.Equal(false, call.Arguments[2]);
+    }
+
+    [Fact]
     public void Opening_the_menu_hands_the_panel_role_to_the_popover_script()
     {
         // The caret's aria-haspopup / aria-expanded are set by dryl.js on the

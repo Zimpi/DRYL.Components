@@ -116,6 +116,17 @@
         if (firstRender)
         {
             _dotnetRef = DotNetObjectReference.Create(this);
+
+            // Announce the panel on the trigger from the very first render:
+            // aria-haspopup is about the state BEFORE the panel is opened, so
+            // claiming it only on open would tell the user what they had just
+            // found out for themselves. Only triggers that write no
+            // aria-haspopup of their own are claimed — see dryl.popover's
+            // claimTrigger — and a panel with no role is left alone, because
+            // there is nothing true to announce. Interop lives here rather
+            // than in OnInitializedAsync so static prerender never calls it.
+            if (PanelRole is not null)
+                await JS.InvokeVoidAsync("dryl.popover.claimTrigger", _anchor, PanelRole, Open);
         }
 
         // Drive the portal off the rendered Open state. This covers every close

@@ -531,6 +531,8 @@ window.dryl.menu = (() => {
  *
  *   open(anchor, panel, dotnetRef, opts)  — portal, position, listen
  *   close(anchor)                         — restore the panel, clean up
+ *   claimTrigger(anchor, role, open)      — put aria-haspopup / aria-expanded
+ *                                           on the trigger, additively
  *
  * Blazor still owns the panel node. open() drops a comment
  * placeholder at the panel's original slot and close() moves the
@@ -563,7 +565,17 @@ window.dryl.popover = (() => {
      *
      * The focusable element is found with the same selector dryl.menu
      * .focusTrigger uses — the trigger's focus target and its ARIA target
-     * are by definition the same node. */
+     * are by definition the same node.
+     *
+     * claimTrigger runs at the popover's FIRST RENDER, not only on open.
+     * aria-haspopup exists for the state before the panel is opened: it is
+     * what tells a screen-reader user that this button unfolds something. An
+     * attribute that appeared only after the first open would announce the
+     * fact at the moment the user had already discovered it — and it would
+     * leave DrylMenu out of step with DrylSelect and the pickers, which carry
+     * theirs from the first render. Opening re-claims (a trigger rebuilt in
+     * the meantime is a fresh node with no attributes and no owner mark), so
+     * the two entry points are one function called twice, not two rules. */
     const ARIA_OWNER = '__drylTriggerAria';
     const TRIGGER_SEL =
         '.menu-trigger button:not([disabled]), .menu-trigger a, .menu-trigger [tabindex],'
@@ -572,7 +584,7 @@ window.dryl.popover = (() => {
     // role means we stay silent rather than claim a popup type that is not true.
     const HASPOPUP_ROLES = ['menu', 'listbox', 'tree', 'grid', 'dialog'];
 
-    function claimTrigger(anchor, role) {
+    function claimTrigger(anchor, role, open) {
         if (!anchor || HASPOPUP_ROLES.indexOf(role) < 0) return null;
         const el = anchor.querySelector(TRIGGER_SEL);
         if (!el) return null;
@@ -581,7 +593,9 @@ window.dryl.popover = (() => {
             el[ARIA_OWNER] = true;
             el.setAttribute('aria-haspopup', role);
         }
-        el.setAttribute('aria-expanded', 'true');
+        // Never an announcement without its state: a claimed trigger always
+        // carries aria-expanded too, false from the first render onwards.
+        el.setAttribute('aria-expanded', open ? 'true' : 'false');
         return el;
     }
 
@@ -686,7 +700,7 @@ window.dryl.popover = (() => {
             document.addEventListener('pointerdown', onDocClick, true);
         }
 
-        state.set(anchor, { panel, onScroll, onResize, onDocClick, trigger: claimTrigger(anchor, opts.role) });
+        state.set(anchor, { panel, onScroll, onResize, onDocClick, trigger: claimTrigger(anchor, opts.role, true) });
     }
 
     function close(anchor) {
@@ -713,7 +727,7 @@ window.dryl.popover = (() => {
         state.delete(anchor);
     }
 
-    return { open, close };
+    return { open, close, claimTrigger };
 })();
 
 /* --------------------------------------------------------------
