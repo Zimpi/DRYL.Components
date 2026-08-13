@@ -132,6 +132,16 @@ nicht: das statische `@onkeydown:preventDefault="true"` sitzt auf der Tagzelle
 und unterdrückt genau die Klick-Erzeugung, die diesen Weg tragen müsste. Der
 Panel-Handler muss die **Herkunft** prüfen und nur auf einer Tagzelle auswählen.
 
+**Nachtrag zum Nachtrag, damit die Aktenlage stimmt:** der Absatz oben galt für
+den Stand, auf dem er geschrieben wurde. Die umgesetzte Lösung hat das statische
+`preventDefault` der Tagzelle entfernt — auf dem heutigen Stand *würde* „`Enter`
+und `Space` gar nicht behandeln" also funktionieren. Die Herkunftsprüfung bleibt
+trotzdem die bessere Wahl, weil sie zusätzlich die Monats-Chevrons und den
+`Cancel`-Button des `DrylTimePicker` abdeckt, die eine reine Markup-Lösung nicht
+erreicht. Sie liegt aus einem zwingenden Grund in `dryl.js` und nicht in .NET:
+`KeyboardEventArgs` trägt kein Target, der Handler kann die Herkunft einer Taste
+grundsätzlich nicht selbst feststellen.
+
 **MITTEL B — die Monats-Chevrons sind per Tastatur unerreichbar (`UX-01`).**
 Der Fokus betritt das Panel ausschließlich auf einer Tagzelle, und seit
 `bdf6b9d` schließen `Tab` und `Shift+Tab` das Panel. Die *Aktion* Monatswechsel
@@ -161,6 +171,28 @@ drücken (darf nur blättern), `Tab` mehrfach durch beide Panels (bleibt drin,
 erreicht die Chevrons bzw. Cancel/Done), `Ctrl+F` bei fokussierter Tagzelle
 (`defaultPrevented=false`), und beide Picker gegeneinander auf gleiches
 Verhalten.
+
+## Ergebnis
+
+Umgesetzt in `dda0a47`, `bdf6b9d`, `130f483`, `1a13797`, dazwischen zwei
+getrennte Reviews am laufenden System. Elf Befunde aus beiden Reviewrunden sind
+einzeln nachgemessen erledigt. Drei davon waren schwer, und alle drei entstanden
+erst dadurch, dass der Fokus nun wirklich im Panel steht — vorher lagen diese
+Wege tot. Das ist die Lehre dieses Plans: **wer Fokus in eine Fläche bringt,
+erbt jede Taste, die dort ankommt.**
+
+Offen und ausdrücklich nicht Teil davon:
+
+- `dryl.timepicker.scrollToActive` ist derselbe stille No-op am noch verborgenen
+  Panel — der Portal-`appendChild` setzt den `scrollTop` der Spalten zurück, die
+  gewählte Stunde steht außerhalb des Sichtfelds. Vorbestehend, gemessen, eigene
+  Aufgabe, derselbe Pending-Kanal ist der Kandidat.
+- Ist der fokussierte Tag durch `Min`/`Max` gesperrt, schrumpft der Tab-Ring auf
+  die beiden Chevrons. Kein Trap: eine Pfeiltaste holt den Fokus zurück,
+  `Escape` wirkt immer.
+- Keine Pfeilnavigation durch die Zeitspalten des `DrylTimePicker`. Die Tasten
+  sind jetzt nur noch wirkungslos statt schädlich; echte Navigation wäre neues
+  Verhalten und liefe über Ideenstufe und Spec.
 
 ## Was dieser Plan nicht schließt
 
