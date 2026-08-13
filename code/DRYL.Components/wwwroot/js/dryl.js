@@ -395,9 +395,11 @@ const drylPanelFocus = (() => {
  *     on the picker's input.
  *
  * navKeys: suppress the browser default for the arrows, Home/End and
- * paging, which the calendar consumes for itself and which would
- * otherwise also scroll the page. The time panel passes false — it does
- * not consume those keys, and its columns scroll with them.
+ * paging. Both panels pass true, for the same reason from two directions:
+ * the calendar consumes those keys itself and must not scroll the page as
+ * well, and the time panel consumes none of them but would otherwise
+ * scroll the page out from under an open dialog — its columns are
+ * descendants of the focused panel, so they never receive that scroll.
  *
  * The listener is not removed: it holds nothing but the panel node it
  * lives on, so it dies with that node when Blazor discards the component.
@@ -1038,9 +1040,17 @@ window.dryl.timepicker = (() => {
     // announce it as the user's place in a list they cannot navigate, and would
     // scroll its column to wherever that cell happens to sit.
     function focusPanel(panel) {
-        // navKeys false: the columns scroll with the arrows, and nothing in
-        // the .NET handler competes for them.
-        drylPanelKeys.install(panel, false);
+        // navKeys: the arrows and paging keys reach no column from here — the
+        // columns are descendants of the focused .time-panel, not ancestors, so
+        // the browser scrolls the nearest scrollable ancestor instead, which is
+        // the document the portaled panel now hangs in. Measured: ArrowDown
+        // scrolled the page 0 -> 40 and PageDown 0 -> 655 while both .time-col
+        // scrollTops stayed 0, dragging the page out from under an open dialog.
+        // So the keys are swallowed and do nothing, which is the right answer
+        // for a role="dialog". Actually navigating the columns with the arrows
+        // would be new behaviour and belongs in an idea and a spec, not in a
+        // bugfix — it is left undone on purpose, not forgotten.
+        drylPanelKeys.install(panel, true);
         drylPanelFocus.into(panel, p => (p.querySelector('.time-panel') || p).focus());
     }
 
