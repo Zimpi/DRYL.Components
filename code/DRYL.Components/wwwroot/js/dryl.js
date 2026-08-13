@@ -338,11 +338,32 @@ window.dryl.menu = (() => {
         delete anchor.__drylMenu;
     }
 
-    function focusPanel(panel) {
-        if (!panel) return;
+    // Move focus into the panel; report whether it actually landed there.
+    // Checking the result rather than the panel's styles keeps this honest about
+    // every reason a focus() can be a no-op, not just the one we know about.
+    function applyFocus(panel) {
         const first = panel.querySelector(ITEMS);
         if (first) first.focus();
         else panel.focus();
+        return panel.contains(document.activeElement);
+    }
+
+    // On open this runs BEFORE the panel is focusable: DrylMenu's
+    // OnAfterRenderAsync fires before its child DrylPopover's (Blazor runs
+    // parent before child), so the panel is still visibility:hidden — the
+    // .is-open.is-positioned gate in DrylPopover.razor.css only opens once
+    // dryl.popover.open has placed it. focus() on a hidden element is silently
+    // a no-op, which left the menu open with focus still on the trigger and
+    // Escape (handled on the panel) never reaching the component.
+    //
+    // So: try, and if focus did not take, leave a pending request on the node
+    // for dryl.popover.open to apply at the moment it reveals the panel. The
+    // decision to focus stays here with the menu; only the timing belongs to
+    // the portal — other popover consumers (select, autocomplete, pickers)
+    // deliberately keep focus on their trigger and never leave a request.
+    function focusPanel(panel) {
+        if (!panel) return;
+        if (!applyFocus(panel)) panel.__drylPendingFocus = () => applyFocus(panel);
     }
 
     function navigate(panel, direction) {
@@ -436,13 +457,34 @@ window.dryl.popover = (() => {
         // backdrop-filter/transform containing block (e.g. a glass card).
         // Blazor still owns this node — it lives in the always-rendered panel
         // wrapper and is never structurally removed, so moving it is safe.
+        //
+        // Hardening, not a fix for anything currently broken: re-parenting a
+        // node blurs whatever was focused inside it, so carry that focus across
+        // the move. No consumer hits this today (the panel is still hidden, and
+        // therefore unfocusable, until the reveal below), but one that focuses
+        // into its panel before the portal runs would otherwise lose it in
+        // silence. Keep it — it is not the pending-focus mechanism below.
+        const focused = document.activeElement;
+        const refocus = focused && panel.contains(focused);
         document.body.appendChild(panel);
+        if (refocus) focused.focus();
 
         const reposition = () => place(anchor, panel, placement, matchWidth);
         reposition();
         // Reveal only now that it is correctly placed (see the two-key
         // .is-open.is-positioned gate in DrylPopover.razor.css).
         panel.classList.add('is-positioned');
+
+        // The panel only became focusable on the line above. A consumer that
+        // asked to focus into it while it was still hidden (DrylMenu, whose
+        // OnAfterRenderAsync runs before ours) parked the request on the node;
+        // honour it now. One-shot: cleared before running, and again in close()
+        // for the request that is never reached because the popover closed.
+        const pendingFocus = panel.__drylPendingFocus;
+        if (pendingFocus) {
+            delete panel.__drylPendingFocus;
+            pendingFocus();
+        }
 
         // Capture-phase scroll catches scrolling in any ancestor container.
         const onScroll = () => reposition();
@@ -470,6 +512,10 @@ window.dryl.popover = (() => {
         window.removeEventListener('scroll', s.onScroll, true);
         window.removeEventListener('resize', s.onResize);
         if (s.onDocClick) document.removeEventListener('pointerdown', s.onDocClick, true);
+
+        // Drop any focus request that open() never got to apply, so it cannot
+        // fire later against a stale panel.
+        delete s.panel.__drylPendingFocus;
 
         // Return the panel to its original slot (it is the anchor's last child)
         // and clear the styles/marker applied while portaled.
