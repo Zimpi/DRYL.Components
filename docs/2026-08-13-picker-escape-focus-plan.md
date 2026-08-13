@@ -112,6 +112,56 @@ schließt — darf ergänzt werden, aber nie als Beleg für diesen Fehler ausgeg
 **selben** Block, kein neuer Bump (`REL-01`, dieselbe Begründung wie in den
 Vorgängerplänen — siehe auch die dafür vorgesehene Harness-Ergänzung).
 
+## Nachtrag — Task 2: die Folgen des Fokus im Panel
+
+Erst dadurch, dass der Fokus jetzt tatsächlich im Panel steht, sind Fälle
+erreichbar, die vorher tot lagen. Zwei Reviews am laufenden System haben sie
+gefunden; sie gehören zu diesem Fehlerbild und werden hier mitbehoben.
+
+**HOCH A — `Enter`/`Space` auf den Monats-Chevrons wählt ein Datum aus.**
+`HandleCalendarKeyDown` hängt am `.date-panel` und behandelt `Enter`/`Space`
+unabhängig davon, welches Element den Fokus hat. Ein Mausklick auf einen Chevron
+fokussiert diesen Button; ab da committet jede Bestätigungstaste einen Wert und
+schließt den Picker. Gemessen: Klick auf „Next month", ein `Space` →
+`values[0]="10.11.2026"`, `panels=0`. Im Range-Modus blättert derselbe Anschlag
+den Monat **und** setzt den Start.
+
+**Der naheliegende Fix ist der falsche.** `Enter`/`Space` einfach nicht mehr zu
+behandeln und der Button-Aktivierung der Tagzelle zu überlassen, funktioniert
+nicht: das statische `@onkeydown:preventDefault="true"` sitzt auf der Tagzelle
+und unterdrückt genau die Klick-Erzeugung, die diesen Weg tragen müsste. Der
+Panel-Handler muss die **Herkunft** prüfen und nur auf einer Tagzelle auswählen.
+
+**MITTEL B — die Monats-Chevrons sind per Tastatur unerreichbar (`UX-01`).**
+Der Fokus betritt das Panel ausschließlich auf einer Tagzelle, und seit
+`bdf6b9d` schließen `Tab` und `Shift+Tab` das Panel. Die *Aktion* Monatswechsel
+bleibt über `PageUp`/`PageDown` erreichbar, die *Elemente* sind es nicht mehr.
+
+**MITTEL C — `Shift+Tab` strandet im `DrylTimePicker`.** Dort blieb das alte
+Verhalten: Fokus landet im Seitenfuß, das Panel bleibt offen, `Escape` ist
+wieder tot. Dazu die Drift: `Tab` schließt im einen Picker und navigiert im
+anderen.
+
+**MITTEL D — das statische `preventDefault` verschluckt auch `Ctrl+F`.** Es ist
+bedingungslos; gemessen `defaultPrevented=true` für `Control` und für `Ctrl+F`,
+solange eine Tagzelle den Fokus hat.
+
+**Die Entscheidung, die B, C und D zusammen auflöst:** `Tab` wird in beiden
+Panels **umlaufend gehalten**, statt zu schließen. Beide Panels sind
+`role="dialog"`; damit sind die Chevrons wieder erreichbar (`UX-01`), beide
+Picker bekommen dasselbe Tastaturmodell, und `Escape` bleibt der einzige
+Ausstieg — den es seit Task 1 an Panel *und* Eingabefeld gibt. Das
+bedingungslose `preventDefault` in der Markup weicht dabei einer Unterdrückung
+**nur der tatsächlich behandelten Tasten**; wo diese Logik liegt (Blazor-Latch
+ist ausgeschlossen — er ist gemessen einen Render versetzt), entscheidet der
+Implementierer und begründet es.
+
+Verifikation wie in Task 1, zusätzlich: Chevron fokussieren und `Enter`/`Space`
+drücken (darf nur blättern), `Tab` mehrfach durch beide Panels (bleibt drin,
+erreicht die Chevrons bzw. Cancel/Done), `Ctrl+F` bei fokussierter Tagzelle
+(`defaultPrevented=false`), und beide Picker gegeneinander auf gleiches
+Verhalten.
+
 ## Was dieser Plan nicht schließt
 
 - **`E8 Inputs` ist ein Scaffold** (`_Api.md`, `_Interop.md` leer, keine
