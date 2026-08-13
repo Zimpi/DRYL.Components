@@ -37,6 +37,7 @@
                 <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
                 <input id="@_id"
+                       @ref="_input"
                        type="text"
                        class="@InputCssClass"
                        value="@DisplayValue"
@@ -151,6 +152,9 @@
     private DrylPopover? _popover;
     private bool _isOpen;
     private bool _shouldScroll;
+    private bool _shouldRestoreFocus;
+    private bool _suppressOpenOnce;
+    private ElementReference _input;
     private int? _selectedHour;
     private int? _selectedMinute;
     private AiState _prevAi = AiState.None;
@@ -181,6 +185,26 @@
         {
             _shouldScroll = false;
             await JS.InvokeVoidAsync("dryl.timepicker.scrollToActive", _popover.PanelElement);
+            // The panel carries the keydown handler (Escape, Enter), so the focus
+            // has to be in it — it stayed on the input before, which left both
+            // keys dead. The panel itself, never a cell: focusing a cell would
+            // scroll its column back and undo the line above.
+            await JS.InvokeVoidAsync("dryl.timepicker.focusPanel", _popover.PanelElement);
+        }
+
+        // Focus lives in the panel while it is open, so a close would drop it on
+        // <body>. Hand it back to the input — but the input opens the panel on
+        // focus, so arm a one-shot suppression first: the focus event reaches the
+        // circuit before this interop call's result does, so setting the flag
+        // afterwards would be too late. If JS reports it did not move focus (the
+        // user put it elsewhere), the suppression is dropped again unused.
+        if (_shouldRestoreFocus && !_isOpen && _popover is not null)
+        {
+            _shouldRestoreFocus = false;
+            _suppressOpenOnce = true;
+            var restored = await JS.InvokeAsync<bool>(
+                "dryl.timepicker.restoreFocus", _popover.PanelElement, _input);
+            if (!restored) _suppressOpenOnce = false;
         }
     }
 
@@ -239,6 +263,13 @@
 
     private void Open()
     {
+        // Our own focus() on the input, handing focus back after a close, must
+        // not reopen what the user just closed.
+        if (_suppressOpenOnce)
+        {
+            _suppressOpenOnce = false;
+            return;
+        }
         if (_isOpen || Disabled) return;
         _isOpen = true;
         InitPending();
@@ -273,7 +304,12 @@
         ClosePanel();
     }
 
-    private void ClosePanel() => _isOpen = false;
+    /// <summary>Closes the panel and asks for the focus back on the input.</summary>
+    private void ClosePanel()
+    {
+        _isOpen = false;
+        _shouldRestoreFocus = true;
+    }
 
     private void HandlePanelKeyDown(KeyboardEventArgs e)
     {

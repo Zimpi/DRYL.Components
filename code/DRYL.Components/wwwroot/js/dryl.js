@@ -310,6 +310,63 @@ window.dryl.modal = (() => {
 })();
 
 /* --------------------------------------------------------------
+ * Panel focus — shared by every dryl.popover consumer that wants the
+ * focus inside its panel while it is open (dryl.menu, dryl.datepicker,
+ * dryl.timepicker).
+ *
+ * Not on window: a lexical top-level const is visible to the modules in
+ * this file and to nothing else, so this stays private and adds no API.
+ *
+ * into(panel, apply) — on open this runs BEFORE the panel is focusable:
+ *   a consumer's OnAfterRenderAsync fires before its child DrylPopover's
+ *   (Blazor runs parent before child), so the panel is still
+ *   visibility:hidden — the .is-open.is-positioned gate in
+ *   DrylPopover.razor.css only opens once dryl.popover.open has placed
+ *   it. focus() on a hidden element is silently a no-op, which left the
+ *   panel open with focus still on the trigger and Escape (handled on
+ *   the panel) never reaching the component. So: try, and if focus did
+ *   not take, leave a one-shot request on the node for dryl.popover.open
+ *   to apply at the moment it reveals the panel. The decision to focus
+ *   stays with the consumer; only the timing belongs to the portal —
+ *   other consumers (select, autocomplete) deliberately keep focus on
+ *   their trigger and never leave a request.
+ *   Whether focus landed is read back from the document rather than from
+ *   the panel's styles, which keeps this honest about every reason a
+ *   focus() can be a no-op, not just the one we know about.
+ *
+ * restore(panel, input) — the counterpart on close: focus lives in the
+ *   panel now, and the panel is about to go away.
+ * -------------------------------------------------------------- */
+const drylPanelFocus = (() => {
+    function into(panel, apply) {
+        if (!panel) return;
+        const attempt = () => {
+            apply(panel);
+            return panel.contains(document.activeElement);
+        };
+        if (!attempt()) panel.__drylPendingFocus = attempt;
+    }
+
+    // By the time this runs the panel is already hidden (Blazor dropped
+    // .is-open in the render that closed it), so the browser has usually
+    // moved focus to <body> — accept that, and the still-in-panel case.
+    // Anything else means focus sits somewhere the user put it, and taking
+    // it back would be a steal, so leave it. Reports whether it moved, so
+    // the caller can drop a suppression it no longer needs.
+    function restore(panel, input) {
+        if (!input) return false;
+        const active = document.activeElement;
+        const ours = !active || active === document.body
+                     || (panel && panel.contains(active));
+        if (!ours) return false;
+        try { input.focus(); } catch (_) { return false; }
+        return document.activeElement === input;
+    }
+
+    return { into, restore };
+})();
+
+/* --------------------------------------------------------------
  * Menu — click-outside detection and keyboard navigation for
  * DrylMenu. The .NET component owns open/close state; JS only
  * handles the DOM-level concerns (event listening, focus).
@@ -338,32 +395,14 @@ window.dryl.menu = (() => {
         delete anchor.__drylMenu;
     }
 
-    // Move focus into the panel; report whether it actually landed there.
-    // Checking the result rather than the panel's styles keeps this honest about
-    // every reason a focus() can be a no-op, not just the one we know about.
-    function applyFocus(panel) {
-        const first = panel.querySelector(ITEMS);
-        if (first) first.focus();
-        else panel.focus();
-        return panel.contains(document.activeElement);
-    }
-
-    // On open this runs BEFORE the panel is focusable: DrylMenu's
-    // OnAfterRenderAsync fires before its child DrylPopover's (Blazor runs
-    // parent before child), so the panel is still visibility:hidden — the
-    // .is-open.is-positioned gate in DrylPopover.razor.css only opens once
-    // dryl.popover.open has placed it. focus() on a hidden element is silently
-    // a no-op, which left the menu open with focus still on the trigger and
-    // Escape (handled on the panel) never reaching the component.
-    //
-    // So: try, and if focus did not take, leave a pending request on the node
-    // for dryl.popover.open to apply at the moment it reveals the panel. The
-    // decision to focus stays here with the menu; only the timing belongs to
-    // the portal — other popover consumers (select, autocomplete, pickers)
-    // deliberately keep focus on their trigger and never leave a request.
+    // First item if there is one, else the panel itself. The hidden-panel
+    // timing is handled by drylPanelFocus.into (see there).
     function focusPanel(panel) {
-        if (!panel) return;
-        if (!applyFocus(panel)) panel.__drylPendingFocus = () => applyFocus(panel);
+        drylPanelFocus.into(panel, p => {
+            const first = p.querySelector(ITEMS);
+            if (first) first.focus();
+            else p.focus();
+        });
     }
 
     function navigate(panel, direction) {
@@ -644,10 +683,22 @@ window.dryl.autocomplete = {
 
 // ── DatePicker helpers ────────────────────────────────────────────────────────
 window.dryl.datepicker = {
+    // Focus the given day cell. Until this went through drylPanelFocus.into the
+    // call found its button and still did nothing, because the panel was not yet
+    // revealed — and with focus left on the input, the panel's keydown handler
+    // (Escape, arrows, Home/End, PageUp/PageDown, Enter) never got a key.
     focusDay(panel, dayNumber) {
-        if (!panel) return;
-        const btn = panel.querySelector(`[data-day="${dayNumber}"]`);
-        btn?.focus();
+        drylPanelFocus.into(panel, p => {
+            const btn = p.querySelector(`[data-day="${dayNumber}"]`);
+            if (btn) btn.focus();
+            else p.focus();
+        });
+    },
+
+    // Hand focus back to the input when the panel closes; returns whether it
+    // actually moved (see drylPanelFocus.restore).
+    restoreFocus(panel, input) {
+        return drylPanelFocus.restore(panel, input);
     }
 };
 
@@ -887,7 +938,24 @@ window.dryl.timepicker = (() => {
         });
     }
 
-    return { attach, detach, scrollToActive };
+    // Focus .time-panel — the popover's own panel node is what the caller
+    // hands us, but the keydown handler (Escape, Enter) sits on .time-panel
+    // inside it, and a key pressed on an ancestor never reaches it. Measured:
+    // focusing the wrapper leaves Escape just as dead as focusing the input did.
+    //
+    // Deliberately not a cell: focusing a time-cell would scroll its column
+    // back to that cell and undo scrollToActive.
+    function focusPanel(panel) {
+        drylPanelFocus.into(panel, p => (p.querySelector('.time-panel') || p).focus());
+    }
+
+    // Hand focus back to the input when the panel closes; returns whether it
+    // actually moved (see drylPanelFocus.restore).
+    function restoreFocus(panel, input) {
+        return drylPanelFocus.restore(panel, input);
+    }
+
+    return { attach, detach, scrollToActive, focusPanel, restoreFocus };
 })();
 
 // ── InputMask — format-on-input with cursor preservation ─────────────────────

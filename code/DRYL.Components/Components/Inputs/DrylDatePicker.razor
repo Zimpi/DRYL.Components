@@ -45,6 +45,7 @@
                 <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
                 <input id="@_id"
+                       @ref="_input"
                        type="text"
                        class="@InputCssClass"
                        value="@DisplayValue"
@@ -212,6 +213,9 @@
     private bool _selectingEnd;
     private bool _preventKeyDefault;
     private bool _shouldFocusCalendar;
+    private bool _shouldRestoreFocus;
+    private bool _suppressOpenOnce;
+    private ElementReference _input;
 
     private DateOnly _viewMonth = DateOnly.FromDateTime(DateTime.Today);
     private DateOnly _focusedDay = DateOnly.FromDateTime(DateTime.Today);
@@ -254,10 +258,32 @@
             _shouldFocusCalendar = false;
             await JS.InvokeVoidAsync("dryl.datepicker.focusDay", _popover.PanelElement, _focusedDay.DayNumber);
         }
+
+        // Focus lives in the calendar while it is open, so a close would drop it
+        // on <body>. Hand it back to the input — but the input opens the panel on
+        // focus, so arm a one-shot suppression first: the focus event reaches the
+        // circuit before this interop call's result does, so setting the flag
+        // afterwards would be too late. If JS reports it did not move focus (the
+        // user put it elsewhere), the suppression is dropped again unused.
+        if (_shouldRestoreFocus && !_isOpen && _popover is not null)
+        {
+            _shouldRestoreFocus = false;
+            _suppressOpenOnce = true;
+            var restored = await JS.InvokeAsync<bool>(
+                "dryl.datepicker.restoreFocus", _popover.PanelElement, _input);
+            if (!restored) _suppressOpenOnce = false;
+        }
     }
 
     private void Open()
     {
+        // Our own focus() on the input, handing focus back after a close, must
+        // not reopen what the user just closed.
+        if (_suppressOpenOnce)
+        {
+            _suppressOpenOnce = false;
+            return;
+        }
         if (Disabled || _isOpen) return;
         _viewMonth = CurrentValue.HasValue
             ? new DateOnly(CurrentValue.Value.Year, CurrentValue.Value.Month, 1)
@@ -277,7 +303,7 @@
         if (!Range)
         {
             CurrentValue = day;
-            _isOpen = false;
+            Close();
         }
         else if (!_selectingEnd)
         {
@@ -293,8 +319,15 @@
             await RangeStartChanged.InvokeAsync(start);
             await RangeEndChanged.InvokeAsync(end);
             _selectingEnd = false;
-            _isOpen = false;
+            Close();
         }
+    }
+
+    /// <summary>Closes the panel and asks for the focus back on the input.</summary>
+    private void Close()
+    {
+        _isOpen = false;
+        _shouldRestoreFocus = true;
     }
 
     private void PrevMonth()
@@ -361,7 +394,7 @@
                 if (!IsDisabled(_focusedDay)) await SelectDay(_focusedDay);
                 break;
             case "Escape":
-                _isOpen = false;
+                Close();
                 _selectingEnd = false;
                 break;
         }
