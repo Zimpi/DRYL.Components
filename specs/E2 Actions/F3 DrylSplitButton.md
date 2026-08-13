@@ -1,7 +1,7 @@
 # DrylSplitButton
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Actions/DrylSplitButton.razor
 
 ## User Story
@@ -33,20 +33,39 @@ and the CSS that joins them. Everything else is the primitives':
   `DrylSplitButton` holds no open state, exposes no way to open or close the
   menu, and raises no callback when it opens or closes.
 
-**Where focus goes when the menu opens and closes is `DrylMenu`'s, and it is
-described here rather than promised in the criteria below.** The menu asks the
-browser to move focus into the panel when it opens (`dryl.menu.focusPanel`), it
-implements `Escape`, `Tab` and the arrow keys in a handler bound to the panel,
-and it asks for focus back on the trigger when it closes
+**Where focus goes inside the open panel is `DrylMenu`'s, and it is described
+here rather than promised in the criteria below.** The menu moves focus into the
+panel when it opens (`dryl.menu.focusPanel`), it implements `Escape`, `Tab` and
+the arrow keys in a handler bound to the panel (`dryl.menu.navigate`), and it
+asks for focus back on the trigger when the panel closes
 (`dryl.menu.focusTrigger`). `DrylSplitButton` supplies none of that and cannot
 change it; what it supplies is the trigger those calls aim at — the caret. The
 authority for the behaviour is `DrylMenu`'s and `DrylPopover`'s specs, which do
-not exist yet (`E10 Navigation` and `E11 Surfaces` are empty). As measured in a
-browser today, the focus move into the panel does **not** take effect, and the
-`Escape` and arrow-key handlers are therefore unreachable — see
-**Recorded gaps** below. That is the reason this paragraph is prose: the
-behaviour is a dependency's, and stating it as this component's acceptance
-criteria is what let the spec drift.
+not exist yet (`E10 Navigation` and `E11 Surfaces` are empty) — see
+**Recorded gaps** below.
+
+That behaviour works today. It did not always: the menu asked for focus while
+its panel was still hidden behind `DrylPopover.razor.css`'s two-key
+`.is-open.is-positioned` gate, and `focus()` on a hidden element is silently a
+no-op, so focus never entered the panel and the panel-bound key handler was
+unreachable. `dryl.menu.focusPanel` now parks a one-shot request on the panel
+node when the focus does not land, and `dryl.popover.open` applies it in the
+moment it adds `.is-positioned` and reveals the panel; `dryl.popover.close`
+drops a request that was never reached. None of that code is this component's.
+
+**The division between prose and criteria here is deliberate, and the fix is the
+argument for it rather than against it.** The previous revision of this file
+demoted the `DrylMenu`-owned focus criteria to this paragraph after measuring
+two of them false, and replaced them with criteria describing the broken
+behaviour — which became false themselves the moment the defect was fixed. A
+restatement of a dependency's behaviour drifts in *both* directions: it goes
+stale when the dependency breaks and again when it is repaired. A reference does
+not. So what the criteria below state is this component's own contribution —
+which element the menu's focus calls can find, and that this component adds no
+key handling that could interfere — and for the rest they point at `DrylMenu`.
+The one composed behaviour that is stated as a criterion is the one whose
+subject is the caret itself: that closing the menu by choosing an item returns
+focus to it.
 
 What the component contributes to accessibility is exactly two names: the
 caret's `aria-label`, from `MenuAriaLabel`, and the panel's `aria-label`, from
@@ -148,20 +167,20 @@ runtime surprise.
 - The component adds no key handling of its own, on either segment or on its
   wrapper.
 
-  A note on what is stated as a criterion here and what is not. This spec used to
-  promise, as its own acceptance criteria, that opening the menu moves focus into
-  the panel, that `Escape` closes it and restores focus, and that `Tab` closes it
-  without restoring focus — surface `DrylSplitButton` neither writes nor can
-  change. The reviewer of the previous revision argued that reaching into a
-  dependency this way would drift; the previous author kept the criteria with a
-  written justification, and those are precisely the criteria that have since
-  turned out false against the running application. **They are therefore demoted
-  to the `## Description` above, as a reference to `DrylMenu` rather than as a
-  restatement of its behaviour.** What stays here as criteria is the half that
-  genuinely is this component's: which element the menu's focus calls can land
-  on, and the fact that this component adds no key handling of its own. `SPEC-05`
-  is still satisfied — the keyboard and a11y section below evidences the two
-  native buttons, the two tab stops, the focus ring, the accessible names and the
+  A note on what is stated as a criterion here and what is not. This spec has
+  twice written `DrylMenu`'s focus behaviour into its own acceptance criteria —
+  first as the behaviour intended (focus moves into the panel, `Escape` closes it
+  and restores focus, `Tab` closes it without restoring focus), then, after those
+  were measured false, as the behaviour observed while the dependency was broken
+  (opening leaves focus on the caret). Both sets are false today, for opposite
+  reasons. **The behaviour therefore stays in the `## Description` above, as a
+  reference to `DrylMenu` rather than as a restatement of it**, and what remains
+  here as criteria is the half that genuinely is this component's: which element
+  the menu's focus calls can find, that focus returns to that element when an
+  item is chosen, and that this component adds no key handling that could
+  interfere. `SPEC-05` is still satisfied — the keyboard and a11y section below
+  evidences the two native buttons, the two tab stops, the focus ring, the
+  accessible names, the caret as the single focus-restore target and the
   attributes the caret does not emit — without this file asserting behaviour it
   does not own. The authority for the composed behaviour is `DrylMenu`'s and
   `DrylPopover`'s specs, and a change there overrides this file.
@@ -290,12 +309,7 @@ runtime surprise.
 - A split button given only a `LeadingIcon` and no `ChildContent` therefore
   renders a main button that has no visible label, no accessible name and none
   of the icon-only sizing.
-- Activating the caret with the pointer opens the menu and leaves focus on the
-  caret.
-- Activating the caret with `Enter` opens the menu and leaves focus on the
-  caret.
-- The caret therefore keeps its `:focus-visible` ring while the panel it opened
-  is on screen.
+- Choosing a menu item closes the menu and returns focus to the caret.
 - The caret is the only element inside the menu's anchor that
   `dryl.menu.focusTrigger`'s selector can find, because the selector matches an
   enabled `button` below the popover's trigger element and the caret is the one
@@ -306,7 +320,7 @@ runtime surprise.
 - The main button renders as a non-submitting button, because the component
   exposes no `IsSubmit`; a split button inside a form therefore never submits it.
 
-  Two notes for a consumer. First, `Escape` is handled by `DrylMenu` rather than
+  Four notes for a consumer. First, `Escape` is handled by `DrylMenu` rather than
   by the popover underneath it: the menu passes `CloseOnEscape="false"` to
   `DrylPopover` and implements `Escape` in its own `HandleKeyDown`. The reason is
   focus, not closing — the popover's own `Escape` path closes the panel and stops
@@ -316,14 +330,26 @@ runtime surprise.
   would close the panel twice and skip the focus restore, so the menu takes the
   key over completely.
 
-  Second, the key handler lives on the panel. `Escape` therefore only closes the
-  menu while focus is inside the panel — and today it is not, because the focus
-  move that opening performs does not take effect. The whole key path, `Escape`
-  and the arrow keys alike, is consequently unreachable through a split button.
-  See **Recorded gaps** below; the defect is `DrylMenu`'s and `DrylPopover`'s,
-  not this component's.
+  Second, the key handler lives on the panel, so the whole key path — `Escape`,
+  the arrow keys, `Home` and `End` — depends on the menu having moved focus into
+  the panel on open. It does, by mouse and by keyboard alike; that move is
+  `DrylMenu`'s and `DrylPopover`'s, is described in the `## Description` above,
+  and is not promised by this file. What this file does promise is the half that
+  is its own: whichever of those paths ends by restoring focus, the element it
+  restores to is the caret.
 
-  Third, the two missing attributes are a gap against the library's own practice
+  Third, a segment focused by the pointer carries focus without carrying a ring.
+  The library's ring is written on `:focus-visible` in
+  `code/DRYL.Components/wwwroot/dryl.css` with no `:focus` fallback, and a native
+  `button` focused by a mouse press does not match `:focus-visible` in
+  Chromium-based browsers; the same segment reached with `Tab` matches it and
+  draws the ring. That is the standard meaning of the selector rather than a
+  defect, it is the shared stylesheet's behaviour rather than this component's,
+  and it is named here only because a reader measuring the caret with a mouse
+  will otherwise read the missing ring as one. It has no bearing on where focus
+  actually is.
+
+  Fourth, the two missing attributes are a gap against the library's own practice
   rather than a neutral choice. No numbered rule mandates `aria-haspopup` or
   `aria-expanded`, which is why they are not counted in this spec's `State`, but
   every other trigger of this shape in the library emits both: `DrylSelect` and
@@ -541,12 +567,14 @@ runtime surprise.
   tab stops, no arrow-key movement between them, an `aria-label` on the caret
   from `MenuAriaLabel`, a `DrylTooltip` around the caret carrying that same text
   (`UX-05`), one `aria-label` on the panel from
-  `MenuLabel`, and the caret as the single element any focus restore the menu
-  performs can land on — and the four things the control does **not** do: no
-  `aria-haspopup`, no `aria-expanded`, no accessible name for a main button that
-  was given only an icon, and no movement of focus into the panel on open, which
-  is `DrylMenu`'s to perform and today does not take effect (see
-  **Recorded gaps**).
+  `MenuLabel`, the caret as the single element any focus restore the menu
+  performs can land on, and the return of focus to it when a menu item is chosen
+  — and the three things the control does **not** do: no `aria-haspopup`, no
+  `aria-expanded`, and no accessible name for a main button that was given only
+  an icon. Movement of focus into the open panel, and the `Escape`, arrow, `Home`
+  and `End` keys that act inside it, are `DrylMenu`'s and `DrylPopover`'s; they
+  work, they are described in the `## Description` above, and they are referenced
+  rather than restated here for the reason given there.
 - **AI mode** — **yes**, as an opt-in in the sense `AI-03` requires: the
   parameter is named `Ai`, is of type `AiState`, defaults to `AiState.None`, and
   is a switch on a component that renders as an ordinary control without it. It is
@@ -578,22 +606,26 @@ runtime surprise.
   papered over: the fix is a catalog row (and, if it is given one, a page) in
   `DRYL.Website`, which is a different repository and out of this spec's scope.
 
-## Deviations (`State: Modified`)
+## Deviations (`State: Implemented`)
 
-**No criterion above is known to be unmet by the code.** The state is `Modified`
-rather than `Implemented` because this revision changed the spec in substance —
-the keyboard criteria were rewritten after two of them were measured false — and
-`SPEC-04` puts a spec back to `Modified` on every change in substance, "when in
-doubt" included. It returns to `Implemented` when the rewritten criteria have
-been walked against the code in the session that reconciles them.
+**None.** Every acceptance criterion above is met by the code (`SPEC-04`). This
+revision is the session the previous one asked for: the criteria the previous
+revision rewrote have been walked against the code, and the two of them that
+described the dependency's then-broken focus behaviour have been removed, so
+nothing left in the file is contradicted by the running application. The state
+therefore moves from `Modified` to `Implemented` here rather than waiting for a
+further pass.
 
-One criterion the previous revision carried is **not** restated in any form,
-because it could not be established either way: that choosing a menu item closes
-the menu and returns focus to the caret. `DrylMenu.CloseFromItem` does invoke
-`dryl.menu.focusTrigger`, so the call is made on a path that does not depend on
-focus ever having reached the panel — but the behaviour was not measured in a
-browser, and the neighbouring focus call is known not to take effect, so this
-spec neither promises it nor denies it.
+One criterion the previous revision dropped as unestablishable is **restored**:
+that choosing a menu item closes the menu and returns focus to the caret. It was
+dropped on the reasoning that the neighbouring focus call did not take effect, so
+this one might not either — but the two are independent. `DrylMenu.CloseFromItem`
+clears its open state and then invokes `dryl.menu.focusTrigger` on the popover's
+anchor, a path that never depended on focus having reached the panel, and the
+behaviour has since been measured in a browser: the panel closes and the caret is
+the active element. It is stated as a criterion, and not merely referenced,
+because its subject is the caret — the one element of that exchange this
+component supplies.
 
 The one deviation this section previously carried — the two segments ending up in
 different AI states — was closed by making the component `@inherits DrylAiAware`
@@ -624,35 +656,26 @@ belongs to another component's code and another component's spec.
   `aria-haspopup="dialog"` with one. The caret is the same shape of trigger and
   emits neither, so a screen-reader user is told the split button's second
   segment is an ordinary button and is never told the menu is open.
-- **Opening the menu does not move focus into the panel, and the panel's key
-  handling is therefore unreachable.** Measured in a browser against the docs
-  website on `/components/button-group`: clicking the caret opens the panel and
-  focus stays on the caret, with a real pointer click and with `Enter` alike.
-  `dryl.menu.focusPanel` **is** invoked, and with the right element — the call
-  was instrumented and arrives carrying the open panel element — so this is a
-  call that does not take effect, not a call that is never made. Because
-  `DrylMenu`'s key handler is bound to the panel and focus never reaches it,
-  `Escape` never reaches the menu: no `dryl.menu.focusTrigger` call follows and
-  the panel stays open. One cause, two symptoms. There are no JavaScript errors
-  on the page, and `dryl.menu.focusPanel`, `dryl.menu.focusTrigger` and
-  `dryl.menu.navigate` all exist as functions. **The defect is not this
-  component's.** It is not caused by the split button and not by the caret's
-  `DrylTooltip`: the plain "Actions" `DrylMenu` on `/components/menu`, with no
-  split button and no tooltip anywhere near it, behaves identically. The fix
-  belongs to `DrylMenu` / `DrylPopover`, whose specs do not exist yet
-  (`E10 Navigation` and `E11 Surfaces` are empty); it is recorded here because
-  this component is where it is visible. The bUnit suite does not see it, because
-  it is JS-driven focus behaviour that a rendered-markup assertion cannot
-  observe.
-- **The empty-panel focus guarantee is gone with it.** The previous revision
-  promised that opening a panel with no items moves focus onto the panel element
-  itself, "so focus is never left behind on the caret while the panel is open".
-  The second half is **false** as measured — focus is exactly where that clause
-  says it never is. The first half is **untested**: `panel.focus()` is the
-  `else` branch of the same `dryl.menu.focusPanel` call whose `if` branch does
-  not take effect, and the empty-panel case was not driven in the browser. The
-  criterion is removed rather than reworded, because neither half can be stated
-  truthfully today.
+- **The menu's focus and keyboard behaviour is documented in no spec at all.**
+  It is `DrylMenu`'s and `DrylPopover`'s, and `E10 Navigation` and
+  `E11 Surfaces` are both empty, so the `## Description` above references an
+  authority that does not exist yet and this file is currently the only written
+  account of behaviour a split-button consumer depends on. That is a gap in the
+  spec set rather than in the code, and it is the standing hazard behind this
+  file's two rounds of drift: with nowhere else to state the composed behaviour,
+  the pressure is always to restate it here. The prose reference is the smaller
+  evil, not a solution; the solution is those two specs. The behaviour itself
+  works — opening a menu puts focus on the first item, `Escape` closes it and
+  returns focus to the trigger, the arrow, `Home` and `End` keys traverse the
+  items without wrapping, and click-outside still dismisses — and it is
+  behaviour no bUnit test can hold, because the suite does not execute
+  `dryl.js` and does not manage real focus.
+- **Where focus lands when the panel has no items is untested.** `panel.focus()`
+  is the `else` branch of `dryl.menu.focusPanel`, reached only when the panel
+  contains no enabled `[role="menuitem"]`, and the empty-panel case has not been
+  driven in a browser. The `if` branch — focus onto the first item — has. No
+  criterion of this spec rests on the `else` branch: the only empty-panel
+  criterion above is that the caret still renders and still opens a panel.
 - **The menu panel's conditional mount is not wrapped in `DrylPresence`**
   (`DESIGN-12`), so the panel a split button opens animates in but not out. The
   code that would change is not this component's — it is `DrylPopover`'s `@if` —
