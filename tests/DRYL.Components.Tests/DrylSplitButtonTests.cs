@@ -86,6 +86,26 @@ public class DrylSplitButtonTests : BunitContext
             i => i.TextContent.Contains("Save & close"));
     }
 
+    [Fact]
+    public void Opening_the_menu_hands_the_panel_role_to_the_popover_script()
+    {
+        // The caret's aria-haspopup / aria-expanded are set by dryl.js on the
+        // element it finds in the trigger, so this suite — which never executes
+        // dryl.js — cannot see them and must not claim it does. What it CAN hold
+        // is the half that is C#'s: the panel role reaching dryl.popover.open,
+        // which is the value the script writes into aria-haspopup. Drop it from
+        // the interop call and the caret goes silent again, with nothing else
+        // in the suite noticing.
+        var cut = Render<DrylSplitButton>(ps => ps
+            .AddChildContent("Save")
+            .Add<DrylMenuItem>(p => p.MenuItems, ip => ip.AddChildContent("Save & close")));
+
+        cut.Find(CaretSelector).Click();
+
+        var options = JSInterop.Invocations["dryl.popover.open"].Single().Arguments[3];
+        Assert.Equal("menu", options!.GetType().GetProperty("role")!.GetValue(options));
+    }
+
     // ── AI mode: one control, one effective state on both segments ───────────
     // The aura classes are written by AiAuraCss.Append into DrylButton's CssClass:
     // "ai-aura" plus "ai-thinking" / "ai-streaming", and "ai-aura--aurora" for the

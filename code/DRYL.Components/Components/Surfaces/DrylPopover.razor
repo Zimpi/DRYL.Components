@@ -129,7 +129,11 @@
             {
                 placement = PlacementToken,
                 matchWidth = MatchTriggerWidth,
-                closeOnOutside = CloseOnClickOutside
+                closeOnOutside = CloseOnClickOutside,
+                // Lets JS announce the panel on the trigger (aria-haspopup) and
+                // report its open state (aria-expanded) — but only on a trigger
+                // that writes neither itself. See dryl.popover's claimTrigger.
+                role = PanelRole
             });
         }
         else if (!Open && _portaled)

@@ -537,13 +537,58 @@ window.dryl.menu = (() => {
  * node back before Blazor removes it — so Blazor's diff never finds
  * the node missing from under its recorded parent.
  *
- * opts: { placement, matchWidth, closeOnOutside }
+ * opts: { placement, matchWidth, closeOnOutside, role }
  *   placement — 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end'
+ *   role      — the panel's ARIA role, used for the trigger's aria-haspopup
  * -------------------------------------------------------------- */
 window.dryl.popover = (() => {
     const GAP  = 4;   // matches --sp-1: gap between trigger and panel
     const EDGE = 4;   // min viewport inset when clamping
-    const state = new WeakMap(); // anchor -> { panel, onScroll, onResize, onDocClick }
+    const state = new WeakMap(); // anchor -> { panel, onScroll, onResize, onDocClick, trigger }
+
+    /* Trigger ARIA state ------------------------------------------------
+     * A trigger that opens a panel must announce it (aria-haspopup) and
+     * report whether it is open (aria-expanded). Components that build their
+     * own trigger markup — DrylSelect, DrylMultiSelect, both pickers,
+     * DrylNotifications — already write both themselves. The ones composed
+     * from plain buttons (DrylMenu, and therefore DrylSplitButton's caret)
+     * cannot: the open state lives in DrylMenu, out of reach of the trigger
+     * fragment's own render context.
+     *
+     * So the popover does it, strictly additively: it only writes to an
+     * element that carries NO aria-haspopup of its own, and it marks that
+     * element as owned. Only an owned element ever gets its aria-expanded
+     * touched, so a consumer's own ARIA is never overwritten and nothing
+     * here writes against Blazor's attribute diffing.
+     *
+     * The focusable element is found with the same selector dryl.menu
+     * .focusTrigger uses — the trigger's focus target and its ARIA target
+     * are by definition the same node. */
+    const ARIA_OWNER = '__drylTriggerAria';
+    const TRIGGER_SEL =
+        '.menu-trigger button:not([disabled]), .menu-trigger a, .menu-trigger [tabindex],'
+      + '.popover-trigger button:not([disabled]), .popover-trigger a, .popover-trigger [tabindex]';
+    // Only roles aria-haspopup actually defines. An unknown or absent panel
+    // role means we stay silent rather than claim a popup type that is not true.
+    const HASPOPUP_ROLES = ['menu', 'listbox', 'tree', 'grid', 'dialog'];
+
+    function claimTrigger(anchor, role) {
+        if (!anchor || HASPOPUP_ROLES.indexOf(role) < 0) return null;
+        const el = anchor.querySelector(TRIGGER_SEL);
+        if (!el) return null;
+        if (!el[ARIA_OWNER]) {
+            if (el.hasAttribute('aria-haspopup')) return null; // the consumer owns it
+            el[ARIA_OWNER] = true;
+            el.setAttribute('aria-haspopup', role);
+        }
+        el.setAttribute('aria-expanded', 'true');
+        return el;
+    }
+
+    function releaseTrigger(el) {
+        // aria-haspopup stays — the trigger still opens a panel while closed.
+        if (el && el[ARIA_OWNER]) el.setAttribute('aria-expanded', 'false');
+    }
 
     function place(anchor, panel, placement, matchWidth) {
         const a = anchor.getBoundingClientRect();
@@ -641,7 +686,7 @@ window.dryl.popover = (() => {
             document.addEventListener('pointerdown', onDocClick, true);
         }
 
-        state.set(anchor, { panel, onScroll, onResize, onDocClick });
+        state.set(anchor, { panel, onScroll, onResize, onDocClick, trigger: claimTrigger(anchor, opts.role) });
     }
 
     function close(anchor) {
@@ -650,6 +695,8 @@ window.dryl.popover = (() => {
         window.removeEventListener('scroll', s.onScroll, true);
         window.removeEventListener('resize', s.onResize);
         if (s.onDocClick) document.removeEventListener('pointerdown', s.onDocClick, true);
+
+        releaseTrigger(s.trigger);
 
         // Drop any focus request that open() never got to apply, so it cannot
         // fire later against a stale panel.
