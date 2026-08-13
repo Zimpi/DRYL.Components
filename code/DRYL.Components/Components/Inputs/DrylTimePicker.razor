@@ -42,7 +42,8 @@
                        class="@InputCssClass"
                        value="@DisplayValue"
                        readonly
-                       @onfocus="Open"
+                       @onfocus="HandleInputFocus"
+                       @onkeydown="HandleInputKeyDown"
                        @onclick="Open"
                        placeholder="@(Placeholder ?? "hh:mm")"
                        disabled="@Disabled"
@@ -152,6 +153,7 @@
     private DrylPopover? _popover;
     private bool _isOpen;
     private bool _shouldScroll;
+    private bool _shouldFocusPanel;
     private bool _shouldRestoreFocus;
     private bool _suppressOpenOnce;
     private ElementReference _input;
@@ -185,10 +187,14 @@
         {
             _shouldScroll = false;
             await JS.InvokeVoidAsync("dryl.timepicker.scrollToActive", _popover.PanelElement);
-            // The panel carries the keydown handler (Escape, Enter), so the focus
-            // has to be in it — it stayed on the input before, which left both
-            // keys dead. The panel itself, never a cell: focusing a cell would
-            // scroll its column back and undo the line above.
+        }
+
+        // The panel carries the keydown handler (Escape, Enter), so the focus has
+        // to be in it — it stayed on the input before, which left both keys dead.
+        // The panel itself, never a cell: see dryl.timepicker.focusPanel.
+        if (_shouldFocusPanel && _isOpen && _popover is not null)
+        {
+            _shouldFocusPanel = false;
             await JS.InvokeVoidAsync("dryl.timepicker.focusPanel", _popover.PanelElement);
         }
 
@@ -261,7 +267,9 @@
         }
     }
 
-    private void Open()
+    /// <summary>The input received focus: open the panel, or — if it is already
+    /// open — send focus back into it, since the panel carries the key handler.</summary>
+    private void HandleInputFocus()
     {
         // Our own focus() on the input, handing focus back after a close, must
         // not reopen what the user just closed.
@@ -270,10 +278,31 @@
             _suppressOpenOnce = false;
             return;
         }
+        if (Disabled) return;
+
+        // Clicking the field a second time, or any other route that puts focus
+        // back in the input while the panel is open, used to strand the user:
+        // Open() returns early on _isOpen, focus sits in the input, and Escape
+        // and Enter are dead. Ask for the panel focus again instead — without
+        // re-running the scroll, which is not what the user asked for here.
+        if (_isOpen) _shouldFocusPanel = true;
+        else Open();
+    }
+
+    /// <summary>Escape on the input closes the panel. A safety net for any state
+    /// where focus is in the field with the panel open.</summary>
+    private void HandleInputKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _isOpen) ClosePanel();
+    }
+
+    private void Open()
+    {
         if (_isOpen || Disabled) return;
         _isOpen = true;
         InitPending();
         _shouldScroll = true;
+        _shouldFocusPanel = true;
     }
 
     private void InitPending()

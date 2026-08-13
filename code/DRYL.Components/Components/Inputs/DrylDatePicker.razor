@@ -23,7 +23,8 @@
       Arrow keys — move focus by ±1 day (±7 for Up/Down)
       PageUp / PageDown — previous / next month
       Home / End — first / last day of current displayed week
-      Enter / Space — select focused day
+      Enter / Space — select focused day (the day cell's own button activation)
+      Tab — close the calendar, focus returns to the field
       Escape — close without selection
     ───────────────────────────────────────────────────────── *@
 
@@ -50,7 +51,8 @@
                        class="@InputCssClass"
                        value="@DisplayValue"
                        readonly
-                       @onfocus="Open"
+                       @onfocus="HandleInputFocus"
+                       @onkeydown="HandleInputKeyDown"
                        @onclick="Open"
                        placeholder="@(Range ? "Select range…" : "dd.MM.yyyy")"
                        disabled="@Disabled"
@@ -68,8 +70,7 @@
                  role="dialog"
                  aria-label="@($"Pick a date — {_viewMonth.ToString("MMMM yyyy")}")"
                  tabindex="-1"
-                 @onkeydown="HandleCalendarKeyDown"
-                 @onkeydown:preventDefault="@_preventKeyDefault">
+                 @onkeydown="HandleCalendarKeyDown">
 
                 @* ── Month navigation header ── *@
                 <div class="date-header">
@@ -119,6 +120,7 @@
                                                 disabled="@IsDisabled(d)"
                                                 data-day="@d.DayNumber"
                                                 @onclick="() => SelectDay(d)"
+                                                @onkeydown:preventDefault="true"
                                                 @key="d.DayNumber">
                                             @d.Day
                                         </button>
@@ -211,7 +213,6 @@
 
     private bool _isOpen;
     private bool _selectingEnd;
-    private bool _preventKeyDefault;
     private bool _shouldFocusCalendar;
     private bool _shouldRestoreFocus;
     private bool _suppressOpenOnce;
@@ -275,7 +276,9 @@
         }
     }
 
-    private void Open()
+    /// <summary>The input received focus: open the calendar, or — if it is already
+    /// open — send focus back into it, since the panel carries the key handler.</summary>
+    private void HandleInputFocus()
     {
         // Our own focus() on the input, handing focus back after a close, must
         // not reopen what the user just closed.
@@ -284,6 +287,31 @@
             _suppressOpenOnce = false;
             return;
         }
+        if (Disabled) return;
+
+        // Clicking the field a second time, or any other route that puts focus
+        // back in the input while the calendar is open, used to strand the user:
+        // Open() returns early on _isOpen, focus sits in the input, and every key
+        // the panel handles — Escape included — is dead. Ask for the calendar
+        // focus again instead.
+        if (_isOpen) _shouldFocusCalendar = true;
+        else Open();
+    }
+
+    /// <summary>Escape on the input closes the calendar. A safety net for any state
+    /// where focus is in the field with the panel open; the panel's own handler
+    /// stays the primary one, since it also serves the arrows, Home/End and paging.</summary>
+    private void HandleInputKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _isOpen)
+        {
+            Close();
+            _selectingEnd = false;
+        }
+    }
+
+    private void Open()
+    {
         if (Disabled || _isOpen) return;
         _viewMonth = CurrentValue.HasValue
             ? new DateOnly(CurrentValue.Value.Year, CurrentValue.Value.Month, 1)
@@ -342,56 +370,66 @@
         _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
     }
 
+    // Every key that reaches here arrives from a day cell, whose keydown default
+    // is suppressed statically in the markup (@onkeydown:preventDefault="true").
+    // That is what makes this handler the single path: previously Enter and Space
+    // ran SelectDay *and* activated the cell's own button, so one Enter in Range
+    // mode selected start and end on the same day ("13.08.2026 – 13.08.2026").
+    // The old @onkeydown:preventDefault="@_preventKeyDefault" latch could not
+    // arbitrate that, because Blazor applies the flag with the *next* render: it
+    // was off for the first key after opening (letting the double call through)
+    // and then on for the key after an arrow (swallowing that Enter entirely —
+    // measured both ways). A constant on the cell has no such lag.
     private async Task HandleCalendarKeyDown(KeyboardEventArgs e)
     {
-        _preventKeyDefault = false;
-
         switch (e.Key)
         {
             case "ArrowRight":
-                _preventKeyDefault = true;
                 MoveFocus(1);
                 break;
             case "ArrowLeft":
-                _preventKeyDefault = true;
                 MoveFocus(-1);
                 break;
             case "ArrowDown":
-                _preventKeyDefault = true;
                 MoveFocus(7);
                 break;
             case "ArrowUp":
-                _preventKeyDefault = true;
                 MoveFocus(-7);
                 break;
             case "PageDown":
-                _preventKeyDefault = true;
                 _viewMonth = _viewMonth.AddMonths(1);
                 _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
                 _shouldFocusCalendar = true;
                 break;
             case "PageUp":
-                _preventKeyDefault = true;
                 _viewMonth = _viewMonth.AddMonths(-1);
                 _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
                 _shouldFocusCalendar = true;
                 break;
             case "Home":
-                _preventKeyDefault = true;
                 _focusedDay = StartOfWeek(_focusedDay);
                 EnsureMonthVisible();
                 _shouldFocusCalendar = true;
                 break;
             case "End":
-                _preventKeyDefault = true;
                 _focusedDay = StartOfWeek(_focusedDay).AddDays(6);
                 EnsureMonthVisible();
                 _shouldFocusCalendar = true;
                 break;
             case "Enter":
             case " ":
-                _preventKeyDefault = true;
                 if (!IsDisabled(_focusedDay)) await SelectDay(_focusedDay);
+                break;
+            case "Tab":
+                // The focused day is the calendar's last tab stop and the panel
+                // is portaled to <body>, so Tab used to leave for the far end of
+                // the page and strand an open panel that no key could reach.
+                // Close instead, in both directions — the day cell's suppressed
+                // default means focus would otherwise sit still — and the focus
+                // returns to the input, from where tabbing continues normally.
+                // Month paging stays on the keyboard through PageUp/PageDown.
+                Close();
+                _selectingEnd = false;
                 break;
             case "Escape":
                 Close();

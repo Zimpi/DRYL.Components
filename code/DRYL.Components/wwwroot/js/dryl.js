@@ -356,6 +356,10 @@ const drylPanelFocus = (() => {
     function restore(panel, input) {
         if (!input) return false;
         const active = document.activeElement;
+        // Already there — a focus() would be a no-op and fire no focus event, so
+        // reporting "moved" here would leave the caller's one-shot suppression
+        // armed against the user's next, genuine focus.
+        if (active === input) return false;
         const ours = !active || active === document.body
                      || (panel && panel.contains(active));
         if (!ours) return false;
@@ -943,8 +947,11 @@ window.dryl.timepicker = (() => {
     // inside it, and a key pressed on an ancestor never reaches it. Measured:
     // focusing the wrapper leaves Escape just as dead as focusing the input did.
     //
-    // Deliberately not a cell: focusing a time-cell would scroll its column
-    // back to that cell and undo scrollToActive.
+    // Deliberately not a cell: the columns have no notion of a current cell —
+    // no roving tabindex, no arrow navigation, and .is-selected marks the
+    // pending value, not a focus position. Focusing one cell out of sixty would
+    // announce it as the user's place in a list they cannot navigate, and would
+    // scroll its column to wherever that cell happens to sit.
     function focusPanel(panel) {
         drylPanelFocus.into(panel, p => (p.querySelector('.time-panel') || p).focus());
     }
