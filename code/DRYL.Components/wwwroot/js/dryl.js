@@ -371,6 +371,89 @@ const drylPanelFocus = (() => {
 })();
 
 /* --------------------------------------------------------------
+ * Panel keys — the key policy for a focused popover panel, in the one
+ * place that can see which element a key came from. Private, like
+ * drylPanelFocus above, and used by dryl.datepicker and dryl.timepicker.
+ *
+ * Blazor's own @onkeydown:preventDefault cannot do this job: it takes a
+ * value rendered *before* the key, so it is one render behind (measured —
+ * off for the first key after opening, on for the key after an arrow). And
+ * a .NET handler bound to the panel never learns which descendant was
+ * focused, because KeyboardEventArgs carries no target. Both of the bugs
+ * this exists for come straight out of those two facts:
+ *
+ *   - Enter/Space on a month chevron ran the calendar's "select the
+ *     focused day" case, so paging a month committed a date and closed
+ *     the picker. Here the target is visible: when a key lands on a
+ *     control that activates on Enter/Space, the event is stopped at the
+ *     panel and never reaches the .NET handler — the control's own click
+ *     is the whole action. The panel's handler then only sees the keys
+ *     that belong to the panel itself.
+ *   - Tab left the panel entirely (portaled to <body>, so "the next tab
+ *     stop" is the far end of the page) and stranded it open. Tab now
+ *     cycles inside the panel. Escape stays the way out, on the panel and
+ *     on the picker's input.
+ *
+ * navKeys: suppress the browser default for the arrows, Home/End and
+ * paging, which the calendar consumes for itself and which would
+ * otherwise also scroll the page. The time panel passes false — it does
+ * not consume those keys, and its columns scroll with them.
+ *
+ * The listener is not removed: it holds nothing but the panel node it
+ * lives on, so it dies with that node when Blazor discards the component.
+ * -------------------------------------------------------------- */
+const drylPanelKeys = (() => {
+    const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
+    const NAV = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+                 'Home', 'End', 'PageUp', 'PageDown'];
+    // Elements that turn Enter/Space into a click of their own.
+    const ACTIVATES = 'button, a[href], input, select, textarea';
+
+    function tabbables(panel) {
+        return Array.from(panel.querySelectorAll(FOCUSABLE)).filter(el =>
+            !el.disabled && el.tabIndex >= 0 && el.getClientRects().length > 0);
+    }
+
+    function cycleTab(panel, e) {
+        const items = tabbables(panel);
+        if (!items.length) return;
+        e.preventDefault();
+        const i = items.indexOf(document.activeElement);
+        const next = e.shiftKey
+            ? items[(i <= 0 ? items.length : i) - 1]
+            : items[(i + 1) % items.length];
+        next?.focus();
+    }
+
+    function install(panel, navKeys) {
+        if (!panel || panel.__drylPanelKeys) return;
+        const onKey = (e) => {
+            if (e.key === 'Tab') {
+                cycleTab(panel, e);
+                return;
+            }
+            if ((e.key === 'Enter' || e.key === ' ')
+                && e.target !== panel && e.target.closest?.(ACTIVATES)) {
+                // Let the control activate itself; keep the panel out of it.
+                e.stopPropagation();
+                return;
+            }
+            // Only the keys the panel really consumes lose their default —
+            // never a bare modifier or a browser shortcut such as Ctrl+F,
+            // which an unconditional preventDefault used to swallow.
+            if (navKeys && !e.ctrlKey && !e.metaKey && !e.altKey
+                && NAV.includes(e.key)) {
+                e.preventDefault();
+            }
+        };
+        panel.addEventListener('keydown', onKey);
+        panel.__drylPanelKeys = onKey;
+    }
+
+    return { install };
+})();
+
+/* --------------------------------------------------------------
  * Menu — click-outside detection and keyboard navigation for
  * DrylMenu. The .NET component owns open/close state; JS only
  * handles the DOM-level concerns (event listening, focus).
@@ -692,6 +775,8 @@ window.dryl.datepicker = {
     // revealed — and with focus left on the input, the panel's keydown handler
     // (Escape, arrows, Home/End, PageUp/PageDown, Enter) never got a key.
     focusDay(panel, dayNumber) {
+        // navKeys: the calendar consumes the arrows, Home/End and paging.
+        drylPanelKeys.install(panel, true);
         drylPanelFocus.into(panel, p => {
             const btn = p.querySelector(`[data-day="${dayNumber}"]`);
             if (btn) btn.focus();
@@ -953,6 +1038,9 @@ window.dryl.timepicker = (() => {
     // announce it as the user's place in a list they cannot navigate, and would
     // scroll its column to wherever that cell happens to sit.
     function focusPanel(panel) {
+        // navKeys false: the columns scroll with the arrows, and nothing in
+        // the .NET handler competes for them.
+        drylPanelKeys.install(panel, false);
         drylPanelFocus.into(panel, p => (p.querySelector('.time-panel') || p).focus());
     }
 

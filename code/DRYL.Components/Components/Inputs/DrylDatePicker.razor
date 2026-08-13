@@ -23,9 +23,10 @@
       Arrow keys — move focus by ±1 day (±7 for Up/Down)
       PageUp / PageDown — previous / next month
       Home / End — first / last day of current displayed week
-      Enter / Space — select focused day (the day cell's own button activation)
-      Tab — close the calendar, focus returns to the field
-      Escape — close without selection
+      Enter / Space — activate the focused control: select the day, or page
+        the month when a chevron has focus
+      Tab — cycles inside the panel (chevrons and the focused day)
+      Escape — close without selection, focus returns to the field
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
@@ -120,7 +121,6 @@
                                                 disabled="@IsDisabled(d)"
                                                 data-day="@d.DayNumber"
                                                 @onclick="() => SelectDay(d)"
-                                                @onkeydown:preventDefault="true"
                                                 @key="d.DayNumber">
                                             @d.Day
                                         </button>
@@ -370,16 +370,18 @@
         _focusedDay = ClampToMonth(_focusedDay, _viewMonth);
     }
 
-    // Every key that reaches here arrives from a day cell, whose keydown default
-    // is suppressed statically in the markup (@onkeydown:preventDefault="true").
-    // That is what makes this handler the single path: previously Enter and Space
-    // ran SelectDay *and* activated the cell's own button, so one Enter in Range
-    // mode selected start and end on the same day ("13.08.2026 – 13.08.2026").
-    // The old @onkeydown:preventDefault="@_preventKeyDefault" latch could not
-    // arbitrate that, because Blazor applies the flag with the *next* render: it
-    // was off for the first key after opening (letting the double call through)
-    // and then on for the key after an arrow (swallowing that Enter entirely —
-    // measured both ways). A constant on the cell has no such lag.
+    // Keys that a control inside the panel activates on — Enter and Space on a
+    // day cell or on a month chevron — never arrive here: drylPanelKeys stops
+    // them at the panel, and the control's own click does the work. That is the
+    // origin check this handler cannot make for itself, since KeyboardEventArgs
+    // carries no target: without it, Enter on a chevron paged the month *and*
+    // ran the "select the focused day" case below, committing a date and closing
+    // the picker. What reaches the Enter case here is a key pressed on the panel
+    // itself, where selecting the focused day is the right answer.
+    //
+    // The arrows, Home/End and paging keep their defaults suppressed — also in
+    // drylPanelKeys, and only for those keys, so Ctrl+F and friends survive.
+    // Tab is handled there too, cycling inside the panel.
     private async Task HandleCalendarKeyDown(KeyboardEventArgs e)
     {
         switch (e.Key)
@@ -419,17 +421,6 @@
             case "Enter":
             case " ":
                 if (!IsDisabled(_focusedDay)) await SelectDay(_focusedDay);
-                break;
-            case "Tab":
-                // The focused day is the calendar's last tab stop and the panel
-                // is portaled to <body>, so Tab used to leave for the far end of
-                // the page and strand an open panel that no key could reach.
-                // Close instead, in both directions — the day cell's suppressed
-                // default means focus would otherwise sit still — and the focus
-                // returns to the input, from where tabbing continues normally.
-                // Month paging stays on the keyboard through PageUp/PageDown.
-                Close();
-                _selectingEnd = false;
                 break;
             case "Escape":
                 Close();
