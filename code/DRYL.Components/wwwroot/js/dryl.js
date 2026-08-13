@@ -557,15 +557,30 @@ window.dryl.popover = (() => {
      * cannot: the open state lives in DrylMenu, out of reach of the trigger
      * fragment's own render context.
      *
-     * So the popover does it, strictly additively: it only writes to an
-     * element that carries NO aria-haspopup of its own, and it marks that
-     * element as owned. Only an owned element ever gets its aria-expanded
-     * touched, so a consumer's own ARIA is never overwritten and nothing
+     * So the popover does it, strictly additively — and additively PER
+     * ATTRIBUTE, because the two are orthogonal promises: naming a popup type
+     * says what this control opens, reporting an open state says what it is
+     * doing right now, and a consumer can make either promise without the
+     * other. The library's own ThemeSwitcher on the docs site is exactly that
+     * case: it writes aria-haspopup="dialog" and no aria-expanded. So each
+     * attribute is claimed only where it is absent, each claim is marked on
+     * the node separately, and only a claimed attribute is ever written again.
+     * A consumer that keeps its own aria-expanded — as DrylSelect, both
+     * pickers and DrylNotifications do — never has it touched, and nothing
      * here writes against Blazor's attribute diffing.
      *
-     * The focusable element is found with the same selector dryl.menu
-     * .focusTrigger uses — the trigger's focus target and its ARIA target
-     * are by definition the same node.
+     * The element is found by this module's OWN rule (see ariaTarget below),
+     * deliberately not with the selector dryl.menu.focusTrigger uses. Two
+     * differences, both about what ARIA describes rather than what focus
+     * needs: a DISABLED button is
+     * included, because aria-haspopup describes the control, not its momentary
+     * operability — a disabled caret still is the thing that opens the menu,
+     * and excluding it would leave it permanently silent, since a disabled
+     * trigger can never be opened to be claimed later. And tabindex="-1" is
+     * excluded, because that is the programmatic-focus marker decorative nodes
+     * carry; a <span tabindex="-1"> ahead of the real button would otherwise
+     * take the attributes instead of it. focusTrigger's own selector is left
+     * alone: which element focus should return to is a different question.
      *
      * claimTrigger runs at the popover's FIRST RENDER, not only on open.
      * aria-haspopup exists for the state before the panel is opened: it is
@@ -574,34 +589,60 @@ window.dryl.popover = (() => {
      * fact at the moment the user had already discovered it — and it would
      * leave DrylMenu out of step with DrylSelect and the pickers, which carry
      * theirs from the first render. Opening re-claims (a trigger rebuilt in
-     * the meantime is a fresh node with no attributes and no owner mark), so
+     * the meantime is a fresh node with no attributes and no owner marks), so
      * the two entry points are one function called twice, not two rules. */
-    const ARIA_OWNER = '__drylTriggerAria';
-    const TRIGGER_SEL =
-        '.menu-trigger button:not([disabled]), .menu-trigger a, .menu-trigger [tabindex],'
-      + '.popover-trigger button:not([disabled]), .popover-trigger a, .popover-trigger [tabindex]';
+    const OWNS_HASPOPUP = '__drylTriggerHasPopup';
+    const OWNS_EXPANDED = '__drylTriggerExpanded';
+    const ARIA_CANDIDATE = 'button, a, [tabindex]:not([tabindex="-1"])';
     // Only roles aria-haspopup actually defines. An unknown or absent panel
     // role means we stay silent rather than claim a popup type that is not true.
     const HASPOPUP_ROLES = ['menu', 'listbox', 'tree', 'grid', 'dialog'];
 
+    /* Which element inside the trigger is THE trigger.
+     *
+     * Two rules, in order. An element that already carries aria-haspopup has
+     * named itself the trigger, and it wins outright — that is how DrylSelect's
+     * and DrylMultiSelect's own containers are recognised even when they are
+     * disabled and have dropped their tabindex. Otherwise the SHALLOWEST
+     * candidate wins, because a control nested deeper is a part of the trigger
+     * rather than the trigger: a multiselect's chip has a remove button inside
+     * the trigger container, and a plain document-order query hands the
+     * attributes to that button as soon as the container itself stops matching.
+     * (Measured on /components/multiselect: the disabled example's anchor
+     * resolves to .chip-remove that way. Nothing is written there today, but
+     * the wrong node was being selected.) */
+    function ariaTarget(anchor) {
+        const scope = anchor.querySelector('.popover-trigger, .menu-trigger') || anchor;
+        const named = scope.querySelector('[aria-haspopup]');
+        if (named) return named;
+        let best = null, bestDepth = Infinity;
+        for (const el of scope.querySelectorAll(ARIA_CANDIDATE)) {
+            let depth = 0;
+            for (let n = el; n && n !== scope; n = n.parentElement) depth++;
+            if (depth < bestDepth) { best = el; bestDepth = depth; }
+        }
+        return best;
+    }
+
     function claimTrigger(anchor, role, open) {
         if (!anchor || HASPOPUP_ROLES.indexOf(role) < 0) return null;
-        const el = anchor.querySelector(TRIGGER_SEL);
+        const el = ariaTarget(anchor);
         if (!el) return null;
-        if (!el[ARIA_OWNER]) {
-            if (el.hasAttribute('aria-haspopup')) return null; // the consumer owns it
-            el[ARIA_OWNER] = true;
+        // Two independent claims — see the note above.
+        if (!el[OWNS_HASPOPUP] && !el.hasAttribute('aria-haspopup')) {
+            el[OWNS_HASPOPUP] = true;
             el.setAttribute('aria-haspopup', role);
         }
-        // Never an announcement without its state: a claimed trigger always
-        // carries aria-expanded too, false from the first render onwards.
-        el.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (!el[OWNS_EXPANDED] && !el.hasAttribute('aria-expanded')) {
+            el[OWNS_EXPANDED] = true;
+        }
+        if (el[OWNS_EXPANDED]) el.setAttribute('aria-expanded', open ? 'true' : 'false');
         return el;
     }
 
     function releaseTrigger(el) {
         // aria-haspopup stays — the trigger still opens a panel while closed.
-        if (el && el[ARIA_OWNER]) el.setAttribute('aria-expanded', 'false');
+        if (el && el[OWNS_EXPANDED]) el.setAttribute('aria-expanded', 'false');
     }
 
     function place(anchor, panel, placement, matchWidth) {

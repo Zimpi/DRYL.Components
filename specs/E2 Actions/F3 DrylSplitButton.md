@@ -300,17 +300,17 @@ runtime surprise.
   unconfigured caret still has an accessible name.
 - `MenuAriaLabel` is non-nullable, so the caret loses its accessible name only if
   a consumer explicitly supplies an empty one.
-- The component writes neither `aria-haspopup` nor `aria-expanded` on the caret
-  itself, and therefore leaves the caret free for `DrylPopover` to claim: the
-  popover claims — from its own first render, not from the first open — every
-  trigger that carries no `aria-haspopup` of its own (see the `## Description`).
-- The caret is the element that claim lands on, because it is the one element
-  inside the menu's anchor that the popover's trigger selector can find — the
-  same selector, and therefore by construction the same element, as the focus
-  restore below.
-- The caret is therefore announced as opening a menu, and reports whether the
-  menu is open, from the moment the page is interactive — without this component
-  writing, forwarding or exposing anything for it.
+- The component writes neither `aria-haspopup` nor `aria-expanded` on the caret,
+  in any state of any parameter, and so leaves both attributes free for
+  `DrylPopover` to write (whether and when it does is the popover's, and is
+  described in the `## Description`).
+- The caret is the element inside the menu's anchor that `DrylPopover`'s ARIA
+  target rule selects: it is the only enabled-or-disabled `button`, link or
+  tab-stop candidate the trigger contains, and no other element there carries an
+  `aria-haspopup` that would take precedence over it.
+- The component supplies nothing else to that exchange: no parameter, no
+  forwarding, and no element of its own between the trigger slot and the caret
+  that could take the attributes instead.
 - The main button takes its accessible name from `ChildContent` alone: the
   component exposes no `AriaLabel` for it.
 - The main button is never in icon-only mode, because the component always
@@ -361,23 +361,32 @@ runtime surprise.
   Fourth, the caret's `aria-haspopup` and `aria-expanded` are written by
   `DrylPopover`, not by this component, and they are described here rather than
   promised in the criteria for the same reason the focus behaviour is. The
-  popover hands its `PanelRole` to `dryl.popover.claimTrigger`, which finds the
-  focusable element in the trigger with the selector `dryl.menu.focusTrigger`
-  already uses and — only if that element carries no `aria-haspopup` of its own
-  — sets `aria-haspopup` to the panel's role, marks the element as its own, and
-  gives it an `aria-expanded` matching the panel's current state. That call runs
-  at the popover's **first render**, because `aria-haspopup` is precisely the
-  announcement a user needs *before* opening anything; `dryl.popover.open`
-  re-claims and sets `aria-expanded="true"`, and `dryl.popover.close` sets it
-  back to `false` while leaving `aria-haspopup` standing. For this component the
-  panel role is `menu`, so the caret announces `aria-haspopup="menu"` from the
-  moment the page is interactive. Two consequences a reader should not have to
-  discover: a trigger that writes its own `aria-haspopup` — `DrylSelect`,
-  `DrylMultiSelect`, both pickers, `DrylNotifications` — is never touched and
-  never marked; and a caret rebuilt after the first render (a client-side
-  navigation back to the page, or an example remounted by a tab switch — both
-  measured) is a fresh node that the new popover instance's own first render
-  claims again, so it is never left silent.
+  popover hands its `PanelRole` to `dryl.popover.claimTrigger`, which picks the
+  ARIA target inside the trigger — an element already carrying `aria-haspopup`
+  if there is one, otherwise the shallowest `button`, link or tab stop, with
+  `tabindex="-1"` excluded as decorative and disabled controls **included** —
+  and then claims the two attributes **independently**: each is written only
+  where it is absent, and each is marked on the node separately, so a trigger
+  that keeps one of them itself keeps it. That call runs at the popover's
+  **first render**, because `aria-haspopup` is precisely the announcement a user
+  needs *before* opening anything; `dryl.popover.open` re-claims and sets
+  `aria-expanded="true"`, and `dryl.popover.close` sets it back to `false` while
+  leaving `aria-haspopup` standing. For this component the panel role is `menu`,
+  so the caret announces `aria-haspopup="menu"` from the moment the page is
+  interactive — including a caret disabled by `Disabled` or `Loading`, which is
+  still the control that opens the menu and is now claimed rather than skipped.
+  This is why the target rule is the popover's own and not
+  `dryl.menu.focusTrigger`'s: what focus may land on and what ARIA describes are
+  different questions, and `focusTrigger` is deliberately left as it was. Two
+  consequences a reader should not have to discover: a trigger that writes its
+  own `aria-haspopup` — `DrylSelect`, `DrylMultiSelect`, both pickers,
+  `DrylNotifications` — keeps it untouched and unmarked; and where the whole
+  component is rebuilt, the new popover instance's own first render claims the
+  new caret at once (measured for a client-side navigation back to the page and
+  for an example remounted by a tab switch). That last point is about the
+  component being rebuilt, not about any node swap: a trigger node replaced
+  underneath a popover that stays mounted is not re-claimed until the next open
+  — see **Recorded gaps**.
 
 ### `UX-05` and the caret
 
@@ -651,12 +660,14 @@ element the popover's claim can find. Measured in the browser on
 `/components/button-group`: all three carets carry `aria-haspopup="menu"` and
 `aria-expanded="false"` on load, with no interaction at all, and `aria-expanded`
 then runs `true` → `false` across open, close by pointer, close by `Escape` and
-close by choosing an item, surviving the re-render each of those causes and
-returning on a caret rebuilt from scratch. No bUnit test asserts the attributes
-— the suite does not execute `dryl.js` — but two assert the half that is C#'s:
-that the panel role and the closed state reach `dryl.popover.claimTrigger` at
-the first render, and that the role reaches `dryl.popover.open` when the menu
-opens.
+close by choosing an item and dismissal by an outside click, surviving the
+re-render each of those causes and returning on a caret rebuilt with its
+component. Three bUnit tests hold what is true without `dryl.js`: that this
+component writes neither attribute on the caret it renders, that the panel role
+and the closed state reach `dryl.popover.claimTrigger` at the first render, and
+that the role reaches `dryl.popover.open` when the menu opens. None of them
+asserts the attributes themselves — the suite does not execute `dryl.js`, and a
+test that claimed otherwise would be lying.
 
 One criterion the previous revision dropped as unestablishable is **restored**:
 that choosing a menu item closes the menu and returns focus to the caret. It was
@@ -690,6 +701,20 @@ the caret would have left it inheriting the scope exactly as before.
 Each of the following breaks a criterion of no spec and a rule of no number, or
 belongs to another component's code and another component's spec.
 
+- **A trigger node replaced under a live popover keeps no ARIA until the next
+  open.** `DrylPopover` claims at its own first render and again on open, so a
+  node swapped in between — Blazor rebuilding only the trigger's markup while
+  the popover component itself stays mounted — carries neither attribute until
+  something opens the panel. Measured directly by replacing the caret `button`
+  with a fresh node while the panel was open: the replacement reads
+  `aria-haspopup=null aria-expanded=null` and still does seconds later, while
+  the claim the popover holds points at the node that is no longer in the
+  document. No library component
+  produces this today (`DrylSplitButton`'s caret is rebuilt only together with
+  the `DrylMenu` around it, which brings a fresh popover and a fresh claim), so
+  it is a boundary of the mechanism rather than an observed defect. Closing it
+  would mean re-claiming on every render — an interop call per popover per
+  render — which is not worth it for a case no component reaches.
 - **A `DrylPopover` given no `PanelRole` announces nothing on its trigger.**
   Deliberate rather than missing: `aria-haspopup` takes one of a fixed set of
   popup types, and a panel that declares no role gives no true value to write.

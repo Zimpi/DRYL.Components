@@ -87,6 +87,22 @@ public class DrylSplitButtonTests : BunitContext
     }
 
     [Fact]
+    public void The_component_writes_neither_aria_attribute_on_the_caret_itself()
+    {
+        // The other half of the arrangement, and the half that IS visible
+        // without dryl.js: the caret's rendered markup carries neither
+        // attribute, which is what leaves both free for the popover to claim.
+        // Start writing either one here and the script would step aside for a
+        // consumer that turns out to be this component.
+        var cut = Render<DrylSplitButton>(ps => ps.AddChildContent("Save"));
+
+        var caret = cut.Find(CaretSelector);
+
+        Assert.False(caret.HasAttribute("aria-haspopup"));
+        Assert.False(caret.HasAttribute("aria-expanded"));
+    }
+
+    [Fact]
     public void Rendering_claims_the_caret_for_the_menu_role_before_any_click()
     {
         // aria-haspopup is about the state before the panel is opened, so the
