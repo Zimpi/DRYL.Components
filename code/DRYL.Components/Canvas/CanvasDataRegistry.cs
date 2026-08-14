@@ -75,10 +75,15 @@ public sealed class CanvasDataRegistry
 /// </summary>
 internal static class CanvasParamSchema
 {
-    private static readonly NullabilityInfoContext Nullability = new();
-
     public static IReadOnlyList<CanvasParamInfo> Describe(Type paramsType)
     {
+        // NullabilityInfoContext is documented as not thread safe: its cache is a plain Dictionary,
+        // so two hosts starting at the same moment in one process (two WebApplicationFactory
+        // instances, a server and a WebAssembly host) can collide on the same key. One context per
+        // call is the whole fix — the cache still pays for itself across this type's parameters,
+        // and registration happens once at startup, never in a hot loop.
+        var nullability = new NullabilityInfoContext();
+
         // Records put their positional parameters on the primary constructor; for a plain class
         // the constructor with the most parameters is the one that carries the schema.
         var ctor = paramsType.GetConstructors()
@@ -103,7 +108,7 @@ internal static class CanvasParamSchema
                     "Use string, int, long, double, decimal, bool, DateOnly, DateTime, Guid, an enum, " +
                     "a nullable of those, or IReadOnlyList<T> of those.");
 
-            result.Add(new CanvasParamInfo(Camel(p.Name!), typeName, Required(p)));
+            result.Add(new CanvasParamInfo(Camel(p.Name!), typeName, Required(p, nullability)));
         }
         return result;
     }
@@ -111,12 +116,12 @@ internal static class CanvasParamSchema
     // Optional means "the host said it may be absent": a default value, or a nullable type.
     // Nullable value types are visible on the type itself; nullable reference types only through
     // the compiler's nullability metadata, which is what NullabilityInfoContext reads.
-    private static bool Required(ParameterInfo p)
+    private static bool Required(ParameterInfo p, NullabilityInfoContext nullability)
     {
         if (p.HasDefaultValue) return false;
         if (Nullable.GetUnderlyingType(p.ParameterType) is not null) return false;
         if (!p.ParameterType.IsValueType &&
-            Nullability.Create(p).WriteState == NullabilityState.Nullable) return false;
+            nullability.Create(p).WriteState == NullabilityState.Nullable) return false;
         return true;
     }
 
