@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [2.23.0] — 2026-08-13
+## [2.23.0] — 2026-08-14
 
 ### Added
 - `DrylSplitButton` — New `Aura` parameter (`AiAura?`, defaults to `null`), the pin for the AI aura variant that every other AI-aware component already exposes: set `Aura="AiAura.Aurora"` to calm the glow on a split button, or leave it `null` to inherit a surrounding `DrylAiScope` and ultimately `AiAura.Comet`. It arrives because the component now derives from `DrylAiAware` instead of declaring its own `Ai` parameter, which is where `Aura`, the cascading scope and the resolution rules live. **Moving `Ai` to the base class is not a breaking change for consumers**: it keeps its name, its `AiState` type and its `AiState.None` default, it is still a `[Parameter]`, and a Razor call site binds a parameter by name against the component type including everything it inherits — `Ai="AiState.Thinking"` on a `DrylSplitButton` compiles and behaves exactly as before. `DrylButton` has taken its own `Ai` from that same base class all along

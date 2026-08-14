@@ -114,7 +114,9 @@ Every rule has a stable ID. Cite it when you flag a violation.
 7. **Zero external runtime dependencies.** No npm, no JS framework. `Markdig` is
    the one approved exception. → `CODE-03`
 8. **Touching library code means bumping `<Version>` and writing a changelog
-   entry, in the same commit.** → `REL-01`, `REL-02`
+   entry, in the same commit** — unless `<Version>` already names a version that
+   has not shipped yet, in which case the entry joins that block and the version
+   stays put. → `REL-01`, `REL-02`
 9. **Specs and code are one artifact.** Every change to a component's behaviour
    or public API updates its spec in the same commit. A spec that no longer
    matches its code goes back to `State: Modified` — never leave it on

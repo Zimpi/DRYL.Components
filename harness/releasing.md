@@ -76,20 +76,26 @@ commit as the change: bug fix → **PATCH**, new component/parameter/feature →
 `v*` tag yourself — the workflow owns tagging (see `REL-05`). Keep `<Version>`
 and `CHANGELOG.md` in lockstep (see `REL-02`).
 
-**An unpublished version carries the whole stack.** Once `<Version>` names a
-version that has not shipped yet, later commits add their entries to that same
-block and leave `<Version>` alone; raise it only when a change needs a larger
-bump than the block already carries (a stack of fixes that gains a public
-parameter becomes MINOR). Nothing is published between the commits of an
-unreleased block, so bumping per commit would invent versions that never
-existed — and when the bump no longer matches the newest entry on its own, say
-why in the block, as `2.23.0` does.
+**An unpublished version carries the whole stack.** A version counts as
+unpublished only while `git tag --list v<Version>` is empty and the commit that
+set it has not reached `origin/main` — the moment it is pushed, the workflow
+tags, packs and publishes it (`REL-05`), and later commits would be editing the
+notes of a shipped release. While it is unpublished, later commits add their
+entries to that same block and leave `<Version>` alone; raise it only when a
+change needs a larger bump than the block already carries (a stack of fixes
+that gains a public parameter becomes MINOR), and move the block's date forward
+so it still names the day it ships. Bumping per commit would otherwise invent
+versions that never existed. When the bump no longer matches the newest entry
+on its own, say why in the block (`REL-02` gives that note its form).
 
-Check: reviewer confirms the version bump matches the change type — PATCH for
-a fix, MINOR for a new component/parameter/feature, MAJOR for a breaking
-change — and, where a block collects several commits, that its bump matches the
-largest change in it. No automated scan documented yet, since the correct bump
-depends on judgment about the change, not a pattern a script can match.
+Check: reviewer confirms the version bump matches the change type — PATCH for a
+fix, MINOR for a new component/parameter/feature, MAJOR for a breaking change —
+and, where a block collects several commits, that it is genuinely unpublished
+(no `v<Version>` tag, not on `origin/main`), that its bump matches the largest
+change in it, that its date is not older than its newest commit, and that a
+bump exceeding its own newest entry carries the note saying why — no automated
+scan documented yet, since the correct bump depends on judgment about the
+change, not a pattern a script can match.
 
 ### REL-02 — CHANGELOG and every consumer-facing artefact is written in English
 
@@ -111,6 +117,14 @@ changelog in the same commit:** rename the `[Unreleased]` block to
 `## [X.Y.Z] - YYYY-MM-DD` (the version you just set, today's date) and start
 a fresh, empty `[Unreleased]` above it. That keeps every published version
 traceable to its entries.
+
+**While `<Version>` names a version that is still unpublished (`REL-01`), that
+cut block is where new entries go** — not under `[Unreleased]`, which stays
+empty until the block ships. Keep its date in step with its newest commit. Such
+a block may also carry **one bullet that names no component**: the note
+explaining why its bump is what it is, when the newest entry alone would not
+justify it. That note is the single exception to "one bullet per logical
+change, component name in backticks" below, and it belongs under `Changed`.
 
 Pick the right sub-heading for each change:
 
@@ -217,16 +231,21 @@ Accumulate entries under `[Unreleased]` in [`CHANGELOG.md`](../CHANGELOG.md) as 
 work. When you bump `<Version>`, cut the release in the changelog in the **same
 commit**: rename the `[Unreleased]` block to `## [X.Y.Z] - YYYY-MM-DD` (the
 version you just set, today's date) and start a fresh, empty `[Unreleased]` above
-it. Every published version stays traceable to its entries.
+it. Every published version stays traceable to its entries. While that block is
+still unpublished, later entries join it rather than `[Unreleased]`, and its
+date moves with them (`REL-01`, `REL-02`).
 
 ---
 
 ## Release checklist
 
 - [ ] `<Version>` in `code/DRYL.Components/DRYL.Components.csproj` bumped
-      (PATCH / MINOR / MAJOR) for this change.
+      (PATCH / MINOR / MAJOR) for this change — or already naming the unpublished
+      block this change joined, whose bump covers it (`REL-01`).
 - [ ] `CHANGELOG.md` — `[Unreleased]` promoted to `## [X.Y.Z] - DATE` matching the
-      new version, fresh empty `[Unreleased]` added on top.
+      new version, fresh empty `[Unreleased]` added on top. For a block that
+      collected several commits, its date names the day it ships, not the day it
+      was cut.
 - [ ] Working tree clean and on the intended commit; push to `main`.
 - [ ] Watch the `Publish` workflow go green; confirm the package appears on
       nuget.org and the GitHub Release was created.
@@ -245,7 +264,7 @@ it. Every published version stays traceable to its entries.
 
 ## Before you finish a task
 
-- [ ] `CHANGELOG.md` — entry under `[Unreleased]` with the correct sub-heading (`REL-02`)
+- [ ] `CHANGELOG.md` — entry under `[Unreleased]`, or in the unpublished block if `<Version>` already names one, with the correct sub-heading (`REL-02`)
 - [ ] `ComponentCatalog` in `DRYL.Website` — registered or updated (`REL-04`)
-- [ ] `<Version>` bumped and in lockstep with the changelog release you cut (`REL-01`)
+- [ ] `<Version>` bumped and in lockstep with the changelog release you cut — or left alone because it already names an unpublished block that now carries this change too (`REL-01`)
 - [ ] The component's spec updated and its `State` correct (`SPEC-01`, `SPEC-04`)
