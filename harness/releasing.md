@@ -76,10 +76,20 @@ commit as the change: bug fix → **PATCH**, new component/parameter/feature →
 `v*` tag yourself — the workflow owns tagging (see `REL-05`). Keep `<Version>`
 and `CHANGELOG.md` in lockstep (see `REL-02`).
 
+**An unpublished version carries the whole stack.** Once `<Version>` names a
+version that has not shipped yet, later commits add their entries to that same
+block and leave `<Version>` alone; raise it only when a change needs a larger
+bump than the block already carries (a stack of fixes that gains a public
+parameter becomes MINOR). Nothing is published between the commits of an
+unreleased block, so bumping per commit would invent versions that never
+existed — and when the bump no longer matches the newest entry on its own, say
+why in the block, as `2.23.0` does.
+
 Check: reviewer confirms the version bump matches the change type — PATCH for
 a fix, MINOR for a new component/parameter/feature, MAJOR for a breaking
-change — no automated scan documented yet, since the correct bump depends on
-judgment about the change, not a pattern a script can match.
+change — and, where a block collects several commits, that its bump matches the
+largest change in it. No automated scan documented yet, since the correct bump
+depends on judgment about the change, not a pattern a script can match.
 
 ### REL-02 — CHANGELOG and every consumer-facing artefact is written in English
 
