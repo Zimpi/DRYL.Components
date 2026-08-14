@@ -657,7 +657,9 @@ carrying it. Nothing in `DrylSplitButton.razor` changed, and no criterion above
 promises the attributes themselves; the criteria promise the two halves that are
 this component's — that it writes neither attribute, and that the caret is the
 element the popover's claim can find. Measured in the browser on
-`/components/button-group`: all three carets carry `aria-haspopup="menu"` and
+`/components/split-button` — the page this component gained on 2026-08-14; the
+same measurement was first taken on `/components/button-group`, which no longer
+carries a split button: every caret on the page carries `aria-haspopup="menu"` and
 `aria-expanded="false"` on load, with no interaction at all, and `aria-expanded`
 then runs `true` → `false` across open, close by pointer, close by `Escape` and
 close by choosing an item and dismissal by an outside click, surviving the
@@ -732,11 +734,14 @@ belongs to another component's code and another component's spec.
   popup types, and a panel that declares no role gives no true value to write.
   It has no bearing on this component — `DrylMenu` always passes `menu` — and is
   recorded because it is the boundary of the mechanism the caret depends on.
-- **The menu's focus and keyboard behaviour is documented in no spec at all.**
-  It is `DrylMenu`'s and `DrylPopover`'s, and `E10 Navigation` and
-  `E11 Surfaces` are both empty, so the `## Description` above references an
-  authority that does not exist yet and this file is currently the only written
-  account of behaviour a split-button consumer depends on. That is a gap in the
+- **The menu's focus and keyboard behaviour is only half documented.**
+  It is `DrylMenu`'s and `DrylPopover`'s. The popover half now has an authority
+  to reference — [`../E11 Surfaces/F1 DrylPopover.md`](../E11%20Surfaces/F1%20DrylPopover.md),
+  which states the portal, the visibility gate, the pending-focus channel, the
+  key policy and the trigger's ARIA claim. `E10 Navigation` is still a scaffold,
+  so for everything `DrylMenu` itself decides — which element the focus goes to,
+  what the arrow keys traverse, when the menu closes — this file remains the
+  only written account of behaviour a split-button consumer depends on. That is a gap in the
   spec set rather than in the code, and it is the standing hazard behind this
   file's two rounds of drift: with nowhere else to state the composed behaviour,
   the pressure is always to restate it here. The prose reference is the smaller
