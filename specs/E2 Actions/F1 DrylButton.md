@@ -97,6 +97,13 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - `ButtonSize.Small` and `ButtonSize.Large` each add their own size class.
 - A `Size` outside the declared three renders as `ButtonSize.Medium` rather than
   failing.
+- Icon-only mode is square at every size: the label padding is dropped and the
+  width matches the height at `ButtonSize.Small`, at `ButtonSize.Medium` and at
+  `ButtonSize.Large`. The size override and the icon-only rule are two separate
+  declarations of the same padding, so each size carries its own icon-only reset;
+  without it the size's horizontal padding survives, and — since the icon-only
+  width is the *whole* button width rather than a content width — the icon is left
+  no room at all and collapses to zero.
 
 ### Interaction
 
@@ -325,7 +332,8 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
   any token today.
 
   Outside `DESIGN-01`'s enumeration, and therefore debt of a lesser kind: the
-  `height` (base and both size overrides), the `gap`, the icon-only `width`, the
+  `height` (base and both size overrides), the `gap`, the icon-only `width` at all
+  three sizes, the
   `font-size`, `font-weight` and `letter-spacing`, the disabled `opacity` and
   `grayscale` amounts, the transform distances of the hover lift, the press, the
   two icon slides and the icon-only scale, the sheen's gradient angle, color stops,

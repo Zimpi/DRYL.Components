@@ -764,6 +764,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: var(--r-sm); }
 .btn-sm.btn-icon { width: 30px; padding: 0; }
 .btn-lg { height: 46px; padding: 0 22px; font-size: 14px; }
+.btn-lg.btn-icon { width: 46px; padding: 0; }
 
 /* ============== BUTTON GROUP ============== */
 /* Joins adjacent DrylButtons into a segmented control: inner corners are
