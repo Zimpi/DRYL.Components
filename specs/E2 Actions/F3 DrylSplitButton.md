@@ -619,27 +619,24 @@ runtime surprise.
   `DrylAiAware`, which is what makes its reach correct: the component resolves the
   surrounding scope once and hands the result to both segments, so a control that
   is drawn as one outline is lit as one.
-- **Demo page** — **no page of its own.** `DrylSplitButton` is demonstrated by
-  `DRYL.Website/Components/Examples/ButtonGroup/Split.razor`, which is composed
-  into `DRYL.Website/Components/Pages/DemoButtonGroup.razor` — the **Button
-  Group** page, routed at `/components/button-group`, as its third example
-  ("Split button — primary action + variants"). The example shows three split
-  buttons: a default one, a `Ghost` one with a `LeadingIcon`, and a `Danger`
-  `Small` one; all three set `MenuLabel`, none sets `Block`, `Loading`,
-  `Disabled`, `Ai`, `Aura`, `MenuPlacement`, `MenuAriaLabel` or `Class`. Those parameters
-  are therefore undemonstrated, and every criterion about them above rests on
-  reading the code and the rules rather than on a rendered example.
-- **`ComponentCatalog`** — **no entry of its own.**
-  `DRYL.Website/Components/ComponentCatalog.cs` has no row whose `ClassName` is
-  `"DrylSplitButton"`; the component reaches the sidebar, the Ctrl+K search and
-  the `/components` overview only through the `"Button Group"` / `button-group`
-  row, whose `ClassName` is `"DrylButtonGroup"` and whose `Ai` flag is `false`.
-  Searching the catalog for "split button" therefore finds nothing, and the
-  component is reachable only by someone who already knows it shares the button
-  group's page. This is exactly the split `SPEC-05` warns about — shipped in the assembly, absent from the library's
-  own index — and `REL-04` is not satisfied for this component. Recorded, not
-  papered over: the fix is a catalog row (and, if it is given one, a page) in
-  `DRYL.Website`, which is a different repository and out of this spec's scope.
+- **Demo page** — its own page at `/components/split-button`, built from
+  `DRYL.Website/Components/Pages/DemoSplitButton.razor` and the five examples
+  under `DRYL.Website/Components/Examples/SplitButton/`. They demonstrate the
+  `Save ▾` pattern, all four `Variant`s, all three `Size`s, `Loading` and
+  `Disabled`, and `Ai` across every `AiState` with both `Aura` variants. `Block`
+  and `MenuPlacement` remain undemonstrated, so the criteria about them still
+  rest on reading the code rather than on a rendered example.
+- **`ComponentCatalog`** — its own row (`"Split Button"` / `split-button`,
+  `ClassName` `"DrylSplitButton"`, `Ai` `true`), so the component now reaches
+  the sidebar, the Ctrl+K search and the `/components` overview under its own
+  name. `REL-04` is satisfied.
+
+  Until 2026-08-14 it had neither, and the component was visible only as one
+  example on the button group's page. That is worth keeping in the record rather
+  than deleting: it is the most plausible reason two defects survived in it
+  unnoticed — a missing `Aura` parameter and a caret that announced no menu —
+  both fixed in the same unreleased version. What is absent from the library's
+  own index does not get looked at (`SPEC-05`).
 
 ## Deviations (`State: Implemented`)
 
@@ -760,6 +757,8 @@ belongs to another component's code and another component's spec.
   code that would change is not this component's — it is `DrylPopover`'s `@if` —
   so it belongs to `DrylPopover`'s spec and is recorded here only because it is
   visible through this component.
-- **No demo page and no `ComponentCatalog` entry** (`REL-04`), as the
-  cross-cutting evidence above sets out. Both would live in `DRYL.Website`, a
-  different repository; no acceptance criterion of this spec is about them.
+- **`Block` and `MenuPlacement` are undemonstrated** on the demo page, as the
+  cross-cutting evidence above sets out — `Block` in particular, since this spec
+  gives it a criteria block of its own and no example in either repository
+  renders it. The page lives in `DRYL.Website`, a different repository; no
+  acceptance criterion of this spec is about it.
