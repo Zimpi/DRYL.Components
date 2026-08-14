@@ -59,6 +59,28 @@ an dem **gemeldet statt erfunden** wird. Neue Keyframes sind eine neue Animation
 und brauchen Maintainer-Freigabe (`DESIGN-13`, `CLAUDE.md` Stufe 1). In dem Fall
 endet die Aufgabe mit einem Bericht und ohne Commit am Code.
 
+## Ergebnis: die Abbruchbedingung ist eingetreten
+
+Der Weg wurde gebaut und gemessen, nicht erschlossen — und dann verworfen. Der
+Mechanismus funktionierte (Austritt lief, `prefers-reduced-motion` räumte in
+42 ms sauber ab), aber die Panel-Deckkraft blieb über den gesamten Austritt bei
+`1.0`: rund 115 ms lang stand ein voll deckender, leerer Glaskasten und sprang
+dann in einem Frame weg. Schlechter als der Sprung, den er ersetzen sollte.
+
+Dazu zwei gemessene Folgen derselben Bauform: der Presence-Wrapper schiebt ein
+generisches Element zwischen Container-Rolle und ihre Kinder
+(`menu → generic → menuitem`, bricht `menu/menuitem` und `listbox/option`), und
+ein bestehender Test fällt, weil Bibliothekscode sich darauf verlässt, dass der
+Inhalt verschwunden ist, sobald `Open` false ist.
+
+**Kein Code committet.** Die Entscheidung liegt beim Maintainer und ist als
+[`../ideas/I4 An exit animation for the popover surface.md`](../ideas/I4%20An%20exit%20animation%20for%20the%20popover%20surface.md)
+festgehalten, mit beiden Routen, ihren Kosten und dem Befund, dass
+`.popover-panel*` außerhalb der eigenen CSS-Datei nirgends referenziert wird.
+
+Der Task unten bleibt als das stehen, was geplant war, damit nachvollziehbar
+ist, woran es gescheitert ist.
+
 ## Task 1 — Austritt über `DrylPresence`
 
 **Dateien:** `code/DRYL.Components/Components/Surfaces/DrylPopover.razor`,
