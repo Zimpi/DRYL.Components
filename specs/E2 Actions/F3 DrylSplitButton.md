@@ -373,8 +373,11 @@ runtime surprise.
   `aria-expanded="true"`, and `dryl.popover.close` sets it back to `false` while
   leaving `aria-haspopup` standing. For this component the panel role is `menu`,
   so the caret announces `aria-haspopup="menu"` from the moment the page is
-  interactive — including a caret disabled by `Disabled` or `Loading`, which is
-  still the control that opens the menu and is now claimed rather than skipped.
+  interactive — including a caret disabled by `Disabled`, which is still the
+  control that opens the menu and is now claimed rather than skipped. (`Loading`
+  is not a second route into that state: this component hands `Loading` to the
+  main button alone, so the caret's own `Loading` is always `false`, even though
+  `DrylButton` renders `disabled` for either.)
   This is why the target rule is the popover's own and not
   `dryl.menu.focusTrigger`'s: what focus may land on and what ARIA describes are
   different questions, and `focusTrigger` is deliberately left as it was. Two
@@ -715,6 +718,18 @@ belongs to another component's code and another component's spec.
   it is a boundary of the mechanism rather than an observed defect. Closing it
   would mean re-claiming on every render — an interop call per popover per
   render — which is not worth it for a case no component reaches.
+- **A popover nested inside another popover's trigger takes its host's ARIA.**
+  `DrylPopover`'s target rule prefers an element that already carries
+  `aria-haspopup` over the shallowest candidate, and Blazor renders children
+  before parents — so where one popover sits inside another's trigger, the inner
+  one claims its own trigger first, and the outer one then finds that
+  already-claimed node and writes its own open state onto it, leaving the outer
+  trigger bare. The precedence rule is still the right one (it is what
+  recognises `DrylSelect`'s and `DrylMultiSelect`'s own containers, disabled and
+  tabindex-less as they are), and the rule it replaced would have picked the
+  same node here, so this is a boundary rather than a regression. No library
+  component reaches it: nothing nests a popover inside a popover's trigger, and
+  `DrylSplitButton`'s trigger holds one `DrylTooltip` and one `DrylButton`.
 - **A `DrylPopover` given no `PanelRole` announces nothing on its trigger.**
   Deliberate rather than missing: `aria-haspopup` takes one of a fixed set of
   popup types, and a panel that declares no role gives no true value to write.
