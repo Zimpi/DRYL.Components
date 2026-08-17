@@ -385,8 +385,15 @@ A `DrylToastHost` component subscribes once in `MainLayout.razor` and renders an
 
 DRYL follows **SemVer**.
 
-- **Patch** (0.1.0 → 0.1.1) — bug fix, no API change, visual fix.
-- **Minor** (0.1.0 → 0.2.0) — new component, new optional parameter, new enum value, new CSS token.
-- **Major** (0.x → 1.0, 1.x → 2.0) — removed/renamed parameter, removed enum value, breaking CSS class change.
+- **Patch** (1.4.0 → 1.4.1) — bug fix, no API change, visual fix.
+- **Minor** (1.4.0 → 1.5.0) — new component, new optional parameter, new enum value, new CSS token.
+- **Major** (1.x → 2.0, 2.x → 3.0) — removed/renamed parameter, removed enum value, breaking CSS class change.
 
-Until 1.0 is reached, minor versions may include breaking changes — but each one must be called out in `CHANGELOG.md`.
+`1.0.0` shipped on 2026-06-24, so the public API surface defined by
+[`conventions.md`](conventions.md) is frozen and stays frozen. A breaking change
+rides a MAJOR bump and nothing else — a minor version may never carry one.
+
+A change that alters how a component *looks* without touching its API is a MINOR
+at most, but it is called out in `CHANGELOG.md` in its own right: no version
+number expresses "your buttons will look different after this upgrade", so the
+changelog has to.
