@@ -51,7 +51,11 @@
 </button>
 
 @code {
-    /// <summary>Visual style of the button.</summary>
+    /// <summary>
+    /// Visual style of the button. <see cref="ButtonVariant.Primary"/> is quiet at rest
+    /// and expressive on hover; <see cref="ButtonVariant.Bold"/> is the filled accent
+    /// treatment, for the rare hero call to action.
+    /// </summary>
     [Parameter] public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;
 
     /// <summary>Size of the button.</summary>
@@ -129,6 +133,7 @@
                 ButtonVariant.Secondary => "btn-secondary",
                 ButtonVariant.Ghost     => "btn-ghost",
                 ButtonVariant.Danger    => "btn-danger",
+                ButtonVariant.Bold      => "btn-bold",
                 _ => "btn-primary"
             };
             var size = Size switch
@@ -155,6 +160,6 @@
 
     public void Dispose() => _aura.Dispose();
 
-    public enum ButtonVariant { Primary, Secondary, Ghost, Danger }
+    public enum ButtonVariant { Primary, Secondary, Ghost, Danger, Bold }
     public enum ButtonSize    { Small, Medium, Large }
 }

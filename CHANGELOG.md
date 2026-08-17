@@ -14,6 +14,20 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.24.0] — 2026-08-17
+
+### Added
+- `DrylButton.ButtonVariant.Bold` — the filled accent treatment, for the rare hero call to action that genuinely should shout. It carries exactly what `ButtonVariant.Primary` used to look like: `--accent-grad` across the surface, an `--on-accent` label, the inset highlight and the four-layer accent glow. The member is appended after `Danger`, so every existing member keeps its ordinal value. `DrylSplitButton` types its `Variant` with the same enum and therefore exposes `Bold` without a change of its own.
+
+### Changed
+- **`ButtonVariant.Primary` looks different — every primary button in your app changes appearance on this upgrade.** No API changed, so no version number expresses this; it is called out here instead. Primary is now quiet at rest: it stands on `--glass-2` like `ButtonVariant.Secondary`, is told apart from it by a hairline drawn from `--accent-grad`, is labelled in `--fg`, and carries **no glow at all** until it is engaged. On hover the accent washes into the surface as a tint while the glow ignites from nothing, so the button moves visibly toward `Bold` without arriving there. The old behaviour — the whole show already running at rest, leaving hover nothing to offer but more of the same — is what this replaces. To keep the previous look on a given button, ask for `ButtonVariant.Bold`.
+- **`DrylSplitButton.Variant` now defaults to `ButtonVariant.Primary`** instead of `ButtonVariant.Secondary`. The old default existed because "a split button is an outlined pair rather than the page's one filled call to action" — an argument that assumed Primary was the filled treatment. Since the fill moved to `Bold`, the argument lapsed and the default follows it. Every `DrylSplitButton` that does not pin its `Variant` changes appearance; pass `ButtonVariant.Secondary` explicitly to keep it.
+
+### Notes
+- The Primary hairline is drawn as a masked pseudo-element rather than a `border-color`, because a border cannot carry a gradient and follow the button's corner radius at the same time. It inherits the radius, so `ButtonSize.Small`'s tighter corner is followed without restating it. The component's rendered markup is unchanged — no new element is emitted for any variant.
+- While a button is in an AI state, the aura's ring paints over the Primary hairline: both are masked hairlines on the button's own box, and the aura carries the higher stacking order. That is the intended precedence — the edge reports the AI state rather than the variant.
+
+
 ## [2.23.0] — 2026-08-17
 
 ### Added

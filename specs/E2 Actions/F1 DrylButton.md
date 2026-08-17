@@ -14,9 +14,26 @@ so that every action in my app looks and behaves the same without me styling a
 ## Description
 
 `DrylButton` is the library's primary action component. It renders a single native
-`button` element and adds four visual variants, three sizes, an optional leading or
+`button` element and adds five visual variants, three sizes, an optional leading or
 trailing icon, a loading state that swaps the leading icon for a spinner, an
 optional toggle state, and the shared AI aura.
+
+The weight of the variants is deliberate and is the component's main design
+statement. `ButtonVariant.Primary` is **quiet at rest**: it stands on the same
+glass surface as `ButtonVariant.Secondary` and is distinguished from it by a
+hairline border drawn from `--accent-grad` and by the fact that it carries no glow
+at all until it is engaged. On hover the accent washes *into* the surface as a
+tint and the glow ignites from nothing, so the button visibly moves toward
+`ButtonVariant.Bold` without ever arriving there. `ButtonVariant.Bold` is the
+filled treatment — `--accent-grad` across the whole surface with a resting accent
+glow — reserved for the rare hero call to action that genuinely should shout. A
+page has many primaries and, normally, no bolds.
+
+The tint's ceiling is a rule rather than a taste. `DESIGN-08` permits the accent as
+a gradient fill on *the single primary action*, as hairlines and as glow rings, but
+not as the saturated fill of a large surface in general. `Bold` is that single
+permitted fill; `Primary`'s hover tint stays a tint, and the distance between the
+two is what keeps the hierarchy readable.
 
 It is also the button the rest of the library composes: `DrylSplitButton`,
 `DrylTable`, `DrylCanvas`, `DrylCommandPalette`, `DrylChatComposer` and the canvas
@@ -46,7 +63,7 @@ selectors.
 
 | Member | Type | Default | Purpose |
 |---|---|---|---|
-| `Variant` | `DrylButton.ButtonVariant` | `ButtonVariant.Primary` | Visual style. `Primary`, `Secondary`, `Ghost`, `Danger`. |
+| `Variant` | `DrylButton.ButtonVariant` | `ButtonVariant.Primary` | Visual style. `Primary`, `Secondary`, `Ghost`, `Danger`, `Bold`. |
 | `Size` | `DrylButton.ButtonSize` | `ButtonSize.Medium` | Size. `Small`, `Medium`, `Large`. |
 | `Loading` | `bool` | `false` | Shows a spinner in place of the leading icon and makes the button inert. |
 | `Disabled` | `bool` | `false` | Makes the button inert and renders it as inactive. |
@@ -63,8 +80,10 @@ selectors.
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the `button` element. |
 
 Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
-`Danger`) and `DrylButton.ButtonSize` (`Small`, `Medium`, `Large`). There is no
-`IconOnly` parameter — icon-only mode is entered by omitting `ChildContent`.
+`Danger`, `Bold`) and `DrylButton.ButtonSize` (`Small`, `Medium`, `Large`).
+`Bold` is appended after `Danger` rather than inserted beside `Primary`, so the
+existing members keep their ordinal values. There is no `IconOnly` parameter —
+icon-only mode is entered by omitting `ChildContent`.
 
 ## Acceptance Criteria
 
@@ -83,20 +102,29 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - Both icons are rendered at one fixed pixel size, whatever the button's `Size`.
 - The component renders `DrylAuraElements` as the first child of the button, which
   emits the aura's layers only while the aura's lifecycle is present.
+- The component emits no element of its own for the `ButtonVariant.Primary`
+  hairline: the hairline is a pseudo-element of the button, so the rendered markup
+  is identical across all five variants.
 
 ### Variants and sizes
 
 - `Variant` defaults to `ButtonVariant.Primary`.
-- `Variant` accepts exactly the four values of `DrylButton.ButtonVariant`.
-- Each of the four variants puts a distinct variant class on the button.
-- A `Variant` outside the declared four — reachable only by casting an
+- `Variant` accepts exactly the five values of `DrylButton.ButtonVariant`.
+- Each of the five variants puts a distinct variant class on the button.
+- A `Variant` outside the declared five — reachable only by casting an
   out-of-range integer — renders as `ButtonVariant.Primary` rather than failing.
+- `ButtonVariant.Primary` is distinguishable from `ButtonVariant.Secondary` at
+  rest, although both stand on the same surface token: the accent hairline is
+  present on the one and absent on the other.
 - `Size` defaults to `ButtonSize.Medium`.
 - `Size` accepts exactly the three values of `DrylButton.ButtonSize`.
 - `ButtonSize.Medium` is the unmodified size and adds no size class.
 - `ButtonSize.Small` and `ButtonSize.Large` each add their own size class.
 - A `Size` outside the declared three renders as `ButtonSize.Medium` rather than
   failing.
+- The `ButtonVariant.Primary` hairline follows the button's corner radius at every
+  size, including the radius `ButtonSize.Small` overrides, because it inherits the
+  radius rather than restating it.
 - Icon-only mode is square at every size: the label padding is dropped and the
   width matches the height at `ButtonSize.Small`, at `ButtonSize.Medium` and at
   `ButtonSize.Large`. The size override and the icon-only rule are two separate
@@ -147,6 +175,9 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - The button carries the active modifier class exactly while `Pressed` is `true`.
 - The component never changes `Pressed` itself: the toggle is controlled by the
   consumer through `OnClick`.
+- The active modifier stays distinguishable from `ButtonVariant.Primary` at rest:
+  the modifier draws a flat `--accent-line` ring and a resting glow, where
+  `ButtonVariant.Primary` draws a gradient hairline and no resting glow.
 
 ### Class merging
 
@@ -184,6 +215,11 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
   `AiState.None`, rather than being removed instantly (`DESIGN-12`).
 - The component disposes its aura lifecycle with itself, cancelling the pending
   exit or retire timer (`CODE-05`).
+- The aura's ring paints over the `ButtonVariant.Primary` hairline rather than
+  beside it: both are masked hairlines inset to the button's own box, and the aura
+  layers carry the higher stacking order.
+- That precedence is the intended one: while a button is in an AI state, its edge
+  reports the AI state rather than the variant.
 
 ### Keyboard and accessibility
 
@@ -193,6 +229,9 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - The button shows the library's shared `:focus-visible` ring, drawn in
   `--accent-b`; the `.btn` rules override no outline, so the ring is not suppressed
   (`UX-02`).
+- The `ButtonVariant.Primary` focus ring stays distinguishable from its hover
+  state, because the ring is an `outline` in `--accent-b` while the hover state is
+  a surface tint and a `box-shadow`.
 - A `Disabled` or `Loading` button is not keyboard-operable and holds no tab stop,
   because the native `disabled` attribute is used rather than `aria-disabled`.
 - A button that becomes `Loading` while focused loses focus, for the same reason.
@@ -213,6 +252,10 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - The aura layers add no tab stop and are hidden from assistive technology, so AI
   mode changes neither the focus order nor the accessible name of the button
   (`UX-07`).
+- Neither the `ButtonVariant.Primary` hairline nor its hover tint carries meaning
+  that is available only through color: the variant is chosen by the consumer and
+  the button's purpose is its label, so a reader who cannot distinguish the accent
+  from the surrounding surface loses emphasis, never information.
 
   Two consequences of the criteria above are worth stating plainly for a consumer.
   First, native `disabled` does **not** remove the button from the accessibility
@@ -234,13 +277,22 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 
 - Hovering the button animates its background, border color, box-shadow, color and
   transform, rather than stepping them.
-- The `ButtonVariant.Primary` variant lifts on hover.
+- `ButtonVariant.Primary` animates its hover tint rather than stepping it, because
+  the tint is declared at rest as well as on hover and the two declarations
+  interpolate.
+- The `ButtonVariant.Primary` glow grows from absent on hover rather than
+  intensifying an existing one, which is what makes the variant read as quiet at
+  rest and expressive on engagement.
+- `ButtonVariant.Primary` lifts on hover.
+- `ButtonVariant.Bold` lifts on hover.
 - Pressing the button drops and shrinks it while the pointer is down, and only
   while the button is not disabled.
 - The transform transition uses `--ease-spring`, so a press settles back rather
   than snapping.
 - The color and surface transitions use `--ease-out`.
 - All of those transitions run for `--dur-med`.
+- No part of the button loops: the variants' motion is state-driven, and the only
+  continuously running animation in the component is the loading spinner.
 - The focus ring is **not** animated: `outline` is absent from the button's
   transition list, so the ring steps in and out.
 - The disabled look is **not** animated either: the dim and the desaturation that
@@ -250,8 +302,10 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
   and its travel on `--dur-slow`.
 - Both halves of the sheen use `--ease-out`.
 - The sheen is not rendered at all on `ButtonVariant.Ghost`, which is chromeless.
+- The sheen is rendered on `ButtonVariant.Primary`, where it sweeps over the tint
+  rather than replacing it.
 - The sheen is never revealed while the button is disabled: it is generated on the
-  other three variants but its reveal is gated on the button not being disabled.
+  other four variants but its reveal is gated on the button not being disabled.
 - The trailing icon slides forward on hover, so it reads as an affordance to move
   on.
 - The leading icon pops on hover.
@@ -260,6 +314,9 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - The hover sheen is suppressed under `prefers-reduced-motion: reduce` (`UX-06`).
 - The icon springs are suppressed under `prefers-reduced-motion: reduce`, both
   their transitions and their hover transforms (`UX-06`).
+- The `ButtonVariant.Primary` tint and glow are **not** suppressed under
+  `prefers-reduced-motion: reduce`: they are a color change on a state change, not
+  travel, and suppressing them would remove the variant's only hover feedback.
 - The loading spinner rotates continuously, which `DESIGN-10` allows to sit outside
   the transition duration scale.
 - The button has no enter or exit animation of its own. This is the explicit
@@ -284,17 +341,30 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 
 ### Appearance
 
-- `ButtonVariant.Primary` is filled with `--accent-grad`.
-- `ButtonVariant.Primary` is labelled in `--on-accent`.
-- `ButtonVariant.Primary` is bordered in `--on-accent-line`.
-- `ButtonVariant.Primary` carries an inset top highlight in `--on-accent-hi`.
-- `ButtonVariant.Primary` carries an accent glow derived from `--accent-a` and
+- `ButtonVariant.Primary` stands on `--glass-2`.
+- `ButtonVariant.Primary` blurs what is behind it with `--glass-fx-flow`, so it
+  reads as glass over whatever surface it sits on.
+- `ButtonVariant.Primary` is labelled in `--fg`.
+- `ButtonVariant.Primary` carries a hairline border drawn from `--accent-grad`.
+- That hairline is rendered as a masked pseudo-element rather than as a
+  `border-color`, because a border cannot carry a gradient and follow the button's
+  corner radius at the same time.
+- `ButtonVariant.Primary` carries no box-shadow at rest.
+- `ButtonVariant.Primary` tints its surface on hover with a `color-mix` of
+  `--accent-a` and `--accent-b` over `transparent`.
+- That tint stays a tint: it never reaches an opaque fill, so the accent is not the
+  saturated fill of a large surface (`DESIGN-08`).
+- `ButtonVariant.Primary` takes a glow derived from `--accent-a` on hover.
+- `ButtonVariant.Bold` is filled with `--accent-grad`.
+- `ButtonVariant.Bold` is labelled in `--on-accent`.
+- `ButtonVariant.Bold` is bordered in `--on-accent-line`.
+- `ButtonVariant.Bold` carries an inset top highlight in `--on-accent-hi`.
+- `ButtonVariant.Bold` carries an accent glow derived from `--accent-a` and
   `--accent-b`, which intensifies on hover.
 - `ButtonVariant.Secondary` uses `--glass-2` with a `--line-strong` border.
 - `ButtonVariant.Secondary` moves to `--glass-3` with an `--accent-line` border on
   hover.
-- `ButtonVariant.Secondary` blurs what is behind it with `--glass-fx-flow`, so it
-  reads as glass over whatever surface it sits on.
+- `ButtonVariant.Secondary` blurs what is behind it with `--glass-fx-flow`.
 - `ButtonVariant.Ghost` has no background of its own.
 - `ButtonVariant.Ghost` is labelled in `--fg-muted`, taking `--glass-2` and `--fg`
   only on hover.
@@ -311,9 +381,11 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - A disabled button is dimmed.
 - A disabled button is desaturated.
 - A disabled button is stripped of its glow, so it reads as inert in every variant.
-- The accent appears as a gradient fill on the single primary action, as hairline
-  borders and as glow rings — never as a saturated fill of a large surface
-  (`DESIGN-08`).
+- A disabled `ButtonVariant.Primary` is stripped of its hairline's saturation by
+  the same desaturation, so the variant reads as inert like the others rather than
+  keeping a live accent edge.
+- The accent appears as a gradient fill on `ButtonVariant.Bold` alone, and
+  otherwise as hairline borders, surface tints and glow rings (`DESIGN-08`).
 - The component branches on no color mode and holds no mode-assuming value, so the
   same markup and the same rules serve light and dark (`DESIGN-02`).
 
@@ -324,16 +396,19 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 
   `DESIGN-01` enumerates color, padding, radius, shadow, duration and easing.
   Of those it governs, the button writes as literals: its `padding` (base and both
-  size overrides) and **every shadow it has** — the primary's four-layer
-  `box-shadow` and the heavier hover variant, the secondary's hover glow, the
-  danger variant's hover glow and the active modifier's ring-plus-glow are all
-  literal offsets, blur radii and spreads, with only their colors tokenised. The
-  shadows are the largest untokenised group in the component and are not covered by
-  any token today.
+  size overrides) and **every shadow it has** — `ButtonVariant.Bold`'s four-layer
+  `box-shadow` and the heavier hover variant, `ButtonVariant.Primary`'s hover glow,
+  the secondary's hover glow, the danger variant's hover glow and the active
+  modifier's ring-plus-glow are all literal offsets, blur radii and spreads, with
+  only their colors tokenised. The shadows are the largest untokenised group in the
+  component and are not covered by any token today. The proportions inside the
+  `color-mix` calls — the hairline's, the tint's and every glow's — are literals of
+  the same kind: they are part of a color expression whose inputs are tokens but
+  whose strength is written into the rule.
 
   Outside `DESIGN-01`'s enumeration, and therefore debt of a lesser kind: the
   `height` (base and both size overrides), the `gap`, the icon-only `width` at all
-  three sizes, the
+  three sizes, the hairline's own width, the
   `font-size`, `font-weight` and `letter-spacing`, the disabled `opacity` and
   `grayscale` amounts, the transform distances of the hover lift, the press, the
   two icon slides and the icon-only scale, the sheen's gradient angle, color stops,
@@ -341,19 +416,24 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 
   The colors are otherwise clean — every one resolves to a token or to a
   `color-mix` over tokens — with one qualification: the base button's border and
-  background, the ghost variant's background and the sheen's outer gradient stops
-  are the bare `transparent` keyword. `DESIGN-01`'s alpha-context exemption is
-  written for `mask` and `clip-path` and does not cover these, so they are named
-  here rather than counted as compliant; no token expresses "no paint", and the
-  keyword is identical in both color modes.
+  background, the ghost variant's background, `ButtonVariant.Primary`'s resting
+  tint stops and the sheen's outer gradient stops are the bare `transparent`
+  keyword. `DESIGN-01`'s alpha-context exemption is written for `mask` and
+  `clip-path` and does not cover these, so they are named here rather than counted
+  as compliant; no token expresses "no paint", and the keyword is identical in both
+  color modes. The hairline's mask itself **is** covered by that exemption, which
+  names `mask` explicitly.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — token-only colors across all four variants, the toggled
+- **Both color modes** — token-only colors across all five variants, the toggled
   state and the disabled state, apart from the `transparent` keywords named under
   "Appearance"; the component defines no mode-specific rule and no mode-assuming
-  literal. `node scripts/check-light-sync.mjs` and
-  `node scripts/validate-light-contrast.mjs` are green.
+  literal. `ButtonVariant.Primary` is the variant this costs the most to verify:
+  its label moves from `--on-accent` on a saturated fill to `--fg` on `--glass-2`,
+  which is a translucent white in *both* modes and therefore a much lighter ground
+  in light mode than in dark. `node scripts/validate-light-contrast.mjs` is the
+  gate for it, together with `node scripts/check-light-sync.mjs`.
 - **Enter/exit animation** — none of its own, and the exception is written out
   under "Motion" above on the terms `DESIGN-11` sets. The AI aura does animate out,
   through the lifecycle the component composes (`DESIGN-12`).
@@ -370,7 +450,21 @@ Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 - **Demo page** — `DRYL.Website/Components/Pages/DemoButton.razor`, routed at
   `/components/buttons`, composing
   `DRYL.Website/Components/Examples/Button/Variants.razor`, `.../Button/Sizes.razor`,
-  `.../Button/Icons.razor` and `.../Button/States.razor`.
+  `.../Button/Icons.razor` and `.../Button/States.razor`. `Variants.razor` shows all
+  five variants, `ButtonVariant.Bold` among them as a first-class option rather than
+  a footnote. `DRYL.Website` is a separate repository, so that update is a
+  follow-up there and cannot be verified from this one.
 - **`ComponentCatalog`** — registered as `"Button"` / `buttons` with `ClassName`
   `"DrylButton"` in `DRYL.Website/Components/ComponentCatalog.cs`, in the
-  `"Actions"` category.
+  `"Actions"` category. The new variant needs no catalog change: the catalog lists
+  components, not variants.
+
+## Open consequence for `DrylSplitButton`
+
+`DrylSplitButton.Variant` defaults to `ButtonVariant.Secondary`, and `_Api.md`
+records the reason: *"a split button is an outlined pair rather than the page's one
+filled call to action."* That reasoning rests on `ButtonVariant.Primary` being
+filled, which it no longer is. The default may therefore now want to be `Primary` —
+but changing it is a behaviour change to a different component and is deliberately
+**not** part of this spec. It is raised here so it is not lost, and is decided in
+`F3 DrylSplitButton.md` or in an idea of its own.
