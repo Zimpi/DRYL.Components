@@ -1,7 +1,7 @@
 # An exit animation for the popover surface
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
 
 ## Problem
 
@@ -137,6 +137,21 @@ comments suggest.
   scope** here and keep their own tickets. They were raised in the same
   conversation; folding them in would have made one animation decision carry
   three unrelated fixes.
+
+- 2026-08-17: **Adopted.** Carried into
+  [`../specs/E11 Surfaces/F1 DrylPopover.md`](../specs/E11%20Surfaces/F1%20DrylPopover.md),
+  whose motion criteria, cross-cutting `Enter/exit animation` line and
+  `Recorded debt` section now hold the exit; the `DESIGN-12` entry is retired
+  and replaced by the one deviation this shape really costs — the content
+  outliving `Open`. Implemented in `7199ea9` with `DrylPopoverTests` as its
+  regression net.
+- 2026-08-17: One thing this idea did not foresee, recorded because it changes
+  how the next such component is built: the second visibility key had to move
+  from a class to `data-dryl-positioned`. Blazor rewrites the whole `class`
+  attribute on every render, so the render that starts the exit was dropping the
+  class JS had added — measured, not reasoned. The idea's `Code` impact called
+  the close path the risk; the real risk was an attribute two owners were
+  writing.
 
 ## Open Points
 
