@@ -1,7 +1,7 @@
 # Keyboard access for the bare popover
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
 
 ## Problem
 
@@ -164,6 +164,26 @@ redundant rather than contradictory.
   when the exit animation finishes. `I4` put roughly `--dur-fast` between those
   two moments, and a keyboard user should not wait it out with focus parked on
   a panel that is fading away.
+
+- 2026-08-17: **Adopted.** Carried into
+  [`../specs/E11 Surfaces/F1 DrylPopover.md`](../specs/E11%20Surfaces/F1%20DrylPopover.md),
+  where all three findings are now criteria and their `Recorded debt` entries
+  are retired, and reconciled in
+  [`../specs/E10 Navigation/F1 DrylMenu.md`](../specs/E10%20Navigation/F1%20DrylMenu.md),
+  which had described the popover as returning focus nowhere. Implemented in
+  `837b381`.
+- 2026-08-17: One thing the options got wrong, recorded because it is the kind
+  of mistake that repeats. Finding 2's option C was written as "cycle `Tab`
+  inside the panel", and installing exactly that changed nothing at all when
+  measured: a listener on the panel cannot see a key pressed on the trigger,
+  and the finding was about a panel nobody had focused into. The trap was only
+  ever half the answer; the entry is the other half. The option was reasoned
+  from the mechanism that already existed rather than from the measurement that
+  produced the finding.
+- 2026-08-17: One new item of debt comes with finding 2 and is recorded in the
+  spec rather than smoothed over: a `dialog` panel now traps `Tab`, and a
+  consumer that sets `PanelRole="dialog"` on something that is not really a
+  dialog gets that behaviour without being warned.
 
 ## Open Points
 
