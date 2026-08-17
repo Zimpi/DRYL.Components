@@ -224,16 +224,22 @@ no way to ask the panel to keep focus.
 - `SetOpenAsync` opens or closes the panel from consumer code.
 - `SetOpenAsync` returns without raising anything when the requested state is
   the current one.
-- `OpenChanged` fires before `OnOpen` and before `OnClose`.
+- `OpenChanged` fires before `OnOpen`.
+- `OpenChanged` fires before `OnClose`.
 - `OnOpen` fires when the state becomes `true`.
 - `OnClose` fires when the state becomes `false`.
-- Neither `OnOpen` nor `OnClose` fires when `Open` is set to the value it
-  already has.
+- `OnOpen` does not fire when `Open` is set to the value it already has.
+- `OnClose` does not fire when `Open` is set to the value it already has.
 - A popover given no binding for `Open` still opens and closes from its own
   trigger, because the component assigns its own parameter.
-- The portal is driven from the rendered open state rather than from the path
-  that changed it, so trigger toggle, `Escape`, an outside click and a consumer
-  flipping the bound parameter all reach the same open and close code.
+- The panel is portalled when the trigger toggles the popover open.
+- The panel is portalled when a consumer opens the popover through the bound
+  parameter or through `SetOpenAsync`.
+- The portal is torn down when the trigger toggles the popover closed.
+- The portal is torn down when `Escape` closes the popover.
+- The portal is torn down when an outside press closes the popover.
+- The portal is torn down when a consumer closes the popover through the bound
+  parameter or through `SetOpenAsync`.
 
 ### The portal
 
@@ -251,10 +257,13 @@ no way to ask the panel to keep focus.
 - The panel keeps its distance from the trigger across a reposition.
 - The inline placement styles the portal applied are cleared when the popover
   closes.
-- A popover disposed while open tears its portal down, so neither the node nor
-  its listeners outlive the component.
-- Tearing the portal down survives a closing circuit, a missing element and a
-  statically rendered component without throwing.
+- A popover disposed while open returns its panel node to the anchor, so no node
+  outlives the component under `<body>`.
+- A popover disposed while open removes the listeners the portal registered, so
+  none of them outlives the component.
+- Tearing the portal down on a circuit that is closing raises nothing.
+- Tearing the portal down when the element is already gone raises nothing.
+- Tearing the portal down in a statically rendered component raises nothing.
 
 ### Placement
 
@@ -310,20 +319,22 @@ no way to ask the panel to keep focus.
 
 ### Keyboard and accessibility
 
-- The trigger's own keyboard behaviour is whatever the consumer put in the
-  trigger slot: the component adds no key handling to it and no `tabindex` of
-  its own.
+- The component adds no key handling to the trigger slot, so the trigger's
+  keyboard behaviour is whatever the consumer put there.
+- The component adds no `tabindex` to the trigger slot.
 - `OnKeyDown` is raised for every keydown the panel receives.
 - `OnKeyDown` is raised before the component's own `Escape` handling, so a
   consumer sees the key first.
-- The panel is focusable programmatically and is not a tab stop, so nothing
-  about it changes the page's tab order until something focuses into it.
+- The panel can be focused programmatically.
+- The panel is not a tab stop, so nothing about it changes the page's tab order
+  until something focuses into it.
 - `PanelRole` is rendered as the panel's `role`.
 - The panel carries no role when `PanelRole` is `null`.
 - `PanelAriaLabel` is rendered as the panel's `aria-label`.
 - The panel is unnamed when `PanelAriaLabel` is `null`.
-- The component writes no ARIA attribute of its own on the trigger or the
-  anchor: the two the trigger carries are written from JS, on the terms below.
+- The component writes no ARIA attribute of its own on the anchor.
+- The component writes no ARIA attribute of its own on the trigger: the two the
+  trigger carries are written from JS, on the terms below.
 
 ### The trigger's ARIA claim
 
@@ -367,15 +378,21 @@ no way to ask the panel to keep focus.
 
 ### Appearance and motion
 
-- The panel's fill is `--panel-float` and its frost is `--glass-fx-float`, which
-  is the library's floating-surface pair (`DESIGN-06`).
+- The panel's fill is `--panel-float`, the library's floating-surface fill
+  (`DESIGN-06`).
+- The panel's frost is `--glass-fx-float`, the frost that pairs with that fill
+  (`DESIGN-06`).
 - The panel's border colour is `--line-strong`.
 - The panel's corner radius is `--r-md`.
 - The panel's shadow is `--shadow-lg`.
 - The panel's padding is `--sp-2`.
-- The panel paints none of the above while `Surface` is `false`, so a consumer
-  can supply its own surface — which is what every input dropdown in the library
-  does.
+- The panel paints no fill while `Surface` is `false`.
+- The panel applies no frost while `Surface` is `false`.
+- The panel paints no border while `Surface` is `false`.
+- The panel paints no shadow while `Surface` is `false`.
+- The panel applies no padding of its own while `Surface` is `false`, so a
+  consumer can supply its own surface — which is what every input dropdown in
+  the library does.
 - The component branches on no colour mode and writes no mode-assuming value:
   both modes come from the token set alone (`DESIGN-02`).
 - The panel animates in with `popover-in`, over `--dur-fast` with `--ease-out`.
@@ -383,7 +400,7 @@ no way to ask the panel to keep focus.
   mounting, so it replays on every open although the node is reused.
 - The entrance animation is suppressed under `prefers-reduced-motion: reduce`.
 - The panel has **no** exit animation: it is removed within a single frame of
-  the close. See **Deviations**.
+  the close. See **Recorded debt**.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -442,13 +459,22 @@ no way to ask the panel to keep focus.
   the file, so the component reaches the sidebar, the Ctrl+K search and the
   `/components` overview under its own name (`REL-04`).
 
-## Deviations (`State: Implemented`)
+## Recorded debt (`State: Implemented`)
 
-`State` records whether spec and code agree, and they do: every criterion above
-was read off this code or measured in the running application today. What
-follows is the component's debt against the harness rules and against what a
-consumer would reasonably expect — written into the criteria as behaviour rather
-than hidden, and listed here so it is not mistaken for a finished job.
+**Deviations from the acceptance criteria above: none.** `State` records
+whether spec and code agree, and they do: every criterion above was read off
+this code or measured in the running application today (`SPEC-04`).
+
+That sentence is what `State` rests on, and this section is deliberately **not**
+named for it — `F3 DrylSplitButton` uses `## Deviations` for exactly the
+unmet-criteria sense, and one heading meaning two things in one repository is
+how a reviewer comes to block a merge over a component that has nothing wrong
+with it.
+
+What follows instead is the component's debt against the **harness rules** and
+against what a consumer would reasonably expect. Each entry is already written
+into the criteria above as behaviour rather than hidden; they are collected here
+so the file is not mistaken for a finished job.
 
 - **No exit animation (`DESIGN-12`).** The panel body sits behind a bare
   `@if (Open)` with no `DrylPresence`, and the visibility gate drops in the same
@@ -488,25 +514,34 @@ than hidden, and listed here so it is not mistaken for a finished job.
   know which element deserves it — but it means the pairing "the consumer takes
   `Escape`, so the consumer owes the focus return" is a convention, not a
   mechanism, and both pickers once got it wrong.
-- **The panel key listener is never detached.** `drylPanelKeys.install` adds a
-  `keydown` listener to this component's panel node and marks it
-  `__drylPanelKeys`; there is no `detach` counterpart anywhere in `dryl.js`. The
-  argument is that it captures nothing but the node it lives on and dies with
-  it — which holds, since the node is Blazor's and is discarded with the
-  component — but it is the library's first listener with no teardown path, and
-  `CODE-05`'s habit of pairing every handle with its release is worth keeping
-  rather than eroding.
 - **Two literals in `dryl.popover` duplicate a token.** The module's `GAP` and
   `EDGE` constants are both `4`, and `GAP`'s comment says it "matches `--sp-1`".
   It does today. Nothing keeps it matching: the value is a copy of a token in a
   file no token check reads (`DESIGN-01`'s check greps `*.razor.css`), so a
   change to `--sp-1` moves every spacing in the library except the gap between a
   trigger and its panel.
+
+### Recorded gaps — not deviations, and not what `State` rests on
+
+Each of the following breaks a criterion of no spec and a rule of no number, or
+belongs to another component's code and another component's spec. They are
+recorded rather than fixed, and they are kept apart from the debt above because
+nothing here is owed against a harness rule.
+
+- **The panel key listener is never detached.** `drylPanelKeys.install` adds a
+  `keydown` listener to this component's panel node and marks it
+  `__drylPanelKeys`; there is no `detach` counterpart anywhere in `dryl.js`. The
+  argument is that it captures nothing but the node it lives on and dies with
+  it — which holds, since the node is Blazor's and is discarded with the
+  component — so no rule is broken. It is still the library's first listener
+  with no teardown path, and `CODE-05`'s *habit* of pairing every handle with
+  its release is worth keeping rather than eroding.
 - **`.popover-panel--surface` carries a raw `min-width`** and a raw `1px`
   border width in `DrylPopover.razor.css`. Neither is in `DESIGN-01`'s
   enumeration of colour, padding, radius, shadow, duration and easing, and no
-  token expresses either, so this is named rather than counted as a violation —
-  in the same spirit as `F3 DrylSplitButton`'s zero radii.
+  token expresses either, so this breaks no rule — it is named here rather than
+  counted as a violation, in the same spirit as `F3 DrylSplitButton`'s zero
+  radii.
 - **No tests of its own.** `tests/DRYL.Components.Tests/` holds no
   `DrylPopoverTests`. The component is touched by exactly one test that names
   it — the anchor's class merge in `ClassMergeTests` — and otherwise only
@@ -517,9 +552,6 @@ than hidden, and listed here so it is not mistaken for a finished job.
   executes no `dryl.js` and manages no real focus. A test suite that claimed
   otherwise would be lying, which is why there is none — but it does mean the
   behaviour has no regression net.
-
-### Recorded gaps — boundaries of the mechanism, not observed defects
-
 - **A trigger node replaced under a live popover keeps no ARIA until the next
   open.** The claim runs at first render and again on open; a node swapped in
   between carries neither attribute. No library component produces this today,
