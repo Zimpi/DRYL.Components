@@ -17,7 +17,7 @@
       </DrylSplitButton>
 
     • The main button and caret share Variant / Size and read as one control.
-    • Secondary (default) and Ghost segment most cleanly; Danger works too.
+    • Primary (default), Secondary and Ghost segment most cleanly; Danger works too.
     • The caret is a labelled icon button (a11y) that opens the DrylMenu.
       Being icon-only it is wrapped in a DrylTooltip carrying the same
       text as its aria-label, MenuAriaLabel (UX-05).
@@ -60,8 +60,16 @@
     /// <summary>The dropdown's secondary actions — place <see cref="DrylMenuItem"/> components here.</summary>
     [Parameter] public RenderFragment? MenuItems { get; set; }
 
-    /// <summary>Shared visual style of both segments. Default <see cref="DrylButton.ButtonVariant.Secondary"/>.</summary>
-    [Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Secondary;
+    /// <summary>
+    /// Shared visual style of both segments. Default
+    /// <see cref="DrylButton.ButtonVariant.Primary"/> — it used to be
+    /// <see cref="DrylButton.ButtonVariant.Secondary"/>, on the grounds that a split button
+    /// is an outlined pair rather than the page's one filled call to action. That argument
+    /// assumed Primary was the filled treatment; the fill moved to
+    /// <see cref="DrylButton.ButtonVariant.Bold"/> and Primary is now quiet at rest, so the
+    /// default follows it. Ask for Secondary explicitly to keep the previous look.
+    /// </summary>
+    [Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Primary;
 
     /// <summary>Shared size of both segments. Default <see cref="DrylButton.ButtonSize.Medium"/>.</summary>
     [Parameter] public DrylButton.ButtonSize Size { get; set; } = DrylButton.ButtonSize.Medium;

@@ -82,9 +82,11 @@ library already follows — see `CLAUDE.md` for the design-system rules and
   interactive render, and `IAsyncDisposable` cleanup guarded by an `_attached`
   flag so static prerender disposal does not throw.
 
-## Known deviations (to be fixed before 1.0)
+## Known deviations
 
-All deviations tracked for the API-freeze audit (board #39) have been resolved:
+The API-freeze audit (board #39) closed before `1.0.0` shipped on 2026-06-24, and
+every deviation it tracked was resolved rather than carried over. The list is kept
+as a record of what the freeze bound; the names below are now permanent:
 
 - ~~`DrylExpansion` — `IsOpen` / `IsOpenChanged`~~ → now `Open` / `OpenChanged`.
 - ~~`DrylPagination` / `DrylTable` — pagination events mix `On`-prefixed and bare

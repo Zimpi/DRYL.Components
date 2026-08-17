@@ -24,10 +24,11 @@ call sites.
 
 | Member | Notes |
 |---|---|
-| `Primary` | The default of `DrylButton.Variant`. |
-| `Secondary` | The default of `DrylSplitButton.Variant`. |
+| `Primary` | The default of `DrylButton.Variant` **and** of `DrylSplitButton.Variant`. Quiet at rest — glass with an accent hairline — and expressive on hover. |
+| `Secondary` | |
 | `Ghost` | |
 | `Danger` | |
+| `Bold` | The filled accent treatment, for the rare hero call to action. Appended after `Danger` so the members declared before it keep their ordinal values. |
 
 ## `DrylButton.ButtonSize`
 
@@ -46,16 +47,21 @@ They are category-shared rather than component-private because `DrylSplitButton`
 types its own parameters with them:
 
 ```csharp
-[Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Secondary;
+[Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Primary;
 [Parameter] public DrylButton.ButtonSize    Size    { get; set; } = DrylButton.ButtonSize.Medium;
 ```
 
-That is the whole reason they belong in this file. The **defaults differ between
-the two components**, and the difference is consumer-visible: a lone `DrylButton`
-defaults to `ButtonVariant.Primary`, a `DrylSplitButton` to
-`ButtonVariant.Secondary`, because a split button is an outlined pair rather than
-the page's one filled call to action. `Size` defaults to `ButtonSize.Medium` on
-both. `F3 DrylSplitButton.md` records the reasoning.
+That is the whole reason they belong in this file. The two components now agree on
+both defaults: `Variant` is `ButtonVariant.Primary` and `Size` is
+`ButtonSize.Medium` on each.
+
+`DrylSplitButton.Variant` used to default to `ButtonVariant.Secondary`, and the
+reason was *"a split button is an outlined pair rather than the page's one filled
+call to action"*. That held only while `ButtonVariant.Primary` **was** the filled
+treatment. `F1 DrylButton.md` moved the fill to `ButtonVariant.Bold` and left
+`Primary` quiet at rest, so the argument lapsed and the default was changed to
+follow it rather than kept as a habit. `F3 DrylSplitButton.md` records the
+decision and the visible consequence for existing call sites.
 
 `DrylButtonGroup` declares no enum and takes neither: variant and size are set on
 each `DrylButton` the consumer places inside it.

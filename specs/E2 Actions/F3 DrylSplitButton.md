@@ -87,12 +87,23 @@ The component has no codebehind and **no `.razor.css`**: its rules live in the
 shared `code/DRYL.Components/wwwroot/dryl.css`, under the `.split-btn` family of
 selectors, next to the `.btn` and `.btn-group` families.
 
-Three of the component's defaults differ from the primitives' own, deliberately:
-`Variant` defaults to `Secondary` where a lone `DrylButton` defaults to
-`Primary`, because a split button is an outlined pair rather than the page's one
-filled call to action; `MenuPlacement` defaults to `BottomEnd` where a lone
+Two of the component's defaults differ from the primitives' own, deliberately:
+`MenuPlacement` defaults to `BottomEnd` where a lone
 `DrylMenu` defaults to `BottomStart`, because the caret sits at the control's
 trailing edge; `Size` matches `DrylButton`'s own default of `Medium`.
+
+`Variant` no longer differs: it defaults to `ButtonVariant.Primary`, the same as a
+lone `DrylButton`. It used to default to `ButtonVariant.Secondary`, on the grounds
+that *"a split button is an outlined pair rather than the page's one filled call to
+action"* — an argument that assumed `ButtonVariant.Primary` was the filled
+treatment. `F1 DrylButton.md` moved that treatment to `ButtonVariant.Bold` and left
+`Primary` quiet at rest, so the argument no longer applies, and the default follows
+it rather than surviving as a habit. A consumer who wants the previous look asks
+for `ButtonVariant.Secondary` explicitly.
+
+This is a visible change to every existing `DrylSplitButton` that did not pin its
+`Variant`, which no version number expresses on its own; `CHANGELOG.md` calls it
+out in its own right.
 
 ## Public API
 
@@ -100,7 +111,7 @@ trailing edge; `Size` matches `DrylButton`'s own default of `Medium`.
 |---|---|---|---|
 | `ChildContent` | `RenderFragment?` | `null` | The main button's label. Must be written as an explicit `<ChildContent>` element whenever `<MenuItems>` is also given. |
 | `MenuItems` | `RenderFragment?` | `null` | The dropdown's contents — intended to hold `DrylMenuItem` components. |
-| `Variant` | `DrylButton.ButtonVariant` | `ButtonVariant.Secondary` | Visual style of **both** segments. |
+| `Variant` | `DrylButton.ButtonVariant` | `ButtonVariant.Primary` | Visual style of **both** segments. |
 | `Size` | `DrylButton.ButtonSize` | `ButtonSize.Medium` | Size of **both** segments. |
 | `Disabled` | `bool` | `false` | Disables **both** segments. |
 | `Loading` | `bool` | `false` | Puts the **main** button into its loading state. Not applied to the caret. |
@@ -207,7 +218,7 @@ runtime surprise.
 
 ### Variants, sizes and placement
 
-- `Variant` defaults to `DrylButton.ButtonVariant.Secondary`.
+- `Variant` defaults to `DrylButton.ButtonVariant.Primary`.
 - `Variant` accepts exactly the four values of `DrylButton.ButtonVariant`.
 - `Variant` is applied to the main button.
 - `Variant` is applied to the caret button.

@@ -687,7 +687,53 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .btn-icon:not(:disabled):hover .btn-ico-lead,
 .btn-icon:not(:disabled):hover .btn-ico-trail { transform: scale(1.12); }
 
+/* Primary — quiet at rest, expressive on engagement. It stands on the same glass
+   as Secondary and is told apart from it by one thing: a hairline drawn from
+   --accent-grad. At rest it carries no shadow at all, so the whole motion budget
+   is spent on hover, where the accent washes INTO the surface as a tint and the
+   glow ignites from nothing. The tint stays a tint: the fill is Bold's, and
+   DESIGN-08 allows the saturated fill on that one variant only.
+
+   The resting tint is declared as the same gradient at zero accent rather than
+   omitted, so the hover interpolates two images of one shape instead of swapping
+   a background-image in — the latter would step. */
 .btn-primary {
+  background-color: var(--glass-2);
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-a) 0%, transparent),
+    color-mix(in srgb, var(--accent-b) 0%, transparent));
+  backdrop-filter: var(--glass-fx-flow);
+  color: var(--fg);
+}
+/* The hairline is a masked pseudo-element rather than a border-color: a border
+   cannot carry a gradient and follow --r-md at the same time, and border-image
+   ignores the radius outright. Inherits the radius, so --r-sm at ButtonSize.Small
+   is followed without restating it. ::after is the sheen's. */
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--accent-grad);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+.btn-primary:hover {
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-a) 26%, transparent),
+    color-mix(in srgb, var(--accent-b) 22%, transparent));
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--accent-a) 28%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Bold — the filled treatment Primary used to carry, unchanged, for the rare hero
+   call to action. This is the single surface DESIGN-08 permits the accent to fill. */
+.btn-bold {
   background: var(--accent-grad);
   color: var(--on-accent);
   border-color: var(--on-accent-line);
@@ -697,7 +743,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
     0 6px 24px color-mix(in srgb, var(--accent-a) 35%, transparent),
     0 0 48px color-mix(in srgb, var(--accent-b) 18%, transparent);
 }
-.btn-primary:hover {
+.btn-bold:hover {
   box-shadow:
     0 1px 0 var(--on-accent-hi) inset,
     0 0 0 1px color-mix(in srgb, var(--accent-a) 40%, transparent),
