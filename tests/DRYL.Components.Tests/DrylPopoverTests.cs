@@ -1,3 +1,4 @@
+using AngleSharp.Dom;
 using Bunit;
 using DRYL.Components;
 
@@ -145,6 +146,68 @@ public class DrylPopoverTests : BunitContext
         var panel = cut.Find(PanelSelector);
         Assert.Contains("is-open", panel.ClassList);
         Assert.Single(cut.FindAll(".body"));
+    }
+
+    [Fact]
+    public void Escape_on_the_anchor_closes_a_popover_nobody_focused_into()
+    {
+        var cut = RenderPopover();
+        cut.Find(TriggerSelector).Click();
+
+        // The everyday case: opened from the trigger, focus never moved, so the
+        // panel's own handler can never see the key.
+        cut.Find(".popover-anchor").KeyDown(Key.Escape);
+
+        var panel = cut.Find(PanelSelector);
+        Assert.Contains("is-exiting", panel.ClassList);
+    }
+
+    [Fact]
+    public void Escape_on_the_anchor_does_nothing_while_CloseOnEscape_is_false()
+    {
+        var cut = Render<DrylPopover>(ps => ps
+            .Add(p => p.TriggerContent, b => b.AddMarkupContent(0, "<button>open</button>"))
+            .Add(p => p.PanelContent, b => b.AddMarkupContent(0, "<span class=\"body\">panel body</span>"))
+            .Add(p => p.CloseOnEscape, false));
+        cut.Find(TriggerSelector).Click();
+
+        cut.Find(".popover-anchor").KeyDown(Key.Escape);
+
+        // Every library consumer that implements Escape itself passes false
+        // here; the anchor must leave the key alone for them too.
+        var panel = cut.Find(PanelSelector);
+        Assert.Contains("is-open", panel.ClassList);
+        Assert.DoesNotContain("is-exiting", panel.ClassList);
+    }
+
+    [Fact]
+    public void Escape_on_the_anchor_does_nothing_while_the_popover_is_closed()
+    {
+        var cut = RenderPopover();
+
+        cut.Find(".popover-anchor").KeyDown(Key.Escape);
+
+        var panel = cut.Find(PanelSelector);
+        Assert.DoesNotContain("is-open", panel.ClassList);
+        Assert.DoesNotContain("is-exiting", panel.ClassList);
+    }
+
+    [Fact]
+    public void The_anchor_key_handler_does_not_raise_OnKeyDown()
+    {
+        var seen = 0;
+        var cut = Render<DrylPopover>(ps => ps
+            .Add(p => p.TriggerContent, b => b.AddMarkupContent(0, "<button>open</button>"))
+            .Add(p => p.PanelContent, b => b.AddMarkupContent(0, "<span class=\"body\">panel body</span>"))
+            .Add(p => p.OnKeyDown, _ => seen++));
+        cut.Find(TriggerSelector).Click();
+
+        cut.Find(".popover-anchor").KeyDown(Key.Escape);
+
+        // OnKeyDown is documented as every keydown the PANEL receives. A
+        // consumer's keyboard handling belongs to the panel, and handing them
+        // trigger keys they never asked for would widen that contract silently.
+        Assert.Equal(0, seen);
     }
 
     [Fact]

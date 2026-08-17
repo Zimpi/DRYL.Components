@@ -81,8 +81,9 @@ parked on the `--z-popover` layer. Re-opening during the window cancels the
 exit outright: the node never left `<body>`, so nothing is re-portalled, and
 dropping `.is-exiting` restarts the entrance from wherever the fade had reached.
 
-**Focus: the consumer decides whether, the portal decides when.** The popover
-never moves focus on its own. A consumer that wants focus in its panel calls its
+**Focus: the consumer decides whether it goes in, the popover decides where it
+comes back to.** The popover still moves focus nowhere on open. A consumer that
+wants focus in its panel calls its
 own module (`dryl.menu.focusPanel`, `dryl.datepicker.focusDay`,
 `dryl.timepicker.focusPanel`), which tries immediately and — because a parent's
 `OnAfterRenderAsync` runs before its child's, so the popover has not portalled
@@ -93,34 +94,70 @@ request that was never reached. A consumer that parks nothing keeps its focus
 where it was, which is exactly what `DrylSelect` and `DrylAutocomplete` want.
 The channel is private to `dryl.js` and is not public API.
 
-**The key policy on the panel node is the consumers', installed on this
-component's element.** `drylPanelKeys.install` (private in `dryl.js`, used by
-`dryl.datepicker` and `dryl.timepicker`) binds one `keydown` listener to the
-panel and marks it `__drylPanelKeys`. It exists in JS for a reason that cannot
-be worked around in .NET: `KeyboardEventArgs` carries no target, so a handler
-bound to the panel can never tell which descendant a key came from. It cycles
-`Tab` inside the panel — necessary precisely because the panel is portalled to
-the end of `<body>`, where the next tab stop is the far end of the page — lets
-`Enter` and `Space` through to a control that activates itself, and suppresses
-browser defaults only for the keys it actually consumes. `DrylPopover` neither
-installs nor removes it, and this file describes it rather than promising it,
-for the reason `F3 DrylSplitButton` sets out at length: a restatement of a
-dependency's behaviour goes stale in both directions, when the dependency breaks
-and again when it is repaired. What the criteria below promise is this
-component's own half — that the panel is a focusable, key-receiving element with
-a stable identity for such a listener to live on.
+Coming back out is the popover's own. `dryl.popover.open` records what had focus
+before the panel took it, and hands it back when the close is requested — but
+only while focus is still inside the panel at that moment. The guard is the
+whole design: a user who clicked or tabbed elsewhere has already decided where
+focus belongs, and it is also what keeps this from fighting the consumers that
+restore focus themselves. By the time `DrylMenu` or a picker has returned focus
+to its own trigger, focus has left the panel and this does nothing. It happens
+at the *request* and not at the teardown, because `I4` put roughly `--dur-fast`
+between those two and a keyboard user should not wait it out.
 
-**`Escape` is only half this component's, and the half it owns is conditional.**
-`CloseOnEscape` defaults to `true`, and the handler that reads it is bound to the
-panel. Focus is therefore the precondition: measured on `/components/popover`
-with a plain trigger and no consumer focus management, `Escape` pressed while
-focus sits on the trigger does **not** close the panel, and the same `Escape`
-pressed with focus on a button inside the panel closes it at once. Every library
-consumer that implements `Escape` itself passes `CloseOnEscape="false"` —
+**The key policy on the panel node has two owners, and this component is now
+one of them.** `drylPanelKeys.install` (private in `dryl.js`) binds one
+`keydown` listener to the panel and marks it `__drylPanelKeys`. It exists in JS
+for a reason that cannot be worked around in .NET: `KeyboardEventArgs` carries
+no target, so a handler bound to the panel can never tell which descendant a key
+came from. It cycles `Tab` inside the panel, lets `Enter` and `Space` through to
+a control that activates itself, and optionally suppresses the browser default
+for the navigation keys.
+
+`DrylPopover` installs it for any panel whose `PanelRole` is `dialog`, and only
+for the `Tab` cycle — the navigation keys are not its business. Both pickers
+install it on the same node and do ask for those, so the two overlap. The
+helper is therefore order-independent: whoever gets there first binds the
+listener, and a later caller that needs the navigation keys swallowed raises
+that flag on the node rather than being turned away. Nobody can lower it. That
+matters because the order between them is not a property of this feature —
+today the pickers win because a parent's `OnAfterRenderAsync` runs before its
+child's, which is a guarantee about Blazor.
+
+**The `Tab` cycle is only half the answer, and the other half is on the
+anchor.** A listener on the panel sees nothing until focus is already inside
+it, and this component moves focus nowhere on its own — so for a panel nobody
+focused into, `Tab` is pressed on the *trigger* and the panel is not in the way
+at all. Measured before the fix: `Tab` from the trigger walked straight on to
+the page's next control with the panel still open behind it. So `dryl.popover`
+binds the entry half to the anchor: `Tab` moves focus into a `dialog` panel,
+and the cycle keeps it there. In JS rather than in Blazor's
+`@onkeydown:preventDefault`, which is applied with the *next* render and is
+therefore off for the first key after opening — the latch the date picker was
+built on and had to be rebuilt without.
+
+`Shift`+`Tab` on the trigger is left alone: the user is going back the way they
+came. A panel with any other role, or none, keeps the page's tab order exactly
+as it was — `menu` and `listbox` belong to components that answer `Tab`
+themselves, and `DrylMenu` closes on it, so trapping there would put two
+answers on one key.
+
+**`Escape` is bound to the anchor as well as the panel, and the two never
+overlap.** While the popover is open the panel lives under `<body>`, so a key
+pressed in it does not bubble to the anchor: these are two disjoint cases. The
+anchor covers the one that actually happens — the user opened the popover from
+the trigger and never moved focus, so the panel's own handler can never fire.
+That case used to be a dead end; measured on `/components/popover`, `Escape`
+with focus on the trigger left the panel open, and now closes it. What the
+component still does **not** do is claim `Escape` globally: focus parked
+somewhere unrelated closes nothing, and who wins one `Escape` across a dialog, a
+popover and the command palette stays an open question about the overlay stack
+rather than one this component answers by accident
+([`../../ideas/I5 Keyboard access for the bare popover.md`](../../ideas/I5%20Keyboard%20access%20for%20the%20bare%20popover.md)).
+Every library consumer that implements `Escape` itself passes `CloseOnEscape="false"` —
 `DrylMenu`, `DrylSelect`, `DrylMultiSelect`, `DrylAutocomplete` and both pickers
 — because closing is not the whole job: focus has to be returned to the trigger
-or the input, and this component returns it nowhere. Measured: after an `Escape`
-that closed the panel, `document.activeElement` is `<body>`. Whoever sets
+or the input — and this component now returns it too, so a consumer that takes
+the key is adding to a floor rather than standing on nothing. Whoever sets
 `CloseOnEscape="false"` takes on both duties, and a consumer that takes the key
 without ensuring focus reaches the element its handler is bound to gets a panel
 that cannot be closed by keyboard at all — which is exactly what happened to
@@ -361,11 +398,19 @@ no way to ask the panel to keep focus.
   `false`.
 - The outside-press listener is removed when the popover closes.
 - `CloseOnEscape` defaults to `true`.
-- `Escape` closes the popover while `CloseOnEscape` is `true` **and** the key
-  reaches the panel — that is, while focus is inside the panel.
-- `Escape` does nothing while `CloseOnEscape` is `false`, leaving the key
-  entirely to the consumer.
-- The component moves focus nowhere when the panel closes, by any path.
+- `Escape` closes the popover while `CloseOnEscape` is `true` and focus is
+  inside the panel.
+- `Escape` closes the popover while `CloseOnEscape` is `true` and focus is on
+  the trigger — the everyday case, in which the user opened the popover and
+  never moved focus.
+- `Escape` does nothing while `CloseOnEscape` is `false`, wherever focus is,
+  leaving the key entirely to the consumer.
+- `Escape` pressed on the trigger raises no `OnKeyDown`, that callback being
+  about the panel's keys and not the trigger's.
+- `Escape` pressed on the trigger of a closed popover does nothing.
+- `Escape` pressed with focus neither on the trigger nor in the panel does
+  nothing: the component listens on its own two elements and claims no key
+  globally.
 
 ### Keyboard and accessibility
 
@@ -376,6 +421,26 @@ no way to ask the panel to keep focus.
 - `OnKeyDown` is raised before the component's own `Escape` handling, so a
   consumer sees the key first.
 - The panel can be focused programmatically.
+- The popover hands focus back to whatever had it when the popover opened, if
+  focus is inside the panel at the moment the close is requested.
+- The popover hands focus back at the moment the close is requested, not when
+  the exit animation finishes, so a keyboard user never waits out an animation
+  holding focus on a panel that is fading away.
+- The popover hands focus back nowhere when focus has already left the panel —
+  after an outside press, say — because whoever moved it has already decided
+  where it belongs.
+- The popover moves focus nowhere on open: a consumer that wants focus in its
+  panel asks for it.
+- `Tab` on the trigger of an open panel whose role is `dialog` moves focus into
+  the panel.
+- `Tab` inside an open panel whose role is `dialog` cycles within it, so focus
+  never lands at the far end of the page while the panel is open.
+- `Shift`+`Tab` on the trigger leaves the popover the way the user came, rather
+  than entering the panel backwards.
+- A panel whose role is not `dialog` — including one with no role at all —
+  leaves the page's tab order exactly as it was.
+- The panel's key listener is removed when the portal is torn down, so it does
+  not outlive the open state that installed it (`CODE-05`).
 - The panel is not a tab stop, so nothing about it changes the page's tab order
   until something focuses into it.
 - `PanelRole` is rendered as the panel's `role`.
@@ -496,13 +561,17 @@ no way to ask the panel to keep focus.
   additive per-attribute claim of `aria-haspopup` and `aria-expanded` on the
   trigger from the first render onwards, `OnKeyDown` handed to the consumer
   before the component's own `Escape`, and a panel that is focusable without
-  being a tab stop. And the two things this component does **not** do, both
-  measured and both carried as deviations below: it moves focus nowhere on open
-  or close, and its portalled panel sits at the end of `<body>`, so `Tab` from
-  the trigger leaves the popover behind. A bare `DrylPopover` is therefore
-  operable by keyboard only in as much as its consumer makes it so — which every
-  library consumer does, in its own module, and which a direct consumer of this
-  primitive has to do for themselves (`UX-01`).
+  being a tab stop. Three gaps that used to sit here as deviations are now
+  behaviour, and all three were re-measured on `/components/popover` after the
+  change. `Escape` with focus on the trigger closed nothing and now closes the
+  popover. `Tab` from the trigger walked on to the page's next control and now
+  enters a `dialog` panel and cycles inside it — nine presses, focus never left
+  the panel and wrapped from the last control back to the first. And a close
+  left `document.activeElement` on `<body>`; it now puts focus back on the
+  trigger, while an outside press still leaves focus wherever the click put it.
+  A bare `DrylPopover` is therefore operable by keyboard on its own (`UX-01`),
+  which it was not — what a consumer adds on top is focus *into* the panel and
+  whatever navigation its content needs.
 - **AI mode** — **no**, deliberately, and the decision is the one `AI-05` asks
   to be written down. `DrylPopover` declares no `Ai` parameter and does not
   inherit `DrylAiAware`. It has no action of its own for a model to be working
@@ -561,33 +630,19 @@ so the file is not mistaken for a finished job.
   a consumer *subscribes* to is delayed. But the shape is a genuine deviation
   from what "closed" reads like, and it is written here rather than left for
   someone to find in a debugger.
-- **`Escape` is inert for a popover nobody focused into.** `CloseOnEscape`
-  defaults to `true` and reads as a promise, but the handler is on the panel.
-  Measured: focus on the trigger, `Escape`, panel still open. A direct consumer
-  of this primitive who does not move focus into the panel has no keyboard
-  dismissal at all, and nothing in the API tells them so — the parameter's own
-  doc comment says "when Escape is pressed inside it", which is accurate and
-  easy to read past.
-- **The portalled panel drops out of the tab order.** Measured: with the panel
-  open, `Tab` from the trigger moves to the next control on the page and the
-  panel stays open behind it. The panel is the last child of `<body>` while
-  portalled, so its content sits at the very end of the tab order. Every library
-  consumer covers this — the pickers by cycling `Tab` inside the panel, the menu
-  by moving focus in on open — but the primitive alone does not, and `UX-01` is
-  satisfied only by what a consumer adds.
-- **Focus is returned nowhere on close.** Measured: after an `Escape` that
-  closed the panel from inside it, `document.activeElement` is `<body>`. Focus
-  restoration lives in each consumer (`dryl.menu.focusTrigger`,
-  `dryl.timepicker.restoreFocus`), which is defensible — this component does not
-  know which element deserves it — but it means the pairing "the consumer takes
-  `Escape`, so the consumer owes the focus return" is a convention, not a
-  mechanism, and both pickers once got it wrong.
 - **Two literals in `dryl.popover` duplicate a token.** The module's `GAP` and
   `EDGE` constants are both `4`, and `GAP`'s comment says it "matches `--sp-1`".
   It does today. Nothing keeps it matching: the value is a copy of a token in a
   file no token check reads (`DESIGN-01`'s check greps `*.razor.css`), so a
   change to `--sp-1` moves every spacing in the library except the gap between a
   trigger and its panel.
+- **`Tab` enters a `dialog` panel and then cannot leave it.** The trap is the
+  point — the panel is portalled to the end of `<body>`, so tabbing out lands at
+  the far end of the page with the panel still open — and `Escape` is the way
+  out. It is still a trap, and it is only right because the role says the panel
+  is a container the user is meant to work inside. A popover that sets
+  `PanelRole="dialog"` on something that is not really a dialog gets a keyboard
+  behaviour it did not ask for, and nothing warns it.
 
 ### Recorded gaps — not deviations, and not what `State` rests on
 
@@ -596,14 +651,6 @@ belongs to another component's code and another component's spec. They are
 recorded rather than fixed, and they are kept apart from the debt above because
 nothing here is owed against a harness rule.
 
-- **The panel key listener is never detached.** `drylPanelKeys.install` adds a
-  `keydown` listener to this component's panel node and marks it
-  `__drylPanelKeys`; there is no `detach` counterpart anywhere in `dryl.js`. The
-  argument is that it captures nothing but the node it lives on and dies with
-  it — which holds, since the node is Blazor's and is discarded with the
-  component — so no rule is broken. It is still the library's first listener
-  with no teardown path, and `CODE-05`'s *habit* of pairing every handle with
-  its release is worth keeping rather than eroding.
 - **`.popover-panel--surface` carries a raw `min-width`** and a raw `1px`
   border width in `DrylPopover.razor.css`. Neither is in `DESIGN-01`'s
   enumeration of colour, padding, radius, shadow, duration and easing, and no

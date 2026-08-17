@@ -21,7 +21,14 @@
       </DrylPopover>
     ───────────────────────────────────────────────────────── *@
 
-<div class="@AnchorCssClass" @ref="_anchor" @attributes="AdditionalAttributes">
+@*  The anchor takes Escape as well as the panel. While the popover is open the
+    panel lives under <body>, so a key pressed in it never reaches here — these
+    are two disjoint cases, not a double handler. This one covers the case that
+    actually happens: the user opened the popover from the trigger and never
+    moved focus, so the panel's own handler can never fire. Same second line of
+    defence both pickers were given on their input. *@
+<div class="@AnchorCssClass" @ref="_anchor" @attributes="AdditionalAttributes"
+     @onkeydown="OnAnchorKeyDown">
     <div class="popover-trigger" @onclick="OnTriggerClick">
         @TriggerContent
     </div>
@@ -212,6 +219,15 @@
         }
         else if (_portaled)
         {
+            // Hand focus back now, at the request, rather than when the portal
+            // is torn down: the exit animation puts --dur-fast between the two,
+            // and a keyboard user should not spend it holding focus on a panel
+            // that is fading away. JS decides whether to act — it only returns
+            // focus while focus is still inside the panel, which is what keeps
+            // this from overruling a user who clicked elsewhere and from
+            // fighting the consumers that restore focus themselves.
+            await ReleaseFocusAsync();
+
             // Only a popover that is actually on screen has something to
             // animate away. One that never portalled (never opened, or
             // statically rendered) closes exactly as it did before.
@@ -223,6 +239,14 @@
         else await OnClose.InvokeAsync();
         // The portal is opened in OnAfterRenderAsync once the new Open state
         // has rendered, and torn down once the exit above has finished.
+    }
+
+    private async Task ReleaseFocusAsync()
+    {
+        try { await JS.InvokeVoidAsync("dryl.popover.releaseFocus", _anchor); }
+        catch (JSDisconnectedException) { /* circuit closing */ }
+        catch (JSException) { /* element gone */ }
+        catch (InvalidOperationException) { /* statically rendered */ }
     }
 
     private void StartExit()
@@ -309,6 +333,18 @@
     {
         if (OnKeyDown.HasDelegate) await OnKeyDown.InvokeAsync(e);
         if (CloseOnEscape && e.Key == "Escape")
+            await SetOpenAsync(false);
+    }
+
+    /// <summary>Escape pressed anywhere in the anchor — in practice, on the
+    /// trigger, since the panel is elsewhere in the DOM while open.</summary>
+    private async Task OnAnchorKeyDown(KeyboardEventArgs e)
+    {
+        // OnKeyDown is documented as "every keydown the panel receives" and
+        // stays that: a consumer's keyboard handling belongs to the panel, and
+        // raising it from the trigger too would hand them keys they never
+        // asked for.
+        if (Open && CloseOnEscape && e.Key == "Escape")
             await SetOpenAsync(false);
     }
 

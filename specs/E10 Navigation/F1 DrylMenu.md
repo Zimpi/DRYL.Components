@@ -43,11 +43,13 @@ panel surface rather than on a presence wrapper around the content; the
 alternative was measured and rejected for exactly this reason (see
 [`../../ideas/I4 An exit animation for the popover surface.md`](../../ideas/I4%20An%20exit%20animation%20for%20the%20popover%20surface.md)).
 
-**`DrylMenu` takes `Escape` from the popover and owes focus in return.** It
+**`DrylMenu` takes `Escape` from the popover and returns focus itself.** It
 passes `CloseOnEscape="false"` and handles the key itself, because closing is
-only half the job: focus is inside the panel, and the popover returns it
-nowhere. So the menu returns it to the trigger — after `Escape`, and after an
-item is chosen. Measured: `Escape` on an open menu closes it,
+only half the job — and it returns focus to the trigger after `Escape` and
+after an item is chosen. The popover has since gained a guarded focus return of
+its own, which fires only while focus is still inside the panel; by the time
+this component has moved focus to the trigger there is nothing left for it to
+do, so the two agree rather than compete. Measured: `Escape` on an open menu closes it,
 `document.activeElement` is the trigger button again and its `aria-expanded`
 reads `false`; clicking an item gives the same three.
 
@@ -310,12 +312,14 @@ belongs to another component's code and another component's spec.
   markup produces any of them. `dryl.menu.focusTrigger`'s selector still lists
   `.menu-trigger button` ahead of `.popover-trigger button`, and only the second
   half of it has ever matched.
-- **The `Escape`/focus pairing is a convention, not a mechanism.** This
-  component sets `CloseOnEscape="false"` and takes on the key *and* the focus
-  return; nothing enforces the second half. It belongs to
-  [`../E11 Surfaces/F1 DrylPopover.md`](../E11%20Surfaces/F1%20DrylPopover.md),
-  which records it as its own debt, and is named here because this component is
-  one of the six that took the deal.
+- **The `Escape`/focus pairing is this component's, on top of a floor that now
+  exists.** It sets `CloseOnEscape="false"` and takes on the key *and* the focus
+  return. The popover has since gained a guarded focus return of its own
+  ([`../E11 Surfaces/F1 DrylPopover.md`](../E11%20Surfaces/F1%20DrylPopover.md)),
+  which fires only while focus is still inside the panel — so by the time this
+  component has moved focus to its trigger, the popover's does nothing. The two
+  agree rather than compete, and the menu's own call is now belt over braces
+  rather than the only thing standing.
 - **`F3 DrylSplitButton` carries an account of this component's trigger ARIA
   and focus behaviour**, written when neither `E10` nor `E11` had a spec. The
   popover half now lives in `E11`; this file is the account of the menu half,

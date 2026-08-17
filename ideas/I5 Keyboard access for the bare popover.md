@@ -1,7 +1,7 @@
 # Keyboard access for the bare popover
 
 ## Meta
-- **State:** Draft
+- **State:** Ready
 
 ## Problem
 
@@ -141,9 +141,30 @@ redundant rather than contradictory.
   All three are behaviour changes to the primitive eight components stand on,
   and `I4`'s scope explicitly excluded them so that one animation decision would
   not carry three unrelated fixes.
+- 2026-08-17: **Finding 1 — option B.** `Escape` is handled on the anchor as
+  well as the panel. The global-`Escape` question stays closed.
+- 2026-08-17: **Finding 2 — option C.** `Tab` cycles inside the panel only when
+  `PanelRole` names a container role, and `dialog` is that role. A panel with no
+  role, or with `menu` or `listbox`, keeps today's behaviour — those two are
+  already handled by the components that set them, and trapping `Tab` under
+  `DrylMenu`, which closes on `Tab`, would put two answers on one key.
+- 2026-08-17: **Finding 3 — option A.** The popover remembers what was focused
+  when it opened and hands it back on close, but only while focus is still
+  inside the panel. No `RestoreFocus` parameter.
+- 2026-08-17: Two things the options did not name, decided while checking the
+  code they land in. `drylPanelKeys.install` refuses to install twice, so
+  whichever of the popover and a picker calls it first decides whether the
+  navigation keys are suppressed — the pickers happen to win today because a
+  parent's `OnAfterRenderAsync` runs before its child's, which is a guarantee
+  about Blazor, not about this feature. The helper is made order-independent
+  instead. And the popover now **removes** that listener when it closes, which
+  retires the `Recorded gap` about the library's one listener with no teardown
+  path (`CODE-05`) rather than adding a second owner to it.
+- 2026-08-17: The focus is handed back when the close is **requested**, not
+  when the exit animation finishes. `I4` put roughly `--dur-fast` between those
+  two moments, and a keyboard user should not wait it out with focus parked on
+  a panel that is fading away.
 
 ## Open Points
 
-- Which option for finding 1, 2 and 3 — the Product Owner's decision. Nothing
-  is implemented until all three are answered, because 2 and 3 interact: a
-  trapped panel that never returns focus is worse than either gap alone.
+- None.

@@ -428,7 +428,22 @@ const drylPanelKeys = (() => {
     }
 
     function install(panel, navKeys) {
-        if (!panel || panel.__drylPanelKeys) return;
+        if (!panel) return;
+
+        // Two owners install this on the same node: DrylPopover, for any panel
+        // whose role is dialog, and the pickers, which also need the navigation
+        // keys swallowed. Refusing the second caller outright would make the
+        // behaviour depend on which of them ran first — today the pickers win,
+        // but only because a parent's OnAfterRenderAsync runs before its
+        // child's, which is a guarantee about Blazor and not about this. So the
+        // flag lives on the node and a later caller can raise it; nobody can
+        // lower it, because a panel that needs the keys swallowed still does.
+        if (panel.__drylPanelKeys) {
+            if (navKeys) panel.__drylPanelKeysNav = true;
+            return;
+        }
+        panel.__drylPanelKeysNav = !!navKeys;
+
         const onKey = (e) => {
             if (e.key === 'Tab') {
                 cycleTab(panel, e);
@@ -443,7 +458,7 @@ const drylPanelKeys = (() => {
             // Only the keys the panel really consumes lose their default —
             // never a bare modifier or a browser shortcut such as Ctrl+F,
             // which an unconditional preventDefault used to swallow.
-            if (navKeys && !e.ctrlKey && !e.metaKey && !e.altKey
+            if (panel.__drylPanelKeysNav && !e.ctrlKey && !e.metaKey && !e.altKey
                 && NAV.includes(e.key)) {
                 e.preventDefault();
             }
@@ -452,7 +467,17 @@ const drylPanelKeys = (() => {
         panel.__drylPanelKeys = onKey;
     }
 
-    return { install };
+    // Paired with install (CODE-05). dryl.popover calls this when it tears a
+    // portal down, which is the only moment at which every owner of this
+    // listener is done with the panel: both pickers re-install on each open.
+    function uninstall(panel) {
+        if (!panel || !panel.__drylPanelKeys) return;
+        panel.removeEventListener('keydown', panel.__drylPanelKeys);
+        delete panel.__drylPanelKeys;
+        delete panel.__drylPanelKeysNav;
+    }
+
+    return { install, uninstall };
 })();
 
 /* --------------------------------------------------------------
@@ -531,6 +556,10 @@ window.dryl.menu = (() => {
  *
  *   open(anchor, panel, dotnetRef, opts)  — portal, position, listen
  *   close(anchor)                         — restore the panel, clean up
+ *   releaseFocus(anchor)                  — hand focus back to whatever had
+ *                                           it before the panel took it, but
+ *                                           only while focus is still inside
+ *                                           the panel
  *   claimTrigger(anchor, role, open)      — put aria-haspopup / aria-expanded
  *                                           on the trigger, additively
  *
@@ -698,6 +727,13 @@ window.dryl.popover = (() => {
         // the move. The restore waits until after the reveal, further down.
         const focused = document.activeElement;
         const refocus = focused && panel.contains(focused);
+
+        // Remember where focus was before the panel took it, so close() can
+        // hand it back. Captured here, before anything moves: by the time the
+        // panel is revealed a consumer may already have pulled focus into it.
+        // A focus that was already inside the panel is not a return address.
+        const returnFocus = (focused && focused !== document.body && !refocus) ? focused : null;
+
         document.body.appendChild(panel);
 
         const reposition = () => place(anchor, panel, placement, matchWidth);
@@ -713,6 +749,41 @@ window.dryl.popover = (() => {
         // second visibility key and with it the animation that needed it.
         // Blazor renders no data-* attribute on the panel, so this one is ours.
         panel.setAttribute('data-dryl-positioned', '');
+
+        // A panel that announces itself as a dialog is a container the user is
+        // meant to work inside, and a portaled panel sits at the very end of
+        // <body> — so Tab out of it lands at the far end of the page with the
+        // panel still open. Cycle Tab within it instead. navKeys stays false:
+        // this is about the tab order alone, and a generic dialog panel has no
+        // claim on the arrows, Home/End or paging (the pickers ask for those
+        // separately, on this same node). Only `dialog`: `menu` and `listbox`
+        // panels belong to components that already answer Tab themselves, and
+        // DrylMenu closes on it — two answers on one key is worse than one gap.
+        //
+        // The install above is only the second half. It binds to the PANEL, so
+        // it sees nothing until focus is already inside — and the popover moves
+        // focus nowhere on its own, so for a panel nobody focused into, Tab is
+        // pressed on the TRIGGER and the panel is not in the way at all. That
+        // was the finding: measured, Tab from the trigger walked straight on to
+        // the page's next control with the panel still open behind it. So the
+        // anchor gets the entry half: Tab moves into the panel, and the cycle
+        // above keeps it there. In JS rather than in Blazor's
+        // @onkeydown:preventDefault, which is applied with the NEXT render and
+        // is therefore off for the first key after opening — the latch bug the
+        // date picker was built on and had to be rebuilt without.
+        let onAnchorTab = null;
+        if (opts.role === 'dialog') {
+            drylPanelKeys.install(panel, false);
+            onAnchorTab = (e) => {
+                if (e.key !== 'Tab' || e.shiftKey) return;   // back out the way they came
+                if (panel.contains(e.target)) return;        // already inside; the panel's own cycle has it
+                const first = panel.querySelector('a[href], button, input, select, textarea, [tabindex]');
+                if (!first) return;
+                e.preventDefault();
+                first.focus();
+            };
+            anchor.addEventListener('keydown', onAnchorTab);
+        }
 
         // Both focus moves belong AFTER the line above, because that is what
         // makes the panel focusable — restoring beside the appendChild would
@@ -751,7 +822,27 @@ window.dryl.popover = (() => {
             document.addEventListener('pointerdown', onDocClick, true);
         }
 
-        state.set(anchor, { panel, onScroll, onResize, onDocClick, trigger: claimTrigger(anchor, opts.role, true) });
+        state.set(anchor, { panel, onScroll, onResize, onDocClick, onAnchorTab, returnFocus,
+                            trigger: claimTrigger(anchor, opts.role, true) });
+    }
+
+    /* Hand focus back to whatever had it when the popover opened — but only
+     * while focus is still inside the panel. That guard is the whole design: a
+     * user who clicked or tabbed somewhere else has already decided where focus
+     * belongs, and taking it back would overrule them. It is also what keeps
+     * this from fighting the consumers that restore focus themselves — by the
+     * time they are done, focus has left the panel and this does nothing.
+     * One-shot: the address is cleared whether or not it was usable. */
+    function releaseFocus(anchor) {
+        const s = state.get(anchor);
+        if (!s) return;
+        const target = s.returnFocus;
+        s.returnFocus = null;
+        if (!target) return;
+        const active = document.activeElement;
+        if (!active || !s.panel.contains(active)) return;
+        if (!target.isConnected) return;
+        target.focus();
     }
 
     function close(anchor) {
@@ -760,12 +851,26 @@ window.dryl.popover = (() => {
         window.removeEventListener('scroll', s.onScroll, true);
         window.removeEventListener('resize', s.onResize);
         if (s.onDocClick) document.removeEventListener('pointerdown', s.onDocClick, true);
+        if (s.onAnchorTab) anchor.removeEventListener('keydown', s.onAnchorTab);
 
         releaseTrigger(s.trigger);
 
         // Drop any focus request that open() never got to apply, so it cannot
         // fire later against a stale panel.
         delete s.panel.__drylPendingFocus;
+
+        // Paired with the install in open() (CODE-05). Here rather than at the
+        // start of the exit, because the panel is still on screen and still
+        // keyboard-reachable while it fades.
+        drylPanelKeys.uninstall(s.panel);
+
+        // Last resort for the focus return. The normal path is releaseFocus,
+        // called from C# the moment the close is requested, so the user is not
+        // left holding focus on a panel that is fading away. This catch-all is
+        // for the closes that never go through it — a disposed component, a
+        // portal torn down without a close request — where focus would
+        // otherwise be dropped on <body> as the node is moved.
+        releaseFocus(anchor);
 
         // Return the panel to its original slot (it is the anchor's last child)
         // and clear the styles/marker applied while portaled.
@@ -778,7 +883,7 @@ window.dryl.popover = (() => {
         state.delete(anchor);
     }
 
-    return { open, close, claimTrigger };
+    return { open, close, releaseFocus, claimTrigger };
 })();
 
 /* --------------------------------------------------------------
