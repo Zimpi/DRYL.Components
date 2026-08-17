@@ -320,7 +320,7 @@ window.dryl.modal = (() => {
  * into(panel, apply) — on open this runs BEFORE the panel is focusable:
  *   a consumer's OnAfterRenderAsync fires before its child DrylPopover's
  *   (Blazor runs parent before child), so the panel is still
- *   visibility:hidden — the .is-open.is-positioned gate in
+ *   visibility:hidden — the .is-open[data-dryl-positioned] gate in
  *   DrylPopover.razor.css only opens once dryl.popover.open has placed
  *   it. focus() on a hidden element is silently a no-op, which left the
  *   panel open with focus still on the trigger and Escape (handled on
@@ -534,10 +534,12 @@ window.dryl.menu = (() => {
  *   claimTrigger(anchor, role, open)      — put aria-haspopup / aria-expanded
  *                                           on the trigger, additively
  *
- * Blazor still owns the panel node. open() drops a comment
- * placeholder at the panel's original slot and close() moves the
- * node back before Blazor removes it — so Blazor's diff never finds
- * the node missing from under its recorded parent.
+ * Blazor still owns the panel node. open() moves it with
+ * document.body.appendChild and close() puts it back with
+ * anchor.appendChild — no placeholder is left behind, and none is
+ * needed: the panel wrapper is rendered whether the popover is open
+ * or closed, so Blazor never structurally removes the node while JS
+ * is holding it. What is conditional is only the panel's content.
  *
  * opts: { placement, matchWidth, closeOnOutside, role }
  *   placement — 'bottom-start' | 'bottom-end' | 'top-start' | 'top-end'
@@ -701,8 +703,16 @@ window.dryl.popover = (() => {
         const reposition = () => place(anchor, panel, placement, matchWidth);
         reposition();
         // Reveal only now that it is correctly placed (see the two-key
-        // .is-open.is-positioned gate in DrylPopover.razor.css).
-        panel.classList.add('is-positioned');
+        // .is-open[data-dryl-positioned] gate in DrylPopover.razor.css).
+        //
+        // An ATTRIBUTE and not a class, and the distinction is load-bearing:
+        // Blazor renders this element's `class`, and every render rewrites the
+        // whole attribute from its own render tree. A class added here survives
+        // only until Blazor next touches class on this node — which it does the
+        // moment the popover starts its exit animation, silently dropping the
+        // second visibility key and with it the animation that needed it.
+        // Blazor renders no data-* attribute on the panel, so this one is ours.
+        panel.setAttribute('data-dryl-positioned', '');
 
         // Both focus moves belong AFTER the line above, because that is what
         // makes the panel focusable — restoring beside the appendChild would
@@ -759,7 +769,7 @@ window.dryl.popover = (() => {
 
         // Return the panel to its original slot (it is the anchor's last child)
         // and clear the styles/marker applied while portaled.
-        s.panel.classList.remove('is-positioned');
+        s.panel.removeAttribute('data-dryl-positioned');
         s.panel.style.top = '';
         s.panel.style.left = '';
         s.panel.style.width = '';

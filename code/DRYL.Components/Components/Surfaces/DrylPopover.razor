@@ -28,15 +28,17 @@
 
     @*  The panel wrapper is ALWAYS rendered so Blazor never structurally
         removes the node — JS (dryl.popover) portals it to <body> while open
-        and returns it here on close. The body content stays gated by Open, so
-        it only renders while the popover is shown. *@
+        and returns it here on close. The body content is gated by Shown, not
+        by Open: it renders while the popover is open AND for as long as its
+        exit animation is still running, because a surface cannot be seen
+        leaving once its content is gone. *@
     <div class="@PanelCssClass"
          @ref="_panel"
          role="@PanelRole"
          aria-label="@PanelAriaLabel"
          tabindex="-1"
          @onkeydown="OnPanelKeyDown">
-        @if (Open)
+        @if (Shown)
         {
             @PanelContent
         }
@@ -105,6 +107,27 @@
     private DotNetObjectReference<DrylPopover>? _dotnetRef;
     private bool _portaled;
 
+    // Exit lifecycle. Between the close and the teardown the panel keeps
+    // everything it had — content, both visibility keys, its place under
+    // <body> — and only gains .is-exiting, which swaps its animation-name to
+    // presence-out-fade. _exitAttached makes the interop call once per exit;
+    // the watchdog finalizes the exit if animationend never arrives.
+    private bool _exiting;
+    private bool _exitAttached;
+    private DotNetObjectReference<ExitCallback>? _exitRef;
+    private CancellationTokenSource? _exitWatchdog;
+
+    // The exit runs var(--dur-fast) (140ms). If its animationend is lost — a
+    // dropped interop message, DOM churn, a test host that runs no JS at all —
+    // the panel would stay mounted and portalled forever: an invisible,
+    // full-size element on the --z-popover layer. Finalize regardless after
+    // this grace period. Same ratio as DrylDialogProvider's 600ms over 240ms.
+    private static readonly TimeSpan ExitWatchdogTimeout = TimeSpan.FromMilliseconds(400);
+
+    /// <summary>True while the panel's content belongs on screen: the popover is
+    /// open, or it is closed and its exit animation has not finished yet.</summary>
+    private bool Shown => Open || _exiting;
+
     /// <summary>The panel element — exposed so consumers can drive panel-scoped JS (focus, scroll).</summary>
     public ElementReference PanelElement => _panel;
 
@@ -147,9 +170,23 @@
                 role = PanelRole
             });
         }
-        else if (!Open && _portaled)
+        else if (!Open && _portaled && !_exiting)
         {
             await ReleaseAsync();
+        }
+
+        // Wire the exit's animationend once per exit. This runs after the
+        // render that added .is-exiting, so the animation is already on its
+        // way — dryl.motion.onExit resolves immediately under reduced motion,
+        // where there is no animation to wait for.
+        if (_exiting && !_exitAttached)
+        {
+            _exitAttached = true;
+            _exitRef ??= DotNetObjectReference.Create(new ExitCallback(this));
+            try { await JS.InvokeVoidAsync("dryl.motion.onExit", _panel, _exitRef, new { name = "presence-out" }); }
+            catch (JSDisconnectedException) { /* circuit closing — the watchdog finishes it */ }
+            catch (JSException) { /* element gone — the watchdog finishes it */ }
+            catch (InvalidOperationException) { /* statically rendered */ }
         }
     }
 
@@ -164,11 +201,76 @@
     {
         if (Open == open) return;
         Open = open;
+
+        if (open)
+        {
+            // Re-opening during an exit: the node never left <body>, so there
+            // is no second portal to open. Just call the exit off — dropping
+            // .is-exiting moves animation-name back to popover-in, which
+            // restarts the entrance from wherever the fade had got to.
+            if (_exiting) await CancelExitAsync();
+        }
+        else if (_portaled)
+        {
+            // Only a popover that is actually on screen has something to
+            // animate away. One that never portalled (never opened, or
+            // statically rendered) closes exactly as it did before.
+            StartExit();
+        }
+
         await OpenChanged.InvokeAsync(open);
         if (open) await OnOpen.InvokeAsync();
         else await OnClose.InvokeAsync();
-        // The portal is opened / torn down in OnAfterRenderAsync once the new
-        // Open state has rendered (panel content present / removed).
+        // The portal is opened in OnAfterRenderAsync once the new Open state
+        // has rendered, and torn down once the exit above has finished.
+    }
+
+    private void StartExit()
+    {
+        _exiting = true;
+        _exitAttached = false;
+        _exitWatchdog?.Cancel();
+        _exitWatchdog?.Dispose();
+        _exitWatchdog = new CancellationTokenSource();
+        _ = RunExitWatchdogAsync(_exitWatchdog.Token);
+    }
+
+    private async Task RunExitWatchdogAsync(CancellationToken token)
+    {
+        try { await Task.Delay(ExitWatchdogTimeout, token); }
+        catch (TaskCanceledException) { return; }
+        await InvokeAsync(FinishExit);
+    }
+
+    /// <summary>Ends the exit and lets the next render tear the portal down.
+    /// Idempotent: whichever of animationend and the watchdog arrives first
+    /// wins, and the other finds nothing left to do.</summary>
+    private void FinishExit()
+    {
+        if (!_exiting) return;
+        _exiting = false;
+        _exitAttached = false;
+        _exitWatchdog?.Cancel();
+        _exitWatchdog?.Dispose();
+        _exitWatchdog = null;
+        // The render this triggers drops .is-open and the content; the
+        // OnAfterRenderAsync that follows releases the portal.
+        StateHasChanged();
+    }
+
+    /// <summary>Calls a running exit off because the popover re-opened.
+    /// Detaches the JS listener, so the next exit can attach a fresh one.</summary>
+    private async Task CancelExitAsync()
+    {
+        _exiting = false;
+        _exitAttached = false;
+        _exitWatchdog?.Cancel();
+        _exitWatchdog?.Dispose();
+        _exitWatchdog = null;
+        try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _panel); }
+        catch (JSDisconnectedException) { /* circuit closing */ }
+        catch (JSException) { /* element gone */ }
+        catch (InvalidOperationException) { /* statically rendered */ }
     }
 
     /// <summary>Tears down the portal: removes JS listeners and returns the
@@ -177,7 +279,17 @@
     {
         if (!_portaled) return;
         _portaled = false;
-        try { await JS.InvokeVoidAsync("dryl.popover.close", _anchor); }
+        try
+        {
+            // Drop the exit listener before the portal. dryl.motion.onExit
+            // refuses to attach a second listener to an element that already
+            // has one, and an exit ended by the watchdog rather than by
+            // animationend leaves its listener in place — so without this, the
+            // NEXT close on this same node would attach nothing and would only
+            // ever be finished by the watchdog again.
+            await JS.InvokeVoidAsync("dryl.motion.clearExit", _panel);
+            await JS.InvokeVoidAsync("dryl.popover.close", _anchor);
+        }
         catch (JSDisconnectedException) { /* circuit closing */ }
         catch (JSException) { /* element gone */ }
         catch (InvalidOperationException) { /* statically rendered */ }
@@ -220,8 +332,16 @@
         get
         {
             var parts = new List<string> { "popover-panel" };
-            // .is-open is one half of the visibility gate (JS adds .is-positioned).
-            if (Open) parts.Add("is-open");
+            // .is-open is one half of the visibility gate; JS sets the other
+            // half as data-dryl-positioned. That half is an attribute and not a
+            // class precisely because this line rewrites class wholesale on
+            // every render, which would drop a JS-added class from it.
+            // It follows Shown rather than Open: the surface has to stay visible
+            // while it animates away, or there is nothing left to animate.
+            if (Shown) parts.Add("is-open");
+            // Swaps the panel's animation-name from popover-in to
+            // presence-out-fade — see DrylPopover.razor.css.
+            if (_exiting) parts.Add("is-exiting");
             if (Surface) parts.Add("popover-panel--surface");
             if (MatchTriggerWidth) parts.Add("popover-panel--match");
             parts.Add(Placement switch
@@ -235,11 +355,30 @@
         }
     }
 
+    /// <summary>Bridge invoked by dryl.motion.onExit when the panel's exit
+    /// animation ends, so the component can tear the portal down.</summary>
+    private sealed class ExitCallback
+    {
+        private readonly DrylPopover _popover;
+        public ExitCallback(DrylPopover popover) => _popover = popover;
+
+        [JSInvokable]
+        public Task OnExitFinished() => _popover.InvokeAsync(_popover.FinishExit);
+    }
+
     public async ValueTask DisposeAsync()
     {
+        // A popover disposed mid-exit releases regardless: the animation is the
+        // reason to wait, and there is nothing left to show it to.
+        _exiting = false;
+        _exitWatchdog?.Cancel();
+        _exitWatchdog?.Dispose();
+        _exitWatchdog = null;
+
         // If we are disposed while open, the panel lives under <body>; tear the
         // portal down so its node and listeners don't leak past this component.
         await ReleaseAsync();
+        _exitRef?.Dispose();
         _dotnetRef?.Dispose();
     }
 }

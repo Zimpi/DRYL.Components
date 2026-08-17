@@ -35,10 +35,21 @@
    containing block such as a glass card.
 
    Visibility is a two-key gate: the panel only shows once Blazor has opened it
-   (.is-open) AND JS has placed it in the viewport (.is-positioned). On open
+   (.is-open) AND JS has placed it in the viewport (data-dryl-positioned).
+   The second key is an attribute rather than a class because Blazor renders
+   this element's class and rewrites the whole attribute on every render — a
+   JS-added class there survives only until the next one. On open
    this hides the one-frame mis-position flash (interop is a network roundtrip
-   on Blazor Server); on close, dropping .is-open hides it atomically with the
-   content removal, so no empty surface box ever flashes. */
+   on Blazor Server).
+
+   On close both keys are held until the exit animation below has finished, and
+   the content is held with them. Dropping them together with the content would
+   be atomic — which is what this comment used to present as a virtue — but
+   atomic is exactly the DESIGN-12 violation: there is a surface, it is visible,
+   and it would vanish inside one frame. Animating only the CONTENT was built
+   and measured instead, and is worse: the surface itself stays fully opaque, so
+   an empty glass box stands for the length of the animation and then jumps
+   away. Only the surface leaving looks right. */
 .popover-panel {
     position: fixed;
     z-index: var(--z-popover);
@@ -46,7 +57,7 @@
     /* Never exceed the viewport on a phone (the panel is fixed-positioned). */
     max-width: calc(100vw - var(--sp-4));
 }
-.popover-panel.is-open.is-positioned {
+.popover-panel.is-open[data-dryl-positioned] {
     visibility: visible;
 }
 
@@ -79,9 +90,9 @@
    placement modifier classes are kept as styling hooks only. */
 
 /* Entrance — the panel node is reused across opens, so the animation is bound
-   to the reveal state (.is-positioned is (re)added by JS on each open) rather
+   to the reveal state (data-dryl-positioned is (re)set by JS on each open) rather
    than to the node mounting, otherwise it would only ever play once. */
-.popover-panel.is-open.is-positioned {
+.popover-panel.is-open[data-dryl-positioned] {
     animation: popover-in var(--dur-fast) var(--ease-out);
 }
 
@@ -90,6 +101,28 @@
     to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Exit — the surface itself fades out before the panel is unmounted and the
+   node is handed back to its anchor. .is-exiting is added by DrylPopover on
+   close and swaps animation-name, which is what restarts the animation on a
+   node that already played popover-in.
+
+   presence-out-fade is the library's own exit keyframe (dryl.css), reused here
+   rather than grown into a popover-specific one — DESIGN-13. dryl.motion.onExit
+   listens for the presence-out prefix and reports the end back to C#.
+
+   forwards holds opacity at 0 for the frames between the animation ending and
+   the render that drops the visibility keys. pointer-events is not decoration:
+   for the length of the animation this is a full-size element on the
+   --z-popover layer that the user believes is already gone, and it must not
+   swallow the click they aim past it. */
+.popover-panel.is-open[data-dryl-positioned].is-exiting {
+    animation: presence-out-fade var(--dur-fast) var(--ease-out) forwards;
+    pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .popover-panel.is-open.is-positioned { animation: none; }
+    .popover-panel.is-open[data-dryl-positioned] { animation: none; }
+    /* No animation to wait for — dryl.motion.onExit resolves on the next frame,
+       so the panel is still torn down through the same path. */
+    .popover-panel.is-open[data-dryl-positioned].is-exiting { animation: none; }
 }

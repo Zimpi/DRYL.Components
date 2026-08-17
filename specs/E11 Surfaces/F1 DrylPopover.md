@@ -37,16 +37,49 @@ claims them.
 the shape the whole component turns on, and it is not an optimisation:
 `dryl.popover.open` moves *this node* to `<body>` and `dryl.popover.close` moves
 it back, so Blazor must never structurally remove it while JS holds it. What is
-conditional is the content: `@if (Open) { @PanelContent }`. Measured on
+conditional is the content: `@if (Shown) { @PanelContent }`, where `Shown` is
+`Open` widened by the exit window described below. Measured on
 `/components/popover`, seven anchors on the page carry seven panel nodes at all
 times, each empty and `visibility: hidden` while closed.
 
-**Visibility is a two-key gate**, `.is-open.is-positioned` in
-`DrylPopover.razor.css`. Blazor adds `is-open` with the open render; JS adds
-`is-positioned` only after the node has been placed. Before that second key the
-panel is present, laid out and invisible — and `focus()` on an invisible element
-is silently a no-op. Everything about focus in this component follows from that
-one fact.
+**Visibility is a two-key gate**, `.is-open[data-dryl-positioned]` in
+`DrylPopover.razor.css`. Blazor adds `is-open` with the open render; JS sets
+`data-dryl-positioned` only after the node has been placed. Before that second
+key the panel is present, laid out and invisible — and `focus()` on an invisible
+element is silently a no-op. Everything about focus in this component follows
+from that one fact.
+
+**The second key is an attribute and not a class, and that is load-bearing.**
+Blazor renders this element's `class` and rewrites the whole attribute from its
+own render tree on every render, so a class added from JS survives only until
+Blazor next touches `class` on that node. While the only class changes were
+"open" and "closed" that never showed: JS added its key after the open render
+and nothing rewrote `class` again until the close. The exit added a second
+render in between, and it silently dropped the key — measured on
+`/components/popover`, the panel went from
+`popover-panel is-open … is-positioned` to
+`popover-panel is-open is-exiting …` in one mutation, taking the visibility gate
+and the exit animation with it. Blazor renders no `data-*` attribute on the
+panel, so `data-dryl-positioned` is JS's alone.
+
+**Closing is two steps, not one, and the panel outlives `Open`.** A popover
+that is on screen does not drop its keys when it closes: it holds both of them,
+holds its content and its place under `<body>`, and adds `.is-exiting`, which
+swaps its `animation-name` to the library's own `presence-out-fade`. Only when
+that animation ends — reported back from `dryl.motion.onExit` — does the panel
+drop its keys, unmount its content and hand the node back to the anchor. So
+there is a window, one `--dur-fast` long, in which `Open` is already `false`
+and the panel is still there. Consumers see it: anything that reads the DOM
+immediately after a close finds the content still mounted.
+
+Two things keep that window from becoming a defect. The panel takes no pointer
+events while exiting, so it cannot swallow a click aimed at what is behind it;
+and a watchdog ends the exit after 400 ms whether or not `animationend` ever
+arrives, because the failure it guards against — a dropped interop message, a
+host that runs no JS — would otherwise leave a full-size invisible element
+parked on the `--z-popover` layer. Re-opening during the window cancels the
+exit outright: the node never left `<body>`, so nothing is re-portalled, and
+dropping `.is-exiting` restarts the entrance from wherever the fade had reached.
 
 **Focus: the consumer decides whether, the portal decides when.** The popover
 never moves focus on its own. A consumer that wants focus in its panel calls its
@@ -55,7 +88,7 @@ own module (`dryl.menu.focusPanel`, `dryl.datepicker.focusDay`,
 `OnAfterRenderAsync` runs before its child's, so the popover has not portalled
 or revealed anything yet — usually fails, and parks a one-shot request on the
 panel node as `__drylPendingFocus`. `dryl.popover.open` applies that request in
-the same breath as it adds `.is-positioned`, and `dryl.popover.close` deletes a
+the same breath as it sets `data-dryl-positioned`, and `dryl.popover.close` deletes a
 request that was never reached. A consumer that parks nothing keeps its focus
 where it was, which is exactly what `DrylSelect` and `DrylAutocomplete` want.
 The channel is private to `dryl.js` and is not public API.
@@ -109,28 +142,32 @@ two claims are separate: measured on `/components/menu`, it keeps its own
 `aria-haspopup="dialog"` untouched while its `aria-expanded` is claimed and
 driven by the popover.
 
-**Four doc comments around this component mislead, and one of them is simply
-false.** They are named here rather than quoted as evidence anywhere below,
+**Two doc comments around this component still mislead; two others have been
+corrected.** They are named here rather than quoted as evidence anywhere below,
 because a reader of this spec will otherwise meet them in the source and believe
-them. The distinction between the two kinds is kept, since it decides what to do
+them. The distinction between the kinds is kept, since it decides what to do
 with each: a false comment is corrected, a misleading one is usually a decision
 that was written down as a virtue.
 
-**False.** The `dryl.popover` module comment says `open()` "drops a comment
-placeholder at the panel's original slot". It does not: `open` is
-`document.body.appendChild(panel)`, `close` is `anchor.appendChild(s.panel)`
-with the panel restored as the anchor's last child, and nothing in the module
-creates a placeholder node of any kind.
+**Corrected, and recorded here so the correction is not made twice.**
+
+- The `dryl.popover` module comment said `open()` "drops a comment placeholder
+  at the panel's original slot". It never did: `open` is
+  `document.body.appendChild(panel)`, `close` is `anchor.appendChild(s.panel)`
+  with the panel restored as the anchor's last child, and nothing in the module
+  creates a placeholder node of any kind. It now says what it does, and why no
+  placeholder is needed.
+- `DrylPopover.razor.css` said that dropping `.is-open` hides the panel
+  "atomically with the content removal, so no empty surface box ever flashes".
+  It was accurate, and it presented the `DESIGN-12` violation as a virtue: the
+  flash it prevented was real, and the exit animation it prevented was the
+  point. With the exit in place it is no longer even true, and the comment now
+  records why atomic was the wrong goal — including that animating the content
+  instead was measured and is worse.
 
 **Misleading but true.**
 
-- `DrylPopover.razor.css` says that dropping `.is-open` hides the panel
-  "atomically with the content removal, so no empty surface box ever flashes".
-  That is accurate — both come out of the same render, and per-frame sampling
-  never catches an empty surface — but it presents the `DESIGN-12` violation
-  recorded below as a virtue. The flash it prevents is real; the exit animation
-  it prevents is the point.
-- The same comment says the panel is "positioned with `position: fixed` by
+- `DrylPopover.razor.css` says the panel is "positioned with `position: fixed` by
   `dryl.popover` (JS)". The `position: fixed` declaration is the stylesheet's
   own, in the `.popover-panel` rule directly beneath the comment; what JS
   supplies is `top`, `left` and, under `MatchTriggerWidth`, `width`. The
@@ -144,7 +181,8 @@ creates a placeholder node of any kind.
   hidden-panel no-op this whole component is shaped around. The `## Public API`
   table above says "when the open state becomes `true`" for that reason.
 
-The false comment and the first misleading one are also recorded in
+The two corrections were made with the exit animation, whose decision is
+recorded in
 [`../../ideas/I4 An exit animation for the popover surface.md`](../../ideas/I4%20An%20exit%20animation%20for%20the%20popover%20surface.md).
 
 ## Public API
@@ -203,9 +241,16 @@ no way to ask the panel to keep focus.
 - The panel element is rendered whether the popover is open or closed.
 - The panel carries `tabindex="-1"`, so it can receive focus programmatically
   without becoming a tab stop.
-- The component renders `PanelContent` exactly while `Open` is `true`.
-- The panel element is empty while `Open` is `false`.
-- The panel carries the `is-open` class exactly while `Open` is `true`.
+- The component renders `PanelContent` while `Open` is `true`.
+- The component keeps `PanelContent` rendered after `Open` becomes `false`,
+  until the panel's exit animation has finished.
+- The panel element is empty once the exit animation has finished.
+- The panel element is empty at first render of a popover that was never opened.
+- The panel carries the `is-open` class while `Open` is `true`.
+- The panel keeps the `is-open` class after `Open` becomes `false`, until the
+  exit animation has finished.
+- The panel carries the `is-exiting` class exactly while its exit animation is
+  running.
 - The panel carries the `popover-panel--surface` class exactly while `Surface`
   is `true`.
 - The panel carries the `popover-panel--match` class exactly while
@@ -240,6 +285,11 @@ no way to ask the panel to keep focus.
 - The portal is torn down when an outside press closes the popover.
 - The portal is torn down when a consumer closes the popover through the bound
   parameter or through `SetOpenAsync`.
+- The portal is torn down only after the exit animation has finished, whichever
+  path closed the popover.
+- A popover closed before it was ever portalled tears nothing down and runs no
+  exit, so a component that opens and closes without reaching the browser
+  behaves as it did before the exit existed.
 
 ### The portal
 
@@ -399,8 +449,26 @@ no way to ask the panel to keep focus.
 - The entrance animation is bound to the reveal state rather than to the node
   mounting, so it replays on every open although the node is reused.
 - The entrance animation is suppressed under `prefers-reduced-motion: reduce`.
-- The panel has **no** exit animation: it is removed within a single frame of
-  the close. See **Recorded debt**.
+- The panel animates out with `presence-out-fade`, over `--dur-fast` with
+  `--ease-out`.
+- The exit animation runs on the panel surface itself, so what the user sees
+  leaving is the glass and its content together.
+- The exit animation holds the panel at its end state until the panel is
+  unmounted, so no frame of it is repainted at full opacity.
+- The panel takes no pointer events while it is exiting, so a click aimed past
+  a panel the user believes is gone reaches what is behind it.
+- The exit animation replays on every close, although the panel node is reused.
+- The exit animation is suppressed under `prefers-reduced-motion: reduce`, and
+  the popover still closes and tears its portal down through the same path.
+- A popover re-opened while it is exiting cancels the exit and stays open.
+- A popover re-opened while it is exiting is not closed afterwards by the
+  abandoned exit.
+- A popover whose exit animation never reports finishing is closed anyway,
+  within a fixed grace period, so no invisible panel is ever left on screen.
+- `OnClose` fires when the close is requested, not when the exit animation
+  finishes.
+- A two-way bound `Open` reads `false` as soon as the close is requested, not
+  when the exit animation finishes.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -413,11 +481,16 @@ no way to ask the panel to keep focus.
   mode's `--line-strong`, with the frost unchanged in both — one identity, two
   palettes.
 - **Enter/exit animation** — enter: **yes**, `popover-in` bound to
-  `.is-open.is-positioned` so it replays on every open, with
-  `prefers-reduced-motion` honoured. Exit: **no**, and this is recorded as a
-  `DESIGN-12` deviation below rather than as an exception. It is not the
-  "nothing to animate" case `DESIGN-11` allows; there is a surface, it is
-  visible, and it vanishes in one frame.
+  `.is-open[data-dryl-positioned]` so it replays on every open. Exit: **yes**,
+  `presence-out-fade` bound to the same selector plus `.is-exiting`, which is
+  what restarts an animation on a node that has already played one. Both run
+  `--dur-fast` with `--ease-out` and both are suppressed under
+  `prefers-reduced-motion: reduce`. The exit reuses the library's existing
+  keyframe rather than adding a popover-specific one (`DESIGN-13`); the decision
+  to bind it here, and to treat that binding as extending the primitive rather
+  than as a one-off, is recorded in `I4`. `DESIGN-12` is satisfied without
+  `DrylPresence`, which was tried, measured and rejected — it animates inside
+  the surface, leaving the surface itself standing at full opacity.
 - **Keyboard and a11y** — the "Keyboard and accessibility" and "The trigger's
   ARIA claim" criteria above: `PanelRole` and `PanelAriaLabel` on the panel, the
   additive per-attribute claim of `aria-haspopup` and `aria-expanded` on the
@@ -476,23 +549,18 @@ against what a consumer would reasonably expect. Each entry is already written
 into the criteria above as behaviour rather than hidden; they are collected here
 so the file is not mistaken for a finished job.
 
-- **No exit animation (`DESIGN-12`).** The panel body sits behind a bare
-  `@if (Open)` with no `DrylPresence`, and the visibility gate drops in the same
-  render. Measured on `/components/popover`, sampling computed style per frame
-  around an outside-click close: `.is-open` and the panel content go together in
-  one frame, `.is-positioned` and the return to the anchor follow in the next,
-  and the panel's opacity never leaves `1` — no `*-out` animation runs at any
-  point. The obvious repair does not work and was built and measured rather than
-  argued: `DrylPresence` around the panel *content* animates inside the surface,
-  leaving a fully opaque, empty glass box standing for roughly 115 ms before it
-  jumps away — worse than the jump. It also puts a generic element between a
-  container role and its owned elements, which breaks `menu`/`menuitem` and
-  `listbox`/`option`, and it breaks an existing test, because library code
-  relies on the content being gone the moment `Open` is `false`. Only an exit on
-  the **surface itself** can look right, and both routes to that are a new
-  animation needing maintainer sign-off (`DESIGN-13`, `CLAUDE.md` stage 1). The
-  decision is open and is held in
-  [`../../ideas/I4 An exit animation for the popover surface.md`](../../ideas/I4%20An%20exit%20animation%20for%20the%20popover%20surface.md).
+- **The content outlives `Open` by the length of the exit.** This is the price
+  of `DESIGN-12` being satisfied at all, and it is a real one: `Open` is the
+  public state, and for one `--dur-fast` after it reads `false` the panel is
+  still mounted, still under `<body>` and still painted. Nothing in the public
+  API surfaces that window — a consumer who inspects the DOM straight after a
+  close, or who counts rendered children, sees a popover that has not closed
+  yet. The mitigations are named in the criteria above (no pointer events while
+  exiting, a 400 ms watchdog, re-open cancels the exit), and `OnClose` and the
+  bound `Open` both fire on the request rather than on the animation, so nothing
+  a consumer *subscribes* to is delayed. But the shape is a genuine deviation
+  from what "closed" reads like, and it is written here rather than left for
+  someone to find in a debugger.
 - **`Escape` is inert for a popover nobody focused into.** `CloseOnEscape`
   defaults to `true` and reads as a promise, but the handler is on the panel.
   Measured: focus on the trigger, `Escape`, panel still open. A direct consumer
@@ -542,16 +610,18 @@ nothing here is owed against a harness rule.
   token expresses either, so this breaks no rule — it is named here rather than
   counted as a violation, in the same spirit as `F3 DrylSplitButton`'s zero
   radii.
-- **No tests of its own.** `tests/DRYL.Components.Tests/` holds no
-  `DrylPopoverTests`. The component is touched by exactly one test that names
-  it — the anchor's class merge in `ClassMergeTests` — and otherwise only
-  through `DrylSplitButtonTests`, which asserts the arguments reaching
+- **Most of this file has no regression net.** `DrylPopoverTests` now exists,
+  and covers exactly one thing: the exit lifecycle, which is C#'s and is visible
+  in the rendered markup — the classes, the content that outlives `Open`, the
+  watchdog, the cancelled re-open, and `OnClose` firing on the request rather
+  than on the animation. Everything else in this file — the portal, the
+  placement, the dismissal, the focus behaviour, the trigger's ARIA claim —
+  still rests on reading the code and on measurement in a browser, because bUnit
+  executes no `dryl.js` and manages no real focus. Tests that claimed otherwise
+  would be lying, which is why there are none. Beyond the exit suite the
+  component is touched by the anchor's class merge in `ClassMergeTests` and by
+  `DrylSplitButtonTests`, which asserts the arguments reaching
   `dryl.popover.claimTrigger` and `dryl.popover.open` from a composed menu.
-  Everything in this file about the portal, placement, dismissal, focus and ARIA
-  rests on reading the code and on measurement in a browser, because bUnit
-  executes no `dryl.js` and manages no real focus. A test suite that claimed
-  otherwise would be lying, which is why there is none — but it does mean the
-  behaviour has no regression net.
 - **A trigger node replaced under a live popover keeps no ARIA until the next
   open.** The claim runs at first render and again on open; a node swapped in
   between carries neither attribute. No library component produces this today,
