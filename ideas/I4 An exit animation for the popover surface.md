@@ -59,17 +59,26 @@ Useful for that decision: `.popover-panel*` is referenced **nowhere** outside
 `DrylPopover.razor.css` (only in `obj/` artefacts). The blast radius of touching
 the surface is smaller than its comments suggest.
 
-## Documentation that does not hold
+## Documentation around this, and what is actually wrong with it
 
-Found while measuring, both worth correcting whenever those files are next
-touched:
+Found while measuring. The two kinds are worth keeping apart, because they need
+different treatment — a false comment is corrected, a misleading one is a
+decision someone wrote down as a virtue.
 
-- `DrylPopover.razor.css` claims dropping `.is-open` hides the panel
-  "atomically … so no empty surface box ever flashes". That is a description of
-  the very behaviour `DESIGN-12` forbids, written as if it were a virtue.
-- The `dryl.popover` module comment claims a placeholder comment node is left
-  behind when portalling. `open()` does no such thing — it is
-  `document.body.appendChild`, and `close()` is `anchor.appendChild`.
+**Misleading but true.** `DrylPopover.razor.css` claims dropping `.is-open`
+hides the panel "atomically … so no empty surface box ever flashes". Re-measured
+per frame: it is accurate, both come out of the same render. It presents the
+`DESIGN-12` violation as a feature — the flash it prevents is real, and the exit
+animation it prevents is the point of this idea.
+
+**False.** The `dryl.popover` module comment claims a placeholder comment node
+is left behind when portalling. `open()` does no such thing — it is
+`document.body.appendChild`, and `close()` is `anchor.appendChild`.
+
+Two more of the same family are recorded in
+[`../specs/E11 Surfaces/F1 DrylPopover.md`](../specs/E11%20Surfaces/F1%20DrylPopover.md):
+`position: fixed` attributed to JS when it is the stylesheet's own, and
+`OnOpen`/`OnClose` documented as firing "after" when both fire before the render.
 
 ## What the maintainer is asked to decide
 

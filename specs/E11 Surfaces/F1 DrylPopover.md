@@ -109,23 +109,43 @@ two claims are separate: measured on `/components/menu`, it keeps its own
 `aria-haspopup="dialog"` untouched while its `aria-expanded` is claimed and
 driven by the popover.
 
-Two doc comments in this component's own files do **not** hold, and are named
-here rather than quoted as evidence anywhere below:
+**Four doc comments around this component mislead, and one of them is simply
+false.** They are named here rather than quoted as evidence anywhere below,
+because a reader of this spec will otherwise meet them in the source and believe
+them. The distinction between the two kinds is kept, since it decides what to do
+with each: a false comment is corrected, a misleading one is usually a decision
+that was written down as a virtue.
+
+**False.** The `dryl.popover` module comment says `open()` "drops a comment
+placeholder at the panel's original slot". It does not: `open` is
+`document.body.appendChild(panel)`, `close` is `anchor.appendChild(s.panel)`
+with the panel restored as the anchor's last child, and nothing in the module
+creates a placeholder node of any kind.
+
+**Misleading but true.**
 
 - `DrylPopover.razor.css` says that dropping `.is-open` hides the panel
   "atomically with the content removal, so no empty surface box ever flashes".
-  That is a description of the `DESIGN-12` violation recorded under
-  **Deviations**, written as if it were a virtue.
-- The `dryl.popover` module comment says `open()` "drops a comment placeholder
-  at the panel's original slot". It does not: `open` is
-  `document.body.appendChild(panel)` and `close` is `anchor.appendChild(s.panel)`
-  with the panel restored as the anchor's last child. Nothing in the module
-  creates a placeholder node.
+  That is accurate — both come out of the same render, and per-frame sampling
+  never catches an empty surface — but it presents the `DESIGN-12` violation
+  recorded below as a virtue. The flash it prevents is real; the exit animation
+  it prevents is the point.
+- The same comment says the panel is "positioned with `position: fixed` by
+  `dryl.popover` (JS)". The `position: fixed` declaration is the stylesheet's
+  own, in the `.popover-panel` rule directly beneath the comment; what JS
+  supplies is `top`, `left` and, under `MatchTriggerWidth`, `width`. The
+  escape from an ancestor's containing block is therefore CSS's doing, not the
+  portal's.
+- `OnOpen` is documented as "Fires after the panel opens" and `OnClose` as
+  "Fires after the panel closes". Both are invoked from `SetOpenAsync`, which
+  runs **before** the render that opens or closes anything and long before
+  `dryl.popover.open` has portalled, placed or revealed the panel. A consumer
+  who reads "after" and focuses something in `OnOpen` walks straight into the
+  hidden-panel no-op this whole component is shaped around. The `## Public API`
+  table above says "when the open state becomes `true`" for that reason.
 
-Both were found by measurement and both are recorded in
-[`../../ideas/I4 An exit animation for the popover surface.md`](../../ideas/I4%20An%20exit%20animation%20for%20the%20popover%20surface.md);
-they are repeated here because a reader of this spec will otherwise meet them in
-the source and believe them.
+The false comment and the first misleading one are also recorded in
+[`../../ideas/I4 An exit animation for the popover surface.md`](../../ideas/I4%20An%20exit%20animation%20for%20the%20popover%20surface.md).
 
 ## Public API
 
