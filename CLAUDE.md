@@ -39,19 +39,25 @@ files per task, exact commands, a verification step per task, and one commit
 per task. A task is the smallest unit that carries its own verification.
 
 **4. Implementation**
-Work the plan task by task. For multi-task plans, dispatch **one fresh
-subagent per task**:
+Work the plan task by task. Use the main agent by default and delegate
+selectively when a task benefits from isolated context, independent reasoning,
+or can be implemented as a clearly bounded unit.
 
-- Hand the subagent only its own task, the interfaces it touches, and the
-  binding constraints — never the whole plan and never the session's history.
-- Never run two implementation subagents in parallel on the same branch.
-- After each task, a **separate** reviewer checks two things: does it match
-  the spec, and is it good work. The implementer's own self-review never
-  replaces this.
-- Track progress in a file, not only in your head. A lost controller
-  re-running finished tasks is the most expensive failure mode there is.
-- Findings go back to the implementer that wrote the code. Never fix them in
-  the coordinating session — those fixes skip review.
+- Do not dispatch a subagent mechanically for every task. Small, tightly
+  coupled, or context-heavy changes should stay with the main agent.
+- Implementation subagents are encouraged for self-contained tasks with clear
+  boundaries, acceptance criteria, and interfaces.
+- Give subagents the task, relevant interfaces, acceptance criteria, and
+  binding constraints. Avoid unnecessary session history or unrelated plan
+  details.
+- Do not run multiple implementation agents against overlapping code on the
+  same working tree. Parallelize only genuinely independent work.
+- Use independent review for non-trivial, risky, or architecturally relevant
+  changes. Trivial or mechanical changes do not require a separate reviewer.
+- Prefer sending review findings back to the agent that implemented the change
+  when substantial rework is required.
+- Track progress externally for longer multi-step plans so completed work is
+  not accidentally repeated.
 
 **5. Verification, then the claim** — in that order
 Never report work as done, fixed or passing before running the commands that
@@ -85,7 +91,7 @@ Spec `State` updated, `CHANGELOG.md` entry written, `<Version>` bumped,
 | AI behaviour | [`harness/ai.md`](harness/ai.md) |
 | Version, changelog, release | [`harness/releasing.md`](harness/releasing.md) |
 | Component anatomy | [`harness/patterns.md`](harness/patterns.md) |
-| Public API naming (1.0 freeze) | [`harness/conventions.md`](harness/conventions.md) |
+| Public API naming | [`harness/conventions.md`](harness/conventions.md) |
 | Consumer theming | [`harness/theming.md`](harness/theming.md) |
 
 Every rule has a stable ID. Cite it when you flag a violation.
