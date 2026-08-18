@@ -1,7 +1,10 @@
 # Two loose ends from the quiet Primary
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** `specs/E2 Actions/F1 DrylButton.md` (A) ·
+  `specs/E14 Agent Canvas/F1 DrylCanvasDock.md` (B, new) ·
+  `specs/E14 Agent Canvas/_Api.md` (`DockCorner`)
 
 ## Problem
 
@@ -194,6 +197,11 @@ the spec sooner.
   `DrylCanvasDock` alone under `specs/E14 Agent Canvas/`, not the whole category.
   Reason: the by-eye finding justifies pulling that one component forward; the
   rest of `E14` has no such reason and stays on phase C's schedule.
+
+- 2026-08-18: Both parts were carried into specs and implemented on
+  `idea/i7-primary-loose-ends` — **A** in `2.24.1`, **B** in Agents `0.17.5`
+  under the same unpublished core version. The document is `Adopted` and is not
+  changed further.
 
 ## Open Points
 
