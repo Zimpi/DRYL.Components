@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.24.1] — 2026-08-18
+
+### Fixed
+- `DrylButton`'s toggle state is now relative to the variant it sits on, instead of one treatment overwriting every variant's own. `.btn--active` set `border-color` and replaced `box-shadow` wholesale at a specificity every variant rule ties, so it won against all of them: a toggled `ButtonVariant.Primary` gained a flat accent ring inside its gradient hairline and a resting glow the variant deliberately has none of, making switched-on louder than the untoggled action beside it; a toggled `ButtonVariant.Bold` *lost* its accent glow and inset highlight and read quieter than an untoggled one; and a toggled `ButtonVariant.Danger` was ringed and glowed in the accent color, overwriting the one thing that variant signals. The base treatment is unchanged for `ButtonVariant.Secondary` and `ButtonVariant.Ghost`, the two variants it was written for. `ButtonVariant.Primary` now marks its on-state by keeping the accent tint that hover brings, with no ring and no glow, and still moves on hover; `ButtonVariant.Bold` keeps its own glow and adds an inset `--on-accent-line` ring; `ButtonVariant.Danger` uses the same shape as the base treatment drawn from `--danger`. All three are gated behind `:not(:disabled)`, so a disabled button stays stripped of its glow.
+
 ## [2.24.0] — 2026-08-17
 
 ### Added

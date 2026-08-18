@@ -788,11 +788,74 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 /* Pressed / toggled state — driven by DrylButton's Pressed parameter
-   (aria-pressed="true"). Accent border + glow, like a secondary on. */
+   (aria-pressed="true"). The on-state is relative to the variant it sits on: one
+   step above that variant's rest, never above its own hover. The rule below is
+   that step for the variants that carry no accent at rest — Secondary and Ghost —
+   and reads like a secondary switched on. The three variants that do carry
+   something at rest override it, because this rule replaces box-shadow wholesale
+   and would otherwise invert their loudness.
+
+   The overrides are gated behind :not(:disabled) rather than ordered around
+   .btn:disabled, so the disabled rule keeps stripping the glow from its own,
+   lower specificity. Each carries a :hover companion: a bare .btn-x.btn--active
+   ties with .btn-x:hover and, sitting later, would freeze the hover it ties. */
 .btn--active {
   border-color: var(--accent-line);
   box-shadow: 0 0 0 1px var(--accent-line), 0 0 20px color-mix(in srgb, var(--accent-a) 18%, transparent);
   color: var(--fg);
+}
+
+/* Primary already draws a gradient hairline and carries no resting glow on
+   purpose. The rule above would add a flat ring inside that hairline and a glow
+   the variant spent its whole budget avoiding, leaving the switched-on state
+   louder than the action beside it. On means instead that the hover tint has
+   washed in and stayed — below hover's strength, so engagement still has
+   somewhere to go. */
+.btn-primary.btn--active:not(:disabled) {
+  border-color: transparent;
+  box-shadow: none;
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-a) 16%, transparent),
+    color-mix(in srgb, var(--accent-b) 13%, transparent));
+}
+.btn-primary.btn--active:not(:disabled):hover {
+  background-image: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-a) 26%, transparent),
+    color-mix(in srgb, var(--accent-b) 22%, transparent));
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--accent-a) 28%, transparent);
+}
+
+/* Bold is already the loudest surface the library has. The rule above would trade
+   its four-layer glow for a thin accent ring and leave a toggled Bold quieter
+   than an untoggled one. It keeps its own glow and marks on with an inset ring,
+   so the state reads as pressed in rather than lit up. The resting inset
+   highlight goes: a 2px ring covers the 1px line it would draw. */
+.btn-bold.btn--active:not(:disabled) {
+  border-color: var(--on-accent-line);
+  box-shadow:
+    inset 0 0 0 2px var(--on-accent-line),
+    0 6px 24px color-mix(in srgb, var(--accent-a) 35%, transparent),
+    0 0 48px color-mix(in srgb, var(--accent-b) 18%, transparent);
+}
+.btn-bold.btn--active:not(:disabled):hover {
+  box-shadow:
+    inset 0 0 0 2px var(--on-accent-line),
+    0 10px 36px color-mix(in srgb, var(--accent-a) 50%, transparent),
+    0 0 64px color-mix(in srgb, var(--accent-b) 28%, transparent);
+}
+
+/* Danger's colour is the one thing a toggle may not overwrite: the rule above
+   rings it in --accent-line and reads as an accent switch on a destructive
+   action. Same shape, drawn from --danger. */
+.btn-danger.btn--active:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 55%, transparent),
+              0 0 20px color-mix(in srgb, var(--danger) 22%, transparent);
+  color: var(--danger-fg);
+}
+.btn-danger.btn--active:not(:disabled):hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 55%, transparent),
+              0 0 28px color-mix(in srgb, var(--danger) 32%, transparent);
 }
 
 /* Disabled — must read clearly as inert across every variant: dimmed, flat,

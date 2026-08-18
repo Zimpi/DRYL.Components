@@ -1,7 +1,7 @@
 # Two loose ends from the quiet Primary
 
 ## Meta
-- **State:** Draft
+- **State:** Ready
 
 ## Problem
 
@@ -41,6 +41,27 @@ the library today uses `Ghost` or `Secondary` —
 `Primary`. The defect is latent and reachable only by a consumer who toggles a
 Primary, which is why it is an idea rather than a hotfix.
 
+#### What the code review on 2026-08-18 added
+
+The defect is wider than `Primary`. `.btn--active` sits *after* every variant
+rule in `dryl.css` and ties their specificity, and it does not add to
+`box-shadow` — it replaces it. So it wins against all of them, and against the
+two other variants that carry something at rest it is wrong in two further ways:
+
+- **`ButtonVariant.Bold`** loses its four-layer accent glow *and* its inset
+  `--on-accent-hi` highlight, keeping only the thin `--accent-line` ring. A
+  toggled-on Bold is therefore **quieter** than an untoggled one — the same
+  inversion as `Primary`, running the other way.
+- **`ButtonVariant.Danger`** is ringed and glowed in `--accent-*` and loses its
+  danger shadow, so the toggle overwrites the one thing the variant exists to
+  signal. A destructive mode switch — "delete mode on" — is an ordinary
+  consumer pattern, not an edge case.
+
+That changes what the three options are worth. Option 3 would have to declare
+`Pressed` unsupported on three of five variants, which makes the trap larger
+rather than removing it, and the defect is no longer only reachable through a
+combination nobody would build.
+
 ### B — `DrylCanvasDock`'s floating action button may want `Bold`
 
 `I6`'s call-site sweep found exactly one genuine `Bold` candidate among the
@@ -56,11 +77,31 @@ writing code for a component whose spec has not been read, and a spec that does
 not exist cannot be read. Changing the FAB's appearance would be exactly the drift
 that rule exists to prevent.
 
-Two things make the current state defensible rather than merely rule-abiding: the
-FAB carries `Ai="@DockAi"`, so in an AI state its edge is the aura's rather than
-the variant's; and it sits inside a `DrylTooltip`, so its affordance does not rest
-on fill alone. Whether that is enough has not been judged by eye against a real
-application background — only against the docs site.
+Two things made the current state look defensible rather than merely rule-abiding:
+the FAB carries `Ai="@DockAi"`, so in an AI state its edge is the aura's rather
+than the variant's; and it sits inside a `DrylTooltip`, so its affordance does not
+rest on fill alone. Both were arguments from the docs site, never from a real
+application background.
+
+#### What the by-eye check on 2026-08-18 found
+
+`DRYL.Portfolio` embeds `DrylCanvasDock` at `/admin/assistant` and references this
+repository by project, so it renders the library's own CSS. The collapsed FAB was
+photographed there in both modes —
+`docs/screenshots/2026-08-18-canvas-dock-fab-dark.png` and
+`…-fab-light.png`.
+
+**It reads weak, and in light mode it reads very weak.** In dark it is a dark pill
+with a thin accent hairline in the corner: visible, but it reads as a small icon
+button rather than as the way into the assistant — the sidebar's own
+"KI-Assistent" nav item carries more presence than the entry point does. In light
+it is a white pill with a pale hairline on a near-white ground, and on a wide
+viewport it has to be looked for.
+
+Neither defence survives that. The tooltip presupposes the button has already been
+found, and the AI aura only speaks while the AI is working — at rest, which is
+exactly when the affordance is needed, it contributes nothing. `Bold` is the right
+variant here: the FAB is the hero of its corner and nothing competes with it.
 
 ## Solution Idea
 
@@ -109,16 +150,17 @@ the spec sooner.
 
 ## Impact
 
-- **Harness:** no blocker expected for **A** — `--accent-line`, `--accent-a` and
-  the tint tokens all exist in both LIGHT-TOKEN-SET copies, and no new duration or
-  easing is needed for a state change that already animates. **B** needs no token
-  at all; its cost is spec work, not design work. To be confirmed once a shape is
-  chosen, not assumed here.
+- **Harness:** no blocker, confirmed on 2026-08-18 against the chosen shape.
+  **A** uses `--accent-line`, `--accent-a`, `--accent-b`, `--on-accent-line`,
+  `--danger` and `--danger-fg` only, all present in both LIGHT-TOKEN-SET copies,
+  and `.btn`'s existing transition already carries `background`, `border-color`
+  and `box-shadow`, so no duration or easing is added. **B** needs no token at
+  all; its cost is spec work, not design work.
 - **Specs:** `specs/E2 Actions/F1 DrylButton.md` for **A**, whose "Toggle state",
   "Appearance" and "Motion" criteria all describe `.btn--active`; it returns to
-  `State: Modified` on any change. For **B**, a component spec under
-  `specs/E14 Agent Canvas/` that does not exist yet — the category currently
-  carries companion files only.
+  `State: Modified` on any change. For **B**, a new component spec
+  `specs/E14 Agent Canvas/F1 DrylCanvasDock.md` — the category carries companion
+  files only today, and this idea adds exactly that one component, not the rest.
 - **Public API:** none expected. **A** is appearance behind an existing parameter;
   **B** is a call site inside a component. Option 3 for **A** would change no code
   at all, only what the spec promises.
@@ -137,14 +179,22 @@ the spec sooner.
   that does not exist. Fixing either quietly during an implementation would have
   skipped exactly the process this repository runs on.
 
+- 2026-08-18: **A** takes shape 1, **variant-relative**. Reason: the review that
+  day showed the modifier also breaks `Bold` and `Danger`, which turns "quieter
+  everywhere" into a fix for one third of the defect and "declared unsupported"
+  into a promise that excludes most of the enum. Only a treatment defined against
+  the variant it sits on restores the ordering everywhere.
+- 2026-08-18: **A** is implemented now rather than parked as a spec change.
+  Reason: with `Danger` involved the combination is one a consumer would
+  plausibly build, so the defect is no longer purely latent.
+- 2026-08-18: **B** was judged by eye in `DRYL.Portfolio` before any spec work, so
+  the spec would be written for a confirmed need rather than a suspected one. The
+  FAB reads weak in both modes and clearly weak in light.
+- 2026-08-18: `SPEC-01` is satisfied for **B** by writing a component spec for
+  `DrylCanvasDock` alone under `specs/E14 Agent Canvas/`, not the whole category.
+  Reason: the by-eye finding justifies pulling that one component forward; the
+  rest of `E14` has no such reason and stays on phase C's schedule.
+
 ## Open Points
 
-- Which of the three shapes **A** takes — variant-relative, quieter everywhere, or
-  declared unsupported. The dialogue has not happened yet; the three are laid out
-  to be argued, not chosen in advance.
-- Whether **A** is worth doing at all now, given no `Pressed` call site in the
-  library uses `Primary` and the defect is only reachable by a consumer.
-- For **B**, whether `E14 Agent Canvas` gets its specs as part of this work or
-  whether the FAB waits for phase C to reach that category on its own schedule.
-- Whether the FAB actually reads weak. It has been seen only against the docs
-  site's ground, never against a real application background.
+- None.
