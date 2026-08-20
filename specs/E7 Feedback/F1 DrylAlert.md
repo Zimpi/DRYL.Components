@@ -46,10 +46,12 @@ The component is also the fallback surface of
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the alert's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the alert root. |
 
-`Dismissible` and `OnDismiss` are separate on purpose: the button appears
-because the alert is dismissible, not because someone is listening. An alert
-with `Dismissible` and no handler is a valid, if inert, configuration — see the
-recorded gap below.
+`Dismissible` and `OnDismiss` are separate on purpose, and which of them is set
+decides **who owns the alert's lifetime**. With a handler, the host owns it:
+dismissing is a request, and the host answers it by unmounting the alert. With
+no handler, nobody is listening, so the alert answers the press itself and
+animates away. The button is therefore never inert, and an alert that worked
+before behaves exactly as it did.
 
 ## Acceptance Criteria
 
@@ -86,11 +88,18 @@ recorded gap below.
 ### Dismissal
 
 - The dismiss button is rendered only when `Dismissible` is `true`.
-- Activating the dismiss button raises `OnDismiss`.
-- Activating the dismiss button when no handler is attached does nothing and
-  throws nothing.
-- The component never removes itself from the DOM: unmounting the alert is the
-  host's decision, taken in response to `OnDismiss`.
+- Activating the dismiss button raises `OnDismiss` when a handler is attached.
+- With a handler attached the component does not remove itself: unmounting the
+  alert is the host's decision, taken in response to `OnDismiss`.
+- With no handler attached the component dismisses itself, so the button is
+  never a control that does nothing.
+- A self-dismissing alert animates out rather than disappearing instantly
+  (`DESIGN-12`).
+- Setting `Dismissible` to `false` restores a self-dismissed alert, so a host
+  without a handler can still bring it back without remounting it.
+- The extra wrapper element the self-dismissing configuration needs is present
+  only in that configuration, so an alert with a handler and a non-dismissible
+  alert render exactly the markup they did before.
 - The dismiss button is a `type="button"`, so an alert inside a form cannot
   submit it.
 - A dismissible alert reserves the space its button occupies, so adding
@@ -136,6 +145,8 @@ recorded gap below.
 - The alert has no mount animation of its own: it is an in-flow element the host
   places, and a host that wants it to animate in wraps it in `DrylPresence`
   (`DESIGN-12`).
+- A self-dismissing alert fades out over the shared presence vocabulary rather
+  than a treatment of its own (`DESIGN-13`).
 - Under `prefers-reduced-motion: reduce` the alert remains fully legible and
   fully dismissible.
 
@@ -158,16 +169,19 @@ recorded gap below.
 
 ## Recorded gaps
 
-- **`Dismissible` without `OnDismiss` is inert.** The button renders, is
-  focusable and is announced, and pressing it does nothing visible. The
-  component cannot fix this alone — it does not own its own mounting — but a
-  consumer meets a control that lies about being actionable.
 - **The dismiss button's label is fixed English** (`"Dismiss notification"`),
   with no parameter to change it. Every other string on the component comes from
   the consumer.
-- **No tests of its own.** `DrylAlert` is covered by one assertion in
-  `tests/DRYL.Components.Tests/ClassMergeTests.cs` — that a splatted `class`
-  merges — and by nothing else. None of the criteria above is guarded by a test.
+- **Most of its criteria are unguarded.** Tested today, in
+  `tests/DRYL.Components.Tests/DrylAlertTests.cs`: both halves of the dismissal
+  contract, the wrapper's absence in the other two configurations, the
+  role/`aria-live` split by `Kind` and the empty-string icon; plus the class
+  merge in `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The title and body
+  slots, the icon resolution per `Kind` and the whole AI section are not.
+- **The self-dismissal completes outside bUnit's reach.** The removal finishes
+  when the presence exit animation ends, which is driven by JS, so the test
+  suite can only assert that the alert began to leave. That it actually goes was
+  measured in the browser instead.
 - **Literal type sizes and paddings.** The alert's font sizes, the icon chip's
   dimensions and the banner's padding are literals in
   `code/DRYL.Components/wwwroot/dryl.css`. `DESIGN-01` covers colors, radii,
@@ -184,10 +198,12 @@ recorded gap below.
   `node scripts/validate-light-contrast.mjs`. The glass fill, the frost and the
   semantic chips are the mode-dependent tokens; the component defines no
   mode-specific rule.
-- **Enter/exit animation** — none of its own, and that is the written exception
-  `DESIGN-11` allows: an in-flow banner is mounted and unmounted by its host,
-  which wraps it in `DrylPresence` when it should animate. The component's own
-  motion is the dismiss button's hover transition and the AI aura.
+- **Enter/exit animation** — no enter animation of its own, and that is the
+  written exception `DESIGN-11` allows: an in-flow banner is mounted by its host,
+  which wraps it in `DrylPresence` when it should animate in. The one unmount the
+  component owns — a dismissal nobody is listening to — does animate out, through
+  `DrylPresence` and the shared presence vocabulary. Its other motion is the
+  dismiss button's hover transition and the AI aura.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   role/`aria-live` split by `Kind` is the substantive decision: only a failure
   or a warning interrupts.
