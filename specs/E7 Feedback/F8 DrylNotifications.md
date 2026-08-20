@@ -82,8 +82,8 @@ no `Ai` of its own.
 - Controlled mode does not resolve the service at all.
 - Service-driven mode mutates the service and raises none of the four
   state-changing callbacks.
-- Controlled mode raises the callbacks and mutates nothing but the row's own
-  read flag.
+- Controlled mode raises the callbacks and mutates nothing at all, so the list a
+  consumer passed in is never written to by the component.
 - The mode is decided per render from `Items`, so a consumer cannot end up in
   both.
 
@@ -134,10 +134,14 @@ no `Ai` of its own.
 
 ### Actions
 
-- Activating a row marks it read when it was unread.
+- Activating an unread row in service-driven mode marks it read in the service.
+- Activating an unread row in controlled mode raises `OnMarkRead` with that row
+  and leaves its read state to the consumer.
+- Activating a row that is already read raises neither `OnMarkRead` nor a
+  service call.
 - Activating a row raises `OnItemClick` whether or not it was already read.
-- Activating a row marks it read before `OnItemClick` is raised, so a handler
-  sees the new state.
+- Activating a row settles the read state before `OnItemClick` is raised, so a
+  handler runs after the mode's own bookkeeping.
 - Activating "Mark all read" marks every entry read.
 - Activating a row's dismiss control removes that entry.
 - Activating "Clear all" removes every entry.
@@ -159,8 +163,10 @@ no `Ai` of its own.
 - Each dismiss control carries an accessible label naming the entry it
   dismisses, so a screen-reader user is not offered a list of identical
   "Dismiss" buttons.
-- The unread dot carries a text alternative, so the read state is not conveyed
-  by color alone.
+- An unread row carries the word "Unread" as visually-hidden text inside its own
+  button, so the read state is part of the row's accessible name rather than
+  being conveyed by color alone.
+- The unread dot is decorative, so the state is announced once and not twice.
 - Every control in the panel shows a visible focus indicator under
   `:focus-visible`.
 - `Escape` and the outside click that close the panel are the popover's (`F1` in
@@ -223,16 +229,6 @@ no `Ai` of its own.
   driven by a re-anchoring tick the shared helper supplies; the per-row aura
   markup is hand-written and carries no such tick, so a `Generated` row shows
   the aura state without the wash that announces it elsewhere.
-- **In controlled mode the component writes to the consumer's object.**
-  Activating an unread row sets `Read` on the supplied `DrylNotification` before
-  raising `OnMarkRead`. A controlled component that mutates its input is a
-  surprise, and a consumer holding an immutable snapshot will find it changed
-  under them.
-- **The unread dot's text alternative may not be announced.** It is an
-  `aria-label` on a plain `span` with no role, and a generic element without one
-  is not reliably named by assistive technology. The read state is inside the
-  row's button, so a screen-reader user may hear the title and the time but not
-  that the entry is unread (`UX-05`).
 - **The relative time never re-renders on its own.** "just now" stays "just now"
   until something else causes a render; there is no timer.
 - **The relative time is computed from local now against the entry's own
@@ -251,8 +247,11 @@ no `Ai` of its own.
 - **The list has no virtualisation.** Every entry the service holds is rendered,
   and the service never trims: a long-lived circuit that pushes on every agent
   completion grows the inbox without bound.
-- **No tests of its own.** None of the criteria above is guarded by a test —
-  including the two-mode split, which is the component's central claim.
+- **Most of its criteria are unguarded.** Tested today, in
+  `tests/DRYL.Components.Tests/DrylNotificationsTests.cs`: the two-mode split for
+  a row click, the empty inbox without a registered service, and the unread
+  state's text alternative. The bell's badge, the panel's header actions, the
+  relative time and the per-entry aura are not.
 
 ## Cross-cutting evidence (`SPEC-05`)
 

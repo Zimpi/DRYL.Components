@@ -97,7 +97,11 @@
                                     </span>
                                     @if (!item.Read)
                                     {
-                                        <span class="notif-item-dot" aria-label="Unread"></span>
+                                        @* The dot is decorative; the state belongs in the row's own
+                                           accessible name. aria-label on a role-less span is not
+                                           reliably announced, so the word is real text instead. *@
+                                        <span class="notif-item-dot" aria-hidden="true"></span>
+                                        <span class="visually-hidden">Unread</span>
                                     }
                                 </button>
                                 <button type="button"
@@ -214,8 +218,11 @@
     {
         if (!n.Read)
         {
+            // Service-driven: the service *is* the state, so mark it there. Controlled: the
+            // caller owns the list, and a controlled component that writes to its own input
+            // is a surprise — raise the callback and let them decide.
             if (_service is not null) _service.MarkRead(n.Id);
-            else { n.Read = true; await OnMarkRead.InvokeAsync(n); }
+            else await OnMarkRead.InvokeAsync(n);
         }
         await OnItemClick.InvokeAsync(n);
     }
