@@ -114,25 +114,46 @@ under any option.
 
 ## Scope
 
-- **In scope:** to be settled once the option is chosen.
-- **Out of scope (proposed):** streamed AI content inside the tooltip bubble;
-  making the bubble hoverable or persistent; a second implementation of the aura
-  vocabulary in JavaScript.
+Settled on 2026-08-20: **Option A only.** The idea is now exactly "`DrylTooltip`
+gains `Ai` and `Aura`, and says who wrote the words".
+
+- **In scope:**
+  - `Ai` and `Aura` parameters on `DrylTooltip`, with the same types and
+    defaults every other AI-capable component uses.
+  - The living aura on the **trigger wrapper**, which is real per-instance DOM
+    and therefore uses the shared vocabulary unchanged.
+  - A **static provenance mark** on the bubble — the sparkle glyph and an
+    accent-tinted border — driven by a data attribute the shared bubble picks up
+    from the trigger that currently owns it.
+  - Clearing that attribute on hide, so no tooltip inherits the previous one's
+    provenance.
+- **Out of scope:**
+  - AI-generated explanation *content* in the tooltip bubble, streamed or
+    otherwise. The bubble stays a label.
+  - Making the bubble hoverable, persistent, selectable or announced.
+  - A second implementation of the aura vocabulary in JavaScript.
+  - The explanation surface (Option B). Not rejected — deferred, and its shape
+    is already decided for whenever it is raised: **its own component**, not a
+    mode of `DrylPopover`, so a primitive is not loaded up with subject matter
+    it deliberately has none of. That will be its own idea document.
 
 ## Impact
 
-*(Tech Lead, `IDEA-05`. Written for Options A and B separately, because they
-have almost nothing in common.)*
+*(Tech Lead, `IDEA-05`. Option B's rows are kept for whenever it is raised, but
+only Option A is in scope.)*
 
 ### Harness
 
 - **Option A:** no new token, no new animation, no new `AiState`, no new
-  dependency. The static provenance mark would reuse `--accent-line`,
-  `--accent-soft` and the existing sparkle icon. **No blocker.** One judgment
-  call remains for the maintainer: whether a surface carrying a *reduced* AI
-  treatment is acceptable under `AI-02`'s "one shared visual vocabulary", or
-  whether that makes the vocabulary two things. That is an `AI-04`-shaped
-  question even though no new visual is invented.
+  dependency. The static provenance mark reuses `--accent-line`, `--accent-soft`
+  and the existing sparkle icon. **No blocker.** The one judgment call it did
+  raise — whether a surface carrying a *reduced* AI treatment is acceptable
+  under `AI-02`'s "one shared visual vocabulary", or whether that makes the
+  vocabulary two things — was put to the maintainer as an `AI-04`-shaped
+  question even though no new visual is invented, and **signed off on
+  2026-08-20**: the mark is acceptable precisely because it is not a second
+  vocabulary but a smaller statement in the same one, and because the
+  alternative would have put the real vocabulary in a second implementation.
 - **Option B:** no new token or animation expected; it composes `DrylPopover`,
   `DrylMarkdown` and the existing aura. **No blocker expected**, to be
   re-checked once its behaviour is concrete.
@@ -175,17 +196,21 @@ have almost nothing in common.)*
 
 ## Decisions
 
-- 2026-08-20 (Tech Lead, pending Product Owner): the idea is **not** nodded
-  through as "add `Ai` to `DrylTooltip`". The use case that motivates it and the
-  consistency gap it names are two different things and are separated above.
+- 2026-08-20 (Tech Lead): the idea is **not** nodded through as "add `Ai` to
+  `DrylTooltip`". The use case that motivates it and the consistency gap it
+  names are two different things and are separated above.
+- 2026-08-20 (Product Owner): **Option A only.** `DrylTooltip` gets `Ai` and
+  `Aura`; the explanation surface is not built now. The consistency gap is worth
+  closing on its own, and the use case can wait for a surface built for it.
+- 2026-08-20 (Product Owner): **the static provenance mark is enough.** The
+  bubble marks who wrote the words; it does not carry the living aura. The
+  JS-side reimplementation the alternative would need is refused, so the aura
+  vocabulary stays in exactly one place (`AI-02`, `DESIGN-13`).
+- 2026-08-20 (Product Owner): **if the explanation surface is ever built, it is
+  its own component**, not a mode of `DrylPopover`. Recorded here so the
+  decision is not re-litigated when it is raised.
 
 ## Open Points
 
-1. Which of the two halves is actually wanted — the provenance mark on the
-   tooltip, the explanation surface, or both?
-2. If `DrylTooltip` gets `Ai`: is a **static** provenance mark on the bubble
-   acceptable, given that `Ai` means a living aura on every other component?
-   The alternative is a JS-side reimplementation of the aura for the shared
-   bubble, which the Tech Lead recommends against.
-3. If an explanation surface is wanted: is it a new component, or an
-   `Ai`-carrying mode of `DrylPopover`?
+*(none — awaiting the Product Owner's explicit confirmation of this final
+version, the last box of `IDEA-06`, before the state moves to `Ready`.)*
