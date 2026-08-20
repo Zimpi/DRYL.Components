@@ -115,3 +115,49 @@ DrylPopover.md`), it has been read, and the fix lives entirely inside it. No
 understood. 2 next, because a stale test runner makes every later verification
 less trustworthy. 3 and 4 are hygiene and can be cut without loss if the session
 ends early.
+
+---
+
+## Outcome, 2026-08-20
+
+All four tasks done. Six commits on `fix/loose-ends-after-i7`, one on
+`docs/split-button-loose-ends` in `DRYL.Website`.
+
+| Task | Commit | Version |
+|---|---|---|
+| 1 — the portal carries scroll state | `1f4a9f8` | core `2.24.2` |
+| 2a — bunit 2.9.0, Test.Sdk 18.9.0 | `3fd7d7b` | none (`REL-03`) |
+| 2b — xunit.runner.visualstudio 4.0.0 | `39b5194` | none (`REL-03`) |
+| 2c — Microsoft.Agents.AI 1.18.0 | `54f2cce` | Agents `0.17.6` |
+| 3 — one suite-wide wait timeout | `e875c6f` | none (`REL-03`) |
+| 4 — the two website findings | `b42302c` (website) | none |
+
+**Task 3 took a different shape than planned.** The plan said "give every call
+an explicit timeout" — 88 call sites, many of them multi-line, edited textually.
+bUnit exposes `BunitContext.DefaultWaitTimeout` as a settable static, so the
+same result is one module initializer: the value is a property of the machine
+the suite runs on rather than of any single assertion, and a number repeated 95
+times only invites drift. Measured 4 s before and 4 s after, over three full
+runs — a raised ceiling is only ever spent by a test that was going to fail.
+
+**Task 4 grew by one item.** The `Variants` example and its description still
+described the world before `I6`: the copy read "Primary and Danger work too",
+written when `Primary` was the filled treatment, and `Bold` was missing from the
+one example whose job is to show the variants. Corrected with the rest.
+
+### Evidence
+
+`dotnet build DRYL.slnx -c Release` clean · `dotnet test` **1066 green** ·
+`check-light-sync`, `validate-light-contrast`, `check-harness-links`,
+`check-motion-tokens` all OK · coverage unchanged at `15/127` (no component
+gained or lost a spec) · `DRYL.Website` 36 tests green · both colour modes
+checked by eye, screenshots under `docs/screenshots/2026-08-20-*`.
+
+### One thing seen and not fixed
+
+`DrylAiStreamTests.Direct_mode_renders_each_chunk_as_it_arrives` failed once
+during this session and passed in the three full runs after it, and in
+isolation. It carries its own explicit 10-second timeouts, so the suite-wide
+default of task 3 does not touch it and did not cause this — the file's own
+comments already describe this area as flaky under load. It is a pre-existing
+race, it is worth a ticket, and it is not this branch's to fix.
