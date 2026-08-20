@@ -120,19 +120,31 @@ enough to absorb the accent hairline that `I6` spent a whole idea on.
 
 ## Impact
 
-- **Harness:** one blocker, and it is smaller than it first looks.
-  `CODE-03` forbids external **runtime** dependencies — "zero npm packages, zero
-  JS frameworks", with `Markdig` as the single approved exception — and its
-  documented check is `rg -n '<PackageReference' code/*/*.csproj`, which is
-  scoped to the two **shipped** projects and does not read `tests/`. The tool
-  for this is `Microsoft.Playwright`, a .NET NuGet under `Microsoft.*` — the two
-  properties the rule's own exception bar asks for ("a .NET NuGet only, never
-  npm/JS"). It ships to no consumer and appears in no `.nupkg`.
-  **Nevertheless `IDEA-05` requires this to be signed off explicitly, not
-  reasoned around, and it is Open Point 1.** Two real costs come with it: the
-  package downloads browser binaries (~150 MB) on first use, which is a CI
-  minute and a cache entry, and `dotnet test` would no longer be self-contained
-  on a fresh machine. No new token, no new animation, no new `AiState`.
+- **Harness: no blocker, on a closer reading of the rule than this document
+  first gave it.** `CODE-03` is about what the library *ships*: "zero external
+  **runtime** dependencies", `Markdig` as the one approved exception, and a
+  documented check of `rg -n '<PackageReference' code/*/*.csproj` that is
+  scoped to the two shipped projects and does not read `tests/` at all. A
+  test-time NuGet is outside its subject. The first draft of this section
+  called it a blocker anyway, by applying `IDEA-05`'s "new runtime dependency"
+  more widely than either rule says — that was caution wearing a rule's
+  clothes, and it is corrected here rather than left to be discovered.
+  <br><br>
+  What is real is a **build decision**, and it is smaller and more concrete:
+  `Microsoft.Playwright` downloads browser binaries (~150 MB) on first use, and
+  without them the tests **fail** rather than skip. If the screenshot suite
+  joined `tests/DRYL.Components.Tests`, then `dotnet test DRYL.slnx` — the
+  command `CLAUDE.md` stage 5 names as the evidence bar, and the command CI
+  runs — would stop being self-contained on a fresh clone, and every
+  contributor would pay that for a one-line change.
+  <br><br>
+  **So it does not join it.** The suite becomes its own project, deliberately
+  **not** listed in `DRYL.slnx` (which holds exactly three today: the two
+  libraries and the test project), driven by its own CI job. Then the evidence
+  bar is untouched, `CODE-03`'s check is untouched, nothing reaches a `.nupkg`,
+  and the whole cost is one CI job that pulls a browser. No new token, no new
+  animation, no new `AiState`, and nothing for a maintainer to sign off that a
+  build layout does not already answer.
 - **Specs:** none is contradicted, and one is directly served —
   `specs/E11 Surfaces/F1 DrylPopover.md` names this feature by description as the
   route that would cover its untestable ground. If this lands, that recorded gap
@@ -188,17 +200,24 @@ components before knowing whether the approach survives the glass problem at all
 - 2026-08-20: Raised as an idea rather than started as work, per `IDEA-01`. It
   is a new capability, it is not specified anywhere, and it carries a `CODE-03`
   question that `IDEA-05` says belongs in this dialogue and not in a commit.
+- 2026-08-20: The `CODE-03` question was raised by the Tech Lead and then
+  withdrawn by it, after the Product Owner pointed out that Playwright is
+  already driving this UI daily. The distinction that survives: the MCP server
+  lives in an agent's harness and leaves no trace in the repository, while a
+  `<PackageReference>` binds every clone and every CI run. The distinction that
+  did **not** survive: that this is a `CODE-03` matter at all. Recorded because
+  a withdrawn blocker is worth as much to a later reader as an approved one.
 - 2026-08-20: Chosen from the backlog over three alternatives (phase C specs,
   `DrylAiScope` cascading, the a11y audit) by the Product Owner, on the argument
   that three findings in one session rested on unrepeatable manual measurement.
 
 ## Open Points
 
-1. **`CODE-03` sign-off.** `Microsoft.Playwright` in `tests/` — a `Microsoft.*`
-   .NET NuGet, outside the rule's documented check, shipped to no consumer, and
-   costing a ~150 MB browser download in CI plus a `dotnet test` that no longer
-   runs offline out of the box. Approved, approved with conditions, or refused?
-   Everything else here depends on this answer.
+1. ~~**`CODE-03` sign-off.**~~ **Closed on 2026-08-20** — see `## Impact`. The
+   rule does not reach a test-time NuGet, and the real question underneath it
+   (may `dotnet test` require a browser?) is answered by keeping the suite out
+   of `DRYL.slnx` rather than by an exception. Confirmation that this is the
+   wanted resolution is still the Product Owner's, but nothing else waits on it.
 2. **Which shape** — 1, 2 or 3 above. Equivalently: *should a merge to `main`
    here be blockable by a screenshot diff?* Given that such a merge publishes to
    NuGet, my answer is yes, but it makes the net load-bearing on release day and
