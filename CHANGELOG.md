@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.24.3] — 2026-08-20
+
+### Fixed
+- `DrylProgress` — **the value announced to a screen reader is now the value the bar actually draws.** The fill was clamped into the track and `aria-valuenow` was not, so the two halves of the same component disagreed whenever `Value` fell outside `0..Max`: `Value="120" Max="100"` drew a full bar and reported "120 of 100", and a negative value drew an empty bar and reported the negative number. The half a sighted user cannot check was the wrong one. The fill width, the percentage label and the reported value are now all derived from one clamped number, so a bar cannot show one thing and say another. No API change; a bar whose `Value` was always in range renders and reports exactly as before.
+
 ## [2.24.2] — 2026-08-20
 
 ### Changed

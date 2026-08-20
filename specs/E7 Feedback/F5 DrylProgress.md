@@ -118,8 +118,14 @@ both, or neither.
 - The track carries `role="progressbar"`.
 - The track carries a minimum of zero.
 - The track carries `Max` as its maximum, formatted with the invariant culture.
-- A determinate bar carries `Value` as its current value, formatted with the
-  invariant culture.
+- A determinate bar carries the value it draws as its current value, formatted
+  with the invariant culture.
+- A `Value` above `Max` is reported as `Max`, so the bar never announces more
+  than the scale it was given.
+- A `Value` below zero is reported as zero.
+- The reported value, the rendered percentage and the fill's width are derived
+  from the same clamped number, so what is drawn and what is announced cannot
+  disagree.
 - An indeterminate bar carries no current value, so assistive technology
   announces it as busy rather than as a number.
 - The track carries `AriaLabel` as its accessible label.
@@ -182,10 +188,6 @@ both, or neither.
   announced as a progress bar with a number and no subject. Every other
   indicator in this category falls back to a state-aware label; this one does
   not.
-- **The ARIA value is not clamped.** The fill is clamped into 0…100 %, but the
-  reported current value is `Value` as given. A `Value` of 120 against a `Max`
-  of 100 shows a full bar and tells a screen reader "120 of 100" — the two
-  halves of the criterion "a value above `Max` renders as full" disagree.
 - **The percentage is not announced as it changes.** The label row carries no
   live region, so a screen-reader user hears the value only when they navigate
   to the bar. `role="progressbar"` covers the value; the visible text is
@@ -198,10 +200,12 @@ both, or neither.
 - **The label row's type sizes are literals** in the same file.
 - **The indeterminate sweep's width and travel are literals**, so its rhythm
   cannot be retuned from a token.
-- **Only two of its criteria are guarded by tests**: the invariant-culture fill
-  width in `tests/DRYL.Components.Tests/GlobalizationTests.cs`, and the class
-  merge in `tests/DRYL.Components.Tests/ClassMergeTests.cs`. Nothing else above
-  is covered.
+- **Most of its criteria are unguarded.** Tested today: the reported value and
+  its clamping in `tests/DRYL.Components.Tests/DrylProgressTests.cs`, the
+  invariant-culture fill width in
+  `tests/DRYL.Components.Tests/GlobalizationTests.cs`, and the class merge in
+  `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The label row, the variants,
+  the sizes and the indeterminate rendering are not.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -216,8 +220,9 @@ both, or neither.
   in-flow indicator its host mounts; a host that wants it to appear gradually
   wraps it in `DrylPresence`.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above,
-  including the deliberate absence of an ARIA value while indeterminate. The
-  missing default label is recorded as a gap rather than glossed.
+  including the deliberate absence of an ARIA value while indeterminate, and
+  the clamp that keeps the announced value equal to the drawn one. The missing
+  default label is recorded as a gap rather than glossed.
 - **AI mode** — yes. A progress bar is the natural place to show a model's
   long-running work, and the aura is hosted outside the clipping track so it is
   actually visible there.
