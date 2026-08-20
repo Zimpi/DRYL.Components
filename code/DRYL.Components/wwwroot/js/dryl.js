@@ -579,6 +579,42 @@ window.dryl.popover = (() => {
     const EDGE = 4;   // min viewport inset when clamping
     const state = new WeakMap(); // anchor -> { panel, onScroll, onResize, onDocClick, trigger }
 
+    // Re-inserting a node into the DOM resets scrollTop/scrollLeft on it and on
+    // every scrollable descendant. So a portal built out of appendChild alone
+    // does not move the panel — it moves the panel minus whatever scroll
+    // position its content was holding, and says nothing about having done so.
+    //
+    // Measured on 2026-08-20 at /components/timepicker: DrylTimePicker scrolls
+    // its hour and minute columns to the selected value from its own
+    // OnAfterRenderAsync, which runs before ours, so the scroll lands while the
+    // panel is still under the anchor. It succeeded — the columns went to 310
+    // and 854 — and then open()'s appendChild put both back to 0, so a picker
+    // bound to 14:30 opened showing 00 / 00 with the value it holds two hundred
+    // pixels out of sight. Note what this is NOT: the panel is hidden at that
+    // moment, and hidden was the cause of the sibling focus bug, but a hidden
+    // element keeps its layout box and scrollIntoView works on it perfectly
+    // well. Nothing was ineffective here; the portal threw the result away.
+    //
+    // Carrying the state across the move fixes the class rather than the call
+    // site, which is why it lives here and not in a second parked-callback
+    // channel next to __drylPendingFocus: that mechanism exists because focus()
+    // genuinely cannot work before the reveal, and none of that applies to a
+    // scroll that already worked.
+    function moveKeepingScroll(panel, move) {
+        const carried = [];
+        for (const el of [panel, ...panel.querySelectorAll('*')]) {
+            // Reading is the cheapest scrollable test there is, and a zero is
+            // not worth carrying — restoring it would be a no-op on a node the
+            // move already zeroed.
+            if (el.scrollTop || el.scrollLeft) carried.push([el, el.scrollTop, el.scrollLeft]);
+        }
+        move();
+        for (const [el, top, left] of carried) {
+            el.scrollTop = top;
+            el.scrollLeft = left;
+        }
+    }
+
     /* Trigger ARIA state ------------------------------------------------
      * A trigger that opens a panel must announce it (aria-haspopup) and
      * report whether it is open (aria-expanded). Components that build their
@@ -734,7 +770,7 @@ window.dryl.popover = (() => {
         // A focus that was already inside the panel is not a return address.
         const returnFocus = (focused && focused !== document.body && !refocus) ? focused : null;
 
-        document.body.appendChild(panel);
+        moveKeepingScroll(panel, () => document.body.appendChild(panel));
 
         const reposition = () => place(anchor, panel, placement, matchWidth);
         reposition();
@@ -878,7 +914,11 @@ window.dryl.popover = (() => {
         s.panel.style.top = '';
         s.panel.style.left = '';
         s.panel.style.width = '';
-        anchor.appendChild(s.panel);
+        // Symmetric with open() on purpose: this move resets the content's
+        // scroll just as thoroughly, and a popover whose content the user
+        // scrolled and then closed should re-open where they left it rather
+        // than at the top. See moveKeepingScroll.
+        moveKeepingScroll(s.panel, () => anchor.appendChild(s.panel));
 
         state.delete(anchor);
     }
