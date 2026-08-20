@@ -16,6 +16,9 @@ Version bump guide:
 
 ## [2.24.2] — 2026-08-20
 
+### Changed
+- `DRYL.Components.Agents` (Agents 0.17.6) — Minimum `Microsoft.Agents.AI` raised from 1.15.0 to 1.18.0. No API of this package changes; consumers pinned to 1.15.x need to move up with it.
+
 ### Fixed
 - `DrylPopover` — **The portal no longer discards the scroll position of the content it moves.** Re-inserting a node into the DOM resets `scrollTop` and `scrollLeft` on that node and on every scrollable element inside it, and the portal was two bare `appendChild` calls — so it did not move the panel, it moved the panel minus whatever scroll its content was holding, and said nothing about having done so. The visible symptom was in `DrylTimePicker`: a picker bound to `14:30` opened showing `00` / `00`, with the value it actually holds two hundred pixels out of sight in a column the user then had to scroll by hand. It was not that the scroll failed — measured, it ran while the panel was still under its anchor and put the columns exactly where they belonged, and the `appendChild` that followed put them back to zero. Both moves now carry the scroll state across, on open and on close alike, so a popover whose content you scrolled also re-opens where you left it rather than at the top. This is fixed in the primitive, so every panel built on it is covered: any component that scrolls popover content before the panel is portalled had the same defect waiting. No API change.
 
