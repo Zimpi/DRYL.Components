@@ -12,4 +12,19 @@ component (`SPEC-03`).*
 
 ## Shared types
 
-*(phase C)*
+### `DockCorner`
+
+Which corner of the viewport `DrylCanvasDock` floats in. Source:
+`code/DRYL.Components.Agents/Canvas/DockCorner.cs`.
+
+| Member | Meaning |
+|---|---|
+| `BottomRight` | Bottom right — the default resting place for a command bar. |
+| `BottomLeft` | Bottom left. |
+| `TopRight` | Top right. |
+| `TopLeft` | Top left. |
+
+`BottomRight` is first and is therefore the enum's default value; the member
+order is bound by the 1.0 freeze.
+
+*The remaining shared types of this category are filled in during phase C.*

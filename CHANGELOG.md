@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [2.24.1] — 2026-08-18
+
+### Changed
+- `DrylCanvasDock` (Agents 0.17.5) — The collapsed dock's floating button is now `ButtonVariant.Bold` instead of `ButtonVariant.Primary`. Seen against a real application background rather than the docs site, the quiet variant did not read as an entry point: in dark mode a dark pill with a hairline that reads as a minor icon button, in light mode a white pill with a pale hairline on a near-white page that has to be looked for. Neither of the two things that made the quiet variant defensible holds at rest — the tooltip presupposes the button has been found, and the AI aura only speaks while the AI is working. A floating entry point with nothing competing against it is the hero case `Bold` exists for.
+
+### Fixed
+- `DrylButton`'s toggle state is now relative to the variant it sits on, instead of one treatment overwriting every variant's own. `.btn--active` set `border-color` and replaced `box-shadow` wholesale at a specificity every variant rule ties, so it won against all of them: a toggled `ButtonVariant.Primary` gained a flat accent ring inside its gradient hairline and a resting glow the variant deliberately has none of, making switched-on louder than the untoggled action beside it; a toggled `ButtonVariant.Bold` *lost* its accent glow and inset highlight and read quieter than an untoggled one; and a toggled `ButtonVariant.Danger` was ringed and glowed in the accent color, overwriting the one thing that variant signals. The base treatment is unchanged for `ButtonVariant.Secondary` and `ButtonVariant.Ghost`, the two variants it was written for. `ButtonVariant.Primary` now marks its on-state by keeping the accent tint that hover brings, with no ring and no glow, and still moves on hover; `ButtonVariant.Bold` keeps its own glow and adds an inset `--on-accent-line` ring; `ButtonVariant.Danger` uses the same shape as the base treatment drawn from `--danger`. All three are gated behind `:not(:disabled)`, so a disabled button stays stripped of its glow.
+
 ## [2.24.0] — 2026-08-17
 
 ### Added

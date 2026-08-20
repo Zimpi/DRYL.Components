@@ -175,9 +175,24 @@ icon-only mode is entered by omitting `ChildContent`.
 - The button carries the active modifier class exactly while `Pressed` is `true`.
 - The component never changes `Pressed` itself: the toggle is controlled by the
   consumer through `OnClick`.
-- The active modifier stays distinguishable from `ButtonVariant.Primary` at rest:
-  the modifier draws a flat `--accent-line` ring and a resting glow, where
-  `ButtonVariant.Primary` draws a gradient hairline and no resting glow.
+- The active modifier is relative to the variant it sits on: it lifts that
+  variant one step above its own rest and never above that variant's hover, so
+  the switched-on state is never louder than the action it belongs to.
+- On the variants that carry no accent at rest — `ButtonVariant.Secondary` and
+  `ButtonVariant.Ghost` — the modifier draws a flat `--accent-line` ring and a
+  glow, so a toggled one reads like a secondary that is switched on.
+- On `ButtonVariant.Primary` the modifier draws no ring and no glow: the accent
+  tint that hover brings washes in and stays, below hover's own strength. The
+  variant's gradient hairline is therefore the only edge, never a flat ring
+  inside it, and hovering a toggled-on `ButtonVariant.Primary` still moves.
+- On `ButtonVariant.Bold` the modifier keeps the variant's own accent glow and
+  marks the on-state with an inset `--on-accent-line` ring, so a toggled-on Bold
+  is never quieter than an untoggled one.
+- On `ButtonVariant.Danger` the modifier is drawn from `--danger` rather than
+  from `--accent-a`, so switching a destructive action on never restates it in
+  the accent color.
+- A disabled button is not given any of the variant-relative treatments, so
+  `Pressed` never reintroduces a glow the disabled rule has stripped.
 
 ### Class merging
 
@@ -375,9 +390,16 @@ icon-only mode is entered by omitting `ChildContent`.
 - The corner radius is `--r-md`.
 - `ButtonSize.Small` overrides that radius with `--r-sm`.
 - The hover sheen derives from `--shimmer`.
-- The active modifier carries an `--accent-line` border.
-- The active modifier carries a glow derived from `--accent-a`, so a toggled-on
-  button reads like a secondary that is switched on.
+- The active modifier carries an `--accent-line` border on the variants that
+  carry no accent at rest.
+- The active modifier carries a glow derived from `--accent-a` on those same
+  variants, so a toggled-on button reads like a secondary that is switched on.
+- The active modifier on `ButtonVariant.Primary` carries neither, and instead
+  raises the variant's own accent tint.
+- The active modifier on `ButtonVariant.Bold` carries an inset `--on-accent-line`
+  ring over the variant's own glow.
+- The active modifier on `ButtonVariant.Danger` carries a `--danger` ring and a
+  `--danger` glow.
 - A disabled button is dimmed.
 - A disabled button is desaturated.
 - A disabled button is stripped of its glow, so it reads as inert in every variant.
@@ -398,9 +420,10 @@ icon-only mode is entered by omitting `ChildContent`.
   Of those it governs, the button writes as literals: its `padding` (base and both
   size overrides) and **every shadow it has** — `ButtonVariant.Bold`'s four-layer
   `box-shadow` and the heavier hover variant, `ButtonVariant.Primary`'s hover glow,
-  the secondary's hover glow, the danger variant's hover glow and the active
-  modifier's ring-plus-glow are all literal offsets, blur radii and spreads, with
-  only their colors tokenised. The shadows are the largest untokenised group in the
+  the secondary's hover glow, the danger variant's hover glow and every shadow the
+  active modifier writes — the base ring-plus-glow and the three variant-relative
+  overrides, each with a hover companion — are all literal offsets, blur radii and
+  spreads, with only their colors tokenised. The shadows are the largest untokenised group in the
   component and are not covered by any token today. The proportions inside the
   `color-mix` calls — the hairline's, the tint's and every glow's — are literals of
   the same kind: they are part of a color expression whose inputs are tokens but
@@ -433,7 +456,10 @@ icon-only mode is entered by omitting `ChildContent`.
   its label moves from `--on-accent` on a saturated fill to `--fg` on `--glass-2`,
   which is a translucent white in *both* modes and therefore a much lighter ground
   in light mode than in dark. `node scripts/validate-light-contrast.mjs` is the
-  gate for it, together with `node scripts/check-light-sync.mjs`.
+  gate for it, together with `node scripts/check-light-sync.mjs`. The toggled
+  state of all five variants was photographed in both modes on 2026-08-18 —
+  `docs/screenshots/2026-08-18-button-toggle-dark.png` and
+  `…-button-toggle-light.png`.
 - **Enter/exit animation** — none of its own, and the exception is written out
   under "Motion" above on the terms `DESIGN-11` sets. The AI aura does animate out,
   through the lifecycle the component composes (`DESIGN-12`).
