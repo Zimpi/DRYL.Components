@@ -5,7 +5,7 @@
 - **Source:** code/DRYL.Components/Components/Surfaces/DrylPopover.razor
               code/DRYL.Components/Components/Surfaces/DrylPopover.razor.css
               code/DRYL.Components/Components/Surfaces/PopoverPlacement.cs
-              code/DRYL.Components/wwwroot/js/dryl.js (the `dryl.popover` module)
+              code/DRYL.Components/wwwroot/js/dryl.js
 
 ## User Story
 

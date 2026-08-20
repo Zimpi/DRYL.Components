@@ -22,47 +22,70 @@
     • Dismissible shows a dismiss button; OnDismiss delivers the callback.
     ───────────────────────────────────────────────────────── *@
 
-<div class="@CssClass"
-     role="@AriaRole"
-     aria-live="@AriaLive"
-     @attributes="AdditionalAttributes">
+@*  Who owns the alert's lifetime decides how it is rendered.
 
-    @* AI aura overlays — mounted while the aura is present (live or fading out) *@
-    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+    With an OnDismiss handler attached, the host owns it: the alert is rendered
+    plainly, exactly as it always has been, and dismissing is a request the host
+    answers by unmounting (and animating that itself).
 
-    @* Icon-Chip *@
-    @if (!string.IsNullOrEmpty(ResolvedIcon))
-    {
-        <div class="ico" aria-hidden="true">
-            <DrylIcon Name="@ResolvedIcon" Size="14" />
-        </div>
-    }
-
-    @* Text area: title + body *@
-    <div class="alert-content">
-        @if (!string.IsNullOrEmpty(Title))
-        {
-            <div class="title">@Title</div>
-        }
-        @if (ChildContent is not null)
-        {
-            <div class="body">@ChildContent</div>
-        }
-    </div>
-
-    @* Optional dismiss button *@
-    @if (Dismissible)
-    {
-        <button class="alert-dismiss"
-                type="button"
-                aria-label="Dismiss notification"
-                @onclick="HandleDismiss">
-            <DrylIcon Name="X" Size="14" />
-        </button>
-    }
-</div>
+    With no handler, nobody is listening and the button would otherwise be inert,
+    so the alert dismisses itself — and something that unmounts conditionally
+    animates out rather than blinking away (DESIGN-12). The DrylPresence wrapper
+    exists only in that configuration, so no alert that worked before gains an
+    element around it.
+*@
+@if (SelfDismisses)
+{
+    <DrylPresence Visible="!_selfDismissed" Transition="PresenceTransition.Fade">
+        @Surface
+    </DrylPresence>
+}
+else
+{
+    @Surface
+}
 
 @code {
+    private RenderFragment Surface => @<div class="@CssClass"
+         role="@AriaRole"
+         aria-live="@AriaLive"
+         @attributes="AdditionalAttributes">
+
+        @* AI aura overlays — mounted while the aura is present (live or fading out) *@
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+
+        @* Icon-Chip *@
+        @if (!string.IsNullOrEmpty(ResolvedIcon))
+        {
+            <div class="ico" aria-hidden="true">
+                <DrylIcon Name="@ResolvedIcon" Size="14" />
+            </div>
+        }
+
+        @* Text area: title + body *@
+        <div class="alert-content">
+            @if (!string.IsNullOrEmpty(Title))
+            {
+                <div class="title">@Title</div>
+            }
+            @if (ChildContent is not null)
+            {
+                <div class="body">@ChildContent</div>
+            }
+        </div>
+
+        @* Optional dismiss button *@
+        @if (Dismissible)
+        {
+            <button class="alert-dismiss"
+                    type="button"
+                    aria-label="Dismiss notification"
+                    @onclick="HandleDismiss">
+                <DrylIcon Name="X" Size="14" />
+            </button>
+        }
+    </div>;
+
     /// <summary>Semantic variant — drives the icon and the accent colour.</summary>
     [Parameter] public AlertKind Kind { get; set; } = AlertKind.Info;
 
@@ -102,6 +125,13 @@
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
+    private bool _selfDismissed;
+
+    /// <summary>
+    /// True when the alert offers a dismiss button that nobody is listening to, and
+    /// therefore has to answer it itself.
+    /// </summary>
+    private bool SelfDismisses => Dismissible && !OnDismiss.HasDelegate;
 
     protected override void OnParametersSet()
     {
@@ -110,6 +140,10 @@
             _genTick++;
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+
+        // Turning Dismissible off and on again brings a self-dismissed alert back, so a
+        // host that never had a handler still has a way to show it without remounting.
+        if (!Dismissible) _selfDismissed = false;
     }
 
     public void Dispose() => _aura.Dispose();
@@ -162,7 +196,13 @@
     private async Task HandleDismiss()
     {
         if (OnDismiss.HasDelegate)
+        {
             await OnDismiss.InvokeAsync();
+            return;
+        }
+
+        // Nobody is listening. The button still has to do the obvious thing.
+        _selfDismissed = true;
     }
 
     /// <summary>Semantic variant of the alert.</summary>

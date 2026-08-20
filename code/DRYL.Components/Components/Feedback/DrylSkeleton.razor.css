@@ -155,11 +155,19 @@
     to   { opacity: 0; }
 }
 
-/* ─── Reduced motion ────────────────────────────────────────── */
+/* ─── Reduced motion ────────────────────────────────────────────
+   The sliding strip is switched off for every .skel by the primitive in
+   dryl.css, so nothing here needs to slow it down — the rules below only
+   have to make sure the states that spoke *through* the strip still speak.
+   Streaming is the one that does: its whole signal was the violet-cyan
+   sweep, and with the sweep gone the block itself carries the colour. */
 @media (prefers-reduced-motion: reduce) {
-    .skel-wrap.ai-aura.ai-thinking .skel::before  { animation-duration: 1.4s; }
-    .skel-wrap.ai-aura.ai-streaming .skel::before { animation-duration: 1.4s; }
+    .skel-wrap.ai-aura.ai-streaming .skel {
+        background: linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--ai-a) 10%, transparent) 0%,
+            color-mix(in srgb, var(--ai-b) 16%, transparent) 100%
+        );
+    }
     .skel-wrap.ai-aura.ai-generated .skel { animation: none; opacity: 0.25; }
-    .skel-text-block     .skel::before,
-    .skel-card-header-text .skel::before          { animation-delay: 0s; }
 }

@@ -109,19 +109,24 @@
 
     public void Dispose() => _aura.Dispose();
 
+    // The value the bar actually draws. Everything the component reports — the fill
+    // width, the percentage and aria-valuenow — is derived from this one number, so a
+    // Value outside 0..Max cannot make the drawn bar and the announced value disagree.
+    private double ClampedValue => Max <= 0 ? 0 : Math.Clamp(Value, 0, Max);
+
     private double Percent
     {
         get
         {
             if (Max <= 0) return 0;
-            return Math.Clamp(Value / Max * 100, 0, 100);
+            return ClampedValue / Max * 100;
         }
     }
 
     private string PctText => FormattableString.Invariant($"{Percent:0}%");
 
     private string? AriaValueNow =>
-        Indeterminate ? null : Value.ToString(CultureInfo.InvariantCulture);
+        Indeterminate ? null : ClampedValue.ToString(CultureInfo.InvariantCulture);
 
     private string? BarStyle =>
         Indeterminate ? null : FormattableString.Invariant($"width: {Percent:0.##}%");
