@@ -5,6 +5,7 @@
 - **Source:** code/DRYL.Components/Components/Surfaces/DrylPopover.razor
               code/DRYL.Components/Components/Surfaces/DrylPopover.razor.css
               code/DRYL.Components/Components/Surfaces/PopoverPlacement.cs
+              code/DRYL.Components/wwwroot/js/dryl.js (the `dryl.popover` module)
 
 ## User Story
 
@@ -332,6 +333,10 @@ no way to ask the panel to keep focus.
 
 - The panel node is moved to `<body>` while the popover is open.
 - The panel node is returned to its anchor when the popover closes.
+- The move to `<body>` preserves the scroll position of the panel and of every
+  scrollable element inside it.
+- The move back to the anchor preserves the same scroll positions, so content
+  the user scrolled is where they left it when the popover is opened again.
 - The panel is positioned relative to the viewport while portalled, so no
   ancestor's `overflow`, `transform` or `backdrop-filter` can clip or re-anchor
   it.
@@ -600,6 +605,38 @@ no way to ask the panel to keep focus.
   category `Surfaces`, `ClassName` `"DrylPopover"`, AI flag `false`. Checked in
   the file, so the component reaches the sidebar, the Ctrl+K search and the
   `/components` overview under its own name (`REL-04`).
+- **The portal carries scroll state** — the two criteria under **The portal**
+  about scroll positions were added on 2026-08-20 for a defect that was
+  attributed to `DrylTimePicker` and belongs here. `moveKeepingScroll` in the
+  `dryl.popover` module records `scrollTop`/`scrollLeft` for the panel and every
+  scrollable descendant, performs the `appendChild`, and writes them back;
+  both moves go through it. Measured at `/components/timepicker` on the example
+  bound to `14:30`, in both colour modes:
+
+  | | hour column | minute column |
+  |---|---|---|
+  | selected cell sits at | `offsetTop` 490 | `offsetTop` 1034 |
+  | before, on open | `scrollTop` 0 — out of sight | `scrollTop` 0 — out of sight |
+  | after, on open | `scrollTop` 310 — in view | `scrollTop` 854 — in view |
+
+  Two things were ruled out before the fix was written, because both were the
+  obvious answer and both are wrong. It is **not** the hidden panel that the
+  sibling focus bug turned on: called by hand against a panel holding `.is-open`
+  without `data-dryl-positioned`, `visibility: hidden` confirmed by
+  `getComputedStyle`, the scroll landed at 310/854 exactly as it does when
+  visible — a hidden element keeps its layout box, and `scrollIntoView` works on
+  it. And the scroll was never ineffective: hooking the module's entry points
+  showed `scrollToActive` running against the panel while its parent was still
+  the anchor `div` and succeeding, then `focusPanel` running against the same
+  panel with parent `body` and both columns back at 0. The `appendChild` between
+  them is what discarded it. Re-opening the popover, and a picker with no value
+  set, were measured too, and `DrylMenu`, `DrylDatePicker` and `DrylMultiSelect`
+  were opened, scrolled and closed afterwards with nothing stranded under
+  `<body>`.
+
+  **No colour mode dimension.** The change is in the interop module and adds no
+  declaration, so `DESIGN-02` has nothing to branch on; both modes were measured
+  anyway and agree to the pixel.
 
 ## Recorded debt (`State: Implemented`)
 
@@ -669,6 +706,15 @@ nothing here is owed against a harness rule.
   component is touched by the anchor's class merge in `ClassMergeTests` and by
   `DrylSplitButtonTests`, which asserts the arguments reaching
   `dryl.popover.claimTrigger` and `dryl.popover.open` from a composed menu.
+- **The scroll the portal carries has no automated test either, and cannot have
+  one here.** The two criteria added on 2026-08-20 live entirely in
+  `moveKeepingScroll`, and the only thing that can observe them is a real layout
+  engine: bUnit runs no `dryl.js`, and a DOM to run it against would be a new
+  runtime dependency, which `CODE-03` does not allow for this. So it rests on the
+  browser measurement recorded above, in the same position as the portal and the
+  placement beside it. A visual-regression harness against the running site —
+  already on the backlog for other reasons — is the route that would cover all
+  three at once.
 - **A trigger node replaced under a live popover keeps no ARIA until the next
   open.** The claim runs at first render and again on open; a node swapped in
   between carries neither attribute. No library component produces this today,

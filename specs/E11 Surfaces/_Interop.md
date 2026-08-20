@@ -24,8 +24,8 @@ attaches `window.dryl`, and the component calls into it by name.
 | Entry point | Called from | Does |
 |---|---|---|
 | `dryl.popover.claimTrigger(anchor, role, open)` | `OnAfterRenderAsync` on the **first render only**, and only when `PanelRole` is set | Writes `aria-haspopup` and `aria-expanded` on the trigger, each only where absent, marking each claim on the node. |
-| `dryl.popover.open(anchor, panel, dotnetRef, opts)` | `OnAfterRenderAsync`, when the rendered state is open and the portal is not yet up | Moves the panel to `<body>`, positions it, reveals it, applies a pending focus request, registers the scroll, resize and outside-press listeners, and re-claims the trigger with `aria-expanded="true"`. |
-| `dryl.popover.close(anchor)` | `OnAfterRenderAsync` when the rendered state is closed, and from `DisposeAsync` | Removes those three listeners, sets a claimed `aria-expanded` back to `false`, drops an unapplied focus request, clears the inline placement styles and `is-positioned`, and returns the panel node to its anchor. |
+| `dryl.popover.open(anchor, panel, dotnetRef, opts)` | `OnAfterRenderAsync`, when the rendered state is open and the portal is not yet up | Moves the panel to `<body>` carrying its content's scroll positions across the move, positions it, reveals it, applies a pending focus request, registers the scroll, resize and outside-press listeners, and re-claims the trigger with `aria-expanded="true"`. |
+| `dryl.popover.close(anchor)` | `OnAfterRenderAsync` when the rendered state is closed, and from `DisposeAsync` | Removes those three listeners, sets a claimed `aria-expanded` back to `false`, drops an unapplied focus request, clears the inline placement styles and `data-dryl-positioned`, and returns the panel node to its anchor, again carrying its content's scroll positions across the move. |
 
 `opts` carries `placement`, `matchWidth`, `closeOnOutside` and `role`.
 
