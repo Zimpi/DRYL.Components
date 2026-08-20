@@ -3550,6 +3550,21 @@ td.tbl-td-editing select {
   animation: skel 1.4s var(--ease-in-out) infinite;
 }
 @keyframes skel { 0% { translate: -80% 0; } 100% { translate: 0 0; } }
+/* A placeholder is usually most of the screen while a page loads, so the one
+   thing on it that never stops moving is the one that matters most here. With
+   motion reduced the sliding strip is not painted at all and the block rests as
+   a flat token surface; it still reads as "content is coming", without the
+   sweep (UX-06). Components that recolor the strip restore their signal as a
+   static tint instead — see DrylSkeleton's streaming state. */
+@media (prefers-reduced-motion: reduce) {
+  .skel::before { display: none; }
+  /* Resting on --glass-3 rather than --glass-1: that is the bright midpoint the
+     sweep passes through, so a still block is as legible as a moving one was at
+     its clearest, instead of sitting at the dim end of its own range. It is the
+     difference between reading as a placeholder and reading as nothing in light
+     mode, where --glass-1 is near-white on a near-white page. */
+  .skel { background: var(--glass-3); }
+}
 
 /* Spinner */
 .spinner {

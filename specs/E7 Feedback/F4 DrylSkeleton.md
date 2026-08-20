@@ -132,8 +132,13 @@ consumer's, not the library's.
   while continuous motion is free of it (`DESIGN-10`).
 - Wherever an easing is applied, it is an easing token rather than a bare
   keyword.
-- Under `prefers-reduced-motion: reduce` the staggered offsets are dropped, so
-  every bar shimmers in phase and nothing chases anything.
+- Under `prefers-reduced-motion: reduce` the shimmer does not run at all: the
+  sliding strip is not painted, and the blocks rest as flat surfaces.
+- Under `prefers-reduced-motion: reduce` the blocks rest on `--glass-3`, the
+  bright midpoint the sweep would have passed through, so a still placeholder is
+  as legible as a moving one was at its clearest.
+- A placeholder is still recognisable as a placeholder with motion off, so a
+  user who asked for less motion is not shown an empty page (`UX-06`).
 
 ### AI mode
 
@@ -156,11 +161,12 @@ consumer's, not the library's.
   jump.
 - Every shimmer mutation targets the sliding strip rather than the block itself,
   so an AI state change never repaints a large surface.
-- Under `prefers-reduced-motion: reduce` the accelerated and the recolored
-  shimmer both fall back to the base rate, so an AI state no longer speeds
-  anything up.
+- Under `prefers-reduced-motion: reduce` `AiState.Streaming` keeps its
+  violet-cyan color as a static tint on the blocks themselves, so the signal the
+  moving shimmer carried survives the loss of the motion that carried it.
 - Under `prefers-reduced-motion: reduce` `AiState.Generated` settles the blocks
   at a dimmed opacity instead of animating them out.
+- No AI state reintroduces motion under `prefers-reduced-motion: reduce`.
 - Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
   dissolves rather than snapping away.
 - Entering `AiState.Generated` replays the one-shot completion wash, every time
@@ -188,12 +194,6 @@ consumer's, not the library's.
 - **`SkeletonVariant.Custom` freezes three CSS class names** — `skel`,
   `skel-circle` and `skel-rect` — into the public contract. They are as bound by
   the 1.0 freeze as the parameters, and nothing in the build enforces that.
-- **The base shimmer keeps running under `prefers-reduced-motion: reduce`.** The
-  reduced-motion block calms the AI mutations and drops the stagger, but the
-  `skel` primitive's own sweep is untouched, so a user who asked for less motion
-  still gets a continuously moving placeholder. The primitive is shared and its
-  rule lives in `dryl.css`, so the fix is not this component's alone — recorded
-  here because this is where the shimmer is most of the screen (`UX-06`).
 - **No tests of its own.** None of the criteria above is guarded by a test.
 
 ## Cross-cutting evidence (`SPEC-05`)

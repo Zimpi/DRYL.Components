@@ -145,7 +145,7 @@ usable with motion off. The shared motion primitives already do this; any
 custom component CSS must mirror it.
 
 Check: `rg -c 'prefers-reduced-motion' code/DRYL.Components/wwwroot/dryl.css`
-— currently **22** (green, count > 0: `dryl.css` itself honours the media
+— currently **23** (green, count > 0: `dryl.css` itself honours the media
 query). This only proves the shared primitive file does its part; it does
 not scan individual component `.razor.css` files for CSS that introduces new
 motion outside the shared primitives without its own
