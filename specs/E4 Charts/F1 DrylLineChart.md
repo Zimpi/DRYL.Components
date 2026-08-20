@@ -88,7 +88,7 @@ data, it does not collect input.
 - Each marker carries a ring in `--bg`, so it stays legible where it sits on top
   of another series' line.
 - Markers are decorative and are `aria-hidden`: the values they mark are already
-  announced by the hover column (`UX-07`).
+  announced by the hover column.
 
 ### Numbers and locale
 
