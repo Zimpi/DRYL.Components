@@ -2,6 +2,8 @@
 
 # DRYL
 
+[![Discord](https://img.shields.io/badge/Discord-join%20the%20server-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/cs8XNJw2gH)
+
 [![GitHub Stars](https://img.shields.io/github/stars/Zimpi/DRYL.Components?style=flat&color=7c3aed&label=stars)](https://github.com/Zimpi/DRYL.Components/stargazers)
 [![NuGet](https://img.shields.io/nuget/v/DRYL.Components.svg?color=512BD4)](https://www.nuget.org/packages/DRYL.Components)
 [![Downloads](https://img.shields.io/nuget/dt/DRYL.Components.svg)](https://www.nuget.org/packages/DRYL.Components)
