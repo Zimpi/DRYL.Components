@@ -22,23 +22,27 @@ not a green exit (the check stays non-zero until `127/127`).
 
 | # | Task | Spec files | Covers |
 |---|---|---|---:|
-| 1 | Category companions | `_Api.md`, `_Interop.md` | 0 |
-| 2 | Avatar family | `F1 DrylAvatar`, `F2 DrylAvatarGroup` | 2 |
-| 3 | The three inline marks | `F3 DrylBadge`, `F10 DrylIcon`, `F12 DrylKbd` | 3 |
-| 4 | Citation family | `F4 DrylCitation`, `F5 DrylCitationList`, `F6 DrylCitationListItem` | 3 |
-| 5 | Code block | `F7 DrylCodeBlock` | 1 |
-| 6 | Description family | `F8 DrylDescriptionList`, `F9 DrylDescriptionItem` | 2 |
-| 7 | Image | `F11 DrylImage` | 1 |
-| 8 | Pagination | `F13 DrylPagination` | 1 |
-| 9 | Sparkline | `F14 DrylSparkline` | 1 |
-| 10 | The two number tiles | `F15 DrylStat`, `F17 DrylTableKpi` | 2 |
-| 11 | Timeline family | `F18 DrylTimeline`, `F19 DrylTimelineItem` | 2 |
-| 12 | Tree family | `F20 DrylTreeView`, `F21 DrylTreeNode` | 2 |
-| 13 | Table | `F16 DrylTable/` (split) | 1 |
+| 1 | Avatar family | `F1 DrylAvatar`, `F2 DrylAvatarGroup` | 2 |
+| 2 | The three inline marks | `F3 DrylBadge`, `F10 DrylIcon`, `F12 DrylKbd` | 3 |
+| 3 | Citation family | `F4 DrylCitation`, `F5 DrylCitationList`, `F6 DrylCitationListItem` | 3 |
+| 4 | Code block | `F7 DrylCodeBlock` | 1 |
+| 5 | Description family | `F8 DrylDescriptionList`, `F9 DrylDescriptionItem` | 2 |
+| 6 | Image | `F11 DrylImage` | 1 |
+| 7 | Pagination | `F13 DrylPagination` | 1 |
+| 8 | Sparkline | `F14 DrylSparkline` | 1 |
+| 9 | The two number tiles | `F15 DrylStat`, `F17 DrylTableKpi` | 2 |
+| 10 | Timeline family | `F18 DrylTimeline`, `F19 DrylTimelineItem` | 2 |
+| 11 | Tree family | `F20 DrylTreeView`, `F21 DrylTreeNode` | 2 |
+| 12 | Table | `F16 DrylTable/` (split) | 1 |
+| 13 | Category companions | `_Api.md`, `_Interop.md` | 0 |
 | | | **Total** | **21** |
 
 Numbering is assigned up front and stays stable (`SPEC-02`); the tasks are
 ordered by family rather than by number, so `F16` is written last.
+
+The two category companions come **last**, not first: `_Api.md` inventories the
+shared types and `_Interop.md` the JS surface, and both are only honest once
+every component in the category has been read against its code.
 
 ## Why `DrylTable` is split
 
