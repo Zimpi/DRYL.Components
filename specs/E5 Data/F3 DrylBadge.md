@@ -140,5 +140,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `.../Icons.razor`.
 - **`ComponentCatalog`** — registered as `"Badge"` / `badges` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.
-- **Tests** — the `Class` merge is guarded in
-  `tests/DRYL.Components.Tests/ClassMergeTests.cs`; no other criterion above is.
+- **Tests** — `tests/DRYL.Components.Tests/DrylBadgeTests.cs` guards the child
+  content, the unmodified neutral pill, the four modifier classes, the dot
+  modifier and the attribute splat; the `Class` merge is guarded separately in
+  `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The badge is the
+  best-covered component in the category, and the file says so explicitly — it
+  doubles as the worked example of how a DRYL component is bUnit-tested.
