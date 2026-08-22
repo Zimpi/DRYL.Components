@@ -32,4 +32,24 @@ public interface IDrylViewTransition
     /// the mutated state has reached the DOM. Call this unconditionally from
     /// <c>OnAfterRender</c> — it is a cheap no-op when no transition is in flight.</summary>
     void SignalRendered();
+
+    /// <summary>
+    /// Starts a transition that a <b>coming navigation</b> completes, rather than one
+    /// this service mutates itself. Used by <c>DrylRouteTransition</c> from a
+    /// location-changing handler: the old snapshot is taken here, and the transition
+    /// is held open until a <c>DrylMorph</c> on the destination page reports its
+    /// render through <see cref="SignalRendered"/>.
+    /// </summary>
+    /// <param name="timeout">How long the old frame may be held before the transition
+    /// completes without a morph. A destination page that carries no <c>DrylMorph</c>,
+    /// or never finishes rendering, must not leave the user looking at a held frame.</param>
+    /// <remarks>
+    /// <para>Unlike <see cref="RunAsync(Action)"/> this does not await the morph — the
+    /// navigation must not be delayed by it, and awaiting here would deadlock: the
+    /// transition waits for the new page's render, which cannot happen until the
+    /// handler returns.</para>
+    /// <para>Ships with a do-nothing default implementation, so an existing implementer
+    /// of this interface keeps compiling and simply never morphs a navigation.</para>
+    /// </remarks>
+    void BeginNavigation(TimeSpan timeout) { }
 }

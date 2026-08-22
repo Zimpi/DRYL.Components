@@ -64,7 +64,7 @@ specs/
 
 | E | Category | Source folder | Components |
 |---|---|---|---:|
-| `E1` | Foundation | `code/DRYL.Components/Components/Providers/` | 5 |
+| `E1` | Foundation | `code/DRYL.Components/Components/Providers/` | 6 |
 | `E2` | Actions | `code/DRYL.Components/Components/Actions/` | 3 |
 | `E3` | AI | `code/DRYL.Components/Components/AI/` | 8 |
 | `E4` | Charts | `code/DRYL.Components/Components/Data/Charts/` | 4 |
@@ -79,7 +79,7 @@ specs/
 | `E13` | Agent Tools | `code/DRYL.Components.Agents/Tools/` | 3 |
 | `E14` | Agent Canvas | `code/DRYL.Components.Agents/Canvas/` | 2 |
 | `E15` | Agent Inputs | `code/DRYL.Components.Agents/Field/`, `/CommandPalette/`, `/Voice/`, `/Generation/` | 5 |
-| | | **Total** | **128** |
+| | | **Total** | **129** |
 
 **A category may be componentless** — it then carries `_Api.md` and
 `_Interop.md` and nothing else. No category is currently in that position, but
@@ -105,7 +105,7 @@ files reading "none", would be ceremony without return.
 The component counts are a statement of fact at the time of writing, not a
 budget — a new component raises its category's count and the total. Only the
 **total** is re-derived rather than trusted: `scripts/check-spec-coverage.mjs`
-counts `Dryl*.razor` under `code/` and reports `x/128`. The per-category counts
+counts `Dryl*.razor` under `code/` and reports `x/129`. The per-category counts
 are maintained by hand and are documentation, so a move between categories
 means editing this table in the same commit.
 - **F** = **one component, one file**. A `Dryl*.razor` maps to exactly one
@@ -165,8 +165,8 @@ checkable in **two directions**:
   captured twice.
 
 The second direction is also the progress meter for phase C: it answers
-"x of 128 components covered" directly — `scripts/check-spec-coverage.mjs`
-prints exactly that line and exits non-zero until it reads `128/128`.
+"x of 129 components covered" directly — `scripts/check-spec-coverage.mjs`
+prints exactly that line and exits non-zero until it reads `129/129`.
 
 #### `Source` format
 
