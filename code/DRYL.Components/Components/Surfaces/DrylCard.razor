@@ -128,19 +128,14 @@
         _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
     }
 
-    private bool VtDepth =>
-        !string.IsNullOrWhiteSpace(ViewTransitionName)
-        && ViewTransitionStyle == DrylViewTransitionStyle.DepthGlass;
-
-    // Marker attribute the JS bridge keys on to lazily inject the #dryl-merge filter.
-    private string? VtDepthMarker => VtDepth ? "" : null;
+    // What makes an element a morph target is built in one place, shared with
+    // DrylMorph — the marker attribute included, which is what the JS bridge keys
+    // on to lazily inject the #dryl-merge filter.
+    private string? VtDepthMarker =>
+        DRYL.Components.Motion.ViewTransitionAttributes.DepthMarker(ViewTransitionName, ViewTransitionStyle);
 
     private string? VtStyle =>
-        string.IsNullOrWhiteSpace(ViewTransitionName)
-            ? null
-            : VtDepth
-                ? $"view-transition-name: {ViewTransitionName}; view-transition-class: dryl-depth"
-                : $"view-transition-name: {ViewTransitionName}";
+        DRYL.Components.Motion.ViewTransitionAttributes.Style(ViewTransitionName, ViewTransitionStyle);
 
     private string CssClass
     {
