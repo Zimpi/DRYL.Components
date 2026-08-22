@@ -1569,8 +1569,29 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .sidebar.is-collapsed .sidebar-collapse-hide {
     display: none;
   }
+  /* Centring alone is not enough: the row keeps its expanded horizontal padding,
+     which on a rail this narrow leaves less room than the icon needs and squashes
+     it — 16px of icon in 5px of space. The rail is the padding now, so the rows
+     inside it give theirs up and each icon gets its full width back. */
   .sidebar.is-collapsed .nav-item,
-  .sidebar.is-collapsed .nav-section-toggle { justify-content: center; }
+  .sidebar.is-collapsed .nav-section-toggle {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  /* The icon is the whole row here — it may never be shrunk to fit. */
+  .sidebar.is-collapsed .nav-item > svg,
+  .sidebar.is-collapsed .nav-item .ico,
+  .sidebar.is-collapsed .nav-section-toggle > svg {
+    flex: 0 0 auto;
+    min-width: 16px;
+  }
+  /* A classic scrollbar claims a quarter of a rail this narrow and pushes every
+     icon off-centre with the remainder. On a rail it is also unusable as a
+     control, so it stops taking space here — the rail still scrolls by wheel,
+     trackpad and keyboard. */
+  .sidebar.is-collapsed .sidebar-content { scrollbar-width: none; }
+  .sidebar.is-collapsed .sidebar-content::-webkit-scrollbar { width: 0; height: 0; }
 }
 
 /* Static mode: never becomes an overlay, stays an in-flow column at any width. */
