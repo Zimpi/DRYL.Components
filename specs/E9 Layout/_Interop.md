@@ -14,7 +14,7 @@ none *(phase C)*
 
 | Service | Lifetime | Registered by | Used by |
 |---|---|---|---|
-| `IDrylViewTransition` | scoped | `AddDrylComponents()` | `DrylMorph` — injected, and signalled from every render so the browser learns when the new view reached the DOM. `DrylMorph` never *starts* a transition; that stays with the consumer. |
+| `IDrylMorph` | scoped | `AddDrylComponents()` | `DrylMorph` — injected, and signalled from every render so the browser learns when the new view reached the DOM. `DrylMorph` never *starts* a transition; that stays with the consumer. |
 
 *(the rest: phase C)*
 

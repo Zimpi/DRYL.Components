@@ -137,7 +137,7 @@ entirely when it is not configured.
 |---|---|---|---|
 | `Reorderable` | `bool` | `false` | Renders the drag grip column. |
 | `OnRowReordered` | `EventCallback<RowReorderEventArgs>` | — | Raised with the moved row's old and new index. |
-| `AnimateReorder` | `bool` | `false` | Morphs rows between positions with a view transition. |
+| `AnimateReorder` | `bool` | `false` | Morphs rows between positions with a morph. |
 | `Editable` | `bool` | `false` | Enables inline editing. |
 | `EditMode` | `TableEditMode` | `TableEditMode.Row` | Whole row or single cell. |
 | `CloneRow` | `Func<TItem, TItem>?` | `null` | Supplies the working copy so cancel can revert. |

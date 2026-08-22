@@ -34,7 +34,7 @@ the exact spelling used in code. Until then this file claims nothing.*
 *(mostly phase C. The view-transition surface is documented here because
 `DrylRouteTransition` and `DrylMorph` both depend on it and neither owns it.)*
 
-### `DrylViewTransitionStyle`
+### `DrylMorphStyle`
 
 How much of the morph vocabulary a target gets. Both tiers glide on
 `--ease-viscous`; only `DepthGlass` pays for the blur/merge pass.
@@ -44,21 +44,23 @@ How much of the morph vocabulary a target gets. Both tiers glide on
 | `Glide` | Viscous easing only — the shape glides, no blur/merge pass. Cheap enough for high-frequency interactions. |
 | `DepthGlass` | The full choreography — translucency pulse, mercury merge, decoupled clarity. For low-frequency, high-meaning merges. |
 
-### `IDrylViewTransition`
+### `IDrylMorph`
 
-Runs a change inside a same-document view transition. Registered scoped by
-`AddDrylComponents()`.
+Animates a state change as a movement of the elements that exist on both sides
+of it, using FLIP — measure, re-render, invert, play. Registered scoped by
+`AddDrylComponents()`. Targets announce themselves through the DOM
+(`data-dryl-morph`), which is what `DrylMorph` renders.
 
 | Member | Purpose |
 |---|---|
-| `RunAsync(Action mutate)` | Runs `mutate` (which must end in `StateHasChanged()`) inside a view transition; completes when the morph has finished. |
+| `RunAsync(Action mutate)` | Runs `mutate` (which must end in `StateHasChanged()`) inside a morph; completes when the morph has finished. |
 | `RunAsync(Func<Task> mutate)` | Async-mutation overload. |
 | `SignalRendered()` | Reports that a render reached the DOM. Called unconditionally; a no-op when no transition is in flight. `DrylMorph` calls it for its consumers. |
 | `BeginNavigation(TimeSpan timeout)` | Starts a transition that a **coming navigation** completes, rather than one this service mutates itself. Ships as a **default interface implementation that does nothing**, so an existing implementer keeps compiling and simply never morphs a navigation. `timeout` bounds how long the old frame may be held. |
 
-All four fall back to applying the change directly — no snapshot, no morph — in
-browsers without the View Transition API, during prerender, and when the user
-prefers reduced motion.
+All four fall back to applying the change directly — no measuring, no
+movement — during prerender, on a disconnected circuit, and when the user
+prefers reduced motion (which the engine checks before it animates anything).
 
 ## Token surface
 

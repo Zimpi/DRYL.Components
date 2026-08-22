@@ -30,7 +30,7 @@ renders, measure a table, suppress a browser default, and write a file.
 | `dryl.table.layoutPinned` | `DrylTable` | Re-measures the sticky offsets of pinned columns. |
 | `dryl.storage.get` / `dryl.storage.set` | `DrylTable` | Reads and writes the persisted table state. |
 | `dryl.download.csv` | `DrylTable` | Hands the built CSV to the browser as a download. |
-| `DrylViewTransition` (wrapping `dryl.viewTransition.start`) | `DrylTable` | Same-document view transitions for row morphs. |
+| `DrylMorphEngine` (wrapping `dryl.morph.capture / dryl.morph.play`) | `DrylTable` | Same-document morphs for row morphs. |
 | `dryl.popover.*` | `DrylCitation`, transitively | Portalling and placing the citation panel. |
 
 ### `dryl.tree` is an alias, and the name is misleading

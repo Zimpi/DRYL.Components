@@ -140,29 +140,29 @@ public class DrylTableTests : BunitContext
            .ToList(); // td[0] is the reorder grip column
 
     [Fact]
-    public void Rows_have_no_view_transition_name_by_default()
+    public void Rows_have_no_morph_name_by_default()
     {
         var cut = RenderTable(ps => ps.Add(p => p.Reorderable, true));
 
         foreach (var tr in cut.FindAll("tbody tr"))
-            Assert.DoesNotContain("view-transition-name", tr.GetAttribute("style") ?? "");
+            Assert.Null(tr.GetAttribute("data-dryl-morph"));
     }
 
     [Fact]
-    public void AnimateReorder_adds_a_view_transition_name_per_row()
+    public void AnimateReorder_adds_a_morph_name_per_row()
     {
         var cut = RenderTable(ps => ps
             .Add(p => p.Reorderable, true)
             .Add(p => p.AnimateReorder, true)
             .Add(p => p.RowIdSelector, (Person p) => p.Name));
 
-        var styles = cut.FindAll("tbody tr").Select(tr => tr.GetAttribute("style")).ToList();
+        var styles = cut.FindAll("tbody tr").Select(tr => tr.GetAttribute("data-dryl-morph")).ToList();
         Assert.Equal(3, styles.Count);
         // Names are prefixed with a per-instance scope (t + 8 hex) so they stay
         // document-globally unique across multiple morph-enabled tables.
-        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Charlie", styles[0]!);
-        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Alice", styles[1]!);
-        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Bob", styles[2]!);
+        Assert.Matches(@"t[0-9a-f]{8}-row-Charlie", styles[0]!);
+        Assert.Matches(@"t[0-9a-f]{8}-row-Alice", styles[1]!);
+        Assert.Matches(@"t[0-9a-f]{8}-row-Bob", styles[2]!);
     }
 
     [Fact]
@@ -177,14 +177,14 @@ public class DrylTableTests : BunitContext
 
         string Scope(IRenderedComponent<DrylTable<Person>> c) =>
             System.Text.RegularExpressions.Regex
-                .Match(c.FindAll("tbody tr")[0].GetAttribute("style")!, @"t[0-9a-f]{8}").Value;
+                .Match(c.FindAll("tbody tr")[0].GetAttribute("data-dryl-morph")!, @"t[0-9a-f]{8}").Value;
 
         // Same row id, different tables → different scope prefix, so no duplicate name.
         Assert.NotEqual(Scope(a), Scope(b));
     }
 
     [Fact]
-    public void Ai_streaming_gives_rows_a_view_transition_name_without_AnimateReorder()
+    public void Ai_streaming_gives_rows_a_morph_name_without_AnimateReorder()
     {
         // The streaming glide is auto-on under Ai=Streaming on a plain client list —
         // rows must carry a morph name even though AnimateReorder is off.
@@ -192,17 +192,17 @@ public class DrylTableTests : BunitContext
             .Add(p => p.Ai, AiState.Streaming)
             .Add(p => p.RowIdSelector, (Person p) => p.Name));
 
-        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Charlie",
-            cut.FindAll("tbody tr")[0].GetAttribute("style")!);
+        Assert.Matches(@"t[0-9a-f]{8}-row-Charlie",
+            cut.FindAll("tbody tr")[0].GetAttribute("data-dryl-morph")!);
     }
 
     [Fact]
-    public void Ai_none_leaves_rows_without_a_view_transition_name()
+    public void Ai_none_leaves_rows_without_a_morph_name()
     {
         var cut = RenderTable(ps => ps.Add(p => p.RowIdSelector, (Person p) => p.Name));
 
         foreach (var tr in cut.FindAll("tbody tr"))
-            Assert.DoesNotContain("view-transition-name", tr.GetAttribute("style") ?? "");
+            Assert.Null(tr.GetAttribute("data-dryl-morph"));
     }
 
     [Fact]
@@ -213,8 +213,8 @@ public class DrylTableTests : BunitContext
             .Add(p => p.AnimateReorder, true)
             .Add(p => p.RowIdSelector, (Person p) => $"{p.Name} v/2"));
 
-        Assert.Matches(@"view-transition-name: t[0-9a-f]{8}-row-Charlie_v_2",
-            cut.FindAll("tbody tr")[0].GetAttribute("style")!);
+        Assert.Matches(@"t[0-9a-f]{8}-row-Charlie_v_2",
+            cut.FindAll("tbody tr")[0].GetAttribute("data-dryl-morph")!);
     }
 
     [Fact]

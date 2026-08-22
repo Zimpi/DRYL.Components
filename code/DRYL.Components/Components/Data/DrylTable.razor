@@ -418,7 +418,7 @@
     @<text>
         @{ var rowIndex = ReorderColumnVisible ? _view.IndexOf(item) : -1; }
         <tr class="@RowCssClass(item, rowIndex)"
-            style="@RowVtStyle(item)"
+            data-dryl-morph="@RowMorphName(item)"
             @onclick="() => HandleRowClick(item)"
             @onkeydown="@((KeyboardEventArgs e) => OnEditKeyDown(e, item))"
             @key="item"
@@ -726,7 +726,7 @@
     [Parameter] public bool AnimateReorder { get; set; }
 
     /// <summary>
-    /// Stable per-row id used to build each row's <c>view-transition-name</c> when
+    /// Stable per-row id used to build each row's morph name when
     /// <see cref="AnimateReorder"/> is on. Falls back to <c>GetHashCode()</c> — stable
     /// for records and immutable rows, but pass an explicit selector (e.g. a database
     /// key) when row instances mutate in place. Ids must be unique per row; the value
@@ -858,8 +858,8 @@
     private int? _dragOverIndex;
     private int? _pendingFocusGrip;
     private ElementReference _rootEl;
-    private DrylViewTransition? _rowTransition;
-    private bool _rowTransitionBusy;
+    private DrylMorphEngine? _rowMorph;
+    private bool _rowMorphBusy;
 
     // Inline editing — one row at a time. _editBuffer is the item handed to the column
     // EditTemplates: a clone when CloneRow is set (so cancel reverts), otherwise the live item.
@@ -940,18 +940,20 @@
         (Ai == AiState.Streaming || Ai == AiState.Generated)
         && !Virtualize && GroupBy is null && DataProvider is null;
 
-    // Rows carry a view-transition-name whenever either morph mode could run, so the
-    // ::view-transition-group morph has stable per-row targets to glide between.
+    // Rows carry a morph name whenever either morph mode could run, so the engine has
+    // stable per-row targets to glide between. FLIP is the classic technique for a list
+    // reorder: each row is measured, the list re-renders, and every row that moved
+    // travels from its old position to its new one.
     private bool VtMorphActive => AnimateReorderActive || StreamGlideActive;
 
-    // Per-instance scope so view-transition-names stay document-globally unique when
+    // Per-instance scope so morph names stay document-globally unique when
     // several morph-enabled tables share a page — RowVtId only guarantees uniqueness
     // within one table, but the name must be unique across the whole document or the
-    // browser aborts the transition ("duplicate view-transition-name").
+    // engine would move the wrong row (a duplicate name).
     private readonly string _vtScope = "t" + Guid.NewGuid().ToString("N")[..8];
 
-    private string? RowVtStyle(TItem item) =>
-        VtMorphActive ? $"view-transition-name: {_vtScope}-row-{RowVtId(item)}" : null;
+    private string? RowMorphName(TItem item) =>
+        VtMorphActive ? $"{_vtScope}-row-{RowVtId(item)}" : null;
 
     private string RowVtId(TItem item)
     {
@@ -961,7 +963,7 @@
         return SanitizeVtName(raw);
     }
 
-    // view-transition-name must be a CSS custom-ident: keep [A-Za-z0-9_-], map the
+    // A morph name is an attribute value, but it is kept ident-safe: [A-Za-z0-9_-], map the
     // rest to '_'. The "tbl-row-" prefix guarantees a valid ident start.
     private static string SanitizeVtName(string raw)
     {
@@ -982,16 +984,16 @@
     // transitions serialise, so overlapping starts would only skip anyway.
     private async Task RunRowTransitionAsync(Func<Task> mutate)
     {
-        if (!VtMorphActive || _rowTransitionBusy)
+        if (!VtMorphActive || _rowMorphBusy)
         {
             await mutate();
             return;
         }
-        _rowTransition ??= new DrylViewTransition(JS);
-        _rowTransitionBusy = true;
+        _rowMorph ??= new DrylMorphEngine(JS);
+        _rowMorphBusy = true;
         try
         {
-            await _rowTransition.RunAsync(async () =>
+            await _rowMorph.RunAsync(async () =>
             {
                 await mutate();
                 StateHasChanged();
@@ -999,7 +1001,7 @@
         }
         finally
         {
-            _rowTransitionBusy = false;
+            _rowMorphBusy = false;
         }
     }
 
@@ -1143,7 +1145,7 @@
     {
         // Tell an in-flight view transition that the mutated state reached the DOM
         // (no-op when none is running).
-        _rowTransition?.SignalRendered();
+        _rowMorph?.SignalRendered();
 
         if (firstRender && !string.IsNullOrEmpty(PersistStateKey))
         {
@@ -2109,7 +2111,7 @@
             catch (Microsoft.JSInterop.JSException) { /* circuit gone */ }
             catch (Microsoft.JSInterop.JSDisconnectedException) { /* circuit gone */ }
         }
-        _rowTransition?.Dispose();
+        _rowMorph?.Dispose();
         _dotNetRef?.Dispose();
     }
 }

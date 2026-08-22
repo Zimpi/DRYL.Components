@@ -2,7 +2,7 @@
 @using DRYL.Components.Canvas
 @using DRYL.Components.Motion
 @inject IJSRuntime JS
-@inject IDrylViewTransition ViewTransition
+@inject IDrylMorph Morph
 @inject IServiceProvider Services
 @implements IAsyncDisposable
 
@@ -14,7 +14,7 @@
     back to what they had. The workspace keeps those views side by side as
     chips and shows exactly one of them large.
 
-    Switching runs through IDrylViewTransition, so the surface morphs into the
+    Switching runs through IDrylMorph, so the surface morphs into the
     other view instead of snapping (one state change, one movement), while the
     shared [data-dryl-ink] indicator glides between the chips — the same
     primitive DrylTabs uses.
@@ -259,7 +259,7 @@
         // The morph belongs to the workspace, not to whatever sits in the body: nesting two view
         // transitions loses one of the mutations (DrylAiCanvas skips its own swap morph for a
         // switch, see DrylCanvasRun.ConsumeSwapMorphSuppression).
-        return ViewTransition.RunAsync(() =>
+        return Morph.RunAsync(() =>
         {
             Workspace.Activate(id);
             StateHasChanged();
@@ -287,14 +287,14 @@
             () => FormattableString.Invariant($"Restored version {index + 1} of {Versions.Count}"));
     }
 
-    // A history step is a state change, so it is a movement: the same view-transition layer the
+    // A history step is a state change, so it is a movement: the same mow-transition layer the
     // view switch uses morphs the artifact instead of blinking it away.
     private async Task HistoryStep(Func<bool> step, Func<string> announce)
     {
         if (Workspace is null) return;
 
         var moved = false;
-        await ViewTransition.RunAsync(() =>
+        await Morph.RunAsync(() =>
         {
             moved = step();
             if (moved) StateHasChanged();
@@ -371,7 +371,7 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Tells the browser the switched-to view has reached the DOM (a cheap no-op otherwise).
-        ViewTransition.SignalRendered();
+        Morph.SignalRendered();
 
         if (!ShowBar)
         {

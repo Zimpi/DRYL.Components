@@ -45,7 +45,7 @@ properties; every one has a default, so `new DialogOptions()` is a valid call.
 | `Ai` | `AiState` | `AiState.None` | Initial AI state of the dialog frame. |
 | `Class` | `string?` | `null` | Extra CSS class applied to the dialog container. |
 | `AnimateHandoff` | `bool` | `false` | Morph into a predecessor that is still closing, instead of cross-fading. |
-| `HandoffStyle` | `DrylViewTransitionStyle` | `DrylViewTransitionStyle.DepthGlass` | Morph tier for `AnimateHandoff`. Ignored while it is `false`. |
+| `HandoffStyle` | `DrylMorphStyle` | `DrylMorphStyle.DepthGlass` | Morph tier for `AnimateHandoff`. Ignored while it is `false`. |
 
 `AnimateHandoff` is the one option that is not about a single dialog. It
 addresses the sequential pattern an agent produces — close A, immediately open

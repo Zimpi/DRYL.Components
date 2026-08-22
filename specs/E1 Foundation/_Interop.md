@@ -9,7 +9,8 @@ library as a whole rather than to one category.
 
 | Entry point | Used by | Purpose |
 |---|---|---|
-| `dryl.viewTransition.start` | `DrylViewTransition` (the service behind `IDrylViewTransition`) | Takes the old snapshot, asks .NET to apply its change, then lets the browser morph old → new. Falls back to a direct, morph-free apply when the API is missing or the user prefers reduced motion. |
+| `dryl.morph.capture` | `DrylMorphEngine` (the service behind `IDrylMorph`) | Measures every `[data-dryl-morph]` element in the document before a state change. Reads all rects before writing anything, so one morph costs one layout pass rather than one per target. |
+| `dryl.morph.play` | `DrylMorphEngine` | Measures again after the render and animates each target from where it was to where it now is, counter-scaling its content. Does nothing when the user prefers reduced motion. |
 
 *(the rest: phase C)*
 
@@ -17,7 +18,7 @@ library as a whole rather than to one category.
 
 | Service | Lifetime | Registered by | Used by |
 |---|---|---|---|
-| `IDrylViewTransition` | scoped | `AddDrylComponents()` | `DrylRouteTransition` — calls `BeginNavigation` from a location-changing handler. `DrylMorph` reports every render to the same instance, which is what completes a navigation's morph. |
+| `IDrylMorph` | scoped | `AddDrylComponents()` | `DrylRouteTransition` — calls `BeginNavigation` from a location-changing handler. `DrylMorph` reports every render to the same instance, which is what completes a navigation's morph. |
 
 *(the rest: phase C)*
 
@@ -28,7 +29,7 @@ library as a whole rather than to one category.
 keep starting transitions. It makes no interop call of its own and holds no
 `IJSObjectReference`.
 
-`DrylViewTransition` owns a `DotNetObjectReference` to itself and disposes it,
+`DrylMorphEngine` owns a `DotNetObjectReference` to itself and disposes it,
 releasing any in-flight wait first so a disposed circuit cannot leave a
 navigation blocked.
 

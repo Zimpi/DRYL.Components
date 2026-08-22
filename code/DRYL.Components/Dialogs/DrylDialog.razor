@@ -19,15 +19,15 @@
      role="dialog"
      aria-modal="true"
      aria-labelledby="@_titleId"
-     style="@RootVtStyle"
-     data-vt-depth="@VtDepthMarker"
+     data-dryl-morph="@MorphName("")"
+     data-dryl-morph-depth="@MorphDepthMarker"
      @attributes="AdditionalAttributes">
 
     <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     @if (ShowHeader)
     {
-        <header class="dialog-header" style="@HeaderVtStyle">
+        <header class="dialog-header" data-dryl-morph="@MorphName("-header")">
             @if (!string.IsNullOrEmpty(Icon))
             {
                 <span class="dialog-header-icon">
@@ -50,13 +50,13 @@
         </header>
     }
 
-    <div class="dialog-body" style="@BodyVtStyle">
+    <div class="dialog-body" data-dryl-morph="@MorphName("-body")">
         @ChildContent
     </div>
 
     @if (ActionContent is not null)
     {
-        <footer class="dialog-footer" style="@FooterVtStyle">
+        <footer class="dialog-footer" data-dryl-morph="@MorphName("-footer")">
             @ActionContent
         </footer>
     }
@@ -126,38 +126,26 @@
 
     private DialogSize EffectiveSize => Instance?.Options.Size ?? DialogSize.Medium;
 
-    // Sequential "agent handoff" chains opted into DialogOptions.AnimateHandoff:
-    // the shell and its title/body/footer each get a stable view-transition-name
-    // so DrylDialogProvider's morph (Motion.IDrylViewTransition, see
-    // RunHandoffTransitionAsync) can glide the outer size/position while the
-    // header, body and footer cross-fade independently. A fixed name is fine —
-    // only one handoff chain is ever mid-transition at a time; a second dialog
-    // rendered with the same name simultaneously just voids its own morph
-    // (same discipline as DrylCard.ViewTransitionName).
-    private const string HandoffVtName = "dryl-dialog-handoff";
+    // Sequential "agent handoff" chains opted into DialogOptions.AnimateHandoff: the
+    // shell and its header/body/footer each carry a stable morph name, so the engine
+    // (Motion.IDrylMorph, see DrylDialogProvider.RunHandoffMorphAsync) glides the outer
+    // size and position while the parts inside travel with it. A fixed name is fine —
+    // only one handoff chain is ever mid-flight at a time; a second dialog rendered with
+    // the same name simply voids its own morph.
+    private const string HandoffMorphName = "dryl-dialog-handoff";
 
-    private bool VtHandoff => Instance?.Options.AnimateHandoff == true;
+    private bool MorphHandoff => Instance?.Options.AnimateHandoff == true;
 
-    // DepthGlass tier (default for handoffs, see DialogOptions.HandoffStyle): tags every
-    // named element with view-transition-class="dryl-depth" so the mercury-merge +
-    // translucency-pulse CSS (dryl.css) plays — the size morph alone is easy to miss when
-    // two dialogs happen to be nearly the same size, the pulse makes the content swap read
-    // as a deliberate change regardless. data-vt-depth is the marker dryl.js keys on to
-    // lazily inject the shared #dryl-merge filter (same mechanism as DrylCard).
-    private bool VtDepth => VtHandoff && Instance?.Options.HandoffStyle == DrylViewTransitionStyle.DepthGlass;
+    // DepthGlass tier (the default for handoffs, see DialogOptions.HandoffStyle): the
+    // surface passes through translucency and blur on the way and arrives clear. The size
+    // change alone is easy to miss when two dialogs are nearly the same size; the pass
+    // makes the content swap read as a deliberate change regardless.
+    private bool MorphDepth => MorphHandoff && Instance?.Options.HandoffStyle == DrylMorphStyle.DepthGlass;
 
-    private string? VtDepthMarker => VtDepth ? "" : null;
+    private string? MorphDepthMarker => MorphDepth ? "" : null;
 
-    private string? VtStyleFor(string suffix) =>
-        !VtHandoff ? null :
-        VtDepth
-            ? $"view-transition-name: {HandoffVtName}{suffix}; view-transition-class: dryl-depth"
-            : $"view-transition-name: {HandoffVtName}{suffix}";
-
-    private string? RootVtStyle => VtStyleFor("");
-    private string? HeaderVtStyle => VtStyleFor("-header");
-    private string? BodyVtStyle => VtStyleFor("-body");
-    private string? FooterVtStyle => VtStyleFor("-footer");
+    private string? MorphName(string suffix) =>
+        MorphHandoff ? $"{HandoffMorphName}{suffix}" : null;
 
     protected override void OnParametersSet()
     {

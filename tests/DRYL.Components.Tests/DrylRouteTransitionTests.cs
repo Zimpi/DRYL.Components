@@ -8,34 +8,24 @@ namespace DRYL.Components.Tests;
 
 /// <summary>
 /// Tests for <see cref="DrylRouteTransition"/> and the navigation path it drives on
-/// <see cref="IDrylViewTransition"/>. Two of these guard defects that would freeze a
-/// real application: the render latch (a destination that renders before JS calls
-/// back) and the bail (a destination that never reports at all).
+/// <see cref="IDrylMorph"/>. Two of these guard defects that would freeze a
+/// real application: the render latch (a destination that renders before the engine looks) and the bail (a destination that never reports at all).
 /// </summary>
 public class DrylRouteTransitionTests : BunitContext
 {
-    private sealed class RecordingViewTransition : IDrylViewTransition
+    private sealed class RecordingMorph : IDrylMorph
     {
         public List<TimeSpan> Begun { get; } = [];
         public Task RunAsync(Action mutate) { mutate(); return Task.CompletedTask; }
         public Task RunAsync(Func<Task> mutate) => mutate();
         public void SignalRendered() { }
-        public void BeginNavigation(TimeSpan timeout) => Begun.Add(timeout);
+        public Task BeginNavigationAsync(TimeSpan timeout) { Begun.Add(timeout); return Task.CompletedTask; }
     }
 
-    /// <summary>An implementer that predates BeginNavigation — it must still compile
-    /// and behave, which is the whole point of the default implementation.</summary>
-    private sealed class LegacyViewTransition : IDrylViewTransition
+    private RecordingMorph UseRecorder()
     {
-        public Task RunAsync(Action mutate) { mutate(); return Task.CompletedTask; }
-        public Task RunAsync(Func<Task> mutate) => mutate();
-        public void SignalRendered() { }
-    }
-
-    private RecordingViewTransition UseRecorder()
-    {
-        var fake = new RecordingViewTransition();
-        Services.AddSingleton<IDrylViewTransition>(fake);
+        var fake = new RecordingMorph();
+        Services.AddSingleton<IDrylMorph>(fake);
         return fake;
     }
 
@@ -138,62 +128,52 @@ public class DrylRouteTransitionTests : BunitContext
     // ------------------------------------- the latch and the bail (freeze guards)
 
     [Fact]
-    public async Task A_render_signalled_before_ApplyChange_still_completes_it()
+    public async Task A_render_signalled_before_the_engine_looks_still_completes_it()
     {
-        var svc = new DrylViewTransition(new NoopJsRuntime());
-        svc.BeginNavigation(TimeSpan.FromSeconds(30));
+        var svc = new DrylMorphEngine(new NoopJsRuntime());
+        var nav = svc.BeginNavigationAsync(TimeSpan.FromSeconds(30));
 
         // The destination rendered before JS got round to calling back.
         svc.SignalRendered();
 
         var sw = Stopwatch.StartNew();
-        await svc.ApplyChange();
+        await nav;
         sw.Stop();
 
         // Had the signal been treated as an event rather than a latch, this would
         // have sat here for the full 30 seconds.
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"ApplyChange waited {sw.Elapsed}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"the navigation morph waited {sw.Elapsed}");
     }
 
     [Fact]
-    public async Task ApplyChange_bails_when_nothing_ever_reports_a_render()
+    public async Task The_navigation_morph_bails_when_nothing_ever_reports_a_render()
     {
-        var svc = new DrylViewTransition(new NoopJsRuntime());
-        svc.BeginNavigation(TimeSpan.FromMilliseconds(150));
+        var svc = new DrylMorphEngine(new NoopJsRuntime());
+        var nav = svc.BeginNavigationAsync(TimeSpan.FromMilliseconds(150));
 
         var sw = Stopwatch.StartNew();
-        await svc.ApplyChange();   // no SignalRendered ever arrives
+        await nav;   // no SignalRendered ever arrives
         sw.Stop();
 
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"ApplyChange waited {sw.Elapsed}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(5), $"the navigation morph waited {sw.Elapsed}");
     }
 
     [Fact]
-    public async Task A_render_arriving_after_ApplyChange_started_completes_it()
+    public async Task A_render_arriving_after_the_wait_started_completes_it()
     {
-        var svc = new DrylViewTransition(new NoopJsRuntime());
-        svc.BeginNavigation(TimeSpan.FromSeconds(30));
+        var svc = new DrylMorphEngine(new NoopJsRuntime());
+        var nav = svc.BeginNavigationAsync(TimeSpan.FromSeconds(30));
 
-        var applying = svc.ApplyChange();
         await Task.Delay(20);
         svc.SignalRendered();
 
-        var finished = await Task.WhenAny(applying, Task.Delay(TimeSpan.FromSeconds(5)));
-        Assert.Same(applying, finished);
+        var finished = await Task.WhenAny(nav, Task.Delay(TimeSpan.FromSeconds(5)));
+        Assert.Same(nav, finished);
     }
 
-    [Fact]
-    public void A_legacy_implementer_still_satisfies_the_interface()
-    {
-        IDrylViewTransition legacy = new LegacyViewTransition();
 
-        // The default implementation: does nothing, throws nothing.
-        legacy.BeginNavigation(TimeSpan.FromSeconds(1));
-    }
-
-    /// <summary>A JS runtime that never resolves anything — BeginNavigation's bridge
-    /// call is fire-and-forget, so the tests above drive ApplyChange directly, exactly
-    /// as the browser does.</summary>
+    /// <summary>A JS runtime whose calls resolve immediately with nothing, so the engine
+    /// runs its whole navigation path — capture, wait, play — without a browser.</summary>
     private sealed class NoopJsRuntime : Microsoft.JSInterop.IJSRuntime
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>

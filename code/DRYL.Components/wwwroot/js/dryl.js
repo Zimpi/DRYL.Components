@@ -3,7 +3,7 @@
 window.dryl = window.dryl || {};
 
 /* Shared prefers-reduced-motion check — used by dryl.motion and
-   dryl.viewTransition so both honour the user's setting identically. */
+   dryl.morph so both honour the user's setting identically. */
 window.dryl.reduced = () =>
     !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -2014,52 +2014,117 @@ window.dryl.motion = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────
- * dryl.viewTransition — same-document View Transition bridge.
+ * dryl.morph — FLIP, the engine behind DrylMorph, DrylRouteTransition,
+ *   the dialog handoff, table row reordering and the canvas.
  *
- * start(dotNetRef) snapshots the current DOM, asks .NET to apply its
- * state change (ApplyChange resolves only after the consuming
- * component's OnAfterRender fired, i.e. the new DOM is committed),
- * then lets the browser morph old → new. Falls back to a direct,
- * morph-free apply when the API is missing or the user prefers
- * reduced motion — the feature never blocks unsupported browsers.
+ * First / Last / Invert / Play. capture() measures every morph target
+ * where it currently sits; the caller then mutates state and waits for
+ * Blazor to render; play() measures again and animates each target from
+ * where it was to where it now is.
  *
- * The #dryl-merge SVG "goo" filter used by DepthGlass morphs
- * (view-transition-class: dryl-depth) is injected lazily the first
- * time a DepthGlass element ([data-vt-depth]) is in the DOM —
- * the same lazy-DOM-injection pattern as the tooltip portal.
+ * Why not the View Transition API: it replaces the live page with
+ * snapshots for the duration of a transition and swaps back at the end,
+ * which is visible across the whole viewport — text antialiasing shifts,
+ * backdrop-filter surfaces recomposite — even when one card changed. FLIP
+ * leaves the page live and animates exactly the elements that moved.
+ *
+ * Targets announce themselves with [data-dryl-morph="{name}"] rather than
+ * being registered from .NET: a Blazor ElementReference cannot be passed
+ * inside a nested object, and the DOM already knows where everything is.
  * ────────────────────────────────────────────────────────── */
-window.dryl.viewTransition = (() => {
-    function ensureMergeFilter() {
-        if (document.getElementById('dryl-merge')) return;
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '0');
-        svg.setAttribute('height', '0');
-        svg.setAttribute('aria-hidden', 'true');
-        svg.style.position = 'absolute';
-        svg.innerHTML =
-            '<defs><filter id="dryl-merge">' +
-            '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>' +
-            '<feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -12" result="g"/>' +
-            '<feComposite in="SourceGraphic" in2="g" operator="atop"/>' +
-            '</filter></defs>';
-        document.body.appendChild(svg);
+window.dryl.morph = (() => {
+    // name -> geometry, captured before the mutation
+    let first = new Map();
+
+    function targets() {
+        return document.querySelectorAll('[data-dryl-morph]');
     }
 
-    function start(dotNetRef) {
-        if (!document.startViewTransition || window.dryl.reduced()) {
-            // No support, or user opted out of motion: apply the change
-            // directly — no snapshot, no morph (same fallback shape as
-            // dryl.motion.onExit).
-            return dotNetRef.invokeMethodAsync('ApplyChange');
+    function capture() {
+        first = new Map();
+        // Read every rect before writing anything: interleaving reads and
+        // writes would force a layout pass per target.
+        for (const el of targets()) {
+            const name = el.getAttribute('data-dryl-morph');
+            if (!name) continue;
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height) continue;
+            first.set(name, { x: r.x, y: r.y, w: r.width, h: r.height });
         }
-        if (document.querySelector('[data-vt-depth]')) ensureMergeFilter();
-        const t = document.startViewTransition(() => dotNetRef.invokeMethodAsync('ApplyChange'));
-        // Swallow skip-rejections (e.g. duplicate view-transition-name):
-        // the DOM change itself was applied; only the morph was skipped.
-        return t.finished.catch(() => { });
     }
 
-    return { start };
+    function clear() { first = new Map(); }
+
+    function play(durationMs, enterMs) {
+        const captured = first;
+        first = new Map();
+        if (!captured.size || window.dryl.reduced()) return;
+
+        const cs = getComputedStyle(document.documentElement);
+        const easing = cs.getPropertyValue('--ease-viscous').trim() || 'ease';
+
+        // Measure everything first, then animate — same reason as above.
+        const jobs = [];
+        for (const el of targets()) {
+            const name = el.getAttribute('data-dryl-morph');
+            if (!name) continue;
+            const to = el.getBoundingClientRect();
+            if (!to.width || !to.height) continue;
+            jobs.push({ el, name, to, from: captured.get(name) || null,
+                        depth: el.hasAttribute('data-dryl-morph-depth') });
+        }
+
+        for (const j of jobs) {
+            if (!j.from) { enter(j.el, enterMs, easing); continue; }
+
+            const dx = j.from.x - j.to.x;
+            const dy = j.from.y - j.to.y;
+            const sx = j.from.w / j.to.w;
+            const sy = j.from.h / j.to.h;
+
+            // Did not actually move or resize — leave it alone rather than
+            // animate a no-op, which would still cost a compositor layer.
+            if (Math.abs(dx) < 1 && Math.abs(dy) < 1 &&
+                Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) continue;
+
+            j.el.animate([
+                { transformOrigin: 'top left', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+                { transformOrigin: 'top left', transform: 'none' }
+            ], { duration: durationMs, easing, fill: 'both' });
+
+            // The container's scale would squash its content, so the content
+            // is counter-scaled for the same beat. This is the half a view
+            // transition cannot do: there the content is a flat bitmap.
+            const content = j.el.firstElementChild;
+            if (content) {
+                const frames = [
+                    { transformOrigin: 'top left', transform: `scale(${1 / sx}, ${1 / sy})` },
+                    { transformOrigin: 'top left', transform: 'none' }
+                ];
+                if (j.depth) {
+                    // The DepthGlass tier, rebuilt on FLIP: the surface passes
+                    // through translucency and blur on the way and arrives
+                    // clear, instead of two snapshots merging.
+                    frames[0].filter = 'blur(6px) saturate(1.35)';
+                    frames[0].opacity = '0.35';
+                    frames[1].filter = 'blur(0) saturate(1)';
+                    frames[1].opacity = '1';
+                }
+                content.animate(frames, { duration: durationMs, easing, fill: 'both' });
+            }
+        }
+    }
+
+    // A target with no counterpart is arriving rather than moving.
+    function enter(el, ms, easing) {
+        if (!ms) return;
+        el.animate([
+            { opacity: 0, transform: 'translateY(4px)' },
+            { opacity: 1, transform: 'none' }
+        ], { duration: ms, easing, fill: 'both' });
+    }
+
+    return { capture, play, clear };
 })();
 
 /* ──────────────────────────────────────────────────────────

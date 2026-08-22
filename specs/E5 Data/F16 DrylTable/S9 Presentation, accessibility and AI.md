@@ -141,7 +141,7 @@
   defines no mode-specific rule.
 - **Enter/exit animation** — the table has the category's most developed motion
   and its most uneven coverage. Row moves, re-sorts and streaming inserts morph
-  through view transitions, and a streaming row rises and flashes in. Nothing
+  through morphs, and a streaming row rises and flashes in. Nothing
   else moves: the bulk bar, the filter surface, the column menu, a group
   collapsing, a detail row expanding, a column moving and an edit starting all
   happen between two frames. Each is recorded in the `S{n}` file that owns it.

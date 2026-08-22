@@ -37,15 +37,15 @@ budget for.
 
 ### Motion
 
-- The morph between inline and fullscreen runs as a view transition, so the CSS
+- The morph between inline and fullscreen runs as a morph, so the CSS
   describes only the destination and never the movement (`DESIGN-13`).
-- Each canvas instance carries a document-unique `view-transition-name`; a
+- Each canvas instance carries a document-unique `data-dryl-morph`; a
   duplicate name would void the entire transition, so two canvases on one page
   do not collide.
 - Nodes appearing, disappearing or reordering in the body glide rather than
   snap, through `dryl.motion.autoFlip` on the body element.
 - The FLIP observer is detached on disposal (`CODE-05`).
-- The canvas signals every completed render to `IDrylViewTransition`, so a
+- The canvas signals every completed render to `IDrylMorph`, so a
   transition a wrapper started around a spec swap also completes.
 
 ### Width reporting

@@ -7,27 +7,28 @@ namespace DRYL.Components.Tests;
 
 /// <summary>
 /// Tests for <see cref="DrylMorph"/>, the generic shared-element hull: it renders
-/// one element of the requested tag, claims a <c>view-transition-name</c> only
+/// one element of the requested tag, claims a morph name only
 /// while it is named and active, tags the DepthGlass tier, and reports every
-/// render back to <see cref="IDrylViewTransition"/> so a consumer never writes
+/// render back to <see cref="IDrylMorph"/> so a consumer never writes
 /// <c>SignalRendered()</c>.
 /// </summary>
 public class DrylMorphTests : BunitContext
 {
     /// <summary>Counts what the hull reports, and asserts nothing else — the real
     /// service's own contract is covered where it is implemented.</summary>
-    private sealed class CountingViewTransition : IDrylViewTransition
+    private sealed class CountingMorph : IDrylMorph
     {
         public int Signals { get; private set; }
         public Task RunAsync(Action mutate) { mutate(); return Task.CompletedTask; }
         public Task RunAsync(Func<Task> mutate) => mutate();
         public void SignalRendered() => Signals++;
+        public Task BeginNavigationAsync(TimeSpan timeout) => Task.CompletedTask;
     }
 
-    private CountingViewTransition UseFakeTransition()
+    private CountingMorph UseFakeTransition()
     {
-        var fake = new CountingViewTransition();
-        Services.AddSingleton<IDrylViewTransition>(fake);
+        var fake = new CountingMorph();
+        Services.AddSingleton<IDrylMorph>(fake);
         return fake;
     }
 
@@ -114,9 +115,9 @@ public class DrylMorphTests : BunitContext
             .Add(p => p.Name, "product-42")
             .AddChildContent("x"));
 
-        var style = cut.Find("div").GetAttribute("style");
-        Assert.Contains("view-transition-name: product-42", style);
-        Assert.DoesNotContain("dryl-depth", style);
+        var root = cut.Find("div");
+        Assert.Equal("product-42", root.GetAttribute("data-dryl-morph"));
+        Assert.False(root.HasAttribute("data-dryl-morph-depth"));
     }
 
     [Theory]
@@ -132,8 +133,8 @@ public class DrylMorphTests : BunitContext
             .AddChildContent("x"));
 
         var root = cut.Find("div");
-        Assert.False(root.HasAttribute("style"));
-        Assert.False(root.HasAttribute("data-vt-depth"));
+        Assert.False(root.HasAttribute("data-dryl-morph"));
+        Assert.False(root.HasAttribute("data-dryl-morph-depth"));
     }
 
     [Fact]
@@ -144,12 +145,12 @@ public class DrylMorphTests : BunitContext
         var cut = Render<DrylMorph>(ps => ps
             .Add(p => p.Name, "product-42")
             .Add(p => p.Active, false)
-            .Add(p => p.Style, DrylViewTransitionStyle.DepthGlass)
+            .Add(p => p.Style, DrylMorphStyle.DepthGlass)
             .AddChildContent("x"));
 
         var root = cut.Find("div");
-        Assert.False(root.HasAttribute("style"));
-        Assert.False(root.HasAttribute("data-vt-depth"));
+        Assert.False(root.HasAttribute("data-dryl-morph"));
+        Assert.False(root.HasAttribute("data-dryl-morph-depth"));
     }
 
     [Fact]
@@ -162,11 +163,11 @@ public class DrylMorphTests : BunitContext
             .Add(p => p.Active, false)
             .AddChildContent("x"));
 
-        Assert.False(cut.Find("div").HasAttribute("style"));
+        Assert.False(cut.Find("div").HasAttribute("data-dryl-morph"));
 
         cut.Render(ps => ps.Add(p => p.Active, true));
 
-        Assert.Contains("view-transition-name: product-42", cut.Find("div").GetAttribute("style"));
+        Assert.Equal("product-42", cut.Find("div").GetAttribute("data-dryl-morph"));
     }
 
     // ------------------------------------------------------------- the tiers
@@ -178,12 +179,12 @@ public class DrylMorphTests : BunitContext
 
         var cut = Render<DrylMorph>(ps => ps
             .Add(p => p.Name, "product-42")
-            .Add(p => p.Style, DrylViewTransitionStyle.DepthGlass)
+            .Add(p => p.Style, DrylMorphStyle.DepthGlass)
             .AddChildContent("x"));
 
         var root = cut.Find("div");
-        Assert.Contains("view-transition-class: dryl-depth", root.GetAttribute("style"));
-        Assert.True(root.HasAttribute("data-vt-depth"));
+        Assert.Equal("product-42", root.GetAttribute("data-dryl-morph"));
+        Assert.True(root.HasAttribute("data-dryl-morph-depth"));
     }
 
     [Fact]
@@ -193,12 +194,12 @@ public class DrylMorphTests : BunitContext
 
         var cut = Render<DrylMorph>(ps => ps
             .Add(p => p.Name, "product-42")
-            .Add(p => p.Style, DrylViewTransitionStyle.Glide)
+            .Add(p => p.Style, DrylMorphStyle.Glide)
             .AddChildContent("x"));
 
         var root = cut.Find("div");
-        Assert.DoesNotContain("view-transition-class", root.GetAttribute("style"));
-        Assert.False(root.HasAttribute("data-vt-depth"));
+        Assert.Equal("product-42", root.GetAttribute("data-dryl-morph"));
+        Assert.False(root.HasAttribute("data-dryl-morph-depth"));
     }
 
     [Fact]
@@ -207,12 +208,12 @@ public class DrylMorphTests : BunitContext
         UseFakeTransition();
 
         var cut = Render<DrylMorph>(ps => ps
-            .Add(p => p.Style, DrylViewTransitionStyle.DepthGlass)
+            .Add(p => p.Style, DrylMorphStyle.DepthGlass)
             .AddChildContent("x"));
 
         var root = cut.Find("div");
-        Assert.False(root.HasAttribute("style"));
-        Assert.False(root.HasAttribute("data-vt-depth"));
+        Assert.False(root.HasAttribute("data-dryl-morph"));
+        Assert.False(root.HasAttribute("data-dryl-morph-depth"));
     }
 
     // --------------------------------------------------------- the reporting

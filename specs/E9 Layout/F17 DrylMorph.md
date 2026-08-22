@@ -17,7 +17,7 @@ screens — without me writing animation or timing code.
 exists in two views and should travel between them rather than disappear and
 reappear. Wrapping the same `Name` around a card in an overview and around the
 heading of the detail view is the whole contract — when the switch between the
-two runs inside a view transition, the browser morphs position, size and opacity
+two runs inside a morph, the browser morphs position, size and opacity
 from one to the other.
 
 It is the generic form of something the library already does in two places:
@@ -27,7 +27,7 @@ anything — a list row, an image, a heading, a plain `div` — and is what thos
 call sites express their own morph with.
 
 The component supplies the **naming and the reporting** halves of the morph. The
-**starting** half stays with `IDrylViewTransition`, which the consumer calls to
+**starting** half stays with `IDrylMorph`, which the consumer calls to
 run the state change: the hull cannot see when other components have finished
 rendering, so it never claims to own the moment a transition begins. What it
 does own is the half that is easy to forget — reporting its render back, so the
@@ -35,7 +35,7 @@ browser knows when the new view has reached the DOM. A consumer who uses
 `DrylMorph` never writes `SignalRendered()`.
 
 The component renders one element and nothing else: no wrapper of its own
-around the content, no styling, no color. `view-transition-name` has no effect
+around the content, no styling, no color. `data-dryl-morph` has no effect
 on a `display: contents` box, so the element is real and participates in its
 parent's layout; `As` exists so it can be the *right* element in a list, a table
 or an article rather than always a `div`.
@@ -49,14 +49,14 @@ adds no visual of its own and cannot be styled into a second one.
 | Member | Type | Default | Purpose |
 |---|---|---|---|
 | `Name` | `string?` | `null` | The transition ID. Two elements sharing it in the old and the new view are morphed into one another. |
-| `Style` | `DrylViewTransitionStyle` | `Glide` | How much of the morph vocabulary the element gets — `Glide` or `DepthGlass`. |
+| `Style` | `DrylMorphStyle` | `Glide` | How much of the morph vocabulary the element gets — `Glide` or `DepthGlass`. |
 | `As` | `string` | `"div"` | The HTML tag rendered as the component's root. |
 | `Active` | `bool` | `true` | Whether this instance currently claims `Name`. Set `false` on the entries of an overview that are not the morph target. |
 | `ChildContent` | `RenderFragment?` | `null` | The content that morphs. |
 | `Class` | `string?` | `null` | CSS class(es) on the rendered element. The hull renders no class of its own, so this is the only one it carries. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
-`DrylViewTransitionStyle` and `IDrylViewTransition` belong to no single
+`DrylMorphStyle` and `IDrylMorph` belong to no single
 component and no single category — they are Foundation surface and are due to be
 documented in [`../E1 Foundation/_Api.md`](../E1%20Foundation/_Api.md) when that
 scaffold is filled. This category's use of the service is recorded in
@@ -80,33 +80,33 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ### Claiming a transition name
 
-- A `Name` holding a non-whitespace value renders `view-transition-name` with
+- A `Name` holding a non-whitespace value renders `data-dryl-morph` with
   that value on the element.
 - A `Name` that is `null`, empty or whitespace renders no
-  `view-transition-name`, so an unnamed hull is inert.
-- `Active` set to `false` renders no `view-transition-name`, whatever `Name`
+  `data-dryl-morph`, so an unnamed hull is inert.
+- `Active` set to `false` renders no `data-dryl-morph`, whatever `Name`
   holds.
 - `Active` defaults to `true`.
 - Toggling `Active` from `false` to `true` on an already-rendered instance
-  renders the `view-transition-name` without the element being recreated.
+  renders the `data-dryl-morph` without the element being recreated.
 
 ### The morph tiers
 
-- `Style` defaults to `DrylViewTransitionStyle.Glide`.
-- `Style` accepts exactly the two values of `DrylViewTransitionStyle`.
-- `Style` set to `DepthGlass` renders `view-transition-class: dryl-depth` on the
+- `Style` defaults to `DrylMorphStyle.Glide`.
+- `Style` accepts exactly the two values of `DrylMorphStyle`.
+- `Style` set to `DepthGlass` renders `data-dryl-morph-depth` on the
   element in addition to the name.
-- `Style` set to `DepthGlass` renders the `data-vt-depth` marker attribute, so
+- `Style` set to `DepthGlass` renders the `data-dryl-morph-depth` marker attribute, so
   the JS bridge injects the merge filter the tier needs.
 - `Style` set to `Glide` renders neither `view-transition-class` nor
-  `data-vt-depth`.
+  `data-dryl-morph-depth`.
 - Neither marker is rendered while the element claims no name, so an inert hull
   costs nothing.
 
 ### Reporting the render
 
 - The component reports every one of its renders to
-  `IDrylViewTransition.SignalRendered()`.
+  `IDrylMorph.SignalRendered()`.
 - The report is made unconditionally, without the component checking whether a
   transition is in flight.
 - The component reports its render even while it claims no name, so an instance
@@ -118,9 +118,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 - The component renders its element and its content unchanged during prerender.
 - The component makes no JS interop call of its own, so it has nothing to
   dispose and nothing that can fail on a disconnected circuit.
-- The component behaves identically when the browser has no View Transition API:
+- The component behaves identically when the browser has no morph engine:
   the markup is inert rather than broken, and the state change still happens
-  (`IDrylViewTransition` falls back to applying it directly).
+  (`IDrylMorph` falls back to applying it directly).
 - The component renders the same markup under `prefers-reduced-motion`; the
   reduced-motion opt-out lives in the shared vocabulary in `dryl.css`, not in
   the component.
@@ -139,12 +139,11 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 - The component names no color, length, duration or easing (`DESIGN-01`); the
   morph's duration and easing come from `--dur-slow` and `--ease-viscous` in the
-  shared `::view-transition-group(*)` rule.
+  shared `the morph engine` rule.
 - The component adds no stylesheet of its own — the entire morph vocabulary is
-  the existing `::view-transition-*` rules in `dryl.css`.
-- The incoming snapshot finishes fading in on `--dur-med`, before the shape
-  finishes settling on `--dur-slow`, so the last stretch of a morph shows one
-  settled image.
+  the existing `the morph engine` rules in `dryl.css`.
+- The element's content is counter-scaled for the length of the move, so type
+  and iconography keep their proportions while the shape changes size.
 - The component paints no frost, being a transparent hull rather than a surface
   (`DESIGN-06`).
 - The component renders no accent, so `DESIGN-08` has nothing to apply to.
@@ -161,33 +160,30 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ## Recorded gaps
 
-- **The morph stretches a bitmap, and the swap back to real DOM is a hard
-  cut.** The browser morphs a group by animating its `width` and `height` — the
-  transform is identical at both ends — so both snapshots are bitmaps being
-  scaled for the whole `--dur-slow`, and the moment the pseudo-tree disappears
-  they are replaced by sharp DOM in a single frame. Measured on the demo page,
-  a card growing into a detail panel is stretched by a factor of three. Landing
-  the incoming fade on `--dur-med` (see "Appearance") leaves the final stretch
-  showing a settled picture, which is as far as this can be taken without
-  leaving the API's own model. It is a property of the View Transition API, not
-  a defect in this component.
+- **A morph needs the element to exist at both ends.** The engine measures a
+  target before the change and again after it; a name present on only one side
+  is treated as an arrival (it fades in) or simply as content that left. There
+  is no way to animate an element that is no longer rendered — the snapshots
+  that used to make that possible are gone with the View Transition API, and
+  with them the whole-page flicker they cost.
 - **A morph that ends under a resting pointer lights up once more.** When the
   revealed element sits where the pointer already is — the normal case, because
   the pointer is still on the control that was pressed — its hover transitions
-  start in the frame the morph finishes, adding a `--dur-med` colour settle
-  after the movement is over. Verified in the browser: with the pointer parked
-  away from the reveal, nothing starts. This is correct browser behaviour and is
-  recorded here so it is recognised rather than re-investigated.
+  start as the move finishes, adding a `--dur-med` colour settle after it. This
+  is correct browser behaviour and is recorded so it is recognised rather than
+  re-investigated.
 - **`SignalRendered` needs someone to render.** The hull closes the timing loop
   from its own `OnAfterRender`, so a mutation that renders no `DrylMorph` at all
-  leaves the transition waiting. Every shape the component is built for renders
-  at least one hull in the same batch; a consumer who mutates something else
-  entirely still owns that half themselves.
+  leaves the engine waiting for geometry it will never measure. Every shape the
+  component is built for renders at least one hull in the same batch.
+- **Two live hulls must not share a name.** The engine matches targets by name;
+  a duplicate makes it measure one element and move another. That is what
+  `Active` is for, and it is guarded by a test rather than by the browser.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — the component renders no color at all; the morph's
-  colors are the snapshots of the content itself. Verified by
+- **Both color modes** — the component renders no color at all; what moves is
+  the consumer's own content, in whatever colors it already had. Verified by
   `node scripts/check-light-sync.mjs` and
   `node scripts/validate-light-contrast.mjs` remaining unaffected, and by eye in
   both modes on the demo page.

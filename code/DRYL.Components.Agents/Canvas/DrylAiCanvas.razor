@@ -2,7 +2,7 @@
 @using DRYL.Components.Ai
 @using DRYL.Components.Canvas
 @using DRYL.Components.Motion
-@inject IDrylViewTransition ViewTransition
+@inject IDrylMorph Morph
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@
       * the AI aura that breathes with the run state and flashes on completion
       * a DrylAiIndicator in the header doubling as a live element counter
       * the aria-live announcements (building / updated / ready / failed)
-      * the view-transition morph when a second create_artifact replaces the
+      * the morph when a second create_artifact replaces the
         whole artifact — the old tree morphs into the new one instead of snapping
       * forwarding the measured body width to the run, so the next generation is
         authored for the space the artifact actually has
@@ -93,7 +93,7 @@
 
     // The CanvasSpec instance the DOM currently shows. A different instance arriving through
     // OnChange means a whole new artifact replaced the old one — the one case that gets a
-    // view-transition morph (see HandleChange).
+    // morph (see HandleChange).
     private CanvasSpec? _renderedSpec;
 
     protected override void OnParametersSet()
@@ -134,12 +134,12 @@
     private void HandleChange() => InvokeAsync(async () =>
     {
         // The C# state has already moved on, but the DOM still shows the old tree — exactly
-        // the window document.startViewTransition needs. A brand-new CanvasSpec instance means
+        // the morph engine needs. A brand-new CanvasSpec instance means
         // a second create_artifact replaced the artifact wholesale; morph old into new instead
         // of letting the old tree vanish untransitioned. The very first artifact has no "old"
         // picture worth morphing, so it keeps the node-by-node reveal choreography.
         // Except when the swap came from a view switch: DrylCanvasWorkspace owns that morph, and
-        // nesting two view transitions loses one of the mutations.
+        // nesting two morphs loses one of the mutations.
         var switched = Run?.ConsumeSwapMorphSuppression() == true;
         var swap = !switched && _renderedSpec is not null && !ReferenceEquals(_renderedSpec, Run?.Spec);
 
@@ -147,7 +147,7 @@
 
         if (swap)
         {
-            await ViewTransition.RunAsync(() =>
+            await Morph.RunAsync(() =>
             {
                 _renderedSpec = Run?.Spec;
                 StateHasChanged();

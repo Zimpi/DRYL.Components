@@ -29,7 +29,7 @@ Five aspects, each with its own acceptance criteria:
 | [`S2 AI states.md`](S2%20AI%20states.md) | `Ai`, the build line, and what the state does *not* do here |
 | [`S3 Data binding.md`](S3%20Data%20binding.md) | Bound data sources, refresh, the pulse tracker |
 | [`S4 Interaction.md`](S4%20Interaction.md) | Selection, node commands, reorder, the callbacks |
-| [`S5 Layout and expand.md`](S5%20Layout%20and%20expand.md) | Fullscreen, the view transition, width reporting |
+| [`S5 Layout and expand.md`](S5%20Layout%20and%20expand.md) | Fullscreen, the morph, width reporting |
 
 This component is split under `SPEC-02`, which names it as one of the library's
 three split candidates. `Source` stays here at the component level; the `S{n}`
@@ -75,7 +75,7 @@ value.
   mode-specific rule.
 - **Enter/exit animation** — the build line through `DrylPresence`, node reflow
   through `dryl.motion.autoFlip`, and the expand morph through
-  `IDrylViewTransition`. See `S2` and `S5`.
+  `IDrylMorph`. See `S2` and `S5`.
 - **Keyboard and a11y** — two `aria-live` regions, <kbd>Escape</kbd> to collapse,
   and the selection's keyboard model. See `S1`, `S4` and `S5`.
 - **AI mode** — yes, and it is an opt-in: the parameter is a switch on a tree

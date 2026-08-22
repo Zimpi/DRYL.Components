@@ -37,7 +37,7 @@ flows produce chains: close A, immediately open B. The default is a cross-fade â
 the backdrop persists and only its opacity transitions, A plays its exit while B
 enters a beat later. A caller who sets `DialogOptions.AnimateHandoff` gets
 something stronger instead: A is finalized at once, and its removal together
-with B's mount is wrapped in a single browser view transition, so the shell
+with B's mount is wrapped in a single browser morph, so the shell
 glides to the new size while title, body and footer cross-fade independently.
 
 Removal is deliberately defensive. An entry stays mounted through its exit
@@ -139,7 +139,7 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
 - That delay is `--dur-fast`, and the incoming dialog holds its start state until
   it elapses instead of flashing at full opacity first.
 - A dialog opened with `AnimateHandoff` while a predecessor is exiting morphs
-  into it through a single view transition instead of the cross-fade.
+  into it through a single morph instead of the cross-fade.
 - The predecessor is finalized immediately in that case, and never plays its own
   exit animation.
 - The predecessor's removal and the successor's mount are applied as one render,
@@ -151,7 +151,7 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
 - `DialogOptions.HandoffStyle` selects the morph tier, and defaults to the
   glass-merge tier rather than the shape-only one.
 - A handoff transition uses a transition instance of the provider's own, so it
-  is unaffected by any other view transition running in the host application.
+  is unaffected by any other morph running in the host application.
 
 ### Robustness
 

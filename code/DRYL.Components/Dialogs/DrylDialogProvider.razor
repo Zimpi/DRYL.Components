@@ -25,11 +25,11 @@
 
     When the incoming dialog opts into DialogOptions.AnimateHandoff,
     that CSS cross-fade is replaced by a browser View Transition
-    (RunHandoffTransitionAsync): the predecessor is finalized
+    (RunHandoffMorphAsync): the predecessor is finalized
     immediately (skipping its own dialogOut) and the swap — its
     removal plus the successor's mount — is wrapped in one
-    IDrylViewTransition.RunAsync so DrylDialog's matching
-    view-transition-names (see DrylDialog.VtHandoff) morph shell
+    IDrylMorph.RunAsync so DrylDialog's matching
+    morph names (see DrylDialog.MorphHandoff) move shell
     size/position while title/body/footer cross-fade independently.
     ───────────────────────────────────────────────────────── *@
 
@@ -84,10 +84,10 @@
     private static readonly TimeSpan ExitWatchdogTimeout = TimeSpan.FromMilliseconds(600);
 
     // Lazily created the first time a chain opts into DialogOptions.AnimateHandoff.
-    // A dedicated instance (not the DI-scoped IDrylViewTransition) — the provider
+    // A dedicated instance (not the DI-scoped IDrylMorph) — the provider
     // may need to run its own handoff morph independently of whatever else in the
     // app is mid-transition, same reasoning as DrylTable's _rowTransition.
-    private DrylViewTransition? _handoffTransition;
+    private DrylMorphEngine? _handoffMorph;
 
     private bool AllExiting => _entries.Count > 0 && _entries.All(e => e.IsExiting);
 
@@ -118,7 +118,7 @@
 
         if (predecessor is not null)
         {
-            _ = InvokeAsync(() => RunHandoffTransitionAsync(predecessor, impl));
+            _ = InvokeAsync(() => RunHandoffMorphAsync(predecessor, impl));
             return;
         }
 
@@ -157,15 +157,15 @@
     // currently rendered (the "old" state), then — once ApplyChange's
     // StateHasChanged has reached the DOM (SignalRendered) — snapshots the
     // successor (the "new" state) and morphs between them. Both dialogs render
-    // the same view-transition-name (DrylDialog.VtHandoff), so only one may be
+    // the same morph name (DrylDialog.MorphHandoff), so only one may be
     // in flight per provider at a time; that already matches the sequential,
     // non-stacked chain this option is designed for.
-    private async Task RunHandoffTransitionAsync(Entry predecessor, DrylDialogReference incoming)
+    private async Task RunHandoffMorphAsync(Entry predecessor, DrylDialogReference incoming)
     {
-        _handoffTransition ??= new DrylViewTransition(JS);
+        _handoffMorph ??= new DrylMorphEngine(JS);
         try
         {
-            await _handoffTransition.RunAsync(async () =>
+            await _handoffMorph.RunAsync(async () =>
             {
                 await FinalizeExitImmediateAsync(predecessor);
                 _entries.Add(new Entry { Reference = incoming });
@@ -186,7 +186,7 @@
 
     // Shared cleanup for an exiting entry: cancels its watchdog, detaches its
     // JS interop and drops it from _entries — without a StateHasChanged of its
-    // own, so RunHandoffTransitionAsync can chain it with adding the successor
+    // own, so RunHandoffMorphAsync can chain it with adding the successor
     // and render both changes as one atomic step (see there for why that
     // ordering matters for the view transition's "new" snapshot).
     private async Task FinalizeExitImmediateAsync(Entry entry)
@@ -210,8 +210,8 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Cheap no-op unless a handoff view transition is currently awaiting this
-        // render (see RunHandoffTransitionAsync / IDrylViewTransition contract).
-        _handoffTransition?.SignalRendered();
+        // render (see RunHandoffMorphAsync / IDrylMorph contract).
+        _handoffMorph?.SignalRendered();
 
         foreach (var entry in _entries.Where(e => !e.Attached && !e.IsExiting).ToList())
         {
@@ -275,8 +275,8 @@
         DialogService.OnDialogCloseRequested  -= OnClosed;
         DialogService.OnDialogInstanceUpdated -= OnUpdated;
 
-        _handoffTransition?.Dispose();
-        _handoffTransition = null;
+        _handoffMorph?.Dispose();
+        _handoffMorph = null;
 
         foreach (var entry in _entries.ToList())
         {

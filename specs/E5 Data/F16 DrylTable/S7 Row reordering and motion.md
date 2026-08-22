@@ -48,7 +48,7 @@
 ### The morph
 
 - `AnimateReorder` set morphs rows between their old and new positions using a
-  same-document view transition.
+  same-document morph.
 - The morph is available only under the same constraints as reordering itself,
   minus the sort lock — a re-sort morphs too.
 - Every row carries a view-transition name while a morph mode is active, and
@@ -61,11 +61,11 @@
 - The name is scoped per table instance, so two morph-enabled tables on one page
   cannot collide on a document-global name.
 - A mutation that arrives while a transition is in flight is applied directly
-  rather than starting a second one, because view transitions serialise and the
+  rather than starting a second one, because morphs serialise and the
   overlapping start would only be skipped.
 - The mutation is guaranteed to run even when the transition never calls back —
   during prerender, on a disconnected circuit, or under a test renderer.
-- A browser without view transitions falls back to applying the mutation
+- A browser without morphs falls back to applying the mutation
   directly.
 
 ### The streaming glide

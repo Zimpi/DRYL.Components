@@ -2,7 +2,7 @@
 @using DRYL.Components.Motion
 @using Microsoft.AspNetCore.Components.Routing
 @inject NavigationManager Nav
-@inject IDrylViewTransition ViewTransition
+@inject IDrylMorph Morph
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@
             // route's first render is also exactly the "morph onto the skeleton" policy:
             // a page still loading its data morphs into its placeholder rather than
             // freezing the page it came from.
-            ViewTransition.SignalRendered();
+            Morph.SignalRendered();
         }
     }
 
@@ -85,7 +85,10 @@
         // returns.
         if (ShouldMorph?.Invoke(context.TargetLocation) is not false)
         {
-            ViewTransition.BeginNavigation(Timeout);
+            // Deliberately not awaited: the navigation must not wait for the morph, and
+            // awaiting here would deadlock — the morph waits for the new page's render,
+            // which cannot happen until this handler returns.
+            _ = Morph.BeginNavigationAsync(Timeout);
         }
         return ValueTask.CompletedTask;
     }

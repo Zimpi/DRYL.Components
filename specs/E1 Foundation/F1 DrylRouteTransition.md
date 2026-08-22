@@ -23,9 +23,9 @@ a `DrylMorph` with the same `Name` on both pages. Nothing else is wired up.
 It works by starting the transition in a location-changing handler and then
 getting out of the way. It never prevents, cancels or restarts a navigation, so
 the history stack and the browser's Back and Forward buttons behave exactly as
-they would without it. The old snapshot is taken when the handler runs; the
+they would without it. The old geometry is measured when the handler runs; the
 transition is then held open until a `DrylMorph` on the destination page reports
-its render, at which point the browser takes the new snapshot and morphs.
+its render, at which point the engine measures the new geometry and moves each target into place.
 
 Because a destination page can fail to report — it may carry no `DrylMorph` at
 all, or be waiting on data that never arrives — the component always carries a
@@ -42,12 +42,12 @@ The component renders no markup.
 | `ShouldMorph` | `Func<string, bool>?` | `null` | Given the target URI, decides whether that navigation morphs. `null` morphs every internal navigation. |
 | `Timeout` | `TimeSpan` | 1 second | How long the old frame may be held waiting for the destination to report a render, before the navigation completes morph-free. |
 
-`IDrylViewTransition` gains one member for this, documented in
+`IDrylMorph` gains one member for this, documented in
 [`_Api.md`](_Api.md):
 
 | Member | Purpose |
 |---|---|
-| `BeginNavigation(TimeSpan timeout)` | Starts a transition that a coming navigation completes. Ships as a **default interface implementation** that does nothing, so an existing implementer of the interface keeps compiling and simply never morphs a navigation. |
+| `BeginNavigationAsync(TimeSpan timeout)` | Starts a transition that a coming navigation completes. Ships as a **default interface implementation** that does nothing, so an existing implementer of the interface keeps compiling and simply never morphs a navigation. |
 
 The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
@@ -64,8 +64,8 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ### Starting a transition
 
-- An internal navigation starts a view transition before the router changes the
-  route.
+- An internal navigation measures the current geometry before the router
+  changes the route.
 - The component does not await the transition inside the handler, so the
   navigation is never delayed by it.
 - The component never calls `PreventNavigation`, so a navigation always
@@ -108,7 +108,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 ### Behaviour where the morph cannot run
 
 - The component renders nothing and registers nothing during prerender.
-- Navigation behaves identically when the browser has no View Transition API:
+- Navigation behaves identically when the browser has no morph engine:
   the route change happens, morph-free.
 - Navigation behaves identically under `prefers-reduced-motion`, since the
   shared bridge already falls back to a direct apply.
@@ -127,7 +127,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 ### Appearance
 
 - The component names no color, length, duration or easing (`DESIGN-01`); the
-  morph is the shared `::view-transition-*` vocabulary in `dryl.css`.
+  morph is the shared `the morph engine` vocabulary in `dryl.css`.
 - The component adds no stylesheet of its own.
 - The component renders nothing, so it has no appearance to differ between color
   modes (`DESIGN-02`).

@@ -14,6 +14,32 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-08-22
+
+### Removed
+- **The View Transition API is gone from DRYL.** Every morph in the library now runs on FLIP instead. The browser API replaced the **live page** with snapshots for the duration of a transition and swapped back to live rendering at the end — measured as a 1718 × 1248 px snapshot of the whole viewport for a change to one card. That swap is visible everywhere at once: text antialiasing shifts, `backdrop-filter` surfaces recomposite, gradients re-raster. It looked like the entire page flickering every time one element moved, and no amount of CSS could switch it off. FLIP does the opposite: measure where things are, let Blazor render, measure again, and animate the difference on the real elements. The page stays live and only what actually moved is animated — verified side by side in the browser: **0 snapshots and 0 calls to the API** afterwards, against 10 pseudo-elements before.
+
+**Removed API — what to use instead:**
+
+| Removed | Replacement |
+|---|---|
+| `IDrylViewTransition` | `IDrylMorph` — same `RunAsync(mutate)` shape and the same `SignalRendered()` contract. `BeginNavigation(TimeSpan)` becomes `BeginNavigationAsync(TimeSpan)`. |
+| `DrylViewTransitionStyle` | `DrylMorphStyle`, with the same `Glide` and `DepthGlass` values. |
+| `DrylCard.ViewTransitionName`, `DrylCard.ViewTransitionStyle` | Wrap the card in `<DrylMorph Name="…" Style="…">`. The card is a surface; being a morph target is the hull's job, and this way any content can be one. |
+| `DialogOptions.HandoffStyle` typed as `DrylViewTransitionStyle` | Same property, now typed `DrylMorphStyle`. `AnimateHandoff` is unchanged. |
+| `window.dryl.viewTransition` | `window.dryl.morph` (`capture` / `play`). Only relevant if you called the bridge yourself. |
+| The `::view-transition-*` block in `dryl.css` | Nothing to replace — the movement is created by the engine, not by stylesheet rules. |
+
+Everything else is a rename you can follow mechanically. If you never touched these names, the only change you will notice is that morphs look better.
+
+### Changed
+- `DrylMorph` — marks its target with `data-dryl-morph` instead of rendering a `view-transition-name`, and its `Style` parameter takes `DrylMorphStyle`. The parameters, their defaults and their meaning are otherwise unchanged.
+- `DrylTable` — row reordering runs on FLIP, which is the classic technique for exactly this: each row is measured, the list re-renders, and every row that moved travels to its new position. Rows carry `data-dryl-morph` instead of a per-row `view-transition-name`.
+- The dialog handoff, `DrylCanvas` and `DrylCanvasWorkspace` all move over to the engine. Their behaviour is unchanged; their movement no longer freezes the page around them.
+- `DepthGlass` is rebuilt on FLIP: the surface passes through translucency and blur while it travels and arrives clear, instead of two snapshots merging through a filter.
+
+
+
 ## [2.26.0] — 2026-08-22
 
 ### Fixed

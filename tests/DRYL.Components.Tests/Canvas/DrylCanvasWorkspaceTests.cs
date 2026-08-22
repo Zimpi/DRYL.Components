@@ -130,10 +130,10 @@ public class DrylCanvasWorkspaceTests : BunitContext
         var cut = Render<DrylCanvasWorkspace>(p => p.Add(x => x.Workspace, ws));
 
         cut.FindAll("[role='tab']")[0].KeyDown(new KeyboardEventArgs { Key = "ArrowRight" });
-        Assert.Equal("order-4711", ws.ActiveId);
+        cut.WaitForAssertion(() => Assert.Equal("order-4711", ws.ActiveId));
 
         cut.FindAll("[role='tab']")[1].KeyDown(new KeyboardEventArgs { Key = "Home" });
-        Assert.Equal("overview", ws.ActiveId);
+        cut.WaitForAssertion(() => Assert.Equal("overview", ws.ActiveId));
     }
 
     [Fact]
