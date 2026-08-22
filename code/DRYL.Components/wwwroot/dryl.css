@@ -5995,6 +5995,20 @@ pre { overflow-x: auto; }
   animation-timing-function: var(--ease-viscous);
 }
 
+/* The incoming snapshot settles before the shape does. The group animates
+   width and height (that is what the UA morphs — the transform is identical
+   at both ends), so both snapshots are bitmaps being stretched for the whole
+   --dur-slow, and when the pseudo-tree disappears they are replaced by real,
+   sharp DOM in a single frame. Landing that swap while the new snapshot is
+   still cross-fading is what reads as a stumble at the very end of the morph.
+   Bringing the fade in on --dur-med leaves the last stretch of the movement
+   showing one settled image, so the swap happens on a picture that has
+   already stopped changing — the same "clarity arrives early" reasoning the
+   DepthGlass tier below is built on, applied to every morph. */
+::view-transition-new(*) {
+  animation-duration: var(--dur-med);
+}
+
 /* DepthGlass: mercury-like merge. A merge filter (blur + high-contrast,
    the "goo" technique) pulls the old/new snapshots together with a
    droplet's surface tension instead of a flat cross-fade. Transient —

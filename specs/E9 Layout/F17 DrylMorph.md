@@ -142,6 +142,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   shared `::view-transition-group(*)` rule.
 - The component adds no stylesheet of its own — the entire morph vocabulary is
   the existing `::view-transition-*` rules in `dryl.css`.
+- The incoming snapshot finishes fading in on `--dur-med`, before the shape
+  finishes settling on `--dur-slow`, so the last stretch of a morph shows one
+  settled image.
 - The component paints no frost, being a transparent hull rather than a surface
   (`DESIGN-06`).
 - The component renders no accent, so `DESIGN-08` has nothing to apply to.
@@ -155,6 +158,31 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   renders no surface of its own, so there is nothing for an aura to sit on. A
   surface that *is* AI-driven carries its own `Ai` inside the hull, where the
   aura belongs, and morphs with it.
+
+## Recorded gaps
+
+- **The morph stretches a bitmap, and the swap back to real DOM is a hard
+  cut.** The browser morphs a group by animating its `width` and `height` — the
+  transform is identical at both ends — so both snapshots are bitmaps being
+  scaled for the whole `--dur-slow`, and the moment the pseudo-tree disappears
+  they are replaced by sharp DOM in a single frame. Measured on the demo page,
+  a card growing into a detail panel is stretched by a factor of three. Landing
+  the incoming fade on `--dur-med` (see "Appearance") leaves the final stretch
+  showing a settled picture, which is as far as this can be taken without
+  leaving the API's own model. It is a property of the View Transition API, not
+  a defect in this component.
+- **A morph that ends under a resting pointer lights up once more.** When the
+  revealed element sits where the pointer already is — the normal case, because
+  the pointer is still on the control that was pressed — its hover transitions
+  start in the frame the morph finishes, adding a `--dur-med` colour settle
+  after the movement is over. Verified in the browser: with the pointer parked
+  away from the reveal, nothing starts. This is correct browser behaviour and is
+  recorded here so it is recognised rather than re-investigated.
+- **`SignalRendered` needs someone to render.** The hull closes the timing loop
+  from its own `OnAfterRender`, so a mutation that renders no `DrylMorph` at all
+  leaves the transition waiting. Every shape the component is built for renders
+  at least one hull in the same batch; a consumer who mutates something else
+  entirely still owns that half themselves.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
