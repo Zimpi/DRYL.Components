@@ -1569,8 +1569,29 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .sidebar.is-collapsed .sidebar-collapse-hide {
     display: none;
   }
+  /* Centring alone is not enough: the row keeps its expanded horizontal padding,
+     which on a rail this narrow leaves less room than the icon needs and squashes
+     it — 16px of icon in 5px of space. The rail is the padding now, so the rows
+     inside it give theirs up and each icon gets its full width back. */
   .sidebar.is-collapsed .nav-item,
-  .sidebar.is-collapsed .nav-section-toggle { justify-content: center; }
+  .sidebar.is-collapsed .nav-section-toggle {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  /* The icon is the whole row here — it may never be shrunk to fit. */
+  .sidebar.is-collapsed .nav-item > svg,
+  .sidebar.is-collapsed .nav-item .ico,
+  .sidebar.is-collapsed .nav-section-toggle > svg {
+    flex: 0 0 auto;
+    min-width: 16px;
+  }
+  /* A classic scrollbar claims a quarter of a rail this narrow and pushes every
+     icon off-centre with the remainder. On a rail it is also unusable as a
+     control, so it stops taking space here — the rail still scrolls by wheel,
+     trackpad and keyboard. */
+  .sidebar.is-collapsed .sidebar-content { scrollbar-width: none; }
+  .sidebar.is-collapsed .sidebar-content::-webkit-scrollbar { width: 0; height: 0; }
 }
 
 /* Static mode: never becomes an overlay, stays an in-flow column at any width. */
@@ -5981,53 +6002,66 @@ pre { overflow-x: auto; }
   .chart-tip, .chart-crosshair, .chart-bar, .donut-slice path { transition: none; }
 }
 
+
 /* ──────────────────────────────────────────────────────────
-   View transitions — the "Depth Glass" morph vocabulary.
-   Same-document view transitions started by dryl.viewTransition
-   (IDrylViewTransition). Glide tier = viscous shape settle only.
-   DepthGlass tier (view-transition-class: dryl-depth) adds the
-   translucency pulse + mercury merge; clarity arrives on --dur-med,
-   before the --dur-slow shape finishes settling — the glass clears
-   before the motion ends.
+   Morphs — the "Depth Glass" movement vocabulary.
+   Driven by dryl.morph (IDrylMorph), which animates real elements with
+   FLIP: measure, re-render, invert, play. There is nothing to style here
+   for the movement itself — the transform is created by the Web Animations
+   API with --dur-slow and --ease-viscous, and the DepthGlass tier's blur
+   travels with it.
+
+   What does need rules is the hand-over. A target that changes size hands
+   its old face to a clone taken before the change; the clone rides the same
+   curve to the new box and fades out while the real element settles in, so
+   the two read as one object growing rather than two views swapping. Those
+   clones sit in a top-layer holder — what they stand in for may itself have
+   been in the top layer (a dialog, the canvas), and nothing underneath it
+   can be drawn over it. The holder is inert in every sense: it takes no
+   pointer, paints nothing of its own and is aria-hidden.
+
+   The View Transition API was removed in 3.0.0: it replaced the live page
+   with snapshots for the duration of a transition and swapped back at the
+   end, which was visible across the whole viewport — text antialiasing
+   shifted, backdrop-filter surfaces recomposited — for a change to one
+   element. FLIP leaves the page live.
+
+   Reduced motion is honoured in the engine (dryl.morph checks
+   dryl.reduced() before animating anything), so nothing below ever runs
+   under it — no clone is created in the first place.
    ────────────────────────────────────────────────────────── */
-::view-transition-group(*) {
-  animation-duration: var(--dur-slow);
-  animation-timing-function: var(--ease-viscous);
+
+.dryl-morph-ghosts {
+  position: fixed;
+  inset: 0;
+  /* The UA stylesheet gives every [popover] width/height: fit-content, and an
+     empty holder is then 0 x 0 — which quietly collapses any clone sized
+     against it (a dialog's max-width: 100% resolved to 2px). The holder must
+     be the viewport, so a clone measures itself the way the original did. */
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
 }
 
-/* DepthGlass: mercury-like merge. A merge filter (blur + high-contrast,
-   the "goo" technique) pulls the old/new snapshots together with a
-   droplet's surface tension instead of a flat cross-fade. Transient —
-   the pseudo-tree (and the filter with it) disappears when the
-   transition ends, and the clarify pass below lands on filter: none. */
-::view-transition-image-pair(*.dryl-depth) {
-  filter: url(#dryl-merge);
+.dryl-morph-ghosts::backdrop { background: none; }
+
+.dryl-morph-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  box-sizing: border-box;
+  transform-origin: top left;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
-/* DepthGlass: translucency + crystalline clarity. Runs on --dur-med
-   (faster than the --dur-slow shape glide above) so the surface is
-   always sharp before the shape finishes settling. The opacity ramp
-   matters as much as the blur: the "animation" shorthand below fully
-   replaces the UA default cross-fade-in, so without it the new snapshot
-   would pop in at full opacity on frame one, instantly occluding the
-   still-fading-out old one — a hard cut that reads as a flicker instead
-   of a merge. Keeping opacity in these keyframes is what lets the two
-   snapshots actually overlap while translucent, which is also what
-   gives the #dryl-merge goo filter something to blend. */
-@keyframes dryl-depth-clarify {
-  from { opacity: 0; filter: blur(6px) saturate(1.35); }
-  to   { opacity: 1; filter: blur(0) saturate(1); }
-}
-::view-transition-new(*.dryl-depth) {
-  animation: dryl-depth-clarify var(--dur-med) var(--ease-out) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-image-pair(*) {
-    animation: none !important;
-    filter: none !important;
-  }
-}

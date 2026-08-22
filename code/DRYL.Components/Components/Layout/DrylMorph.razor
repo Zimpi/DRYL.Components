@@ -1,0 +1,111 @@
+@namespace DRYL.Components
+@using DRYL.Components.Motion
+@inject IDrylMorph Morph
+
+@*  ─────────────────────────────────────────────────────────
+    DrylMorph — a transition ID for any content.
+
+    Marks its content as a shared element: content that exists in two
+    views and should travel between them instead of disappearing and
+    reappearing. Wrap the same <c>Name</c> around the card in an
+    overview and around the heading of the detail view, and it glides
+    from one to the other while the page around it stays untouched.
+
+    The consumer starts the morph through IDrylMorph; the hull reports
+    its own render back, so SignalRendered() never has to be written by
+    hand.
+
+    Usage:
+      -- the overview --
+      @foreach (var p in products)
+      {
+          <DrylMorph Name="@($"product-{p.Id}")" As="li">
+              <DrylCard>@p.Title</DrylCard>
+          </DrylMorph>
+      }
+
+      -- the detail: same Name, so the two are one object --
+      <DrylMorph Name="@($"product-{openId}")"
+                 Style="DrylMorphStyle.DepthGlass">
+          <h1>@current.Title</h1>
+      </DrylMorph>
+
+      -- and the switch itself --
+      await Morph.RunAsync(() => { openId = p.Id; StateHasChanged(); });
+
+    Renders one element and nothing else — no styling, no colour, no
+    frost. The movement's duration and easing are the shared motion
+    tokens; the hull adds no visual of its own.
+
+    The element is real and takes part in its parent's layout, because
+    it is the thing being measured and moved. That is what <c>As</c> is
+    for: be an <c>li</c> in a list, a <c>tr</c> in a table.
+    ───────────────────────────────────────────────────────── *@
+
+@Render
+
+@code {
+    /// <summary>The morph ID. Two elements carrying the same name before and after a
+    /// state change are treated as the same object, and the second is animated from
+    /// where the first was. A name must be unique among the elements live at the moment
+    /// the morph starts; see <see cref="Active"/>.</summary>
+    [Parameter] public string? Name { get; set; }
+
+    /// <summary>How much of the "Depth Glass" vocabulary this element gets while it
+    /// moves — <see cref="DrylMorphStyle.Glide"/> (default) or
+    /// <see cref="DrylMorphStyle.DepthGlass"/>. Ignored while the element claims no
+    /// name.</summary>
+    [Parameter] public DrylMorphStyle Style { get; set; } = DrylMorphStyle.Glide;
+
+    /// <summary>The HTML tag rendered as this component's root. Defaults to <c>"div"</c>;
+    /// set it so the hull is valid where it sits (<c>"li"</c>, <c>"tr"</c>,
+    /// <c>"article"</c>, …).</summary>
+    [Parameter] public string As { get; set; } = "div";
+
+    /// <summary>Whether this instance currently claims <see cref="Name"/>. Set false on
+    /// the entries of an overview that are not the morph target, so a long list neither
+    /// duplicates a name nor pays to be measured.</summary>
+    [Parameter] public bool Active { get; set; } = true;
+
+    /// <summary>The content that morphs.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Extra CSS class(es) on the rendered element. The hull renders no class of
+    /// its own, so this is the only class it carries.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the rendered element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // Null unless this instance is actively claiming a name — an inactive or unnamed
+    // hull is not a morph target and is never measured.
+    private string? EffectiveName =>
+        Active && !string.IsNullOrWhiteSpace(Name) ? Name : null;
+
+    // Marker the JS engine keys on to give this target the DepthGlass treatment.
+    private string? DepthMarker =>
+        EffectiveName is not null && Style == DrylMorphStyle.DepthGlass ? "" : null;
+
+    // A .razor cannot both carry markup and choose its tag at runtime, so the element is
+    // built here — the same shape DrylTypo uses for its As parameter.
+    private RenderFragment Render => builder =>
+    {
+        builder.OpenElement(0, As);
+        if (!string.IsNullOrWhiteSpace(Class)) builder.AddAttribute(1, "class", Class);
+        var name = EffectiveName;
+        if (name is not null) builder.AddAttribute(2, "data-dryl-morph", name);
+        var depth = DepthMarker;
+        if (depth is not null) builder.AddAttribute(3, "data-dryl-morph-depth", depth);
+        builder.AddMultipleAttributes(4, AdditionalAttributes);
+        builder.AddContent(5, ChildContent);
+        builder.CloseElement();
+    };
+
+    // The half of the contract that is easy to forget: the engine cannot measure the new
+    // geometry until the mutated state has reached the DOM, and this is what tells it
+    // that it has. Unconditional by contract — a cheap no-op when no morph is in flight,
+    // and reported even while unnamed, so an instance that is only the *destination* of a
+    // morph still closes the loop.
+    protected override void OnAfterRender(bool firstRender) => Morph.SignalRendered();
+}

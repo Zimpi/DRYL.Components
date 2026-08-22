@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
     /// Register DRYL component services — <see cref="IDrylDialogService"/>,
     /// <see cref="IDrylToastService"/>, <see cref="IDrylNotificationService"/>,
     /// <see cref="IDrylAiActivityService"/>, <see cref="IDrylThemeService"/> and
-    /// <see cref="IDrylViewTransition"/>.
+    /// <see cref="IDrylMorph"/>.
     /// Call this in <c>Program.cs</c>:
     /// <code>builder.Services.AddDrylComponents();</code>
     /// Then place a single <c>&lt;DrylDialogProvider/&gt;</c>, (if you want
@@ -31,7 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDrylAiActivityService, DrylAiActivityService>();
         services.AddScoped<IDrylThemeService, DrylThemeService>();
         services.AddScoped<ICommandRegistry, CommandRegistry>();
-        services.AddScoped<IDrylViewTransition, DrylViewTransition>();
+        services.AddScoped<IDrylMorph, DrylMorphEngine>();
         // Creates the (possibly still empty) canvas data source registry and the scoped
         // service around it, so a canvas can always ask "is anything bound here?".
         CanvasServiceCollectionExtensions.Registry(services);

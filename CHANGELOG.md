@@ -14,6 +14,56 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-08-22
+
+### Removed
+- **The View Transition API is gone from DRYL.** Every morph in the library now runs on FLIP instead. The browser API replaced the **live page** with snapshots for the duration of a transition and swapped back to live rendering at the end — measured as a 1718 × 1248 px snapshot of the whole viewport for a change to one card. That swap is visible everywhere at once: text antialiasing shifts, `backdrop-filter` surfaces recomposite, gradients re-raster. It looked like the entire page flickering every time one element moved, and no amount of CSS could switch it off. FLIP does the opposite: measure where things are, let Blazor render, measure again, and animate the difference on the real elements. The page stays live and only what actually moved is animated — verified side by side in the browser: **0 snapshots and 0 calls to the API** afterwards, against 10 pseudo-elements before.
+
+**Removed API — what to use instead:**
+
+| Removed | Replacement |
+|---|---|
+| `IDrylViewTransition` | `IDrylMorph` — same `RunAsync(mutate)` shape and the same `SignalRendered()` contract. `BeginNavigation(TimeSpan)` becomes `BeginNavigationAsync(TimeSpan)`. |
+| `DrylViewTransitionStyle` | `DrylMorphStyle`, with the same `Glide` and `DepthGlass` values. |
+| `DrylCard.ViewTransitionName`, `DrylCard.ViewTransitionStyle` | Wrap the card in `<DrylMorph Name="…" Style="…">`. The card is a surface; being a morph target is the hull's job, and this way any content can be one. |
+| `DialogOptions.HandoffStyle` typed as `DrylViewTransitionStyle` | Same property, now typed `DrylMorphStyle`. `AnimateHandoff` is unchanged. |
+| `window.dryl.viewTransition` | `window.dryl.morph` (`capture` / `play`). Only relevant if you called the bridge yourself. |
+| The `::view-transition-*` block in `dryl.css` | Nothing to replace — the movement is created by the engine, not by stylesheet rules. |
+
+Everything else is a rename you can follow mechanically. If you never touched these names, the only change you will notice is that morphs look better.
+
+### Changed
+- `DrylMorph` — marks its target with `data-dryl-morph` instead of rendering a `view-transition-name`, and its `Style` parameter takes `DrylMorphStyle`. The parameters, their defaults and their meaning are otherwise unchanged.
+- `DrylTable` — row reordering runs on FLIP, which is the classic technique for exactly this: each row is measured, the list re-renders, and every row that moved travels to its new position. Rows carry `data-dryl-morph` instead of a per-row `view-transition-name`.
+- The dialog handoff, `DrylCanvas` and `DrylCanvasWorkspace` all move over to the engine. Their behaviour is unchanged; their movement no longer freezes the page around them.
+- `DepthGlass` is rebuilt on FLIP: the surface passes through translucency and blur while it travels and arrives clear, instead of two snapshots merging through a filter.
+- **A morph that changes size now really morphs.** An element that grows — a card opening into a detail view, a dialog handing over to the next step — takes the face it had before the change with it: a clone captured at the start rides the same curve to the new box and fades out while the new content settles in, so the two views read as one object growing rather than one panel replacing another. An element that only *moves* is still only moved, so a table row reorder pays for nothing it does not use. The clones live in a top-layer holder (`.dryl-morph-ghosts`), are `aria-hidden`, take no pointer, are never targets themselves, and are removed the moment they have faded; nothing is created at all under `prefers-reduced-motion`.
+
+### Fixed
+- **A morph read its own measurements wrong and animated nothing.** `play()` divided by `to.w` where the browser's `DOMRect` calls it `to.width`, so every scale factor came out `NaN` and the resulting transform was invalid — the element jumped to its new size instead of travelling there. Both the `Glide` and the `DepthGlass` tier were affected; `DepthGlass` still showed its blur, which made it look like a plain cross-fade.
+- **The counter-scale cancelled the morph it was meant to protect.** The element's first child was scaled by the inverse of the move — and on every real morph target that child *is* the visible surface (the card, the panel, the dialog), so the surface stayed exactly its final size for the whole move while only the invisible hull grew around it. The hand-over above replaces it.
+- **A sequential dialog handoff stuttered instead of morphing.** Three separate causes, all in the hand-over: the top-layer holder inherited the UA stylesheet's `width: fit-content` and was therefore 0 x 0, which collapsed the dialog clone sized against it to 2px; the dialog's own enter animation was still holding it at `scale(0.96)` when the engine measured it, so every target came out 4% too small and the morph started too large and shrank into place; and the two faces crossed by fading through each other, which let the ground show through both and dimmed the whole panel for a beat. The holder is now the viewport, targets are measured only after any animation already on them has been wound forward to its finished state — so the morph is the single choreography on the element — and the old face holds until the new one is solid.
+- **Nested morph targets moved twice.** A dialog names its header, body and footer as targets of their own as well as the dialog around them; each was animated on top of the movement it was already being carried by. A target inside another target is now left to its parent.
+
+
+
+## [2.26.0] — 2026-08-22
+
+### Fixed
+- **The collapsed sidebar rail is legible again.** Every icon in a collapsed `DrylDrawer` was being squeezed to **5px wide** instead of 16 — a row of unrecognisable smears rather than icons. Two things were taking the space: the nav rows kept the horizontal padding of their expanded state (24px of it inside a 29px row), and a classic scrollbar claimed another quarter of a 56px rail, pushing what was left off-centre. On a rail the scrollbar is unusable as a control anyway, so it no longer takes space there — wheel, trackpad and keyboard scrolling are untouched — and the rows give up their side padding to the rail that already provides it. Icons are back at their full size, centred, and the labels stay hidden exactly as before. Nothing changes while the sidebar is expanded.
+
+### Added
+- `DrylRouteTransition` — **a morph across a real route change.** `DrylMorph` (2.25.0) covers a switch that happens on one route; this covers `/planets` → `/planets/42`, a `NavLink`, and the browser's Back button. Mount it once beside `DrylDialogProvider`, put a `DrylMorph` with the same `Name` on both pages, and the object the user pressed travels with them — no router hook, no timing code. It works by starting the transition in a location-changing handler and then getting out of the way: it **never** calls `PreventNavigation`, never cancels and never restarts a navigation, so the history stack and the Back and Forward buttons behave exactly as they do without it. The old snapshot is taken when the handler runs; the transition is held open until a `DrylMorph` on the destination reports its render. The host also reports the new route's first render itself, so a destination carrying no hull completes immediately rather than waiting — and a destination still loading its data morphs onto its placeholder instead of freezing the page it came from. `Timeout` (one second by default) sits underneath as the second net, for a route that never renders at all: when it elapses the navigation completes without a morph, so the component holds a frame, never your application. `ShouldMorph` takes the target URI and excludes individual navigations (a sign-out, a jump to an unrelated part of the app); left unset, every internal navigation morphs. The component renders no markup.
+- `IDrylViewTransition.BeginNavigation(TimeSpan)` — the entry point behind it, for a transition that a *coming navigation* completes rather than one the service mutates itself. It ships as a **default interface implementation that does nothing**, so if you implement `IDrylViewTransition` yourself, your code keeps compiling untouched and navigations simply do not morph until you override it.
+
+## [2.25.0] — 2026-08-22
+
+### Changed
+- **View transitions settle before they end.** Every morph the library runs — `DrylMorph`, `DrylCard`'s `ViewTransitionName`, the dialog handoff, `DrylTable`'s row reorder, the canvas — brings its incoming snapshot in on `--dur-med` instead of the browser's default full-length cross-fade. The reason is what the browser actually animates: a view-transition group morphs by scaling `width` and `height`, so both snapshots are bitmaps being stretched for the whole `--dur-slow`, and when the transition ends they are swapped for sharp DOM in a single frame. Ending the fade early means that final stretch of movement shows one settled image, so the swap lands on a picture that has already stopped changing instead of on one still cross-fading — which is what read as a stumble at the very end of a morph. The `DepthGlass` tier already worked this way and is unchanged; this brings the default `Glide` tier in line with it. Nothing about the shape, the duration or the easing of the movement changes.
+
+### Added
+- `DrylMorph` — **a transition ID for any content.** Shared-element transitions were available on exactly one component: `DrylCard` took a `ViewTransitionName`, and everything else — a list row, an image, a heading, a plain `div` — had to hand-write the inline `view-transition-name`, with no place to hang the `DepthGlass` tier's transition class or the marker the JS bridge keys on. `DrylMorph` is the generic hull: wrap the same `Name` around the card in an overview and around the heading of the detail view, and the browser morphs position, size and opacity from one to the other instead of cutting between two screens. `Style` picks the tier (`Glide` or `DepthGlass`), `As` chooses the rendered tag so the hull is valid where it sits (`li` in a list, `tr` in a table), and `Active` lets a long overview name only the entry being opened — a duplicate name at snapshot time makes the browser skip the morph silently, so a hundred permanently-named rows is the one shape to avoid. The hull also takes over the half of the timing contract that is easy to forget: it reports every render to `IDrylViewTransition`, so **`SignalRendered()` never has to be written by hand**. Starting the transition stays with you — `IDrylViewTransition.RunAsync(...)` — because the hull cannot see when the rest of your page has finished rendering and will not pretend otherwise. It renders one element and nothing else: no class, no colour, no frost; the morph's duration, easing and merge are the existing `::view-transition-*` rules. Nothing changes for existing code — `DrylCard.ViewTransitionName` behaves exactly as before and now builds its markup through the same shared helper.
+
 ## [2.24.3] — 2026-08-20
 
 ### Changed

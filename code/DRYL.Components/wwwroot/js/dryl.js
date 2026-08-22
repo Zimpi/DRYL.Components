@@ -3,7 +3,7 @@
 window.dryl = window.dryl || {};
 
 /* Shared prefers-reduced-motion check — used by dryl.motion and
-   dryl.viewTransition so both honour the user's setting identically. */
+   dryl.morph so both honour the user's setting identically. */
 window.dryl.reduced = () =>
     !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -2014,52 +2014,252 @@ window.dryl.motion = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────
- * dryl.viewTransition — same-document View Transition bridge.
+ * dryl.morph — FLIP, the engine behind DrylMorph, DrylRouteTransition,
+ *   the dialog handoff, table row reordering and the canvas.
  *
- * start(dotNetRef) snapshots the current DOM, asks .NET to apply its
- * state change (ApplyChange resolves only after the consuming
- * component's OnAfterRender fired, i.e. the new DOM is committed),
- * then lets the browser morph old → new. Falls back to a direct,
- * morph-free apply when the API is missing or the user prefers
- * reduced motion — the feature never blocks unsupported browsers.
+ * First / Last / Invert / Play. capture() measures every morph target
+ * where it currently sits; the caller then mutates state and waits for
+ * Blazor to render; play() measures again and animates each target from
+ * where it was to where it now is.
  *
- * The #dryl-merge SVG "goo" filter used by DepthGlass morphs
- * (view-transition-class: dryl-depth) is injected lazily the first
- * time a DepthGlass element ([data-vt-depth]) is in the DOM —
- * the same lazy-DOM-injection pattern as the tooltip portal.
+ * Why not the View Transition API: it replaces the live page with
+ * snapshots for the duration of a transition and swaps back at the end,
+ * which is visible across the whole viewport — text antialiasing shifts,
+ * backdrop-filter surfaces recomposite — even when one card changed. FLIP
+ * leaves the page live and animates exactly the elements that moved.
+ *
+ * Targets announce themselves with [data-dryl-morph="{name}"] rather than
+ * being registered from .NET: a Blazor ElementReference cannot be passed
+ * inside a nested object, and the DOM already knows where everything is.
  * ────────────────────────────────────────────────────────── */
-window.dryl.viewTransition = (() => {
-    function ensureMergeFilter() {
-        if (document.getElementById('dryl-merge')) return;
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', '0');
-        svg.setAttribute('height', '0');
-        svg.setAttribute('aria-hidden', 'true');
-        svg.style.position = 'absolute';
-        svg.innerHTML =
-            '<defs><filter id="dryl-merge">' +
-            '<feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/>' +
-            '<feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -12" result="g"/>' +
-            '<feComposite in="SourceGraphic" in2="g" operator="atop"/>' +
-            '</filter></defs>';
-        document.body.appendChild(svg);
+window.dryl.morph = (() => {
+    // name -> { x, y, w, h, ghost } captured before the mutation. `ghost` is a
+    // detached clone of the element as it looked then: Blazor has thrown the
+    // real node away by the time the morph plays, and a morph that reads as one
+    // object needs the old face to hand over to the new one.
+    let first = new Map();
+    let layer = null;
+    let live = 0;
+
+    // Attributes a clone must not keep: a duplicate id, a `popover` that would
+    // make the clone display:none outside the top layer, and the morph markers
+    // themselves — a ghost that answered targets() would be measured as if it
+    // were the element it stands in for.
+    const SCRUB = ['id', 'popover', 'data-dryl-morph', 'data-dryl-morph-depth', 'inert'];
+
+    // Inherited type a clone loses by hanging off <body> instead of its own
+    // parent chain. Carried over so the ghost is the same shape it was.
+    const INHERITED = ['font-family', 'font-size', 'font-weight', 'font-style',
+                       'line-height', 'letter-spacing', 'text-align', 'color', 'direction'];
+
+    // Above this, a clone stops being cheap. Such a target still morphs — it
+    // just moves and scales as one piece instead of handing over to a ghost.
+    const MAX_GHOST_NODES = 400;
+
+    function targets() {
+        return document.querySelectorAll('[data-dryl-morph]');
     }
 
-    function start(dotNetRef) {
-        if (!document.startViewTransition || window.dryl.reduced()) {
-            // No support, or user opted out of motion: apply the change
-            // directly — no snapshot, no morph (same fallback shape as
-            // dryl.motion.onExit).
-            return dotNetRef.invokeMethodAsync('ApplyChange');
+    function scrub(node) {
+        for (const a of SCRUB) node.removeAttribute(a);
+        for (const child of node.children) scrub(child);
+    }
+
+    function snapshot(el, rect) {
+        if (el.getElementsByTagName('*').length > MAX_GHOST_NODES) return null;
+        const ghost = el.cloneNode(true);
+        scrub(ghost);
+        const cs = getComputedStyle(el);
+        for (const p of INHERITED) ghost.style.setProperty(p, cs.getPropertyValue(p));
+        ghost.classList.add('dryl-morph-ghost');
+        // Forced, not merely set: the clone keeps the classes it was measured
+        // with, and those may size it against a parent it no longer has.
+        for (const [prop, value] of [['width', rect.width + 'px'], ['height', rect.height + 'px'],
+                                     ['min-width', '0'], ['min-height', '0'],
+                                     ['max-width', 'none'], ['max-height', 'none']])
+            ghost.style.setProperty(prop, value, 'important');
+        return ghost;
+    }
+
+    // The ghosts live in the top layer, because what they stand in for may have
+    // been there too (a dialog, the canvas), and nothing below the top layer can
+    // be drawn over it. A browser without the Popover API keeps them in flow at
+    // position: fixed, which is where everything else already sits.
+    function ghostLayer() {
+        if (!layer || !layer.isConnected) {
+            layer = document.createElement('div');
+            layer.className = 'dryl-morph-ghosts';
+            layer.setAttribute('popover', 'manual');
+            layer.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(layer);
         }
-        if (document.querySelector('[data-vt-depth]')) ensureMergeFilter();
-        const t = document.startViewTransition(() => dotNetRef.invokeMethodAsync('ApplyChange'));
-        // Swallow skip-rejections (e.g. duplicate view-transition-name):
-        // the DOM change itself was applied; only the morph was skipped.
-        return t.finished.catch(() => { });
+        // Re-opened every time: the top layer stacks by order of opening, and
+        // what a ghost stands in for (a dialog handing over to the next one)
+        // may well have been opened after the holder was.
+        try { layer.hidePopover && layer.hidePopover(); } catch (_) { /* not open */ }
+        try { layer.showPopover && layer.showPopover(); } catch (_) { /* no Popover API */ }
+        return layer;
     }
 
-    return { start };
+    function release(ghost) {
+        ghost.remove();
+        if (--live <= 0) {
+            live = 0;
+            if (layer) { try { layer.hidePopover && layer.hidePopover(); } catch (_) { /* already closed */ } }
+        }
+    }
+
+    function capture() {
+        first = new Map();
+        // Read every rect before writing anything: interleaving reads and
+        // writes would force a layout pass per target.
+        const seen = [];
+        for (const el of targets()) {
+            const name = el.getAttribute('data-dryl-morph');
+            if (!name) continue;
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height) continue;
+            seen.push({ name, el, r });
+        }
+        for (const s of seen) {
+            first.set(s.name, {
+                x: s.r.x, y: s.r.y, w: s.r.width, h: s.r.height,
+                ghost: snapshot(s.el, s.r)
+            });
+        }
+    }
+
+    function clear() { first = new Map(); }
+
+    function play(durationMs, enterMs) {
+        const captured = first;
+        first = new Map();
+        if (!captured.size || window.dryl.reduced()) return;
+
+        const cs = getComputedStyle(document.documentElement);
+        const easing = cs.getPropertyValue('--ease-viscous').trim() || 'ease';
+
+        // Measure everything first, then animate — same reason as above.
+        const jobs = [];
+        for (const el of targets()) {
+            const name = el.getAttribute('data-dryl-morph');
+            if (!name) continue;
+            // Settle before measuring, not after: a rect is taken through
+            // whatever transform is on the element, so an enter animation still
+            // holding the element at scale(0.96) would have every target
+            // measured 4% too small — and the morph would then start too large
+            // and shrink into place. It also keeps the morph the only
+            // choreography on the element; two curves on one box read as a
+            // stutter, which is what a chained dialog was showing.
+            settle(el);
+            const to = el.getBoundingClientRect();
+            if (!to.width || !to.height) continue;
+            jobs.push({ el, name, to, from: captured.get(name) || null,
+                        depth: el.hasAttribute('data-dryl-morph-depth') });
+        }
+
+        for (const j of jobs) {
+            // A target inside another target is carried by it. Animating it as
+            // well would be a second movement on top of the first, and a second
+            // face of content that is already being handed over.
+            if (jobs.some(o => o !== j && o.el.contains(j.el))) continue;
+
+            if (!j.from) { enter(j.el, enterMs, easing); continue; }
+
+            const dx = j.from.x - j.to.x;
+            const dy = j.from.y - j.to.y;
+            const sx = j.from.w / j.to.width;
+            const sy = j.from.h / j.to.height;
+            if (!isFinite(sx) || !isFinite(sy) || sx <= 0 || sy <= 0) continue;
+
+            const moved = Math.abs(dx) >= 1 || Math.abs(dy) >= 1;
+            const resized = Math.abs(sx - 1) > 0.02 || Math.abs(sy - 1) > 0.02;
+
+            // Did not actually move or resize — leave it alone rather than
+            // animate a no-op, which would still cost a compositor layer.
+            if (!moved && !resized) continue;
+
+            const frames = [
+                { transformOrigin: 'top left', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+                { transformOrigin: 'top left', transform: 'none' }
+            ];
+            if (j.depth) {
+                // The DepthGlass tier: the surface passes through translucency
+                // and blur on the way and arrives clear.
+                frames[0].filter = 'blur(6px) saturate(1.35)';
+                frames[1].filter = 'blur(0) saturate(1)';
+            }
+            j.el.animate(frames, { duration: durationMs, easing, fill: 'both' });
+
+            // A move with no change of size needs nothing else: the element is
+            // the same size at both ends, so it simply travels. That is the
+            // cheap path a table row reorder takes.
+            const ghost = resized ? j.from.ghost : null;
+            if (!ghost) continue;
+
+            // The shape grows from the old box into the new one, and the two
+            // faces cross over inside it: the old one rides the same curve
+            // outwards while the new one settles in. That crossing is what makes
+            // it read as one object changing size rather than two views swapping.
+            ghostLayer().appendChild(ghost);
+            live++;
+            // A clone entering the document runs its own enter animation from
+            // the top, however far through the original was. The ghost is a
+            // face, not an arrival.
+            settle(ghost, true);
+
+            const gFrames = [
+                { transformOrigin: 'top left', transform: `translate(${j.from.x}px, ${j.from.y}px)` },
+                { transformOrigin: 'top left',
+                  transform: `translate(${j.to.x}px, ${j.to.y}px) scale(${j.to.width / j.from.w}, ${j.to.height / j.from.h})` }
+            ];
+            if (j.depth) {
+                gFrames[0].filter = 'blur(0) saturate(1)';
+                gFrames[1].filter = 'blur(6px) saturate(1.35)';
+            }
+            ghost.animate(gFrames, { duration: durationMs, easing, fill: 'both' });
+
+            // The two faces overlap rather than meet in the middle. Fading one
+            // out as the other fades in sounds symmetrical and looks like a
+            // hole: two half-transparent surfaces over the same ground let the
+            // ground through, and the whole panel dims for a beat. So the old
+            // face holds while the new one is already arriving, and only leaves
+            // once the new one is solid.
+            const out = ghost.animate([
+                { opacity: 1, offset: 0 },
+                { opacity: 1, offset: 0.4 },
+                { opacity: 0, offset: 1 }
+            ], { duration: Math.round(durationMs * 0.6), easing, fill: 'both' });
+            const done = () => release(ghost);
+            out.finished.then(done, done);
+
+            j.el.animate([{ opacity: 0 }, { opacity: 1 }], {
+                duration: Math.round(durationMs * 0.45), easing, fill: 'backwards'
+            });
+        }
+    }
+
+    // Put any animation already running on `el` into its finished state: wound
+    // forward to where it was going, rather than switched off, which would only
+    // make it start again from the beginning once the morph lets go. Throws for
+    // an infinite animation, which is exactly one that is not an enter and must
+    // be left alone.
+    function settle(el, subtree) {
+        for (const a of el.getAnimations(subtree ? { subtree: true } : undefined)) {
+            try { a.finish(); } catch (_) { /* infinite — not ours to end */ }
+        }
+    }
+
+    // A target with no counterpart is arriving rather than moving.
+    function enter(el, ms, easing) {
+        if (!ms) return;
+        el.animate([
+            { opacity: 0, transform: 'translateY(4px)' },
+            { opacity: 1, transform: 'none' }
+        ], { duration: ms, easing, fill: 'both' });
+    }
+
+    return { capture, play, clear };
 })();
 
 /* ──────────────────────────────────────────────────────────

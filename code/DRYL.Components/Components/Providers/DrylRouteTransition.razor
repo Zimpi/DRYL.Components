@@ -1,0 +1,102 @@
+@namespace DRYL.Components
+@using DRYL.Components.Motion
+@using Microsoft.AspNetCore.Components.Routing
+@inject NavigationManager Nav
+@inject IDrylMorph Morph
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylRouteTransition — morph across a real route change.
+
+    DrylMorph covers a switch that happens on one route. This covers
+    /planets to /planets/42, a NavLink, and the Back button: mount it
+    once next to DrylDialogProvider, put a DrylMorph with the same
+    Name on both pages, and the object the user pressed travels with
+    them.
+
+    Usage (in MainLayout.razor, beside the other providers):
+      <DrylRouteTransition />
+
+      -- exclude a navigation from morphing --
+      <DrylRouteTransition ShouldMorph="@(url => !url.Contains("/logout"))" />
+
+    It never prevents, cancels or restarts a navigation — it starts the
+    transition and gets out of the way — so history and the browser's
+    Back and Forward buttons behave exactly as they would without it.
+
+    Renders no markup.
+    ───────────────────────────────────────────────────────── *@
+
+@code {
+    /// <summary>Decides whether a navigation morphs, given the URI it is heading to.
+    /// Null (the default) morphs every internal navigation. Return false to leave a
+    /// navigation alone — a sign-out, or a jump to a part of the app that shares
+    /// nothing with the current page.</summary>
+    [Parameter] public Func<string, bool>? ShouldMorph { get; set; }
+
+    /// <summary>How long the previous frame may be held while waiting for the
+    /// destination page to report a render, before the navigation completes without a
+    /// morph. A destination that carries no <see cref="DrylMorph"/>, or that never
+    /// finishes rendering, must not leave the user looking at a frozen frame.</summary>
+    [Parameter] public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(1);
+
+    private IDisposable? _registration;
+    private bool _awaitingRouteRender;
+
+    // Registered from OnAfterRender, never OnInitialized: during prerender there is no
+    // JS to start a transition with, and a handler registered there would outlive
+    // nothing useful.
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _registration ??= Nav.RegisterLocationChangingHandler(OnLocationChanging);
+            Nav.LocationChanged += OnLocationChanged;
+            return;
+        }
+
+        if (_awaitingRouteRender)
+        {
+            _awaitingRouteRender = false;
+            // The floor under the timeout. A destination carrying a DrylMorph reports in
+            // the same batch and this changes nothing; a destination carrying none would
+            // otherwise hold the old frame for the whole of Timeout, which would make
+            // every ordinary navigation in an app feel a second slow. Reporting on the
+            // route's first render is also exactly the "morph onto the skeleton" policy:
+            // a page still loading its data morphs into its placeholder rather than
+            // freezing the page it came from.
+            Morph.SignalRendered();
+        }
+    }
+
+    // Queues one render of this component behind the router's own, so the report above
+    // lands after the new route reached the DOM.
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _awaitingRouteRender = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        // Note what this does NOT do: no PreventNavigation, no await. The old snapshot
+        // is taken inside BeginNavigation; holding the handler open would deadlock,
+        // because the transition is waiting for a render that cannot happen until this
+        // returns.
+        if (ShouldMorph?.Invoke(context.TargetLocation) is not false)
+        {
+            // Deliberately not awaited: the navigation must not wait for the morph, and
+            // awaiting here would deadlock — the morph waits for the new page's render,
+            // which cannot happen until this handler returns.
+            _ = Morph.BeginNavigationAsync(Timeout);
+        }
+        return ValueTask.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+        _registration?.Dispose();
+        _registration = null;
+    }
+}

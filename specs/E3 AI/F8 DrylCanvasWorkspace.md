@@ -18,10 +18,10 @@ of losing it.
 chips and shows exactly one of them in its body. A line-of-business page is not one
 artifact; it is a handful of them, and the workspace is what makes them navigable.
 
-Switching runs through `IDrylViewTransition`, so the surface morphs into the other
+Switching runs through `IDrylMorph`, so the surface morphs into the other
 view rather than blinking, while the shared `[data-dryl-ink]` indicator glides
 between the chips — the same primitive `DrylTabs` uses. The morph is deliberately
-owned here rather than by whatever sits in the body: nesting two view transitions
+owned here rather than by whatever sits in the body: nesting two morphs
 loses one of the mutations, which is why `DrylAiCanvas` suppresses its own swap
 morph for a workspace switch.
 
@@ -107,7 +107,7 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 
 - Activating a chip makes its view the active one.
 - Activating the already-active chip changes nothing and starts no transition.
-- The switch runs through `IDrylViewTransition`, so the surface morphs rather than
+- The switch runs through `IDrylMorph`, so the surface morphs rather than
   snapping.
 - The gliding indicator moves to the newly active chip rather than jumping.
 - The indicator is re-measured only when the active chip changed.
@@ -137,7 +137,7 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 - The version list renders the newest version first.
 - The version list marks the version currently shown.
 - Selecting a version restores it and closes the version list.
-- Undo, redo and restore each run through `IDrylViewTransition`, so the artifact
+- Undo, redo and restore each run through `IDrylMorph`, so the artifact
   morphs rather than blinking.
 - A history step that moved nothing announces nothing and leaves the cursor where
   it was.
@@ -254,7 +254,7 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
   `node scripts/validate-light-contrast.mjs`; the component defines no
   mode-specific rule.
 - **Enter/exit animation** — the bar and every chip through `DrylPresence`, the
-  view switch and every history step through `IDrylViewTransition`, and the
+  view switch and every history step through `IDrylMorph`, and the
   indicator through `dryl.motion.moveIndicator`. See "Motion".
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above: a full
   tablist model with a roving tab stop, and a polite live region for history.

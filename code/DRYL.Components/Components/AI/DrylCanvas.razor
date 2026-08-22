@@ -5,7 +5,7 @@
 @using Microsoft.Extensions.Logging
 @inject IJSRuntime JS
 @inject IServiceProvider Services
-@inject IDrylViewTransition ViewTransition
+@inject IDrylMorph Morph
 @implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@
       <DrylCanvas Spec="_spec" OnInteraction="HandleInteraction" />
     ───────────────────────────────────────────────────────── *@
 
-<div class="@RootCssClass" style="@VtStyle" data-vt-depth="" tabindex="-1" popover="@PopoverMode"
+<div class="@RootCssClass" data-dryl-morph="@_morphName" data-dryl-morph-depth="" tabindex="-1" popover="@PopoverMode"
      @ref="_rootEl" @onkeydown="OnKeyDown" @attributes="AdditionalAttributes">
     @Overlay
 
@@ -211,11 +211,11 @@
     private string? _selectionAnnouncement;
     private bool _reorderAttached;
 
-    // Per-instance view-transition-name. Must be document-globally unique while in the DOM:
-    // a duplicate name voids the entire transition, so two canvases on one page each get
+    // Per-instance morph name. Must be document-globally unique while in the DOM: a
+    // duplicate name would move the wrong canvas, so two canvases on one page each get
     // their own counter value.
-    private static int _vtSeq;
-    private readonly string _vtName = FormattableString.Invariant($"dryl-canvas-{Interlocked.Increment(ref _vtSeq)}");
+    private static int _morphSeq;
+    private readonly string _morphName = FormattableString.Invariant($"dryl-canvas-{Interlocked.Increment(ref _morphSeq)}");
 
     /// <summary>The shared per-canvas context — form state, pulse tracker and data binder.
     /// Exposed so a wrapper (e.g. <c>DrylAiCanvas</c>) can read the live field values.</summary>
@@ -489,7 +489,7 @@
         // Unconditional, cheap no-op when no transition is in flight — this is what tells the
         // browser the "new" state has reached the DOM and it may take the second snapshot.
         // It also covers a transition a wrapper started around a spec swap.
-        ViewTransition.SignalRendered();
+        Morph.SignalRendered();
 
         if (!firstRender) return;
         try
@@ -549,7 +549,7 @@
     // The morph between inline and fullscreen is a view transition, so the CSS only has to
     // describe the destination, never the movement.
     private Task ToggleExpandAsync() =>
-        ViewTransition.RunAsync(() =>
+        Morph.RunAsync(() =>
         {
             _expanded = !_expanded;
             StateHasChanged();
@@ -569,11 +569,8 @@
     // the attribute entirely and the CSS fallback takes over.
     private string? PopoverMode => _expanded ? "manual" : null;
 
-    // Rendered on the root so an expand — and any morph a wrapper runs around a spec swap —
-    // moves the whole surface. dryl-depth adds the mercury merge; data-vt-depth is the marker
-    // the JS bridge keys on to lazily inject the #dryl-merge filter.
-    private string VtStyle => FormattableString.Invariant(
-        $"view-transition-name: {_vtName}; view-transition-class: dryl-depth");
+    // The name sits on the root so an expand — and any morph a wrapper runs around a spec
+    // swap — moves the whole surface; the depth marker gives it the DepthGlass pass.
 
     private string RootCssClass
     {

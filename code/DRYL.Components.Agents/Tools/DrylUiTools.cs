@@ -61,7 +61,7 @@ public sealed class DrylUiTools
         var dialogOptions = new DialogOptions
         {
             AnimateHandoff = true,
-            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+            HandoffStyle = DrylMorphStyle.DepthGlass,
         };
         var reference = await _dialogs.ShowAsync<DrylAskChoiceDialog>("Choose", p, dialogOptions);
         var result = await Await(reference, ct);
@@ -85,7 +85,7 @@ public sealed class DrylUiTools
         var dialogOptions = new DialogOptions
         {
             AnimateHandoff = true,
-            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+            HandoffStyle = DrylMorphStyle.DepthGlass,
         };
         var reference = await _dialogs.ShowAsync<DrylAskMultiChoiceDialog>("Choose", p, dialogOptions);
         var result = await Await(reference, ct);
@@ -103,7 +103,7 @@ public sealed class DrylUiTools
         var dialogOptions = new DialogOptions
         {
             AnimateHandoff = true,
-            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+            HandoffStyle = DrylMorphStyle.DepthGlass,
         };
         var showTask = _dialogs.ShowConfirmAsync("Permission required", message, "Allow", "Deny", dialogOptions);
 
@@ -128,7 +128,7 @@ public sealed class DrylUiTools
         var dialogOptions = new DialogOptions
         {
             AnimateHandoff = true,
-            HandoffStyle = DrylViewTransitionStyle.DepthGlass,
+            HandoffStyle = DrylMorphStyle.DepthGlass,
         };
         var reference = await _dialogs.ShowAsync<DrylAskTextDialog>("Question", p, dialogOptions);
         var result = await Await(reference, ct);

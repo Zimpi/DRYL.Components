@@ -11,7 +11,7 @@ using Xunit;
 namespace DRYL.Components.Tests.Agents.Canvas;
 
 /// <summary>
-/// Phase W2/W3/W5 — the canvas's view-transition and header work: an artifact swap morphs
+/// Phase W2/W3/W5 — the canvas's morph and header work: an artifact swap morphs
 /// old into new (which is also how the old tree finally gets an exit), the fullscreen
 /// expand grows through the same transition, and the header carries a live element count
 /// plus a build line while the artifact streams.
@@ -20,21 +20,22 @@ public class DrylAiCanvasWowTests : BunitContext
 {
     /// <summary>Records how often a view transition was started and applies the mutation
     /// straight away, so tests see the resulting DOM without a real browser transition.</summary>
-    private sealed class RecordingViewTransition : IDrylViewTransition
+    private sealed class RecordingMorph : IDrylMorph
     {
         public int Started { get; private set; }
         public Task RunAsync(Action mutate) { Started++; mutate(); return Task.CompletedTask; }
         public async Task RunAsync(Func<Task> mutate) { Started++; await mutate(); }
         public void SignalRendered() { }
+        public Task BeginNavigationAsync(TimeSpan timeout) => Task.CompletedTask;
     }
 
-    private readonly RecordingViewTransition _vt = new();
+    private readonly RecordingMorph _vt = new();
 
     public DrylAiCanvasWowTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddDrylComponents();
-        Services.AddSingleton<IDrylViewTransition>(_vt);   // last registration wins
+        Services.AddSingleton<IDrylMorph>(_vt);   // last registration wins
     }
 
     private static CanvasSpec Parse(string json) =>
@@ -55,25 +56,25 @@ public class DrylAiCanvasWowTests : BunitContext
     // ---- W2: artifact swap ------------------------------------------------
 
     [Fact]
-    public void Root_carries_a_view_transition_name_and_the_depth_marker()
+    public void Root_carries_a_morph_name_and_the_depth_marker()
     {
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, new DrylCanvasRun()));
 
         var root = cut.Find(".ai-canvas");
-        Assert.Contains("view-transition-name: dryl-canvas-", root.GetAttribute("style"));
-        Assert.Contains("view-transition-class: dryl-depth", root.GetAttribute("style"));
-        Assert.NotNull(root.GetAttribute("data-vt-depth"));
+        Assert.Contains("dryl-canvas-", root.GetAttribute("data-dryl-morph"));
+        Assert.True(root.HasAttribute("data-dryl-morph-depth"));
+        Assert.NotNull(root.GetAttribute("data-dryl-morph-depth"));
     }
 
     [Fact]
-    public void Two_canvases_get_distinct_view_transition_names()
+    public void Two_canvases_get_distinct_morph_names()
     {
         // A duplicate name voids the whole transition, so per-instance uniqueness matters.
         var a = Render<DrylAiCanvas>(p => p.Add(x => x.Run, new DrylCanvasRun()));
         var b = Render<DrylAiCanvas>(p => p.Add(x => x.Run, new DrylCanvasRun()));
 
-        Assert.NotEqual(a.Find(".ai-canvas").GetAttribute("style"),
-                        b.Find(".ai-canvas").GetAttribute("style"));
+        Assert.NotEqual(a.Find(".ai-canvas").GetAttribute("data-dryl-morph"),
+                        b.Find(".ai-canvas").GetAttribute("data-dryl-morph"));
     }
 
     [Fact]

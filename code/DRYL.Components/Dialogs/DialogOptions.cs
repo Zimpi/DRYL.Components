@@ -31,8 +31,7 @@ public sealed class DialogOptions
     /// <summary>
     /// When true, a dialog opened while a sibling is still closing (the sequential
     /// "agent handoff" pattern — see the Sequential demo) morphs into the new one via
-    /// the browser's <see href="https://developer.mozilla.org/docs/Web/API/View_Transition_API">
-    /// View Transition API</see> (<see cref="DRYL.Components.Motion.IDrylViewTransition"/>):
+    /// the browser's morph engine (<see cref="DRYL.Components.Motion.IDrylMorph"/>):
     /// the dialog shell glides to its new size/position while its title, body and
     /// footer cross-fade independently, instead of the default CSS cross-fade
     /// (predecessor plays its exit while the successor enters). Off by default —
@@ -45,12 +44,12 @@ public sealed class DialogOptions
 
     /// <summary>
     /// Morph tier for the <see cref="AnimateHandoff"/> transition. Defaults to
-    /// <see cref="DrylViewTransitionStyle.DepthGlass"/> — a dialog handoff is exactly
+    /// <see cref="DrylMorphStyle.DepthGlass"/> — a dialog handoff is exactly
     /// the rare, high-meaning merge that tier is for: the mercury-merge + translucency
     /// pulse makes the content swap read as a deliberate change even when the dialog's
     /// size barely moves (e.g. two confirm dialogs of similar length), instead of
-    /// looking like a plain text cross-fade. Set to <see cref="DrylViewTransitionStyle.Glide"/>
+    /// looking like a plain text cross-fade. Set to <see cref="DrylMorphStyle.Glide"/>
     /// for the cheaper shape-only morph. Ignored unless <see cref="AnimateHandoff"/> is true.
     /// </summary>
-    public DrylViewTransitionStyle HandoffStyle { get; set; } = DrylViewTransitionStyle.DepthGlass;
+    public DrylMorphStyle HandoffStyle { get; set; } = DrylMorphStyle.DepthGlass;
 }

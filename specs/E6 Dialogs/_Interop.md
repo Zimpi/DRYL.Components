@@ -16,7 +16,7 @@ the provider's doing.
 | `dryl.modal.detach(layer)` | `DrylDialogProvider` | Removes them again and hands focus back. |
 | `dryl.motion.onExit(layer, dotNetRef, options)` | `DrylDialogProvider` | Reports the end of the dialog's exit animation, so the entry can leave the render tree only once it is invisible. |
 | `dryl.motion.clearExit(layer)` | `DrylDialogProvider` | Drops that listener. |
-| `IDrylViewTransition.RunAsync` | `DrylDialogProvider` | Wraps a handoff — the predecessor's removal plus the successor's mount — in one browser view transition. |
+| `IDrylMorph.RunAsync` | `DrylDialogProvider` | Wraps a handoff — the predecessor's removal plus the successor's mount — in one browser morph. |
 
 `dryl.modal.attach` carries three duties that are easy to read as one:
 
@@ -34,7 +34,7 @@ opened — but only when focus is still inside the closing dialog or has been lo
 to the body. A follow-up dialog may already own it, and stealing it back would
 break that dialog's trap.
 
-The view transition uses a **dedicated** `DrylViewTransition` instance rather
+The morph uses a **dedicated** `DrylMorphEngine` instance rather
 than the DI-scoped one, so a dialog handoff is independent of whatever else in
 the host application is mid-transition. It falls back to the plain CSS
 cross-fade in browsers without View Transition support, during prerender, and
@@ -45,7 +45,7 @@ under reduced motion.
 | Service | Lifetime | Registered by |
 |---|---|---|
 | `IDrylDialogService` | scoped | `AddDrylComponents()` |
-| `IDrylViewTransition` | scoped | `AddDrylComponents()` |
+| `IDrylMorph` | scoped | `AddDrylComponents()` |
 
 Scoped means one per Blazor circuit, which is what makes the service's dialog
 list per-user rather than per-server. `DrylDialogProvider` consumes both by
@@ -68,7 +68,7 @@ circuit if it is dropped:
 - **`dryl.modal.detach` and `dryl.motion.clearExit`** run for every layer still
   mounted, so no listener outlives its component.
 - **The exit watchdog** of every entry is cancelled and disposed.
-- **The lazily created `DrylViewTransition`** is disposed.
+- **The lazily created `DrylMorphEngine`** is disposed.
 - Every JS call is wrapped against `JSDisconnectedException`: on Blazor Server a
   circuit can be gone before disposal runs, and a throw there would take the
   teardown down with it.

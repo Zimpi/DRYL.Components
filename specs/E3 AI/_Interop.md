@@ -54,7 +54,7 @@ this category works in an application that never called it.
 | Service | Consumed by | Resolution |
 |---|---|---|
 | `IDrylAiActivityService` | `DrylAiScope`, `DrylAiStream` | Optional (`GetService`). Without it, `DrylAiScope` falls back to its explicit `State` and `DrylAiStream` pushes nothing. Scoped — one per Blazor circuit. |
-| `IDrylViewTransition` | `DrylCanvas`, `DrylCanvasWorkspace` | Injected. Drives the morph on a view switch, a history step and the expand-to-fullscreen. |
+| `IDrylMorph` | `DrylCanvas`, `DrylCanvasWorkspace` | Injected. Drives the morph on a view switch, a history step and the expand-to-fullscreen. |
 | `ICanvasDocumentStore` | `DrylCanvasWorkspace` | Optional (`GetService`). Without it, `AutoSave` does nothing rather than failing. |
 | `ICanvasDataService` | `DrylCanvas` | Optional. Without it, bound data sources stay unresolved. |
 | `ICanvasActionService` | `DrylCanvas` | Optional. Without it, action buttons have nothing to run. |
