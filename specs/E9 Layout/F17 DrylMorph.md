@@ -1,7 +1,7 @@
 # DrylMorph
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Layout/DrylMorph.razor
 
 ## User Story
@@ -201,10 +201,10 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   role, no focus stop and no announcement, and `As` exists so it does not force
   a `div` into places where a `div` is wrong.
 - **AI mode** — explicitly no, with the reason under "AI mode" above.
-- **Demo page** — **outstanding.** Planned as
-  `DRYL.Website/Components/Pages/DemoMorph.razor`, showing an overview → detail
-  morph on one route in both tiers. Demos live in the `DRYL.Website` repository
-  (`CODE-20`), so this lands there; `State` stays `Modified` until it does.
-- **`ComponentCatalog`** — **outstanding**, in the same repository: to be
-  registered as `"Morph"` / `morph` in
+- **Demo page** — `DRYL.Website/Components/Pages/DemoMorph.razor`, with the
+  examples `Components/Examples/Morph/OverviewToDetail.razor` (cards growing
+  into a detail panel, with a Glide/DepthGlass switch) and
+  `.../Morph/LongList.razor` (one name claimed by one row of twenty). Demos live
+  in the `DRYL.Website` repository (`CODE-20`).
+- **`ComponentCatalog`** — registered as `"Morph"` / `morph` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.

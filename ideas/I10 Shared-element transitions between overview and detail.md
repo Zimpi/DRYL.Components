@@ -1,7 +1,7 @@
 # Shared-element transitions between overview and detail
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
 
 ## Problem
 
@@ -216,6 +216,12 @@ scoping pass before anything is written.
   handled by an **`Active` parameter** (default `true`), not by naming every
   entry forever and not by automatic detection — the consumer keeps control, and
   duplicate names stay preventable.
+
+## Resulting specs
+
+- [`../specs/E9 Layout/F17 DrylMorph.md`](../specs/E9%20Layout/F17%20DrylMorph.md) —
+  step 1, implemented in 2.25.0.
+- Step 2, the route-level transition host, has not been scoped and has no spec.
 
 ## Open Points
 
