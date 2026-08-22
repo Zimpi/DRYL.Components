@@ -6007,9 +6007,18 @@ pre { overflow-x: auto; }
    Morphs — the "Depth Glass" movement vocabulary.
    Driven by dryl.morph (IDrylMorph), which animates real elements with
    FLIP: measure, re-render, invert, play. There is nothing to style here
-   for the movement itself — the transform and its counter-scale are
-   created by the Web Animations API with --dur-slow and --ease-viscous,
-   and the DepthGlass tier's blur travels with them.
+   for the movement itself — the transform is created by the Web Animations
+   API with --dur-slow and --ease-viscous, and the DepthGlass tier's blur
+   travels with it.
+
+   What does need rules is the hand-over. A target that changes size hands
+   its old face to a clone taken before the change; the clone rides the same
+   curve to the new box and fades out while the real element settles in, so
+   the two read as one object growing rather than two views swapping. Those
+   clones sit in a top-layer holder — what they stand in for may itself have
+   been in the top layer (a dialog, the canvas), and nothing underneath it
+   can be drawn over it. The holder is inert in every sense: it takes no
+   pointer, paints nothing of its own and is aria-hidden.
 
    The View Transition API was removed in 3.0.0: it replaced the live page
    with snapshots for the duration of a transition and swapped back at the
@@ -6018,6 +6027,41 @@ pre { overflow-x: auto; }
    element. FLIP leaves the page live.
 
    Reduced motion is honoured in the engine (dryl.morph checks
-   dryl.reduced() before animating anything), not here, because there are
-   no rules of ours to switch off.
+   dryl.reduced() before animating anything), so nothing below ever runs
+   under it — no clone is created in the first place.
    ────────────────────────────────────────────────────────── */
+
+.dryl-morph-ghosts {
+  position: fixed;
+  inset: 0;
+  /* The UA stylesheet gives every [popover] width/height: fit-content, and an
+     empty holder is then 0 x 0 — which quietly collapses any clone sized
+     against it (a dialog's max-width: 100% resolved to 2px). The holder must
+     be the viewport, so a clone measures itself the way the original did. */
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.dryl-morph-ghosts::backdrop { background: none; }
+
+.dryl-morph-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  box-sizing: border-box;
+  transform-origin: top left;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+

@@ -7,8 +7,10 @@ namespace DRYL.Components;
 /// </summary>
 public enum DrylMorphStyle
 {
-    /// <summary>Shape and position only — the element glides to its new geometry and its
-    /// content is counter-scaled so type never distorts. Cheap enough for high-frequency
+    /// <summary>Shape and position only — the element glides to its new geometry, and when
+    /// it changes size the face it had before travels with it and fades out, so the two
+    /// views read as one object growing. A move with no change of size costs nothing but
+    /// the move itself, which is why this tier is still cheap enough for high-frequency
     /// interactions such as a table row reorder.</summary>
     Glide,
 

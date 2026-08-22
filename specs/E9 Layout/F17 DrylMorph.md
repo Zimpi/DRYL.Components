@@ -142,8 +142,18 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   shared `the morph engine` rule.
 - The component adds no stylesheet of its own — the entire morph vocabulary is
   the existing `the morph engine` rules in `dryl.css`.
-- The element's content is counter-scaled for the length of the move, so type
-  and iconography keep their proportions while the shape changes size.
+- An element that changes size morphs rather than swaps: the face it had before
+  the change travels with it on the same curve and fades out while the new
+  content settles in, so the two views read as one object growing.
+- An element that only moves is only moved — no second face is created for it,
+  which is what keeps a row reorder cheap.
+- The two faces overlap rather than meet: the old one holds until the new one is
+  solid, so the ground never shows through both at once and the surface does not
+  dim mid-move.
+- While the morph carries an element it is the only choreography on it: an enter
+  animation the element had started for itself is wound forward to its finished
+  state before the element is measured, so it neither distorts the measurement
+  nor runs as a second curve underneath the move.
 - The component paints no frost, being a transparent hull rather than a surface
   (`DESIGN-06`).
 - The component renders no accent, so `DESIGN-08` has nothing to apply to.
@@ -176,6 +186,10 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   from its own `OnAfterRender`, so a mutation that renders no `DrylMorph` at all
   leaves the engine waiting for geometry it will never measure. Every shape the
   component is built for renders at least one hull in the same batch.
+- **A target inside another target is left to its parent.** A dialog names its
+  header, body and footer as well as itself; animating the inner ones on top of
+  the movement they are already being carried by is two movements, not one. The
+  engine animates the outermost target of any nest and lets it carry the rest.
 - **Two live hulls must not share a name.** The engine matches targets by name;
   a duplicate makes it measure one element and move another. That is what
   `Active` is for, and it is guarded by a test rather than by the browser.

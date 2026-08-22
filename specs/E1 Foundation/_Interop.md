@@ -10,7 +10,7 @@ library as a whole rather than to one category.
 | Entry point | Used by | Purpose |
 |---|---|---|
 | `dryl.morph.capture` | `DrylMorphEngine` (the service behind `IDrylMorph`) | Measures every `[data-dryl-morph]` element in the document before a state change. Reads all rects before writing anything, so one morph costs one layout pass rather than one per target. |
-| `dryl.morph.play` | `DrylMorphEngine` | Measures again after the render and animates each target from where it was to where it now is, counter-scaling its content. Does nothing when the user prefers reduced motion. |
+| `dryl.morph.play` | `DrylMorphEngine` | Measures again after the render and animates each target from where it was to where it now is; a target that changed size hands over to a clone of its old face, which rides the same curve and fades out. Does nothing when the user prefers reduced motion. |
 
 *(the rest: phase C)*
 
