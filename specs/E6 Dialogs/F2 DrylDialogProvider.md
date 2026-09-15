@@ -1,7 +1,7 @@
 # DrylDialogProvider
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Dialogs/DrylDialogProvider.razor
               code/DRYL.Components/Dialogs/DrylDialogService.cs
               code/DRYL.Components/Dialogs/DrylDialogReference.cs
@@ -131,6 +131,10 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
   restarting.
 - Removing an entry detaches its JS listeners and disposes the object references
   it handed to JS.
+- Removal cancels pending focus transfer and every exit frame/listener, so an
+  old layer cannot steal focus from its successor or report another completion.
+- Changing to reduced motion during exit, or cancelling/removing the matching
+  animation, still finalizes the entry exactly once (I13).
 
 ### Sequential dialogs
 

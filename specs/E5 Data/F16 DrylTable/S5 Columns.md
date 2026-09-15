@@ -1,7 +1,7 @@
 # Columns
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 
 ## Acceptance Criteria
 
@@ -68,6 +68,13 @@
 - A completed resize marks the persisted state dirty.
 - The resize helper is attached once and detached when the table is disposed.
 - A failed attach is not remembered as attached, so a later render can retry.
+- Disposing during resize removes the active gesture's window listeners and
+  capture as well as the delegated root handler (`CODE-05`).
+- `Escape`, `pointercancel` and replacement by another gesture cancel the
+  preview, restore every pre-gesture inline width (including unset widths),
+  and clear `tbl-resizing` without persisting or reporting a partial resize.
+- Only the active pointer can move or finish a resize. A valid release reports
+  once; later events after cancellation/disposal do nothing.
 
 ### Order
 

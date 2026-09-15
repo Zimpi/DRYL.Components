@@ -1,7 +1,7 @@
 # DrylCanvas
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/AI/DrylCanvas.razor
               code/DRYL.Components/Components/AI/DrylCanvas.razor.css
 

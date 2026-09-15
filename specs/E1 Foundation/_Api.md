@@ -66,3 +66,16 @@ prefers reduced motion (which the engine checks before it animates anything).
 
 *(phase C — the consumer-overridable custom properties, cross-referenced to
 [`../../harness/tokens.md`](../../harness/tokens.md))*
+
+## Presence and shared reduced motion (I13)
+
+`PresenceTransition` has `Fade`, `Scale`, `SlideUp`, `SlideDown`, `SlideLeft` and
+`SlideRight`; `PresenceSpeed` has `Fast`, `Medium` and `Slow`. Their component
+contract is [DrylPresence](F2%20DrylPresence.md).
+
+Under reduced motion the shared `.spinner`, `.fade-in`, `.stagger > *` and
+ambient `.aurora` have no decorative animation. Reveal utilities leave content
+visible at its settled position. The dialog/backdrop and all Comet/Aurora
+state/pseudo-element combinations likewise stop moving; static state cues remain
+usable. Preference changes during an exit still permit its removal. No new
+animation, duration, easing or token is added by I13.

@@ -58,6 +58,11 @@ alive through the scoped service for the life of the circuit.
 
 ## Cleanup
 
+I13 extends ownership to the deferred focus transfer in `dryl.modal.attach` and
+every exit completion frame/listener. Detach cancels them before returning focus.
+A removed layer cannot take focus back on the next tick; a successor that already
+owns focus keeps it. Rejected interop promises on these paths are handled.
+
 `DrylDialogProvider` implements `IAsyncDisposable`, and its disposal is not
 optional bookkeeping — every item below is a leak, a stuck overlay or a dead
 circuit if it is dropped:

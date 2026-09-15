@@ -1,7 +1,7 @@
 # DrylAuraElements
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/AI/DrylAuraElements.razor
 
 ## User Story
@@ -97,6 +97,11 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
   fade, so the dissolve completes before the elements leave the DOM.
 
 ### Accessibility
+
+- Reduced motion suppresses every decorative animation of both Comet and Aurora,
+  including host state modifiers, generated wash/glow and pseudo-elements. A
+  live aura keeps a static state cue; an exiting aura can still retire. Switching
+  preference while it is running cannot restart a more specific variant (I13).
 
 - The layers hold no text and are not focusable.
 - The layers do not receive pointer events, so the aura never intercepts a click

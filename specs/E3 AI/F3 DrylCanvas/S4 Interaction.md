@@ -1,7 +1,7 @@
 # Interaction
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 
 Buttons inside the artifact, and — when the host opts in with a `Selection` —
 direct manipulation of the artifact's own elements.
@@ -77,6 +77,12 @@ direct manipulation of the artifact's own elements.
 - A drop outside the sibling range does nothing.
 - A drop on a locked node, or inside a locked parent, does nothing.
 - The gesture is detached on disposal (`CODE-05`).
+- Disposing during a drag also cancels the active gesture: window listeners,
+  pointer capture, dragging transform/class and drop markers are released.
+- `Escape`, `pointercancel` and replacement by a new gesture cancel without
+  committing a reorder. Only the active pointer may move or complete the drag.
+- Events delivered after cancellation or disposal cannot mutate the node or
+  report `OnNodeReorder`; a valid changed drop reports exactly once.
 
 ### Announcements
 
