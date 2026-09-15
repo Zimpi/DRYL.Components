@@ -1,0 +1,241 @@
+@page "/"
+@implements IAsyncDisposable
+@inject IDrylDialogService Dialogs
+@inject DrylVoiceRunner VoiceRunner
+
+<PageTitle>I13 regression host</PageTitle>
+<main class="fixture-page" data-testid="@(_ready ? "host-ready" : null)">
+    <h1>I13 regression host</h1>
+    <p>Local component regression fixtures. Voice uses offline substitutes.</p>
+
+    <section id="presence-scene" class="fixture-scene">
+        <h2>Presence</h2>
+        <div class="fixture-controls">
+            <button id="presence-toggle" type="button" @onclick="() => _presenceVisible = !_presenceVisible">Toggle presence</button>
+            <button id="presence-remove" type="button" @onclick="TogglePresenceMount">Remove / recreate presence</button>
+        </div>
+        <output id="presence-exits">@_presenceExits</output>
+        @if (_presenceMounted)
+        {
+            <DrylPresence Visible="_presenceVisible" Transition="PresenceTransition.Scale"
+                          Speed="PresenceSpeed.Slow" OnExited="() => _presenceExits++" Class="fixture-presence">
+                <button id="presence-child" type="button">Presence child</button>
+            </DrylPresence>
+        }
+    </section>
+
+    <section id="dialog-scene" class="fixture-scene">
+        <h2>Dialog</h2>
+        <button id="dialog-open" type="button" @onclick="OpenDialog">Open dialog</button>
+        <button id="dialog-close" type="button" @onclick="() => _dialog?.Cancel()">Close current dialog</button>
+        <button id="dialog-remove" type="button" @onclick="() => _dialogProviderMounted = !_dialogProviderMounted">Remove / recreate provider</button>
+        @if (_dialogProviderMounted)
+        {
+            <DrylDialogProvider />
+        }
+    </section>
+
+    <section id="aura-scene" class="fixture-scene">
+        <h2>Aura and motion</h2>
+        <label for="aura-state">AI state</label>
+        <select id="aura-state" class="fixture-select" @bind="_auraState">
+            @foreach (var state in Enum.GetValues<AiState>())
+            {
+                <option value="@state">@state</option>
+            }
+        </select>
+        <div class="fixture-aura-grid">
+            <div data-aura="Comet">
+                <DrylInputText Label="Comet aura" Value="Fixture" Ai="_auraState" Aura="AiAura.Comet" />
+            </div>
+            <div data-aura="Aurora">
+                <DrylInputText Label="Aurora aura" Value="Fixture" Ai="_auraState" Aura="AiAura.Aurora" />
+            </div>
+        </div>
+        <div class="fixture-motion-samples">
+            <span id="spinner-sample" class="spinner" aria-hidden="true"></span>
+            <div id="fade-sample" class="fade-in">Fade content</div>
+            <div id="stagger-sample" class="stagger"><span>First reveal</span><span>Second reveal</span></div>
+            <div id="ambient-sample" class="aurora" aria-hidden="true"><span class="orb"></span></div>
+        </div>
+    </section>
+
+    <section id="badge-scene" class="fixture-scene">
+        <h2>Badge surfaces</h2>
+        @foreach (var surface in BadgeSurfaces)
+        {
+            <div class="fixture-badge-surface fixture-surface-@surface" data-surface="@surface">
+                @foreach (var kind in Enum.GetValues<DrylBadge.BadgeKind>())
+                {
+                    <DrylBadge Kind="kind" data-kind="@kind.ToString().ToLowerInvariant()" data-dot="false">@kind</DrylBadge>
+                    <DrylBadge Kind="kind" Dot data-kind="@kind.ToString().ToLowerInvariant()" data-dot="true">@kind</DrylBadge>
+                }
+            </div>
+        }
+    </section>
+
+    <section id="focus-scene" class="fixture-scene">
+        <h2>Focus and Stepper</h2>
+        <button id="focus-before" type="button">Before controls</button>
+        <DrylStepper @bind-ActiveStep="_activeStep" AriaLabel="Regression steps">
+            <DrylStep Id="first" Label="First"><p id="step-first">First step body</p></DrylStep>
+            <DrylStep Id="second" Label="Second"><p id="step-second">Second step body</p></DrylStep>
+        </DrylStepper>
+        <DrylInputText Label="Name" @bind-Value="_name" />
+        <DrylTextarea Label="Notes" @bind-Value="_notes" />
+        <DrylSelect Label="Environment" aria-label="Environment" Items="Environments" @bind-Value="_environment" />
+        <button id="focus-after" type="button">After controls</button>
+        <output id="focus-values">@_name|@_notes|@_environment|@_activeStep</output>
+    </section>
+
+    <section id="canvas-scene" class="fixture-scene">
+        <h2>Canvas reorder</h2>
+        <button id="canvas-toggle" type="button" @onclick="() => _canvasMounted = !_canvasMounted">Remove / recreate canvas</button>
+        <output id="canvas-edits">@_canvasEdits</output>
+        <output id="canvas-order">@string.Join(",", _canvas.Root!.Children!.Select(node => node.Id))</output>
+        @if (_canvasMounted)
+        {
+            <DrylCanvas Spec="_canvas" Selection="_selection" AllowExpand="false" OnEdit="() => _canvasEdits++" />
+        }
+    </section>
+
+    <section id="table-scene" class="fixture-scene">
+        <h2>Table resize</h2>
+        <button id="table-toggle" type="button" @onclick="() => _tableMounted = !_tableMounted">Remove / recreate table</button>
+        @if (_tableMounted)
+        {
+            <DrylTable TItem="FixtureRow" Items="Rows" ResizableColumns AriaLabel="Regression table"
+                       PersistStateKey="i13-table-fixture">
+                <Columns>
+                    <DrylColumn TItem="FixtureRow" ColumnKey="name" Title="Name" Field="row => row.Name" Width="180px" />
+                    <DrylColumn TItem="FixtureRow" ColumnKey="status" Title="Status" Field="row => row.Status" />
+                </Columns>
+            </DrylTable>
+        }
+    </section>
+
+    <section id="voice-scene" class="fixture-scene">
+        <h2>Offline voice</h2>
+        <div class="fixture-controls">
+            <button id="voice-start" type="button" disabled="@_voiceDisposed" @onclick="StartVoice">Start voice</button>
+            <button id="voice-stop" type="button" disabled="@_voiceDisposed" @onclick="StopVoice">Stop voice</button>
+            <button id="voice-dispose" type="button" @onclick="DisposeVoice">Dispose voice</button>
+            <button id="voice-recreate" type="button" @onclick="RecreateVoice">Recreate voice</button>
+        </div>
+        <output id="voice-phase">@_voice?.Phase</output>
+        <output id="voice-disposed">@_voiceDisposed.ToString().ToLowerInvariant()</output>
+        <output id="voice-changes">@_voiceChanges</output>
+        <output id="voice-transcript">@(_voice?.Transcript.Count ?? 0)</output>
+        <output id="voice-error">@_voice?.Error</output>
+    </section>
+</main>
+
+@code {
+    private static readonly string[] BadgeSurfaces = ["ground", "bg1", "glass1", "panel-float"];
+    private static readonly SelectItem[] Environments = [new("alpha", "Alpha"), new("beta", "Beta")];
+    private static readonly FixtureRow[] Rows = [new("Ada", "Ready"), new("Grace", "Review"), new("Linus", "Pending")];
+    private readonly CanvasSelection _selection = new();
+    private readonly CanvasSpec _canvas = CreateCanvas();
+    private bool _ready;
+    private bool _disposed;
+    private bool _presenceVisible = true;
+    private bool _presenceMounted = true;
+    private bool _dialogProviderMounted = true;
+    private bool _canvasMounted = true;
+    private bool _tableMounted = true;
+    private int _presenceExits;
+    private int _canvasEdits;
+    private int _voiceChanges;
+    private AiState _auraState = AiState.Active;
+    private string? _activeStep = "first";
+    private string _name = "";
+    private string _notes = "";
+    private string _environment = "alpha";
+    private IDrylDialogReference? _dialog;
+    private DrylVoiceRun? _voice;
+    private bool _voiceDisposed;
+
+    protected override void OnInitialized() => CreateVoice();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ready = true;
+        StateHasChanged();
+    }
+
+    private void TogglePresenceMount()
+    {
+        _presenceMounted = !_presenceMounted;
+        if (_presenceMounted) _presenceVisible = true;
+    }
+
+    private async Task OpenDialog() => _dialog = await Dialogs.ShowAsync<TestDialog>("Regression dialog");
+
+    private void CreateVoice()
+    {
+        _voice = VoiceRunner.Create(new DrylVoiceOptions
+        {
+            ApiKey = "offline-fixture-key",
+            BaseUrl = "https://voice-fixture.invalid/v1",
+            IdleTimeout = TimeSpan.FromMinutes(5),
+            MaxDuration = TimeSpan.FromMinutes(10)
+        });
+        _voiceDisposed = false;
+        _voice.OnChange += VoiceChanged;
+    }
+
+    private void VoiceChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            _voiceChanges++;
+            StateHasChanged();
+        });
+    }
+
+    private Task StartVoice() => _voice?.StartAsync() ?? Task.CompletedTask;
+    private Task StopVoice() => _voice?.StopAsync() ?? Task.CompletedTask;
+
+    private async Task DisposeVoice()
+    {
+        if (_voice is null || _voiceDisposed) return;
+        // Keep the disposed run observable so a late callback changing it remains
+        // visible to a regression test; recreation supplies a fresh run explicitly.
+        _voiceDisposed = true;
+        await _voice.DisposeAsync();
+    }
+
+    private async Task RecreateVoice()
+    {
+        await DisposeVoice();
+        if (_voice is not null) _voice.OnChange -= VoiceChanged;
+        CreateVoice();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_voice is not null) _voice.OnChange -= VoiceChanged;
+        await DisposeVoice();
+    }
+
+    private static CanvasSpec CreateCanvas() => new()
+    {
+        Title = "Fixture canvas",
+        Root = new CanvasNode
+        {
+            Id = "root", Type = "stack", Props = JsonSerializer.SerializeToElement(new { gap = "md" }),
+            Children = [TextNode("first", "First node"), TextNode("second", "Second node"), TextNode("third", "Third node")]
+        }
+    };
+
+    private static CanvasNode TextNode(string id, string content) => new()
+    {
+        Id = id, Type = "markdown", Props = JsonSerializer.SerializeToElement(new { content })
+    };
+
+    public sealed record FixtureRow(string Name, string Status);
+}

@@ -1,0 +1,88 @@
+name: Verify
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build, test and repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Restore
+        run: dotnet restore DRYL.slnx
+      - name: Build
+        run: dotnet build DRYL.slnx -c Release --no-restore
+      - name: Test
+        run: dotnet test DRYL.slnx -c Release --no-build --logger trx --results-directory artifacts/test-results/unit
+      - name: Token, contrast and harness checks
+        run: |
+          node scripts/check-light-sync.mjs
+          node scripts/validate-light-contrast.mjs
+          node scripts/check-harness-links.mjs
+          node scripts/check-motion-tokens.mjs
+      - name: Spec coverage ratchet
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+        run: node scripts/check-spec-coverage.mjs --baseline scripts/spec-coverage-baseline.json --base-ref "$BASE_REF"
+      - name: JavaScript regressions
+        run: node --test tests/js/*.test.mjs
+      - name: Validate both packages
+        run: |
+          dotnet pack code/DRYL.Components/DRYL.Components.csproj -c Release --no-build -o artifacts/packages
+          dotnet pack code/DRYL.Components.Agents/DRYL.Components.Agents.csproj -c Release --no-build -o artifacts/packages
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unit-and-package-results
+          path: |
+            artifacts/test-results/unit/
+            artifacts/packages/
+          retention-days: 14
+          if-no-files-found: warn
+
+  browser:
+    name: Browser (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      DRYL_BROWSER: ${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Build browser suite and host
+        run: dotnet build tests/DRYL.BrowserTests/DRYL.BrowserTests.csproj -c Release
+      - name: Install declared browser and system dependencies
+        shell: pwsh
+        run: ./tests/DRYL.BrowserTests/bin/Release/net10.0/playwright.ps1 install --with-deps $env:DRYL_BROWSER
+      - name: Browser regressions
+        run: dotnet test tests/DRYL.BrowserTests/DRYL.BrowserTests.csproj -c Release --no-build --logger trx --results-directory artifacts/test-results/${{ matrix.browser }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: browser-${{ matrix.browser }}
+          path: |
+            artifacts/browser/${{ matrix.browser }}/
+            artifacts/test-results/${{ matrix.browser }}/
+          retention-days: 14
+          if-no-files-found: warn

@@ -11,38 +11,5 @@ permissions:
   contents: read
 
 jobs:
-  build-test:
-    name: Build & Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup .NET (8 / 9 / 10)
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-            10.0.x
-
-      - name: Restore
-        run: dotnet restore DRYL.slnx
-
-      - name: Build
-        run: dotnet build DRYL.slnx -c Release --no-restore
-
-      - name: Test
-        run: dotnet test DRYL.slnx -c Release --no-build --verbosity normal
-
-      - name: Pack (validate packaging)
-        run: dotnet pack code/DRYL.Components/DRYL.Components.csproj -c Release --no-build -o artifacts
-
-      - name: Pack Agents (validate packaging)
-        run: dotnet pack code/DRYL.Components.Agents/DRYL.Components.Agents.csproj -c Release --no-build -o artifacts
-
-      - name: Upload package artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: nupkg
-          path: artifacts/*.*nupkg
-          if-no-files-found: error
+  verify:
+    uses: ./.github/workflows/verify.yml

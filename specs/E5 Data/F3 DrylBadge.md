@@ -17,9 +17,9 @@ characters, tinted by one of five semantic kinds. It is content-agnostic — the
 label is `ChildContent`, so it takes text, a number or a formatted value alike.
 
 Two optional marks sit before the label. `Icon` renders a `DrylIcon` inside the
-pill. `Dot` prefixes a small glowing dot that takes the badge's own foreground
-colour, which is what turns a classification into a live status: "Healthy" reads
-differently with a green dot pulsing beside it than as green text alone.
+pill. `Dot` prefixes a small glowing status dot. For success, warning and danger,
+the dot keeps the semantic color while the label uses the legible `--fg` token;
+neutral and accent dots follow the label. The mark supplements the visible text.
 
 The badge is not a control. It has no press, no dismiss and no link — anything
 that needs those is a `DrylChip` or a `DrylButton` instead.

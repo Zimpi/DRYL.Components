@@ -47,11 +47,6 @@ was attached; see `F3 DrylCanvas/S4 Interaction.md`.
 
 ## Services
 
-The reorder root owns both its delegated listener and its active gesture.
-`disposeReorder` cancels listeners, capture and visual preview together, without
-reporting a drop. Cancellation is idempotent; stale events and other pointers
-cannot commit. See `F3 DrylCanvas/S4 Interaction.md` (I13, `CODE-05`).
-
 None of these is registered by this category. `AddDrylComponents()` registers what
 is registered, and every one of them is resolved **optionally**, so a component in
 this category works in an application that never called it.
@@ -71,6 +66,11 @@ what makes a surrounding `DrylAiScope Key="…"` light up in lockstep. The inter
 is documented in [`_Api.md`](_Api.md) and its type lives in `E1 Foundation`.
 
 ## Cleanup
+
+The reorder root owns both its delegated listener and its active gesture.
+`disposeReorder` cancels listeners, capture and visual preview together, without
+reporting a drop. Cancellation is idempotent; stale events and other pointers
+cannot commit. See `F3 DrylCanvas/S4 Interaction.md` (I13, `CODE-05`).
 
 Every component in this category that takes on a duty releases it. The two async
 ones exist because JS interop cannot be released from a synchronous `Dispose`.

@@ -8,8 +8,8 @@ H07–H10, I8 baselines and new tokens/public APIs remain outside this delivery.
 
 | Task | State | Commit / evidence |
 |---|---|---|
-| T0 — contracts and adoption | Complete | Coverage 60/129, no structural errors; harness links and whitespace check pass. |
-| T1 — regression host and release gates | In progress | |
+| T0 — contracts and adoption | Complete | `17ed224`; coverage 60/129, no structural errors; harness links and whitespace check pass. |
+| T1 — regression host and release gates | Complete | 45 Node CLI tests; 2 smoke cases per engine in Chromium/Firefox/WebKit; host/suite builds and phase-C gate pass. |
 | T2 — voice cancellation | Pending | |
 | T3 — gesture ownership | Pending | |
 | T4 — exit ownership and reduced motion | Pending | |
@@ -80,6 +80,9 @@ Commands and verification:
    with `DRYL_BROWSER=chromium`, then `firefox`, then `webkit`.
 7. Inspect workflow dependencies: `publish` requires the reusable verification
    result for the same checkout before login/upload; PR CI calls it too.
+8. Keep failure trace/screenshot/log files under `artifacts/browser/<engine>/`
+   and TRX results under `artifacts/test-results/<engine>/`; upload both with
+   `if: always()` so failed jobs retain reviewable evidence.
 
 Commit: `test: add Blazor browser regression host and publication gates`.
 
@@ -90,11 +93,22 @@ Files: `code/DRYL.Components.Agents/Voice/DrylVoiceRun.cs`,
 `tests/DRYL.Components.Tests/Agents/Voice/DrylVoiceCancellationTests.cs`,
 `tests/js/voice.test.mjs`, `tests/DRYL.BrowserTests/VoiceTests.cs`, relevant E15
 interop/API and Dock contract, Agents csproj/version and `CHANGELOG.md`.
+Extend `tests/DRYL.BrowserHost/Components/Pages/Home.razor` with a real optional
+`DrylCanvasDock` mount toggle; verify removing/remounting the dock leaves its
+host-owned voice run alive and reattaches the orb.
 
 Verify each deferred startup boundary and callbacks from obsolete attempts;
 stop/dispose/restart and rejected media/network operations must release owned
 resources and leave the current run untouched. Preserve existing public methods.
 Read production callbacks as well as the direct start path.
+
+Implementation choice: each .NET attempt owns an internal JS session handle,
+created by a module factory before its `start` dispatch. Its `stop` makes late
+`start` inert and cannot stop another handle's session. Existing module exports
+and public callback signatures stay compatible; browser callbacks use an internal
+per-attempt .NET bridge. Observe late resource-producing import/factory results
+so their references can be disposed, rather than abandoning those awaits on
+cancellation. HTTP and browser handshake cancellation still propagate normally.
 
 Commands: `node --test tests/js/voice.test.mjs`;
 `dotnet test DRYL.slnx -c Release --filter FullyQualifiedName~Voice`;
@@ -121,10 +135,17 @@ Commit: `fix: cancel canvas and table gestures on disposal`.
 
 Files: core `wwwroot/js/dryl.js` (motion exit and modal focus),
 `Components/Providers/DrylPresence.razor`, `wwwroot/dryl.css`,
+`Components/Surfaces/DrylPopover.razor`,
 `Components/Navigation/DrylStepper.razor.css`,
 `tests/DRYL.Components.Tests/DrylPresenceTests.cs`, `tests/js/motion.test.mjs`,
+`tests/DRYL.Components.Tests/DrylPopoverTests.cs`,
 `tests/DRYL.BrowserTests/MotionTests.cs`, Foundation/Dialogs/Aura/Stepper and
-applicable Popover contracts, `harness/code.md`, `harness/uiux.md`, changelog.
+Popover contract, `harness/code.md`, `harness/uiux.md`, changelog.
+
+Independent T0 review found that Popover reuses an unversioned `ExitCallback`
+and queues watchdog completion without an exit identity. Both must be scoped to
+the current exit so close/reopen/close cannot accept an older completion. This
+is within the confirmed shared-exit scope, not a new public capability.
 
 Commands: `node --test tests/js/motion.test.mjs`;
 `dotnet test DRYL.slnx -c Release --filter
@@ -196,3 +217,9 @@ No manual publication, push or release tag. Commit:
 - Website working tree initially has only an untracked `AGENTS.md`; preserve it.
 - Native Safari and physical-device evidence require the corresponding platform;
   Playwright WebKit alone cannot establish that evidence.
+- T1: Microsoft.Playwright 1.62.0 installed Chromium 151.0.7922.34, Firefox
+  153.0 and WebKit 26.5 on Windows. Both modes and a real Stepper event/render
+  roundtrip pass in each engine. Console errors are captured alongside page
+  errors. Independent review verified the same-checkout publish dependency;
+  its circuit-liveness and startup-diagnostic findings were addressed. All
+  three workflow YAML files parse; hosted Actions execution is pending CI.

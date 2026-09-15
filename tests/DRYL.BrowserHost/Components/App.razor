@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" data-dryl-mode="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="_content/DRYL.Components/dryl.css" />
+    <link rel="stylesheet" href="@Assets["DRYL.BrowserHost.styles.css"]" />
+    <link rel="stylesheet" href="@Assets["fixtures.css"]" />
+    <ImportMap />
+    <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+</head>
+<body>
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+    <script src="@Assets["voice-fixture.js"]"></script>
+    <script src="_content/DRYL.Components/js/dryl.js"></script>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+</body>
+</html>

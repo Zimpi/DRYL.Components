@@ -1,0 +1,14 @@
+<DrylDialog Title="Regression dialog">
+    <ChildContent>
+        <label for="dialog-name">Dialog name</label>
+        <input id="dialog-name" class="input" value="Fixture" />
+        <p>Real dialog shell, provider, backdrop and focus handling.</p>
+    </ChildContent>
+    <ActionContent>
+        <button id="dialog-cancel" type="button" @onclick="() => Instance?.Cancel()">Cancel</button>
+    </ActionContent>
+</DrylDialog>
+
+@code {
+    [CascadingParameter] public IDrylDialogInstance? Instance { get; set; }
+}

@@ -19,11 +19,65 @@
 //   6. Every Dryl*.razor under code/ appears in exactly one Source block —
 //      none uncovered, none claimed twice.
 //
-// Run: node scripts/check-spec-coverage.mjs
+// Strict (default): node scripts/check-spec-coverage.mjs
+// Phase C: add --baseline scripts/spec-coverage-baseline.json
+// CI: add --base-ref <commit> to reject additions to approved debt.
+// --root <directory> runs these same checks against an isolated fixture.
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
-import { join, resolve, relative, sep } from "node:path";
+import { execFileSync } from "node:child_process";
+import { join, resolve, relative, sep, posix } from "node:path";
 
-const root = resolve(import.meta.dirname, "..");
+function argumentsFrom(args) {
+  const result = { root: resolve(import.meta.dirname, ".."), quiet: false };
+  const seen = new Set();
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (seen.has(arg)) throw new Error(`Duplicate option: ${arg}`);
+    seen.add(arg);
+    if (arg === "--quiet") result.quiet = true;
+    else if (["--root", "--baseline", "--base-ref"].includes(arg)) {
+      const value = args[++i];
+      if (!value || value.startsWith("--")) throw new Error(`${arg} requires a value`);
+      result[{ "--root": "root", "--baseline": "baseline", "--base-ref": "baseRef" }[arg]] = value;
+    } else throw new Error(`Unknown option: ${arg}`);
+  }
+  result.root = resolve(result.root);
+  if (result.baseRef && !result.baseline) throw new Error("--base-ref requires --baseline");
+  if (result.baseline) {
+    result.baseline = relative(result.root, resolve(result.root, result.baseline)).split(sep).join("/");
+    if (!canonicalPath(result.baseline)) throw new Error("--baseline must name a file within --root");
+  }
+  return result;
+}
+
+function canonicalPath(path) {
+  return typeof path === "string" && path.length > 0 && !/[\\`,:\u0000-\u001f\u007f]/.test(path) &&
+    !path.startsWith("/") && path.split("/").every(part => part !== "" && part !== "." && part !== "..");
+}
+
+function componentPath(path) {
+  return canonicalPath(path) && path.startsWith("code/") && /^Dryl.+\.razor$/.test(posix.basename(path)) &&
+    !path.split("/").some(part => part === "obj" || part === "bin");
+}
+
+function readBaseline(text, name) {
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error(`${name}: malformed baseline JSON`); }
+  if (!data || Array.isArray(data) || data.version !== 1 || !Array.isArray(data.uncovered) ||
+      Object.keys(data).some(key => !["version", "uncovered"].includes(key))) {
+    throw new Error(`${name}: expected baseline { "version": 1, "uncovered": [component paths] }`);
+  }
+  if (data.uncovered.some(path => !componentPath(path))) throw new Error(`${name}: baseline entries must be canonical code/.../Dryl*.razor paths`);
+  if (new Set(data.uncovered).size !== data.uncovered.length) throw new Error(`${name}: duplicate baseline identities`);
+  if (data.uncovered.some((path, i) => i > 0 && data.uncovered[i - 1] > path)) throw new Error(`${name}: baseline identities must be sorted`);
+  return data.uncovered;
+}
+
+try {
+const options = argumentsFrom(process.argv.slice(2));
+
+const root = options.root;
 const specsDir = join(root, "specs");
 const errors = [];
 
@@ -65,18 +119,31 @@ for (const cat of expectedCategories) {
 // path sits on the "- **Source:**" line, each further path is a continuation
 // line indented with whitespace and carrying nothing but the path.
 function parseMeta(text) {
-  const lines = text.split("\n");
-  const meta = { state: null, sources: [], malformed: [] };
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const heading = lines.findIndex(line => line.trim());
+  const following = lines.findIndex((line, i) => i > heading && line.trim());
+  const metaHeadings = lines.filter(line => /^## Meta\s*$/.test(line)).length;
+  const meta = {
+    state: null, sources: [], malformed: [], stateFields: 0, sourceFields: 0,
+    metaHeadings,
+    validPlacement: /^# \S/.test(lines[heading] ?? "") && /^## Meta\s*$/.test(lines[following] ?? "") && metaHeadings === 1,
+  };
+  // Only fields inside Meta count as a component contract. A Source-looking
+  // example later in the prose must not conceal a missing contract.
+  const start = lines.findIndex(line => /^## Meta\s*$/.test(line));
+  const nextHeading = lines.findIndex((line, i) => i > start && /^#{1,2} /.test(line));
+  const end = nextHeading < 0 ? lines.length : nextHeading;
 
-  for (let i = 0; i < lines.length; i++) {
-    const state = lines[i].match(/^-\s+\*\*State:\*\*\s*(.+?)\s*$/);
-    if (state) meta.state = state[1];
+  for (let i = start + 1; start >= 0 && i < end; i++) {
+    const state = lines[i].match(/^-\s+\*\*State:\*\*\s*(.*?)\s*$/);
+    if (state) { meta.state = state[1]; meta.stateFields++; }
 
     const source = lines[i].match(/^-\s+\*\*Source:\*\*\s*(.*?)\s*$/);
     if (!source) continue;
+    meta.sourceFields++;
 
     if (source[1]) meta.sources.push(source[1]);
-    for (let j = i + 1; j < lines.length; j++) {
+    for (let j = i + 1; j < end; j++) {
       const line = lines[j];
       if (!/^\s+\S/.test(line)) break; // no longer an indented continuation
       const path = line.trim();
@@ -100,6 +167,9 @@ function claim(path, specFile) {
 function checkComponentSpec(absPath, relPath) {
   const meta = parseMeta(readFileSync(absPath, "utf8"));
 
+  if (!meta.validPlacement) errors.push(`${relPath}: exactly one Meta block must follow the H1 (SPEC-03)`);
+  if (meta.stateFields > 1) errors.push(`${relPath}: duplicate State fields (SPEC-03)`);
+  if (meta.sourceFields > 1) errors.push(`${relPath}: duplicate Source blocks (SPEC-03)`);
   if (!["Modified", "Implemented"].includes(meta.state ?? "")) {
     errors.push(`${relPath}: State must be "Modified" or "Implemented" (SPEC-04), found ${meta.state === null ? "no State field" : `"${meta.state}"`}`);
   }
@@ -110,11 +180,11 @@ function checkComponentSpec(absPath, relPath) {
     errors.push(`${relPath}: malformed Source continuation line "${bad}" — one bare path per line (SPEC-03)`);
   }
   for (const path of meta.sources) {
-    if (path.startsWith("/") || path.startsWith("./") || path.includes("\\")) {
+    if (!canonicalPath(path)) {
       errors.push(`${relPath}: Source path "${path}" must be repo-root-relative with forward slashes (SPEC-03)`);
       continue;
     }
-    if (!existsSync(join(root, path))) {
+    if (!existsSync(join(root, path)) || !statSync(join(root, path)).isFile()) {
       errors.push(`${relPath}: Source path "${path}" does not exist (SPEC-03)`);
       continue;
     }
@@ -124,17 +194,20 @@ function checkComponentSpec(absPath, relPath) {
 
 function checkStoryFile(absPath, relPath) {
   const meta = parseMeta(readFileSync(absPath, "utf8"));
+  if (!meta.validPlacement) errors.push(`${relPath}: exactly one Meta block must follow the H1 (SPEC-03)`);
+  if (meta.stateFields > 1) errors.push(`${relPath}: duplicate State fields (SPEC-03)`);
   if (!["Modified", "Implemented"].includes(meta.state ?? "")) {
     errors.push(`${relPath}: State must be "Modified" or "Implemented" (SPEC-04), found ${meta.state === null ? "no State field" : `"${meta.state}"`}`);
   }
-  if (meta.sources.length > 0) {
+  if (meta.sourceFields > 0) {
     errors.push(`${relPath}: an S{n} story file carries State only — Source belongs in _Component.md (SPEC-03)`);
   }
 }
 
 function checkCompanionFile(absPath, relPath) {
-  const meta = parseMeta(readFileSync(absPath, "utf8"));
-  if (meta.state !== null || meta.sources.length > 0) {
+  const text = readFileSync(absPath, "utf8");
+  const meta = parseMeta(text);
+  if (meta.metaHeadings || /^-\s+\*\*(?:State|Source):\*\*/m.test(text)) {
     errors.push(`${relPath}: _Api.md and _Interop.md carry no Meta block (SPEC-03)`);
   }
 }
@@ -224,6 +297,57 @@ for (const [path, specFiles] of claims) {
 
 // ------------------------------------------------------------------- report
 
+if (options.baseline) {
+  const allowed = readBaseline(readFileSync(join(root, options.baseline), "utf8"), options.baseline);
+  const allowedSet = new Set(allowed);
+  const uncoveredSet = new Set(uncovered);
+  for (const path of uncovered) {
+    if (!allowedSet.has(path)) errors.push(`${path}: newly uncovered component; add or restore its spec instead of expanding the baseline`);
+  }
+  for (const path of allowed) {
+    if (!uncoveredSet.has(path)) errors.push(`${path}: stale baseline entry; remove it because it is now covered or no longer a component`);
+  }
+
+  if (options.baseRef) {
+    const git = args => execFileSync("git", ["-C", root, ...args], {
+      encoding: "utf8", maxBuffer: 32 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"],
+    });
+    const gitRoot = resolve(git(["rev-parse", "--show-toplevel"]).trim());
+    const sameRoot = process.platform === "win32" ? gitRoot.toLowerCase() === root.toLowerCase() : gitRoot === root;
+    if (!sameRoot) throw new Error("--base-ref requires --root to be the Git repository root");
+    const commit = git(["rev-parse", "--verify", "--end-of-options", `${options.baseRef}^{commit}`]).trim();
+    const previousFiles = new Set(git(["ls-tree", "-r", "--name-only", "-z", commit]).split("\0").filter(Boolean));
+    const readPrevious = path => git(["show", `${commit}:${path}`]);
+    let previouslyAllowed;
+    if (previousFiles.has(options.baseline)) {
+      previouslyAllowed = readBaseline(readPrevious(options.baseline), `${options.baseline} at ${options.baseRef}`);
+    } else {
+      // First introduction: derive debt from the base commit's real component
+      // identities and valid Source claims. No count-based or permissive bootstrap.
+      const previousClaims = new Map();
+      for (const path of previousFiles) {
+        if (!/^specs\/E\d+ [^/]+\/F\d+ [^/]+(?:\.md|\/_Component\.md)$/.test(path)) continue;
+        const meta = parseMeta(readPrevious(path));
+        if (!meta.validPlacement || meta.stateFields !== 1 || meta.sourceFields !== 1 ||
+            !["Modified", "Implemented"].includes(meta.state) || !meta.sources.length || meta.malformed.length ||
+            meta.sources.some(source => !canonicalPath(source) || !previousFiles.has(source))) {
+          throw new Error(`${path}: cannot bootstrap baseline from malformed component spec at ${options.baseRef}`);
+        }
+        for (const source of meta.sources) previousClaims.set(source, (previousClaims.get(source) ?? 0) + 1);
+      }
+      for (const [path, count] of previousClaims) {
+        if (count > 1) throw new Error(`${path}: cannot bootstrap baseline from duplicate Source claims at ${options.baseRef}`);
+      }
+      previouslyAllowed = [...previousFiles].filter(path => componentPath(path) && !previousClaims.has(path));
+    }
+    const previousSet = new Set(previouslyAllowed);
+    for (const path of allowed) {
+      if (!previousSet.has(path)) errors.push(`${path}: baseline addition is not approved by base ref ${options.baseRef}`);
+    }
+  }
+  console.log(`Phase-C baseline: ${allowed.length} recorded uncovered components.`);
+}
+
 if (errors.length) {
   console.error(`Violations (${errors.length}):`);
   for (const e of errors) console.error(`  ${e}`);
@@ -232,9 +356,13 @@ if (errors.length) {
 
 console.log(`${covered.length}/${components.length} components covered`);
 
-if (uncovered.length && !process.argv.includes("--quiet")) {
+if (uncovered.length && !options.quiet) {
   console.log(`${uncovered.length} without a spec:`);
   for (const c of uncovered) console.log(`  ${c}`);
 }
 
-if (errors.length || uncovered.length) process.exit(1);
+if (errors.length || (!options.baseline && uncovered.length)) process.exitCode = 1;
+} catch (error) {
+  console.error(`Spec coverage check failed: ${error.message}`);
+  process.exitCode = 1;
+}

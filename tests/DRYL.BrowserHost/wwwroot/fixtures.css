@@ -1,0 +1,23 @@
+/* Test-host layout only. Production classes retain their real motion and focus. */
+body { margin: 0; background: var(--bg-0); color: var(--fg); font-family: var(--font-sans); }
+.fixture-page { max-width: 70rem; margin-inline: auto; padding: var(--sp-6); }
+.fixture-scene { margin-block: var(--sp-6); padding-block: var(--sp-4); border-top: 1px solid var(--line); }
+.fixture-controls, .fixture-badge-surface { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.fixture-scene > button, .fixture-controls > button, .fixture-select, #dialog-cancel {
+    font: inherit; color: var(--fg); background: var(--glass-2);
+    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+    padding: var(--sp-2) var(--sp-3); cursor: pointer;
+}
+.fixture-scene output { display: block; color: var(--fg-muted); margin-block: var(--sp-2); }
+.fixture-presence { padding-block: var(--sp-4); }
+.fixture-aura-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); margin-block: var(--sp-5); }
+.fixture-motion-samples { display: flex; gap: var(--sp-4); align-items: center; }
+#stagger-sample { display: flex; gap: var(--sp-3); }
+#ambient-sample { position: relative; inset: auto; width: 12rem; height: 5rem; }
+.fixture-badge-surface { padding: var(--sp-4); margin-block: var(--sp-3); }
+.fixture-surface-ground { background: var(--bg-0); }
+.fixture-surface-bg1 { background: var(--bg-1); }
+.fixture-surface-glass1 { background: var(--glass-1); backdrop-filter: var(--glass-fx-flow); }
+.fixture-surface-panel-float { background: var(--panel-float); backdrop-filter: var(--glass-fx-float); }
+#focus-scene .field { margin-block: var(--sp-4); }
+#canvas-scene .canvas-node[data-cid] { min-height: 4rem; }
