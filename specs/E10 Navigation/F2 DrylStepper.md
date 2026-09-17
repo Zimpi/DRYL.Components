@@ -132,7 +132,7 @@ The declaration's API belongs to [`F3 DrylStep.md`](F3%20DrylStep.md).
 - Normal-mode keyboard focus uses the existing accent treatment from
   `.step-header:focus-visible` (`UX-02`).
 
-### Motion and focus hardening — I13 pending
+### Motion and focus hardening — I13
 
 - Normal-motion step panels retain their existing `menu-in` entrance using
   `--dur-med` and `--ease-out` (`DESIGN-10`).
@@ -219,3 +219,6 @@ exercise these selectors; token-sync success alone proves neither repair.
   under `tests/DRYL.Components.Tests/` during the source inventory. The website
   examples do not demonstrate dynamic registration/removal, an `Aura` variant,
   reduced motion or forced colors. New I13 regression evidence remains pending.
+
+The I13 reduced-motion panel override is implemented and exercised by
+`tests/DRYL.BrowserTests/MotionTests.cs`; focus verification is recorded separately.

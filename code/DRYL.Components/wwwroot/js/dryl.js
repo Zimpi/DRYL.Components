@@ -279,20 +279,24 @@ window.dryl.modal = (() => {
 
         el.addEventListener('keydown', onKeyDown);
 
-        // Focus the first focusable element on open
-        setTimeout(() => {
+        const state = { onKeyDown, previouslyFocused, focusTimer: 0 };
+        el.__drylModal = state;
+        // A detached or replaced attachment must not take focus on the next turn.
+        state.focusTimer = setTimeout(() => {
+            state.focusTimer = 0;
+            if (el.__drylModal !== state || !el.isConnected) return;
             const items = focusable(el);
             if (items.length > 0) items[0].focus();
             else el.focus();
         }, 0);
 
-        el.__drylModal = { onKeyDown, previouslyFocused };
         lockScroll();
     }
 
     function detach(el) {
         if (!el || !el.__drylModal) return;
-        const { onKeyDown, previouslyFocused } = el.__drylModal;
+        const { onKeyDown, previouslyFocused, focusTimer } = el.__drylModal;
+        clearTimeout(focusTimer);
         el.removeEventListener('keydown', onKeyDown);
         delete el.__drylModal;
         unlockScroll();
@@ -1720,7 +1724,7 @@ window.dryl.table = {
  *     reduced-motion aware. Powers DrylAiCanvas artifact reflows.
  * ────────────────────────────────────────────────────────── */
 window.dryl.motion = (() => {
-    const _exit   = new WeakMap(); // wrapper el -> animationend handler
+    const _exit   = new WeakMap(); // wrapper el -> owned exit registration
     const _ind    = new WeakMap(); // container  -> { ro }
     const _reveal = new WeakMap(); // wrapper el -> { io }
     const _flip   = new WeakMap(); // root el    -> MutationObserver
@@ -1736,34 +1740,65 @@ window.dryl.motion = (() => {
      *               .dialog and bubbles to the backdrop el we listen on).
      * ---------------------------------------------------------------- */
     function onExit(el, dotnetRef, opts) {
-        if (!el || _exit.has(el)) return;
+        if (!el || el.nodeType !== 1 || _exit.has(el)) return;
         opts = opts || {};
         const name = opts.name || 'presence-out';
         const self = opts.self !== false;
-
-        // Reduced motion (or no exit animation): resolve on the next frame so
-        // the C# side still gets a single, asynchronous OnExitFinished.
-        if (reduced()) {
-            requestAnimationFrame(() => {
-                try { dotnetRef.invokeMethodAsync('OnExitFinished'); } catch (_) { /* circuit gone */ }
-            });
-            return;
-        }
-
-        const handler = (e) => {
+        const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+        const state = { frame: 0, timer: 0, handler: null, media, change: null };
+        const current = () => _exit.get(el) === state;
+        const finish = () => {
+            if (!current()) return;
+            clearExit(el);
+            try { Promise.resolve(dotnetRef.invokeMethodAsync('OnExitFinished')).catch(() => {}); }
+            catch (_) { /* circuit gone */ }
+        };
+        state.handler = (e) => {
             if (self && e.target !== el) return;
             if (!String(e.animationName).startsWith(name)) return;
-            clearExit(el);
-            try { dotnetRef.invokeMethodAsync('OnExitFinished'); } catch (_) { /* circuit gone */ }
+            finish();
         };
-        el.addEventListener('animationend', handler);
-        _exit.set(el, handler);
+        state.change = () => { if (media.matches) finish(); };
+        _exit.set(el, state);
+        el.addEventListener('animationend', state.handler);
+        el.addEventListener('animationcancel', state.handler);
+        media?.addEventListener('change', state.change);
+
+        // Inspect after the rendered exit class has reached style resolution. A
+        // missing/cancelled animation has no animationend; a reduced-motion frame
+        // still belongs to this registration and can be cancelled by clearExit.
+        state.frame = requestAnimationFrame(() => {
+            state.frame = 0;
+            if (!current()) return;
+            if (reduced() || !el.isConnected) { finish(); return; }
+            const animations = (el.getAnimations?.({ subtree: !self }) ?? [])
+                .filter(animation => String(animation.animationName).startsWith(name) &&
+                    (!self || animation.effect?.target === el));
+            if (!animations.length) { finish(); return; }
+            let remaining = 0;
+            for (const animation of animations) {
+                // Cancellation rejects finished; both outcomes settle the exit.
+                animation.finished.then(finish, finish);
+                const end = animation.effect?.getComputedTiming().endTime;
+                const time = Number(animation.currentTime ?? 0);
+                if (Number.isFinite(end)) remaining = Math.max(remaining, end - time);
+            }
+            // A deadline from the actual animation also covers paused motion or
+            // a dropped event. It introduces no separate CSS timing vocabulary.
+            if (Number.isFinite(remaining)) state.timer = setTimeout(finish, Math.ceil(remaining));
+        });
     }
 
     function clearExit(el) {
         if (!el) return;
-        const h = _exit.get(el);
-        if (h) { el.removeEventListener('animationend', h); _exit.delete(el); }
+        const state = _exit.get(el);
+        if (!state) return;
+        _exit.delete(el);
+        el.removeEventListener('animationend', state.handler);
+        el.removeEventListener('animationcancel', state.handler);
+        state.media?.removeEventListener('change', state.change);
+        cancelAnimationFrame(state.frame);
+        clearTimeout(state.timer);
     }
 
     /* ---- Indicator glide ------------------------------------------- */

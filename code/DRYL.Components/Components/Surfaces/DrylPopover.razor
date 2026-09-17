@@ -123,6 +123,12 @@
     private bool _exitAttached;
     private DotNetObjectReference<ExitCallback>? _exitRef;
     private CancellationTokenSource? _exitWatchdog;
+    private long _exitGeneration;
+    private long _openGeneration;
+    private bool _clearExitRequested;
+    private bool _releaseFocusRequested;
+    private bool _lastOpen;
+    private bool _disposed;
 
     // The exit runs var(--dur-fast) (140ms). If its animationend is lost — a
     // dropped interop message, DOM churn, a test host that runs no JS at all —
@@ -141,8 +147,25 @@
     /// <summary>The anchor element.</summary>
     public ElementReference AnchorElement => _anchor;
 
+    protected override void OnParametersSet()
+    {
+        if (_disposed || Open == _lastOpen) return;
+        _lastOpen = Open;
+        _openGeneration++;
+        if (Open)
+        {
+            if (_exiting) CancelExit();
+        }
+        else if (_portaled)
+        {
+            StartExit();
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_disposed) return;
+        var generation = _exitGeneration;
         if (firstRender)
         {
             _dotnetRef = DotNetObjectReference.Create(this);
@@ -157,12 +180,16 @@
             // than in OnInitializedAsync so static prerender never calls it.
             if (PanelRole is not null)
                 await JS.InvokeVoidAsync("dryl.popover.claimTrigger", _anchor, PanelRole, Open);
+            if (_disposed || generation != _exitGeneration) return;
         }
 
-        // Drive the portal off the rendered Open state. This covers every close
-        // path uniformly — trigger toggle, Escape, click-outside, and a consumer
-        // flipping the bound Open parameter — without needing to intercept the
-        // parameter set (which can't await on Blazor Server before the render).
+        await ClearPendingExitAsync();
+        if (_disposed || generation != _exitGeneration) return;
+        await ReleasePendingFocusAsync();
+        if (_disposed || generation != _exitGeneration) return;
+
+        // Parameter changes enter the same exit state synchronously; portal
+        // work still waits until its corresponding markup has rendered.
         if (Open && !_portaled)
         {
             _portaled = true;
@@ -176,10 +203,12 @@
                 // that writes neither itself. See dryl.popover's claimTrigger.
                 role = PanelRole
             });
+            if (_disposed || generation != _exitGeneration) return;
         }
         else if (!Open && _portaled && !_exiting)
         {
             await ReleaseAsync();
+            if (_disposed || generation != _exitGeneration) return;
         }
 
         // Wire the exit's animationend once per exit. This runs after the
@@ -189,7 +218,7 @@
         if (_exiting && !_exitAttached)
         {
             _exitAttached = true;
-            _exitRef ??= DotNetObjectReference.Create(new ExitCallback(this));
+            _exitRef = DotNetObjectReference.Create(new ExitCallback(this, generation));
             try { await JS.InvokeVoidAsync("dryl.motion.onExit", _panel, _exitRef, new { name = "presence-out" }); }
             catch (JSDisconnectedException) { /* circuit closing — the watchdog finishes it */ }
             catch (JSException) { /* element gone — the watchdog finishes it */ }
@@ -206,8 +235,10 @@
     /// <summary>Programmatically open or close the popover.</summary>
     public async Task SetOpenAsync(bool open)
     {
-        if (Open == open) return;
+        if (_disposed || Open == open) return;
         Open = open;
+        _lastOpen = open;
+        var request = ++_openGeneration;
 
         if (open)
         {
@@ -215,7 +246,7 @@
             // is no second portal to open. Just call the exit off — dropping
             // .is-exiting moves animation-name back to popover-in, which
             // restarts the entrance from wherever the fade had got to.
-            if (_exiting) await CancelExitAsync();
+            if (_exiting) CancelExit();
         }
         else if (_portaled)
         {
@@ -226,15 +257,18 @@
             // focus while focus is still inside the panel, which is what keeps
             // this from overruling a user who clicked elsewhere and from
             // fighting the consumers that restore focus themselves.
-            await ReleaseFocusAsync();
-
             // Only a popover that is actually on screen has something to
             // animate away. One that never portalled (never opened, or
             // statically rendered) closes exactly as it did before.
             StartExit();
         }
 
+        await ClearPendingExitAsync();
+        if (_disposed || request != _openGeneration || Open != open) return;
+        await ReleasePendingFocusAsync();
+        if (_disposed || request != _openGeneration || Open != open) return;
         await OpenChanged.InvokeAsync(open);
+        if (_disposed || request != _openGeneration || Open != open) return;
         if (open) await OnOpen.InvokeAsync();
         else await OnClose.InvokeAsync();
         // The portal is opened in OnAfterRenderAsync once the new Open state
@@ -249,34 +283,45 @@
         catch (InvalidOperationException) { /* statically rendered */ }
     }
 
+    private async Task ReleasePendingFocusAsync()
+    {
+        if (!_releaseFocusRequested) return;
+        _releaseFocusRequested = false;
+        await ReleaseFocusAsync();
+    }
+
     private void StartExit()
     {
+        InvalidateExit();
         _exiting = true;
         _exitAttached = false;
-        _exitWatchdog?.Cancel();
-        _exitWatchdog?.Dispose();
+        _releaseFocusRequested = true;
         _exitWatchdog = new CancellationTokenSource();
         _ = RunExitWatchdogAsync(_exitWatchdog.Token);
     }
 
     private async Task RunExitWatchdogAsync(CancellationToken token)
     {
+        var generation = _exitGeneration;
         try { await Task.Delay(ExitWatchdogTimeout, token); }
         catch (TaskCanceledException) { return; }
-        await InvokeAsync(FinishExit);
+        if (_disposed) return;
+        await InvokeAsync(() =>
+        {
+            if (!token.IsCancellationRequested) FinishExit(generation);
+        });
     }
 
     /// <summary>Ends the exit and lets the next render tear the portal down.
     /// Idempotent: whichever of animationend and the watchdog arrives first
     /// wins, and the other finds nothing left to do.</summary>
-    private void FinishExit()
+    private void FinishExit(long generation)
     {
-        if (!_exiting) return;
+        if (_disposed || !_exiting || Open || generation != _exitGeneration) return;
         _exiting = false;
         _exitAttached = false;
-        _exitWatchdog?.Cancel();
-        _exitWatchdog?.Dispose();
-        _exitWatchdog = null;
+        _releaseFocusRequested = false;
+        InvalidateExit();
         // The render this triggers drops .is-open and the content; the
         // OnAfterRenderAsync that follows releases the portal.
         StateHasChanged();
@@ -284,13 +329,34 @@
 
     /// <summary>Calls a running exit off because the popover re-opened.
     /// Detaches the JS listener, so the next exit can attach a fresh one.</summary>
-    private async Task CancelExitAsync()
+    private void CancelExit()
     {
+        _clearExitRequested |= _exitAttached;
         _exiting = false;
         _exitAttached = false;
+        _releaseFocusRequested = false;
+        InvalidateExit();
+    }
+
+    private void InvalidateExit()
+    {
+        _exitGeneration++;
         _exitWatchdog?.Cancel();
         _exitWatchdog?.Dispose();
         _exitWatchdog = null;
+        _exitRef?.Dispose();
+        _exitRef = null;
+    }
+
+    private async Task ClearPendingExitAsync()
+    {
+        if (!_clearExitRequested) return;
+        _clearExitRequested = false;
+        await ClearExitAsync();
+    }
+
+    private async Task ClearExitAsync()
+    {
         try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _panel); }
         catch (JSDisconnectedException) { /* circuit closing */ }
         catch (JSException) { /* element gone */ }
@@ -303,15 +369,12 @@
     {
         if (!_portaled) return;
         _portaled = false;
+        var generation = _exitGeneration;
+        // Attempt portal cleanup even when the exit listener is already gone.
+        await ClearExitAsync();
+        if (!_disposed && (Open || generation != _exitGeneration)) return;
         try
         {
-            // Drop the exit listener before the portal. dryl.motion.onExit
-            // refuses to attach a second listener to an element that already
-            // has one, and an exit ended by the watchdog rather than by
-            // animationend leaves its listener in place — so without this, the
-            // NEXT close on this same node would attach nothing and would only
-            // ever be finished by the watchdog again.
-            await JS.InvokeVoidAsync("dryl.motion.clearExit", _panel);
             await JS.InvokeVoidAsync("dryl.popover.close", _anchor);
         }
         catch (JSDisconnectedException) { /* circuit closing */ }
@@ -324,13 +387,14 @@
     [JSInvokable]
     public async Task Close()
     {
-        if (!CloseOnClickOutside || !Open) return;
+        if (_disposed || !CloseOnClickOutside || !Open) return;
         await SetOpenAsync(false);
-        StateHasChanged();
+        if (!_disposed) StateHasChanged();
     }
 
     private async Task OnPanelKeyDown(KeyboardEventArgs e)
     {
+        if (_disposed) return;
         if (OnKeyDown.HasDelegate) await OnKeyDown.InvokeAsync(e);
         if (CloseOnEscape && e.Key == "Escape")
             await SetOpenAsync(false);
@@ -393,28 +457,25 @@
 
     /// <summary>Bridge invoked by dryl.motion.onExit when the panel's exit
     /// animation ends, so the component can tear the portal down.</summary>
-    private sealed class ExitCallback
+    private sealed class ExitCallback(DrylPopover popover, long generation)
     {
-        private readonly DrylPopover _popover;
-        public ExitCallback(DrylPopover popover) => _popover = popover;
-
         [JSInvokable]
-        public Task OnExitFinished() => _popover.InvokeAsync(_popover.FinishExit);
+        public Task OnExitFinished() => popover._disposed
+            ? Task.CompletedTask
+            : popover.InvokeAsync(() => popover.FinishExit(generation));
     }
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         // A popover disposed mid-exit releases regardless: the animation is the
         // reason to wait, and there is nothing left to show it to.
-        _exiting = false;
-        _exitWatchdog?.Cancel();
-        _exitWatchdog?.Dispose();
-        _exitWatchdog = null;
+        CancelExit();
 
         // If we are disposed while open, the panel lives under <body>; tear the
         // portal down so its node and listeners don't leak past this component.
         await ReleaseAsync();
-        _exitRef?.Dispose();
         _dotnetRef?.Dispose();
     }
 }

@@ -100,16 +100,14 @@ a `clearTimeout`/`clearInterval` on teardown (component dispose, modal close,
 retry/idle handlers).
 
 Check: `rg -n 'setTimeout|setInterval' code/*/wwwroot/js/` against
-`rg -n 'clearTimeout|clearInterval' code/*/wwwroot/js/` — currently **10** and
-**12** hits respectively. The count alone does not prove pairing (3 of the 10
-`setTimeout` hits are comments, not calls), so this is reviewer-enforced, not
-grep-enforced: the grep pair is a starting point, and a human confirms each
-named timer handle (`timerId`, `settle`, `state.retryTimer`,
-`state.idleTimer`, `state.maxTimer`) is cleared on its teardown path. Manual
-review confirms this holds, with one edge case: the modal `attach` function in
-`dryl.js` uses an anonymous `setTimeout(fn, 0)` to move focus to the first
-focusable element on the next tick, and holds no stored handle — not a leak in
-practice, but also not an explicitly disposed handle.
+`rg -n 'clearTimeout|clearInterval' code/*/wwwroot/js/` locates candidate
+handles; counts alone do not establish ownership. The I13 repair stores the
+modal's `focusTimer` on its attachment, clears it on detach and checks attachment
+identity before applying focus. Motion registrations own their frame/deadline
+and listeners; voice sessions own idle, maximum-duration and retry timers plus
+meter frames. `tests/js/motion.test.mjs` and `tests/js/voice.test.mjs` replay
+retained callbacks after teardown and verify that they are inert. Review new
+handles against their teardown paths; this is not a blanket audit of every timer.
 
 ---
 

@@ -16,7 +16,7 @@ the category.
 
 ## Interop
 
-`DrylPopover` injects `IJSRuntime` and calls three entry points of the
+`DrylPopover` injects `IJSRuntime` and calls four entry points of the
 `dryl.popover` module in `code/DRYL.Components/wwwroot/js/dryl.js`. There is no
 JS module import and no `IJSObjectReference`: the library ships one script that
 attaches `window.dryl`, and the component calls into it by name.
@@ -25,6 +25,7 @@ attaches `window.dryl`, and the component calls into it by name.
 |---|---|---|
 | `dryl.popover.claimTrigger(anchor, role, open)` | `OnAfterRenderAsync` on the **first render only**, and only when `PanelRole` is set | Writes `aria-haspopup` and `aria-expanded` on the trigger, each only where absent, marking each claim on the node. |
 | `dryl.popover.open(anchor, panel, dotnetRef, opts)` | `OnAfterRenderAsync`, when the rendered state is open and the portal is not yet up | Moves the panel to `<body>` carrying its content's scroll positions across the move, positions it, reveals it, applies a pending focus request, registers the scroll, resize and outside-press listeners, and re-claims the trigger with `aria-expanded="true"`. |
+| `dryl.popover.releaseFocus(anchor)` | On the close request, including an externally changed `Open` after its render | Returns focus only while it still belongs to the closing panel; teardown does not delay the user's focus return. |
 | `dryl.popover.close(anchor)` | `OnAfterRenderAsync` when the rendered state is closed, and from `DisposeAsync` | Removes those three listeners, sets a claimed `aria-expanded` back to `false`, drops an unapplied focus request, clears the inline placement styles and `data-dryl-positioned`, and returns the panel node to its anchor, again carrying its content's scroll positions across the move. |
 
 `opts` carries `placement`, `matchWidth`, `closeOnOutside` and `role`.
@@ -67,6 +68,22 @@ cascading value and requires no provider component in the layout, so it works in
 an application that never called `AddDrylComponents()`.
 
 ## Cleanup
+
+### Exit ownership (I13 H03)
+
+`DrylPopover` shares `dryl.motion.onExit(panel, exitRef, { name:
+"presence-out" })` and `dryl.motion.clearExit(panel)` with the foundation's
+presence primitive. Each exit supplies its own private `ExitCallback` reference.
+The callback and watchdog complete only that exit, with ownership checked on
+the renderer after any await or queued dispatch. Reopening, completion and
+disposal release that reference; queued callbacks from an older reference are
+inert. `clearExit` remains cancellation-only and never reports completion.
+
+Disposal invalidates .NET callbacks before awaiting browser cleanup. Clearing
+the exit and releasing the portal are independent cleanup attempts so a rejected
+exit cleanup cannot strand the portalled panel. Registration failure keeps the
+existing watchdog fallback. This ownership is internal; no public parameter,
+callback signature or motion timing is added.
 
 | Component | Contract | Released |
 |---|---|---|

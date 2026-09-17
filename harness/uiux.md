@@ -144,13 +144,15 @@ Always honour `prefers-reduced-motion: reduce` — the component must be fully
 usable with motion off. The shared motion primitives already do this; any
 custom component CSS must mirror it.
 
-Check: `rg -c 'prefers-reduced-motion' code/DRYL.Components/wwwroot/dryl.css`
-— currently **23** (green, count > 0: `dryl.css` itself honours the media
-query). This only proves the shared primitive file does its part; it does
-not scan individual component `.razor.css` files for CSS that introduces new
-motion outside the shared primitives without its own
-`prefers-reduced-motion` mirror — that remains a reviewer check per
-component.
+Check: presence of a media query is not evidence that it wins the cascade.
+`tests/DRYL.BrowserTests/MotionTests.cs` checks computed styles and live exits
+in both modes, with the preference present initially and changed during use.
+The I13 scope is the shared aura variants/pseudo-elements, spinner, fade,
+stagger, ambient aurora, dialog/backdrop and Stepper panels. The deterministic
+`tests/js/motion.test.mjs` checks interrupted/absent exits and callback cleanup.
+Other isolated component motion remains a reviewer check. Final browser
+versions and native-platform limits are recorded in
+`docs/2026-09-15-i13-implementation-plan.md`.
 
 ### UX-07 — Animation never changes focus order, keyboard reachability or ARIA semantics
 

@@ -31,8 +31,9 @@ set `self` to false because their animated panel is a descendant of the layer.
 - Rejected interop promises are handled on completion, including disconnection.
 - Normal enter/exit animations retain their existing timing and shape.
 
-These are implementation targets from the confirmed I13 until the Presence
-component contract and the browser regression cases are reconciled.
+These contracts are implemented and covered by the Presence/Popover .NET
+suites, deterministic motion tests and the I13 browser regression matrix.
+See `docs/2026-09-15-i13-implementation-plan.md` for final evidence and limits.
 
 ### Browser regression verification (I13)
 

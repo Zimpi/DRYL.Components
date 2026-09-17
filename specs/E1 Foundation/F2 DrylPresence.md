@@ -1,7 +1,7 @@
 # DrylPresence
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Providers/DrylPresence.razor
               code/DRYL.Components/PresenceTransition.cs
               code/DRYL.Components/PresenceSpeed.cs
@@ -30,7 +30,7 @@ the shared presence classes in `dryl.css`; the browser reports completion throug
 | `Appear` | `bool` | `false` | Animate the initial visible render. |
 | `OnExited` | `EventCallback` | unset | Reports the completed logical exit. |
 | `Class` | `string?` | `null` | Classes merged on the wrapper. |
-| `OnExitFinished()` | `Task` | — | Existing public JS completion entry point. |
+| `OnExitFinished()` | `Task` | — | Compatibility entry point completing the current exit; actual browser registrations use a private callback carrying the exit identity. |
 | `DisposeAsync()` | `ValueTask` | — | Invalidates completion and releases interop. |
 
 `PresenceTransition`: `Fade`, `Scale`, `SlideUp`, `SlideDown`, `SlideLeft`,
@@ -51,6 +51,10 @@ I13. The component has no `AdditionalAttributes`, `Ai` or `Aura` parameter.
   and plays the enter treatment. The cancelled exit raises no `OnExited`.
 - Completion from an older exit cannot remove content belonging to a newer
   close/reopen sequence, even when its interop callback was already queued.
+- Each browser registration owns a distinct completion bridge; cancelling or
+  completing that exit releases its .NET interop reference.
+- An exit registration that fails because the element or circuit is gone
+  completes only its own pending exit and raises no interop exception.
 - An absent or cancelled exit animation still completes the current exit.
 - Changing to reduced motion during exit completes removal without waiting for
   an animation-end event that will no longer occur.
@@ -58,6 +62,10 @@ I13. The component has no `AdditionalAttributes`, `Ai` or `Aura` parameter.
   callbacks. Repeated disposal is safe; prerender needs no browser cleanup.
 - A disconnected circuit does not turn disposal or completion into an unhandled
   exception.
+
+The public parameterless `OnExitFinished()` remains a compatibility call for
+the current exit. It cannot identify the source of an arbitrary direct call;
+the component never passes itself as the browser's exit callback target.
 
 ### Appearance and accessibility
 
@@ -85,11 +93,24 @@ I13. The component has no `AdditionalAttributes`, `Ai` or `Aura` parameter.
 - **Keyboard / AI:** no wrapper focus or AI semantics; exercise interactive child
   content in the browser so retained exits do not break the owner's focus flow.
 - **Tests:** `tests/DRYL.Components.Tests/DrylPresenceTests.cs` covers the Blazor
-  state machine; browser and JS lifecycle checks must cover actual animations,
-  queued completion and cancellation.
+  state machine, stale and duplicate callbacks, disposal during a pending
+  registration, registration rejection and the public compatibility entry.
+  Before the fix, its stale callback removed the newer exit and disposal still
+  raised `OnExited`. The I13 .NET filter for `Presence`, `Dialog` and `Popover`
+  passes all 47 cases. Browser and JS lifecycle checks must still establish
+  actual animations, preference changes and DOM cleanup.
 - **Demo:** `DRYL.Website/Components/Pages/DemoPresence.razor` and
   `Components/Examples/Presence/Toggle.razor`, `Transitions.razor`,
   `Appear.razor` were found in the sibling website checkout.
 - **Catalog:** `DRYL.Website/Components/ComponentCatalog.cs` registers
   `Presence` / `presence`, class `DrylPresence`, provider folder, AI flag false.
   Reverify rendered examples during release closure.
+
+## I13 verification — 2026-09-17
+
+The adopted exit/motion contract is implemented. The 1,146-case .NET suite and
+10 deterministic motion cases pass; the browser matrix exercises normal,
+reduced, missing and cancelled animations in both modes. Final engine results
+and platform limits are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+This supersedes the earlier pending-I13 evidence wording; unrelated recorded
+debt remains outside this repair.

@@ -1,7 +1,7 @@
 # DrylAuraElements
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/AI/DrylAuraElements.razor
 
 ## User Story
@@ -159,3 +159,12 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
   identifier `DrylAuraElements` appears nowhere in `DRYL.Website`, only inside
   other components' markup and in `AiAuraCss`. The aura is documented through the
   `"AI Mode"` / `ai` entry, whose `ClassName` names `DrylAiIndicator`.
+
+## I13 verification — 2026-09-17
+
+The adopted exit/motion contract is implemented. The 1,146-case .NET suite and
+10 deterministic motion cases pass; the browser matrix exercises normal,
+reduced, missing and cancelled animations in both modes. Final engine results
+and platform limits are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+This supersedes the earlier pending-I13 evidence wording; unrelated recorded
+debt remains outside this repair.

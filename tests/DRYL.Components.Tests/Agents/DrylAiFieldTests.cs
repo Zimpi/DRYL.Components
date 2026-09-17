@@ -522,7 +522,9 @@ public class DrylAiFieldTests : BunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
         Assert.StartsWith("Übersetze auf Deutsch", client.LastUserMessage);
-        Assert.Empty(cut.FindAll(".ai-field-prompt"));   // popover closed on submit
+        // Closing retains the prompt through the popover's exit. bUnit does
+        // not run the browser animation, so its watchdog completes removal.
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".ai-field-prompt")), TimeSpan.FromSeconds(2));
     }
 
     [Fact]

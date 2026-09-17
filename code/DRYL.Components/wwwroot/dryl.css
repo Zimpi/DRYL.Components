@@ -4456,12 +4456,20 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-aura-ring, .ai-aura-ring::before, .ai-aura-ring::after,
-  .ai-aura-comet, .ai-aura-comet::before,
-  .ai-aura-glow, .ai-aura-glow::before, .ai-aura-wash,
-  .ai-aura.ai-generated { animation: none; }
+  .ai-aura .ai-aura-ring,
+  .ai-aura .ai-aura-ring::before,
+  .ai-aura .ai-aura-ring::after,
+  .ai-aura .ai-aura-comet,
+  .ai-aura .ai-aura-comet::before,
+  .ai-aura .ai-aura-glow,
+  .ai-aura .ai-aura-glow::before,
+  .ai-aura .ai-aura-wash,
+  .ai-aura.ai-generated .ai-aura-comet,
+  .ai-aura.ai-generated .ai-aura-glow,
+  .ai-aura.ai-generated .ai-aura-wash,
+  .ai-aura.ai-generated { animation: none; transition: none; }
   /* keep the calm, even static saum; hide the now-frozen travelling comet */
-  .ai-aura-comet { opacity: 0; }
+  .ai-aura .ai-aura-comet { opacity: 0; }
 }
 
 /* ============== EXPANSION PANELS ============== */
@@ -6063,5 +6071,23 @@ pre { overflow-x: auto; }
   transform-origin: top left;
   pointer-events: none;
   will-change: transform, opacity;
+}
+
+/* These shared decorators and dialog variants must win over their ordinary
+   rules above, including exit/handoff selectors. Preference changes apply live. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .fade-in,
+  .stagger > *,
+  .aurora::before,
+  .aurora::after,
+  .aurora .orb,
+  .dialog-backdrop,
+  .dialog,
+  .dialog-layer.is-exiting .dialog,
+  .dialog-layer.is-handoff:not(.is-exiting) .dialog {
+    animation: none;
+    transition: none;
+  }
 }
 

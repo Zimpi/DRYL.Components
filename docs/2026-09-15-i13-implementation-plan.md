@@ -12,7 +12,7 @@ H07–H10, I8 baselines and new tokens/public APIs remain outside this delivery.
 | T1 — regression host and release gates | Complete | `a3173d1`; 45 Node CLI tests; 2 smoke cases per engine in Chromium/Firefox/WebKit; host/suite builds and phase-C gate pass. |
 | T2 — voice cancellation | Complete | Owned-session/turn implementation; 25 JS voice cases and full 1,146-case .NET suite pass. Chromium/Firefox voice scenarios pass; final matrix below. |
 | T3 — gesture ownership | Complete | 19 deterministic gesture cases; Chromium live pointer matrix passes. Final cross-engine results below. |
-| T4 — exit ownership and reduced motion | In progress | JS 8/10 failing before, 10/10 after; reduced-motion browser cases 4/4 fail before CSS fix. Per-exit C# bridge implementation in progress. |
+| T4 — exit ownership and reduced motion | Complete | JS 8/10 failed before and 10/10 pass after; 1,146 .NET tests pass with per-exit bridges. Browser matrix and timing-fixture reconciliation below. |
 | T5 — badge contrast | In progress | CSS-derived checks reproduced 12 light badge failures; all 50 checks and 7 Node cases pass after label fix. Rendered verification pending. |
 | T6 — forced-colors focus | Pending | |
 | T7 — review, full verification and documentation | Pending | |

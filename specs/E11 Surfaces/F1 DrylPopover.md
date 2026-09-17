@@ -5,7 +5,6 @@
 - **Source:** code/DRYL.Components/Components/Surfaces/DrylPopover.razor
               code/DRYL.Components/Components/Surfaces/DrylPopover.razor.css
               code/DRYL.Components/Components/Surfaces/PopoverPlacement.cs
-              code/DRYL.Components/wwwroot/js/dryl.js
 
 ## User Story
 
@@ -230,7 +229,7 @@ recorded in
 | `Open` | `bool` | `false` | Whether the panel is open. Supports `@bind-Open`. |
 | `OpenChanged` | `EventCallback<bool>` | — | Fires when the open state changes. |
 | `TriggerContent` | `RenderFragment?` | `null` | The clickable trigger. |
-| `PanelContent` | `RenderFragment?` | `null` | The panel body; rendered only while `Open` is `true`. |
+| `PanelContent` | `RenderFragment?` | `null` | The panel body; rendered while open and through its exit. |
 | `Placement` | `PopoverPlacement` | `PopoverPlacement.BottomStart` | Where the panel opens relative to the trigger. |
 | `MatchTriggerWidth` | `bool` | `false` | Gives the panel the trigger's measured width. |
 | `Block` | `bool` | `false` | Stretches the anchor to its container's full width. |
@@ -533,6 +532,21 @@ no way to ask the panel to keep focus.
 - A popover re-opened while it is exiting cancels the exit and stays open.
 - A popover re-opened while it is exiting is not closed afterwards by the
   abandoned exit.
+- Each exit owns a distinct browser callback bridge. An older callback cannot
+  finish a newer close after a close/reopen/close sequence, even if it was
+  already queued before cancellation (I13 H03).
+- A watchdog queued for an older exit cannot finish a newer close; its ownership
+  is checked when completion reaches the renderer.
+- Completion of the current exit is idempotent across the browser callback and
+  watchdog.
+- Reopening and disposal invalidate the current exit before awaiting cleanup.
+- Externally setting `Open` follows the same exit ownership: `false` retains
+  the content until completion, and `true` cancels the exit immediately. Merely
+  supplying a parameter does not raise `OpenChanged`, `OnOpen` or `OnClose`.
+- Disposal makes late exit callbacks and dismissal calls inert and is safe to
+  repeat.
+- A rejected `dryl.motion.clearExit` call does not prevent the component from
+  attempting to release its portal.
 - A popover whose exit animation never reports finishing is closed anyway,
   within a fixed grace period, so no invisible panel is ever left on screen.
 - `OnClose` fires when the close is requested, not when the exit animation
@@ -541,6 +555,24 @@ no way to ask the panel to keep focus.
   when the exit animation finishes.
 
 ## Cross-cutting evidence (`SPEC-05`)
+
+- **I13 ownership:** `tests/DRYL.Components.Tests/DrylPopoverTests.cs`
+  reproduces stale browser callbacks, a watchdog continuation already queued
+  before cancellation, and disposal during exit. These cases failed before
+  the fix; the .NET filter for `Presence`, `Dialog` and `Popover` now passes all
+  47 cases. These assertions establish
+  .NET ownership; actual animation cancellation, reduced motion and portal
+  layout still require the JS and browser checks in the I13 plan. Earlier
+  measurements below do not establish an I13 pass.
+  The earlier `OnAfterRenderAsync` portal check did not intercept parameter
+  changes: external `Open=false` skipped exit and external `Open=true` retained
+  the old exit. `Bound_Open_changes_use_the_same_exit_and_reopen_ownership`
+  reproduces both paths against the same callback identity contract.
+  Open requests have their own identity so completion of an exit while focus
+  release is pending does not suppress `OnClose`; disposal or a superseding
+  request still makes that continuation inert. The tests hold interop responses
+  and dispatch the queued watchdog continuation explicitly; bUnit executes no
+  actual CSS animation.
 
 - **Both color modes** — the panel's whole surface is tokens: `--panel-float`,
   `--glass-fx-float`, `--line-strong`, `--r-md`, `--shadow-lg`, `--sp-2`,
@@ -638,17 +670,11 @@ no way to ask the panel to keep focus.
   declaration, so `DESIGN-02` has nothing to branch on; both modes were measured
   anyway and agree to the pixel.
 
-## Recorded debt (`State: Implemented`)
+## Recorded debt
 
-**Deviations from the acceptance criteria above: none.** `State` records
-whether spec and code agree, and they do: every criterion above was read off
-this code or measured in the running application today (`SPEC-04`).
-
-That sentence is what `State` rests on, and this section is deliberately **not**
-named for it — `F3 DrylSplitButton` uses `## Deviations` for exactly the
-unmet-criteria sense, and one heading meaning two things in one repository is
-how a reviewer comes to block a merge over a component that has nothing wrong
-with it.
+The shared exit ownership criteria adopt confirmed I13 H03. `State` remains
+`Modified` until their implementation and verification are reconciled
+(`SPEC-04`); historical measurements above do not cover the new races.
 
 What follows instead is the component's debt against the **harness rules** and
 against what a consumer would reasonably expect. Each entry is already written
@@ -706,15 +732,12 @@ nothing here is owed against a harness rule.
   component is touched by the anchor's class merge in `ClassMergeTests` and by
   `DrylSplitButtonTests`, which asserts the arguments reaching
   `dryl.popover.claimTrigger` and `dryl.popover.open` from a composed menu.
-- **The scroll the portal carries has no automated test either, and cannot have
-  one here.** The two criteria added on 2026-08-20 live entirely in
-  `moveKeepingScroll`, and the only thing that can observe them is a real layout
-  engine: bUnit runs no `dryl.js`, and a DOM to run it against would be a new
-  runtime dependency, which `CODE-03` does not allow for this. So it rests on the
-  browser measurement recorded above, in the same position as the portal and the
-  placement beside it. A visual-regression harness against the running site —
-  already on the backlog for other reasons — is the route that would cover all
-  three at once.
+- **The scroll the portal carries has no automated test yet.** The two criteria
+  added on 2026-08-20 live entirely in `moveKeepingScroll` and require a real
+  layout engine. The approved I13 browser suite supplies a development-only
+  route to that verification without adding a shipped runtime dependency.
+  Until a dedicated scroll assertion exists, the earlier browser measurements
+  remain its evidence.
 - **A trigger node replaced under a live popover keeps no ARIA until the next
   open.** The claim runs at first render and again on open; a node swapped in
   between carries neither attribute. No library component produces this today,
@@ -745,3 +768,12 @@ nothing here is owed against a harness rule.
   replaced-trigger boundaries above are stated there as well; they are this
   component's mechanism and belong here, and `F3`'s copies should become
   references in a commit of their own.
+
+## I13 verification — 2026-09-17
+
+The adopted exit/motion contract is implemented. The 1,146-case .NET suite and
+10 deterministic motion cases pass; the browser matrix exercises normal,
+reduced, missing and cancelled animations in both modes. Final engine results
+and platform limits are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+This supersedes the earlier pending-I13 evidence wording; unrelated recorded
+debt remains outside this repair.
