@@ -26,3 +26,13 @@ These are live behaviour tests, not approved appearance baselines for I8. Native
 Safari/Firefox checks, physical devices and the Windows contrast-theme pass must
 be recorded separately from Playwright emulation. Final evidence and outstanding
 limits are tracked in `docs/2026-09-15-i13-implementation-plan.md`.
+
+Fixture portability is explicit: Windows WebKit supplies no native MediaStream,
+so the offline voice fixture uses an inert stream object there. It still runs
+DRYL's real module and authenticated Blazor callbacks; this is not WebRTC/audio
+hardware evidence. Dock keyboard input waits for its real top-layer promotion,
+gesture destinations stay inside the viewport, and reopen assertions request
+reopening in the browser turn that observes a running exit. These conditions
+avoid mistaking fixture scheduling/platform differences for lifecycle failures.
+Native Chrome/Edge smoke and focus can run with the supported channels above;
+real Windows contrast-theme and native Safari/Firefox checks remain separate.

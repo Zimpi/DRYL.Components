@@ -212,8 +212,8 @@ combobox, not a native `select` element.
   implements no action for them. Space can activate the field and still scroll
   the page. There is no typeahead. These are existing keyboard limits, not
   behavior added to I13.
-- `.select:focus-visible` currently suppresses outlines. H05 must establish the
-  forced-colors fallback result before claiming repair.
+- `.select:focus-visible` suppresses the ordinary outline in favor of its glow; H05 now
+  restores the outline under forced colors. Native inspection limits are below.
 - `DrylSelect.razor.css` retains literal open-state shadow geometry and
   scrollbar radius; shared `.select` styling retains literal padding and a
   mode-assuming SVG arrow color (`DESIGN-01`, `DESIGN-02`). I13 changes no

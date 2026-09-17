@@ -156,4 +156,5 @@
   it does not execute JavaScript or establish pointer capture.
 - `tests/DRYL.BrowserTests/GestureTests.cs` uses the actual `#table-scene`, native
   mouse capture, declared and unset widths, and the real persisted .NET width
-  result. Browser evidence in both modes remains pending reconciliation.
+  result. Both-mode browser cases now cover cancellation, persistence and remount;
+  the final engine matrix is recorded in the I13 implementation plan.

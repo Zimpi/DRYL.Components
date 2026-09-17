@@ -10,12 +10,12 @@ H07–H10, I8 baselines and new tokens/public APIs remain outside this delivery.
 |---|---|---|
 | T0 — contracts and adoption | Complete | `17ed224`; coverage 60/129, no structural errors; harness links and whitespace check pass. |
 | T1 — regression host and release gates | Complete | `a3173d1`; 45 Node CLI tests; 2 smoke cases per engine in Chromium/Firefox/WebKit; host/suite builds and phase-C gate pass. |
-| T2 — voice cancellation | Complete | Owned-session/turn implementation; 25 JS voice cases and full 1,146-case .NET suite pass. Chromium/Firefox voice scenarios pass; final matrix below. |
-| T3 — gesture ownership | Complete | 19 deterministic gesture cases; Chromium live pointer matrix passes. Final cross-engine results below. |
-| T4 — exit ownership and reduced motion | Complete | JS 8/10 failed before and 10/10 pass after; 1,146 .NET tests pass with per-exit bridges. Browser matrix and timing-fixture reconciliation below. |
-| T5 — badge contrast | Complete | 50 CSS-derived checks, 7 Node regressions and rendered contrast assertions pass in Chromium/Firefox/WebKit, both modes. |
-| T6 — forced-colors focus | Implemented; native evidence pending | Browser focus matrix passes including Chromium/Chrome/Edge forced colors. Native Windows contrast-theme inspection is not available. |
-| T7 — review, full verification and documentation | Pending | |
+| T2 — voice cancellation | Complete | `b25ffcb`; owned-session/turn implementation, 25 JS voice cases, full .NET suite and final browser matrix below. |
+| T3 — gesture ownership | Complete | `1173283`; 19 deterministic gesture cases and live pointer matrix in both modes. |
+| T4 — exit ownership and reduced motion | Complete | `6d03892`; 10 deterministic motion cases and per-exit C# bridges; final browser matrix below. |
+| T5 — badge contrast | Complete | `4127845`; 50 CSS-derived checks, 7 Node regressions and rendered contrast in all engines/both modes. |
+| T6 — forced-colors focus | Implemented; native evidence pending | `65d25dd`; browser focus matrix passes including Chromium/Chrome/Edge forced colors. Native Windows contrast-theme inspection remains unavailable. |
+| T7 — review, full verification and documentation | Complete within documented evidence limits | Independent review, isolated release checkout, package validation and evidence reconciliation below. |
 
 One verified commit per task. Only the named files are staged. Update this table
 as each task completes; keep evidence and known limitations in this file. Tasks
@@ -233,3 +233,79 @@ No manual publication, push or release tag. Commit:
   test surfaces. The CSS-derived script now reads actual palette/rules, composes
   alpha colors and requires 4.5:1 for badge text; it keeps the original semantic
   indicator/chart checks as separate checks.
+
+## Resumed verification — 2026-09-17
+
+The interrupted working tree was not release-ready: the first full .NET run
+failed 3 of 1,146 cases, and the uncommitted gesture browser fixtures also
+failed. The resumed work fixed a real same-session voice race by invalidating
+pending `ShouldContinue` decisions when user speech takes the floor. The two
+Popover-related test failures needed lifecycle-aware assertions: await the
+new exit callback registration and allow the prompt's real exit window.
+Independent review of voice resources/turn ownership, gesture rollback, modal
+focus timers and Presence/Popover generations found no remaining actionable
+code findings after that repair.
+
+Browser fixture reconciliation retained real Blazor events, library assets and
+native pointer capture. Coordinates cross the Playwright bridge as supported
+numbers; Canvas setup waits for its toolbar animation and keeps the drop target
+inside the viewport. Reopening is requested in the browser turn that observes
+the running exit, and keyboard dialog opening establishes an explicit focus
+return target on WebKit. Dock keyboard input waits for actual top-layer
+promotion. Windows WebKit lacks native MediaStream, so the already-offline
+voice fixture supplies an inert object only for the fake peer/meter. The host
+now displays error messages and declares an empty favicon to avoid unrelated
+404 errors in branded browsers. None of these fixtures verifies real audio.
+
+The final code was built independently of the concurrent I14 work in
+`artifacts/i13-release` (detached I13 checkout plus the final test-only fixture
+repairs). The following results apply to I13's runtime, not later Live changes:
+
+| Verification | Result |
+|---|---|
+| `dotnet build DRYL.slnx -c Release` | Pass for net8/net9/net10; 80 existing warnings, 0 errors. |
+| `dotnet test DRYL.slnx -c Release --no-build` | 1,146 passed, 0 failed/skipped. |
+| `node --test tests/js/*.test.mjs` | 106 passed, 0 failed/skipped. |
+| Light token sync / motion tokens / harness links | Pass; no broken harness links. |
+| CSS-derived contrast | 50/50 pass, including all 40 badge label compositions at 4.5:1. |
+| Strict spec coverage | Expected exit 1: 60/129 covered; the remaining 69 are existing phase-C debt. |
+| Phase-C coverage gate | Pass against the explicit 69-component baseline, no structural errors. |
+| Chromium 151.0.7922.34 | 62/62 passed, both modes including forced colors. |
+| Playwright Firefox 153.0 | 60/60 passed, both modes. |
+| Playwright WebKit 26.5 | 60/60 passed, both modes. |
+| Installed Chrome 152.0.7977.83 | 6/6 smoke/focus cases passed, both modes and forced colors. |
+| Installed Edge 153.0.4234.32 | 6/6 smoke/focus cases passed, both modes and forced colors. |
+| `dotnet pack` for both projects | Core 3.0.1 and Agents 0.17.7 nupkg/snupkg created; all three framework assemblies present; Agents depends on Core 3.0.1 in all frameworks. |
+
+Playwright is 1.62.0.0; host OS is Windows NT 10.0.26200.0. Machine-readable
+results, browser versions, host logs and screenshots live in
+`artifacts/i13-release/artifacts/`; the native Chrome/Edge smoke/focus evidence
+lives in the main checkout's `artifacts/`. Test fixtures shut down their hosts
+and browsers on completion. The initially failing runs were used to diagnose
+and fix the resumed implementation/fixtures and are not reported as passes.
+
+Visual inspection of rendered badge and focus scenes in dark/light modes
+confirmed readable labels, semantic dots/tints and preserved focus indicators;
+forced-color screenshots show the surviving browser outlines. This is scoped
+visual QA, not the deferred I8 screenshot-baseline approval. Existing website
+catalog routes for Presence, Popover, Badge, Table, Canvas, Dialog, Inputs,
+Form Controls, Stepper and Canvas Dock were verified in the sibling checkout;
+no new component requires registration and their descriptions remain accurate.
+The already documented AuraElements/shared-controls catalog debt is retained.
+
+### Remaining evidence limits
+
+- Native Safari and native Firefox smoke were not run. Playwright WebKit and
+  Firefox are patched test engines and are not claimed as native evidence.
+- A real Windows contrast-theme inspection remains outstanding. Browser forced
+  colors emulation, including installed Chrome/Edge, does not replace it.
+- No real microphone, paid speech connection or physical mobile device was
+  used. H08/H09 performance/device work and I8 appearance baselines remain
+  outside I13. No measured speedup is claimed.
+- The existing Canvas toolbar hit-target layering gap remains documented in
+  `specs/E3 AI/F3 DrylCanvas/S4 Interaction.md`; ownership tests use a genuinely
+  exposed part of the grip without force-clicks or stylesheet overrides.
+- Hosted GitHub Actions, remote push, release tagging and publication were not
+  performed. The reusable same-checkout verification dependency gates upload
+  when publication is later authorized. Package files are local validation
+  artifacts; this session did not publish Core 3.0.1 or Agents 0.17.7.

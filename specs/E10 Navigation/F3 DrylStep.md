@@ -164,10 +164,9 @@ in [`_Api.md`](_Api.md).
   parent renders a custom or progress-state icon. There is no per-step tooltip
   or accessible-label API. Provide meaningful visible labels; the parent's
   `AriaLabel` names the group only.
-- **Pending verification:** this is a newly written contract supporting I13.
-  Its parent’s reduced-motion and forced-colors changes, browser evidence,
-  both-mode visual checks and reconciliation against this declaration remain
-  outstanding. No `Implemented` claim is made from source review alone.
+- **Native verification limits:** parent browser and visual checks now cover
+  the I13 repairs. Native Windows contrast-theme and Safari/Firefox evidence
+  remain outstanding as stated below; no full accessibility audit is claimed.
 
 ## I13 focus verification — 2026-09-17
 

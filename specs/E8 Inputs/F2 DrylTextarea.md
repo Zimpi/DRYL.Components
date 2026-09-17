@@ -134,8 +134,8 @@ the final visible size.
 - The field itself has state transitions but no root enter/exit animation.
   Conditional labels and helper messages do not use `DrylPresence`
   (`DESIGN-11`, `DESIGN-12`). This is recorded debt, not an exception.
-- `.textarea:focus-visible` currently suppresses outlines. H05's forced-colors
-  result is a pending requirement rather than an established pass.
+- `.textarea:focus-visible` suppresses the ordinary outline in favor of its glow; H05 now
+  restores the outline under forced colors. Native inspection limits are below.
 - An accessible name is not enforced. Additional attribute overrides can break
   generated associations or replace control classes. See [`_Api.md`](_Api.md)
   (`UX-01`).

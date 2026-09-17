@@ -79,8 +79,12 @@ public sealed class VoiceTests(BrowserFixture browser)
         browser.RunAsync(nameof(Real_dock_can_stop_connecting_and_remount_a_live_run), mode, async page =>
         {
             await page.Locator("#voice-dock-toggle").ClickAsync();
+            // Promotion takes a second Blazor render and can reset focus.
+            // Begin keyboard input only after the real top-layer mount finishes.
+            await page.WaitForFunctionAsync("() => document.querySelector('#voice-dock')?.matches(':popover-open')");
             var microphone = page.GetByRole(AriaRole.Button, new() { Name = "Start fixture voice", Exact = true });
             await microphone.FocusAsync();
+            await Assertions.Expect(microphone).ToBeFocusedAsync();
             await page.Keyboard.PressAsync("Enter");
             var oldId = await Pending(page, "media");
             await Phase(page, "Connecting");
@@ -91,7 +95,10 @@ public sealed class VoiceTests(BrowserFixture browser)
             await Settle(page, "media", oldId);
             await NoResources(page);
 
-            await microphone.ClickAsync();
+            await Assertions.Expect(stop).ToHaveCountAsync(0);
+            await microphone.FocusAsync();
+            await Assertions.Expect(microphone).ToBeFocusedAsync();
+            await page.Keyboard.PressAsync("Enter");
             await Settle(page, "media", await Pending(page, "media"));
             await Phase(page, "Live");
             await page.EvaluateAsync("() => voiceFixture.emit({ type: 'conversation.item.input_audio_transcription.completed', transcript: 'Current conversation' })");
@@ -102,6 +109,7 @@ public sealed class VoiceTests(BrowserFixture browser)
             await Phase(page, "Live");
             Assert.Equal(1, await page.EvaluateAsync<int>("() => voiceFixture.stats().liveTracks"));
             await page.Locator("#voice-dock-toggle").ClickAsync();
+            await page.WaitForFunctionAsync("() => document.querySelector('#voice-dock')?.matches(':popover-open')");
             await Assertions.Expect(page.Locator("#voice-dock .voice-orb")).ToBeVisibleAsync();
             await stop.ClickAsync();
             await Phase(page, "Idle");

@@ -186,11 +186,6 @@ exercise these selectors; token-sync success alone proves neither repair.
 
 ## Recorded debt and scope limits
 
-- **Pending I13 repairs:** the isolated stylesheet currently supplies no
-  reduced-motion override for `.step-panel` (`UX-06`), and its
-  `.step-header:focus-visible` suppresses the outline in favour of a box shadow
-  without a forced-colors fallback (`UX-02`). These are why this contract stays
-  `Modified` until implementation and verification.
 - **Body exit (`DESIGN-12`):** changing steps removes the prior `.step-panel`
   immediately. There is no `DrylPresence` or exit lifecycle. I13's bounded panel
   motion repair does not add one.

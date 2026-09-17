@@ -116,9 +116,10 @@ direct manipulation of the artifact's own elements.
   "FullyQualifiedName~Canvas|FullyQualifiedName~Table"` passed all 606 matching
   existing tests. These .NET tests do not execute the gesture module.
 - `tests/DRYL.BrowserTests/GestureTests.cs` exercises the working-tree Canvas
-  and .NET edit result through the real browser host. Browser verification is
-  pending reconciliation; the first run found the layering gap below before
-  pointerdown and was stopped rather than reported as a gesture pass.
+  and .NET edit result through the real browser host. Native pointer cancellation,
+  late-event silence, remount and one-shot commit cases now pass in both modes;
+  final engine counts are recorded in the I13 implementation plan. The layering
+  gap below remains outside the ownership repair.
 
 ## Recorded gap
 

@@ -95,7 +95,10 @@ public sealed class MotionTests(BrowserFixture browser)
             await page.Locator("#presence-toggle").ClickAsync();
             await Assertions.Expect(page.Locator("#presence-child")).ToHaveCountAsync(0);
             await Assertions.Expect(page.Locator("#presence-exits")).ToHaveTextAsync("1");
-            await page.Locator("#dialog-open").ClickAsync();
+            // WebKit need not focus buttons on a pointer click. Keyboard opening
+            // gives focus restoration an explicit, portable starting point.
+            await page.Locator("#dialog-open").FocusAsync();
+            await page.Keyboard.PressAsync("Enter");
             await Assertions.Expect(page.GetByRole(AriaRole.Dialog)).ToBeVisibleAsync();
             Assert.NotEqual("none", await page.Locator(".dialog").EvaluateAsync<string>("el => getComputedStyle(el).animationName"));
             await page.Keyboard.PressAsync("Escape");
