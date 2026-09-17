@@ -121,6 +121,7 @@
             super();
             this.id = peers.length + 1;
             this.iceConnectionState = "new";
+            this.iceGatheringState = "complete";
             this.connectionState = "new";
             this.closed = false;
             this.track = null;
@@ -213,6 +214,10 @@
             peer.channel.receive(payload);
         },
         sent: peerId => (peerId == null ? peers.at(-1) : peers.find(peer => peer.id === peerId))?.channel?.sent ?? [],
+        connection: () => {
+            const peer = peers.at(-1);
+            return peer ? { channelState: peer.channel?.readyState, localSdp: peer.localDescription?.sdp, remoteSdp: peer.remoteDescription?.sdp } : null;
+        },
         // No reset method clears leaked resources: every test uses a fresh page,
         // and a stop/disposal regression must expose the resources it left alive.
         endpoint

@@ -1,0 +1,72 @@
+@implements IAsyncDisposable
+@inject DrylVoiceRunner VoiceRunner
+@using Microsoft.Extensions.AI
+@using System.Globalization
+
+<section id="live-scene" class="fixture-scene">
+    <h2>Offline GPT-Live</h2>
+    <div class="fixture-controls">
+        <button id="live-start" type="button" @onclick="Start">Start Live</button>
+        <button id="live-stop" type="button" @onclick="Stop">Stop Live</button>
+    </div>
+    <output id="live-phase">@_run?.Phase</output>
+    <output id="live-error">@_run?.Error?.Message</output>
+    <output id="live-tool-count">@_toolCount</output>
+    <output id="live-tool-trace">@(_run?.ToolCalls.Count ?? 0)</output>
+    <output id="live-backend-count">@_backendCount</output>
+    <output id="live-backend-result">@_backendResult</output>
+    <output id="live-deltas">@(_run?.TranscriptDeltas.Count ?? 0)</output>
+    <output id="live-user-caption">@Caption(VoiceRole.User)</output>
+    <output id="live-assistant-caption">@Caption(VoiceRole.Assistant)</output>
+    <output id="live-usage">@_run?.LiveUsageSeconds?.ToString(CultureInfo.InvariantCulture)</output>
+    <output id="live-finalized">@(_run?.LiveFinalized == true ? "true" : "false")</output>
+    <output id="live-close-reason">@_run?.LiveCloseReason</output>
+</section>
+
+@code {
+    private DrylVoiceRun? _run;
+    private int _toolCount;
+    private int _backendCount;
+    private string _backendResult = "";
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        _run = VoiceRunner.Create(new DrylVoiceOptions
+        {
+            ApiKey = "offline-fixture-key", BaseUrl = "https://voice-fixture.invalid/v1",
+            Model = "gpt-live-1", Voice = "gleam", Instructions = "Offline voice fixture.",
+            IdleTimeout = TimeSpan.FromMinutes(5), MaxDuration = TimeSpan.FromMinutes(10),
+            Live = new() { BackendInstructions = "Offline backend fixture.", EnableWebSearch = true },
+            Tools = [AIFunctionFactory.Create((string query) =>
+            {
+                _toolCount++;
+                return new { value = "found:" + query };
+            }, "fixture_lookup")],
+        });
+        _run.SeedHistory = [new(VoiceRole.User, "Earlier conversation")];
+        _run.BackendResponseReceived = response =>
+        {
+            _backendCount++;
+            _backendResult = response.GetRawText();
+            Changed();
+            return ValueTask.CompletedTask;
+        };
+        _run.OnChange += Changed;
+    }
+
+    private string Caption(VoiceRole role) => string.Join("|", _run?.Transcript.Where(m => m.Role == role).Select(m => m.Text) ?? []);
+    private Task Start() => _run?.StartAsync() ?? Task.CompletedTask;
+    private Task Stop() => _run?.StopAsync() ?? Task.CompletedTask;
+    private void Changed()
+    {
+        if (!_disposed) _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_run is null) return;
+        _run.OnChange -= Changed;
+        await _run.DisposeAsync();
+    }
+}

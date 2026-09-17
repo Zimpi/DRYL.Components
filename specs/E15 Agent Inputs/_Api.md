@@ -12,6 +12,9 @@ record below distinguishes .NET, deterministic JS and live-browser evidence. Thi
 companion file has no `Meta` block and claims no component coverage (`SPEC-03`). Shared
 Field, CommandPalette and Generation types remain phase-C documentation debt.
 
+GPT-Live additions are specified by [I14](../../ideas/I14%20GPT-Live%20voice%20delegation.md)
+and implemented alongside the existing Realtime surface.
+
 ## VoicePhase
 
 Declared in `code/DRYL.Components.Agents/Voice/DrylVoiceRun.cs`, in namespace
@@ -20,7 +23,7 @@ Declared in `code/DRYL.Components.Agents/Voice/DrylVoiceRun.cs`, in namespace
 | Member | Meaning |
 |---|---|
 | `Idle` | No active session. |
-| `Connecting` | Startup, beginning before token minting and ending when the data channel opens. |
+| `Connecting` | Startup, ending at Realtime channel open or the Live `session.started` event. |
 | `Live` | The connected conversation. |
 | `Closing` | Session teardown. |
 
@@ -40,7 +43,8 @@ retain this declaration order: `User`, `Assistant`.
 
 `public sealed record DrylVoiceMessage(VoiceRole Role, string Text)`, declared
 in `code/DRYL.Components.Agents/Voice/DrylVoiceMessage.cs`. `Role` identifies
-the speaker; `Text` holds one completed transcript line or one history turn.
+the speaker; `Text` holds one completed Realtime line, a revisable Live caption
+group, or one history turn.
 
 ## VoiceTurnDetection
 
@@ -60,8 +64,9 @@ configured defaults, not a claim about a provider's current model catalog.
 
 | Property | Type | Default | Contract |
 |---|---|---|---|
-| `ApiKey` | `string` | `string.Empty` | Used by the token-minting HTTP request; never included in browser startup arguments. |
-| `Model` | `string` | `"gpt-realtime-2.1"` | Realtime session model. |
+| `ApiKey` | `string` | `string.Empty` | Used by server token/session HTTP requests; never included in browser startup arguments. |
+| `Model` | `string` | `"gpt-realtime-2.1"` | Voice session model. |
+| `Live` | `DrylLiveOptions?` | `null` | Non-null selects the Live protocol; set `Model` to `gpt-live-1`. |
 | `Instructions` | `string?` | `null` | Session instructions. |
 | `Voice` | `string` | `"marin"` | Session output voice. |
 | `Speed` | `double` | `1.0` | Session speaking rate. |
@@ -87,6 +92,36 @@ and output settings. It leaves input/output formats to WebRTC negotiation.
 the configured function's name, description and parameters; `tool_choice: auto`
 is emitted only when at least one function is present. `ApiKey`, timeout values,
 `BaseUrl` and `SafetyIdentifier` are not session-payload fields.
+
+When `Live` is non-null, `ToSessionPayload()` instead returns the Live startup
+configuration: `model`, optional voice `instructions`, `audio.output.voice`,
+`store:false` and `delegation:{type:"responses",responses:{...}}`. Realtime
+codec, transcription, VAD, noise, speed and top-level reasoning fields are absent.
+Functions use Responses schemas with `strict:false`; `parallel_tool_calls:false`
+keeps host actions ordered. A hosted `web_search` tool is added only when enabled.
+Neither API credentials nor backend configuration are sent to browser startup.
+
+## DrylLiveOptions
+
+`public sealed class DrylLiveOptions`, declared in
+`code/DRYL.Components.Agents/Voice/DrylLiveOptions.cs`.
+
+| Property | Type | Default | Contract |
+|---|---|---|---|
+| `BackendModel` | `string` | `"gpt-5.6-terra"` | Delegated Responses model. |
+| `BackendInstructions` | `string?` | `null` | Backend task and tool instructions, separate from the voice prompt. |
+| `ReasoningEffort` | `string?` | `"medium"` | Backend reasoning effort; blank omits the setting. |
+| `MaxOutputTokens` | `int?` | `4096` | Delegated-response output limit of at least 16; null omits it. |
+| `EnableWebSearch` | `bool` | `false` | Adds hosted Responses web search. |
+
+All properties have public getters and setters.
+
+## DrylVoiceTranscriptDelta
+
+`public sealed record DrylVoiceTranscriptDelta(VoiceRole Role, string Delta,
+double StartMs, double EndMs)`, declared in `DrylVoiceRun.cs`. Original fragment
+text and session-relative timestamps are preserved exactly. These fragments and
+their display groups do not represent authoritative completed speech turns.
 
 ## DrylVoiceRunner
 
@@ -114,11 +149,16 @@ handle, not a Razor component (`SPEC-02`). Its constructor is internal.
 | `Options` | `DrylVoiceOptions`, getter only | The options supplied to `Create`. |
 | `Phase` | `VoicePhase`, public getter, private setter | `Idle`. |
 | `Activity` | `VoiceActivity`, public getter, private setter | `Listening`. |
-| `Transcript` | `IReadOnlyList<DrylVoiceMessage>`, getter only | Empty; completed lines in arrival order. |
+| `Transcript` | `IReadOnlyList<DrylVoiceMessage>`, getter only | Empty; completed Realtime lines or independently grouped Live captions, in stable row order. |
 | `IsActive` | `bool`, getter only | `Phase != VoicePhase.Idle`, including `Closing`. |
 | `SeedHistory` | `IEnumerable<DrylVoiceMessage>?`, get/set | `null`; fallback history for `StartAsync`. |
 | `ShouldContinue` | `Func<ValueTask<bool>>?`, get/set | `null`; optional decision after a speech-only response. |
 | `MaxAutoContinuations` | `int`, get/set | `6`; cap on consecutive continuations without tool progress or user speech. |
+| `TranscriptDeltas` | `IReadOnlyList<DrylVoiceTranscriptDelta>`, getter only | Raw Live fragments in arrival order; empty for Realtime. |
+| `BackendResponseReceived` | `Func<JsonElement, ValueTask>?`, get/set | Receives completed delegated Responses JSON, with collected output items and URL annotations retained. Backend text is not added to spoken transcripts. |
+| `LiveUsageSeconds` | `double?`, getter only | Latest cumulative Live duration, never a sum of snapshots. |
+| `LiveCloseReason` | `string?`, getter only | Final `session.closed` reason, if received. |
+| `LiveFinalized` | `bool`, getter only | True only after a valid current session final event. |
 
 The inherited public members remain those of `DrylRunBase` in
 `code/DRYL.Components.Agents/Agents/DrylRunBase.cs`: `State`, `Text`, `Error`,
@@ -206,6 +246,41 @@ Exercise callbacks through their attempt-owned interop target as well as the
 preserved public methods; direct calls alone cannot prove cross-attempt isolation.
 Use the runner's injected `HttpClient` seam and fake JS references. These tests
 make no paid request and need neither a microphone nor a browser download.
+
+### GPT-Live acceptance criteria — I14
+
+- A Live start does not mint a Realtime client secret.
+- Browser configuration contains `live:true` and a null token.
+- The attempt-owned `OnLiveOfferAsync(string sdp)` exchanges the browser offer
+  using server HTTP `POST /live/sessions` and returns only the SDP answer.
+- A repeated offer for the same attempt creates no second paid session.
+- A stale offer starts no HTTP request.
+- Initial Live history contains at most 128 recent text messages.
+- History content and per-message overhead fit a conservative 4,096-byte budget;
+  oversized text is truncated at a Unicode scalar boundary.
+- Live history remains on the server and is sent only in the create request.
+- A creation response with no session ID or SDP answer fails startup.
+- A known session ID is cleaned up even when the returned transport is malformed.
+- Known stale or stopped Live sessions receive best-effort bounded server cleanup.
+- Live ignores `ShouldContinue`; delegation owns backend continuation.
+- `OnLiveTranscriptDelta(string role,string delta,double startMs,double endMs)`
+  preserves whitespace, repeated words and original timing.
+- Transcript display groups are maintained independently for each speaker.
+- A fragment within a 1,500 ms gap can extend an earlier same-speaker display
+  group; this is a display heuristic, never a semantic turn boundary.
+- Late fragments can update earlier rows without moving them to the bottom.
+- Backend-response callbacks are attempt-owned and ignore obsolete events.
+- `OnBackendResponseAsync(JsonElement response)` preserves URL annotations.
+- `OnLiveUsage(double seconds)` replaces the cumulative duration snapshot.
+- `OnLiveSessionClosed(JsonElement details)` records final usage and close reason.
+- Stop invalidates tool dispatch before draining final transcript and close events.
+- Repeated stop calls share the pending drain and cannot settle idle early.
+- Disposal during a graceful stop waits for that stop's owned resource cleanup.
+- Repeated disposal waits for the existing disposal without a second teardown.
+- A new start clears Live transcript fragments, usage and finalization metadata.
+- Disconnection without a final event leaves `LiveFinalized` false.
+- Deterministic tests cover HTTP payloads, duplicate offers, late creation,
+  cancellation, startup rejection, transcript overlap and stale callbacks.
 
 ### I13 implementation and evidence
 

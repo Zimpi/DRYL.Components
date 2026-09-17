@@ -117,6 +117,40 @@ without waiting for that old permission prompt, token response or import.
 
 ## Services
 
+### GPT-Live transport and delegation — I14
+
+When `DrylVoiceOptions.Live` is set, the owned JS handle receives `live: true`
+and no bearer token. It gathers ICE candidates (bounded to ten seconds), then
+calls its attempt's `OnLiveOfferAsync(sdp)` through the authenticated circuit.
+The server creates `/live/sessions` and returns only the answer SDP. The data
+channel is created before the offer; `session.started`, not channel opening,
+marks readiness. No Realtime configuration, history events, `session.start`, or
+greeting `response.create` is sent. History belongs to the server session payload.
+Readiness has a twenty-second bound after applying the answer SDP.
+
+Nested `response.event` events are correlated by response and delegation ID.
+Completed output items are retained because `response.completed.output` is empty.
+Only a successful terminal response may execute staged functions. Calls execute
+sequentially and at most once per call ID; all `response.item.create` outputs
+precede one `response.create`. User speech does not cancel backend continuation.
+Failed, cancelled, incomplete, duplicate and obsolete responses cannot run tools.
+Completed reconstructed responses reach `OnBackendResponseAsync` for host rendering
+of hosted search results and citations. Public function names remain allowlisted
+by the server's configured tools.
+
+Input/output transcript deltas preserve every fragment and timestamp and reach
+`OnLiveTranscriptDelta(role, delta, startMs, endMs)` without invented turn IDs.
+Audio playback levels determine speaking activity; backend work independently
+determines thinking activity. Usage updates reach `OnLiveUsage(seconds)`.
+
+Stop prevents new work and immediately stops microphone tracks. A ready Live
+session sends `session.close`, retains transport for final transcripts and
+`session.closed`, and tears down on that event or after a fifteen-second bound.
+`OnLiveSessionClosed` receives the terminal event including final usage and reason.
+Startup cancellation and transport failure release resources immediately. Late
+offer completions are ignored by JS and any created remote session is cleaned up
+server-side. Existing Realtime behavior and I13 ownership rules remain unchanged.
+
 `AddDrylAgents()` in
 `code/DRYL.Components.Agents/Extensions/ServiceCollectionExtensions.cs`
 registers `DrylVoiceRunner` scoped, resolving its `IJSRuntime` from the current
