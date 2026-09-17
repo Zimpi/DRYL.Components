@@ -1,7 +1,7 @@
 # DrylBadge
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylBadge.razor
 
 ## User Story
@@ -149,3 +149,13 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The badge is the
   best-covered component in the category, and the file says so explicitly — it
   doubles as the worked example of how a DRYL component is bUnit-tested.
+
+## I13 contrast verification — 2026-09-17
+
+`validate-light-contrast.mjs` derives its palette and badge rules from actual
+CSS and passes all 50 checks, including 40 small-label compositions at 4.5:1.
+`ContrastTests` checks 40 rendered badges per mode, including optional dots,
+on four surfaces. Semantic labels use `--fg`; their dots, fills and borders
+retain the semantic tokens. The browser matrix and visual inspection are
+recorded in `docs/2026-09-15-i13-implementation-plan.md`; token synchronization
+alone is not the contrast evidence.

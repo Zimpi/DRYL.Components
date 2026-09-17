@@ -92,11 +92,14 @@ Color contrast has a floor: body text on glass surfaces must be at least
 `var(--fg-muted)` (≈ 0.62 alpha on white); axial info text never below
 `var(--fg-dim)`.
 
-Check: `node scripts/validate-light-contrast.mjs` — currently **green**, all
-10 checked tokens `PASS` (`--fg (text)` 16.72:1, `--success` 4.06:1,
-`--warning` 4.62:1, `--danger` 4.44:1, `--info` 4.93:1, `--chart-3` 4.82:1,
-`--chart-4` 4.63:1, `--chart-5` 5.50:1, `--chart-6` 5.14:1, `--danger-fg`
-5.95:1 — all above their stated minimums), exit 0.
+Check: `node scripts/validate-light-contrast.mjs` reads the real CSS token
+blocks and badge declarations, resolves nested colors and composites alpha
+over actual surfaces. All 50 checks pass: ten semantic/chart checks keep their
+stated thresholds, and 40 badge-label compositions require 4.5:1 in both modes.
+`tests/js/contrast.test.mjs` rejects the old failing foregrounds and stale
+palette assumptions. `tests/DRYL.BrowserTests/ContrastTests.cs` independently
+checks computed foreground/background composition and semantic dots in each
+browser. This scoped evidence is not a full-library contrast audit.
 
 ### UX-04 — AI activity is announced via `aria-live="polite"`
 

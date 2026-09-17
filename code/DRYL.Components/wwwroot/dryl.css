@@ -1259,9 +1259,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
-.badge-success { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
-.badge-warning { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
-.badge-danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.badge-success { color: var(--fg); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.badge-warning { color: var(--fg); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.badge-danger  { color: var(--fg); border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.badge-success.badge-dot::before { color: var(--success); }
+.badge-warning.badge-dot::before { color: var(--warning); }
+.badge-danger.badge-dot::before { color: var(--danger); }
 .badge-dot::before {
   content: '';
   width: 6px;
@@ -6090,4 +6093,3 @@ pre { overflow-x: auto; }
     transition: none;
   }
 }
-
