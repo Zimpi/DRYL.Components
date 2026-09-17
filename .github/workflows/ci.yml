@@ -13,3 +13,19 @@ permissions:
 jobs:
   verify:
     uses: ./.github/workflows/verify.yml
+
+  # The branch ruleset requires one status check by name, and job names travel
+  # with the matrix and the workflow they live in — the rename in I13 left main
+  # waiting for a "Build & Test" that no longer existed, so no pull request
+  # could satisfy it. This job carries that name and nothing else: it passes
+  # only when every verify job passed, so the requirement stays real.
+  build-test:
+    name: Build & Test
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the verify result
+        run: |
+          echo "verify: ${{ needs.verify.result }}"
+          [ "${{ needs.verify.result }}" = "success" ]
