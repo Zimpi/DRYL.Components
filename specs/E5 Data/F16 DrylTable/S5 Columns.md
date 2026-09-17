@@ -1,7 +1,7 @@
 # Columns
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 ## Acceptance Criteria
 
@@ -75,6 +75,14 @@
   and clear `tbl-resizing` without persisting or reporting a partial resize.
 - Only the active pointer can move or finish a resize. A valid release reports
   once; later events after cancellation/disposal do nothing.
+- Restoring a cancelled preview preserves each width declaration's original
+  priority as well as its value.
+- Reinitializing the resize helper cancels any active preview before replacing
+  the delegated handler and .NET callback target.
+- Losing pointer capture cancels the preview without reporting a resize.
+- A release after the table or resized header has been removed cancels rather
+  than persisting a width.
+- A rejected resize interop promise does not become an unhandled rejection.
 
 ### Order
 
@@ -129,3 +137,23 @@
   the separator role and an orientation, which announces it as a resizable
   divider, but it is driven entirely by pointer events. There is no keyboard
   path to resizing a column, unlike reordering, which has one.
+
+## I13 resize regression evidence
+
+- Before the H02 repair, `tests/js/gestures.test.mjs` failed all 16 initial
+  Canvas/table cases. `disposeColumnResize` left two active window listeners
+  attached; the table helper had no Escape or pointer-cancellation rollback;
+  a foreign pointer could change and commit another pointer's preview.
+- The repaired `dryl.table.initColumnResize` and `disposeColumnResize` in
+  `code/DRYL.Components/wwwroot/js/dryl.js` own one cancellable resize per
+  initialized root. Cancellation restores the snapshotted header/body-cell
+  inline width values and priorities, including removing a previously unset
+  property. The expanded Node suite passes all 19 cases, including reinitializing,
+  replacement, disconnection, late events and rejected interop promises.
+- `dotnet test DRYL.slnx -c Release --no-build --filter
+  "FullyQualifiedName~Canvas|FullyQualifiedName~Table"` passed all 606 matching
+  existing tests. This verifies the existing .NET column and Canvas behavior;
+  it does not execute JavaScript or establish pointer capture.
+- `tests/DRYL.BrowserTests/GestureTests.cs` uses the actual `#table-scene`, native
+  mouse capture, declared and unset widths, and the real persisted .NET width
+  result. Browser evidence in both modes remains pending reconciliation.

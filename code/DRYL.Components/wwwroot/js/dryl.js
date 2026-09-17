@@ -1570,56 +1570,89 @@ window.dryl.table = {
     // matched by data-col-key) until pointerup, then report the final width back to .NET so it can
     // store + persist it. No Blazor re-render happens mid-drag, so JS owns the width until release.
     initColumnResize(root, dotnet) {
-        if (!root || root.__drylResizeAttached) return;
+        if (!root) return;
+        window.dryl.table.disposeColumnResize(root);
         root.__drylResizeAttached = true;
 
-        let active = false, th = null, key = null, startX = 0, startW = 0, lastW = 0, bodyCells = null;
+        const state = { cancel: null, disposed: false };
         const esc = (k) => (window.CSS && CSS.escape) ? CSS.escape(k) : k;
 
-        const onMove = (e) => {
-            if (!active) return;
-            lastW = Math.max(48, startW + (e.clientX - startX));
-            th.style.width = lastW + 'px';
-            if (bodyCells) bodyCells.forEach(c => { c.style.width = lastW + 'px'; });
-        };
-        const onUp = () => {
-            if (!active) return;
-            active = false;
-            root.classList.remove('tbl-resizing');
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-            if (dotnet && lastW > 0) {
-                try { dotnet.invokeMethodAsync('OnColumnResized', key, lastW); } catch (_) { /* circuit gone */ }
-            }
-        };
         const onDown = (e) => {
+            if (state.disposed || !root.isConnected || e.button !== 0) return;
             const grip = e.target.closest && e.target.closest('.tbl-col-resize');
             if (!grip || !root.contains(grip)) return;
-            th = grip.closest('th');
+            const th = grip.closest('th');
             if (!th) return;
-            key = grip.getAttribute('data-col-key');
+            const key = grip.getAttribute('data-col-key');
+            if (key === null) return;
+            state.cancel?.();
+
             const table = th.closest('table');
-            bodyCells = table ? Array.from(table.querySelectorAll('td[data-col-key="' + esc(key) + '"]')) : null;
-            active = true;
-            startX = e.clientX;
-            startW = th.offsetWidth;
-            lastW = startW;
+            const cells = [th, ...(table ? table.querySelectorAll('td[data-col-key="' + esc(key) + '"]') : [])];
+            const widths = cells.map(cell => ({
+                cell, value: cell.style.getPropertyValue('width'), priority: cell.style.getPropertyPriority('width')
+            }));
+            const startX = e.clientX, startW = th.offsetWidth, pointerId = e.pointerId;
+            let lastW = startW, finished = false;
+
+            const finish = (commit) => {
+                if (finished) return;
+                finished = true;
+                state.cancel = null;
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                window.removeEventListener('pointercancel', onCancel);
+                window.removeEventListener('keydown', onKey);
+                grip.removeEventListener('lostpointercapture', onCancel);
+                try { grip.releasePointerCapture(pointerId); } catch (_) { /* capture already lost */ }
+                root.classList.remove('tbl-resizing');
+
+                if (!commit || state.disposed || !root.isConnected || !root.contains(th)) {
+                    for (const { cell, value, priority } of widths) {
+                        if (value) cell.style.setProperty('width', value, priority);
+                        else cell.style.removeProperty('width');
+                    }
+                    return;
+                }
+                if (dotnet && lastW > 0) {
+                    try { dotnet.invokeMethodAsync('OnColumnResized', key, lastW)?.catch(() => { }); }
+                    catch (_) { /* circuit gone */ }
+                }
+            };
+            const onMove = (ev) => {
+                if (finished || ev.pointerId !== pointerId) return;
+                if (state.disposed || !root.isConnected || !root.contains(th)) { finish(false); return; }
+                lastW = Math.max(48, startW + (ev.clientX - startX));
+                for (const cell of cells) cell.style.width = lastW + 'px';
+            };
+            const onUp = (ev) => { if (ev.pointerId === pointerId) finish(true); };
+            const onCancel = (ev) => { if (ev.pointerId === pointerId) finish(false); };
+            const onKey = (ev) => { if (ev.key === 'Escape') finish(false); };
+
+            state.cancel = () => finish(false);
             root.classList.add('tbl-resizing');
+            try { grip.setPointerCapture(pointerId); } catch (_) { /* stale pointer */ }
             e.preventDefault();
             e.stopPropagation();
             window.addEventListener('pointermove', onMove);
             window.addEventListener('pointerup', onUp);
+            window.addEventListener('pointercancel', onCancel);
+            window.addEventListener('keydown', onKey);
+            grip.addEventListener('lostpointercapture', onCancel);
         };
 
+        root.__drylResizeCancel = () => { state.disposed = true; state.cancel?.(); };
         root.__drylResizeDown = onDown;
         root.addEventListener('pointerdown', onDown);
     },
 
     disposeColumnResize(root) {
         if (!root || !root.__drylResizeAttached) return;
+        root.__drylResizeCancel?.();
         if (root.__drylResizeDown) root.removeEventListener('pointerdown', root.__drylResizeDown);
         root.__drylResizeAttached = false;
         root.__drylResizeDown = null;
+        root.__drylResizeCancel = null;
     },
 
     // layoutPinned(root): measure cumulative widths of pinned columns and set the sticky left/right

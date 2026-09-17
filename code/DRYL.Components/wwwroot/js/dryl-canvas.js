@@ -89,11 +89,13 @@ function clearMarks(siblings) {
 }
 
 export function initReorder(root, dotnet) {
-    if (!root || !dotnet || _drag.has(root)) return;
+    if (!root || !dotnet) return;
+    disposeReorder(root);
 
-    const state = { dotnet };
+    const state = { dotnet, cancel: null, disposed: false };
 
     const onDown = (e) => {
+        if (state.disposed || !root.isConnected) return;
         const handle = e.target.closest?.('[data-drag-handle]');
         if (!handle || e.button !== 0) return;
         const el = handle.closest('[data-cid]');
@@ -101,6 +103,10 @@ export function initReorder(root, dotnet) {
 
         const siblings = siblingsOf(root, el);
         if (siblings.length < 2) return;
+
+        // Replacement first rolls back the old preview, so measurements and
+        // saved styles belong to the new gesture rather than the old drag.
+        state.cancel?.();
 
         const from = siblings.indexOf(el);
         const rects = siblings.map(s => s.getBoundingClientRect());
@@ -111,6 +117,9 @@ export function initReorder(root, dotnet) {
 
         const g = {
             el, siblings, from, to: from, vertical,
+            pointerId: e.pointerId, finished: false,
+            transform: el.style.getPropertyValue('transform'),
+            transformPriority: el.style.getPropertyPriority('transform'),
             startX: e.clientX, startY: e.clientY,
             centers: rects.map(r => (vertical ? r.top + r.height / 2 : r.left + r.width / 2)),
         };
@@ -120,6 +129,8 @@ export function initReorder(root, dotnet) {
         e.preventDefault();
 
         const onMove = (ev) => {
+            if (g.finished || ev.pointerId !== g.pointerId) return;
+            if (state.disposed || !root.isConnected || !root.contains(g.el)) { finish(false); return; }
             g.el.style.transform =
                 `translate(${ev.clientX - g.startX}px, ${ev.clientY - g.startY}px)`;
 
@@ -136,30 +147,39 @@ export function initReorder(root, dotnet) {
         };
 
         const finish = (commit) => {
+            if (g.finished) return;
+            g.finished = true;
+            state.cancel = null;
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
             window.removeEventListener('pointercancel', onCancel);
             window.removeEventListener('keydown', onKey);
+            handle.removeEventListener('lostpointercapture', onCancel);
+            try { handle.releasePointerCapture(g.pointerId); } catch { /* capture already lost */ }
 
             g.el.classList.remove('is-dragging');
-            g.el.style.transform = '';
+            if (g.transform) g.el.style.setProperty('transform', g.transform, g.transformPriority);
+            else g.el.style.removeProperty('transform');
             clearMarks(g.siblings);
 
-            if (!commit || g.to === g.from) return;
+            if (!commit || state.disposed || !root.isConnected || !root.contains(g.el) || g.to === g.from) return;
             const cid = g.el.getAttribute('data-cid');
             // The circuit may already be gone while the gesture was still running.
             try { state.dotnet.invokeMethodAsync('OnNodeReorder', cid, g.to)?.catch(() => { }); }
             catch { /* disposed */ }
         };
 
-        const onUp = () => finish(true);
-        const onCancel = () => finish(false);
+        const onUp = (ev) => { if (ev.pointerId === g.pointerId) finish(true); };
+        const onCancel = (ev) => { if (ev.pointerId === g.pointerId) finish(false); };
         const onKey = (ev) => { if (ev.key === 'Escape') finish(false); };
+
+        state.cancel = () => finish(false);
 
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup', onUp);
         window.addEventListener('pointercancel', onCancel);
         window.addEventListener('keydown', onKey);
+        handle.addEventListener('lostpointercapture', onCancel);
     };
 
     root.addEventListener('pointerdown', onDown);
@@ -170,6 +190,8 @@ export function initReorder(root, dotnet) {
 export function disposeReorder(root) {
     const state = root && _drag.get(root);
     if (!state) return;
+    state.disposed = true;
+    state.cancel?.();
     root.removeEventListener('pointerdown', state.onDown);
     _drag.delete(root);
 }

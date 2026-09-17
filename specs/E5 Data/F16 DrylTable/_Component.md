@@ -1,7 +1,7 @@
 # DrylTable
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylTable.razor
               code/DRYL.Components/Components/Data/DrylColumn.cs
               code/DRYL.Components/Components/Data/Models/ColumnAlign.cs

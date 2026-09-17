@@ -17,6 +17,7 @@ Version bump guide:
 ## [3.0.1] — 2026-09-17
 
 ### Fixed
+- `DrylCanvas`, `DrylTable` — Reorder and resize gestures belong to one pointer and release capture/listeners on disposal, Escape, pointer cancellation or replacement. Cancelled previews restore the original transforms, markers and exact inline widths without committing a partial edit.
 - `DrylVoiceRun` (Agents 0.17.7) — Stop, disposal and cancellation invalidate the complete startup attempt, including delayed microphone, token and interop results. Each attempt owns its browser handle and callbacks; obsolete tools and continuation decisions cannot revive or mutate its replacement. User speech also invalidates an older continuation decision without consuming the new turn's budget. Existing public APIs remain compatible.
 
 ## [3.0.0] — 2026-08-22
