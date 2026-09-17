@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [3.0.1] — 2026-09-17
+## [3.0.1] — 2026-09-18
 
 Core 3.0.1 and Agents 0.18.0 collect the unpublished I13 hardening work and
 the additive I14 voice feature. The new public Live API raises the Agents
@@ -23,6 +23,9 @@ package's unpublished version from 0.17.7 to 0.18.0; Core remains a patch releas
 ### Added
 - `DrylVoiceOptions.Live` (Agents 0.18.0) — Opt into `gpt-live-1` with an independent Responses backend, function tools and optional hosted web search. A server-owned SDP exchange keeps credentials private; the browser handles nested backend events and submits each function result once before continuing.
 - `DrylVoiceRun` (Agents 0.18.0) — Preserve overlapping transcript fragments and expose completed backend responses for cited research, cumulative voice usage and the final close reason. Live close drains final events with a bounded wait while stopping microphone capture immediately. Existing Realtime consumers retain their protocol and defaults.
+
+### Changed
+- `DRYL.Components.Agents` (Agents 0.18.0) — Minimum `Microsoft.Agents.AI` raised from 1.18.0 to 1.21.0. No API of this package changes; consumers pinned to 1.18.x need to move up with it.
 
 ### Fixed
 - `DrylInputText`, `DrylTextarea`, `DrylSelect`, `DrylStepper`, `DrylDialog` — Keyboard focus retains a browser outline under forced colors when glow shadows disappear, using existing tokens and preserving ordinary focus styling.
