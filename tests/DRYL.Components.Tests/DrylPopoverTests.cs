@@ -1,6 +1,8 @@
 using AngleSharp.Dom;
 using Bunit;
 using DRYL.Components;
+using System.Reflection;
+using Microsoft.JSInterop;
 
 namespace DRYL.Components.Tests;
 
@@ -240,5 +242,184 @@ public class DrylPopoverTests : BunitContext
         cut.Find(TriggerSelector).Click();
 
         Assert.False(open);
+    }
+
+    [Fact]
+    public async Task An_old_browser_callback_cannot_finish_the_next_close()
+    {
+        var cut = RenderPopover();
+        cut.Find(TriggerSelector).Click();
+        cut.Find(TriggerSelector).Click();
+        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations["dryl.motion.onExit"]));
+        var oldCallback = ExitCallback();
+        cut.Find(TriggerSelector).Click();
+        cut.Find(TriggerSelector).Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, JSInterop.Invocations["dryl.motion.onExit"].Count));
+        var currentCallback = ExitCallback();
+
+        await cut.InvokeAsync(() => CompleteExit(oldCallback));
+
+        Assert.Contains("is-exiting", cut.Find(PanelSelector).ClassList);
+        Assert.Single(cut.FindAll(".body"));
+        Assert.NotSame(oldCallback, currentCallback);
+        await cut.InvokeAsync(() => CompleteExit(currentCallback));
+        await cut.InvokeAsync(() => CompleteExit(currentCallback));
+        Assert.Empty(cut.FindAll(".body"));
+        Assert.Single(JSInterop.Invocations["dryl.popover.close"]);
+    }
+
+    [Fact]
+    public async Task Bound_Open_changes_use_the_same_exit_and_reopen_ownership()
+    {
+        var cut = Render<DrylPopover>(ps => ps.Add(p => p.Open, true)
+            .Add(p => p.PanelContent, "<span class=\"body\">body</span>"));
+
+        cut.Render(ps => ps.Add(p => p.Open, false));
+
+        Assert.Contains("is-exiting", cut.Find(PanelSelector).ClassList);
+        Assert.Single(cut.FindAll(".body"));
+        var oldCallback = ExitCallback();
+        cut.Render(ps => ps.Add(p => p.Open, true));
+        Assert.DoesNotContain("is-exiting", cut.Find(PanelSelector).ClassList);
+        cut.Render(ps => ps.Add(p => p.Open, false));
+        var currentCallback = ExitCallback();
+
+        await cut.InvokeAsync(() => CompleteExit(oldCallback));
+        Assert.Contains("is-exiting", cut.Find(PanelSelector).ClassList);
+        Assert.Single(cut.FindAll(".body"));
+        await cut.InvokeAsync(() => CompleteExit(currentCallback));
+        Assert.Empty(cut.FindAll(".body"));
+    }
+
+    [Fact]
+    public async Task A_watchdog_already_queued_before_cancellation_cannot_finish_the_next_close()
+    {
+        var cut = RenderPopover();
+        cut.Find(TriggerSelector).Click();
+        cut.Find(TriggerSelector).Click();
+        using var cancellation = new CancellationTokenSource();
+        var queue = new QueuedContinuationContext();
+
+        // Control only scheduling: park the real watchdog's post-delay
+        // continuation, then deliver it after a later close has begun.
+        var watchdog = await Task.Factory.StartNew(() =>
+        {
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(queue);
+            try
+            {
+                return (Task)typeof(DrylPopover).GetMethod("RunExitWatchdogAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(cut.Instance, [cancellation.Token])!;
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
+        var resume = await queue.Continuation.Task.WaitAsync(PastTheWatchdog);
+
+        cut.Find(TriggerSelector).Click();
+        cut.Find(TriggerSelector).Click();
+        cancellation.Cancel();
+        await cut.InvokeAsync(resume);
+        await watchdog;
+
+        Assert.Contains("is-exiting", cut.Find(PanelSelector).ClassList);
+        Assert.Single(cut.FindAll(".body"));
+        await cut.InvokeAsync(() => CompleteExit(ExitCallback()));
+        Assert.Empty(cut.FindAll(".body"));
+    }
+
+    [Fact]
+    public async Task Disposal_makes_pending_exit_and_outside_dismissal_callbacks_inert()
+    {
+        var closed = 0;
+        var cut = Render<DrylPopover>(ps => ps
+            .Add(p => p.TriggerContent, "<button>open</button>")
+            .Add(p => p.PanelContent, "<span class=\"body\">body</span>")
+            .Add(p => p.OnClose, () => closed++));
+        cut.Find(TriggerSelector).Click();
+        cut.Find(TriggerSelector).Click();
+        var oldCallback = ExitCallback();
+        cut.Find(TriggerSelector).Click();
+        await cut.InvokeAsync(async () => await cut.Instance.DisposeAsync());
+        var cleanupCount = JSInterop.Invocations["dryl.popover.close"].Count;
+
+        await cut.InvokeAsync(() => CompleteExit(oldCallback));
+        await cut.InvokeAsync(() => cut.Instance.Close());
+        await cut.InvokeAsync(() => cut.Instance.SetOpenAsync(false));
+        await cut.InvokeAsync(async () => await cut.Instance.DisposeAsync());
+
+        Assert.Equal(1, closed);
+        Assert.Equal(cleanupCount, JSInterop.Invocations["dryl.popover.close"].Count);
+    }
+
+    [Fact]
+    public async Task Rejected_exit_cleanup_still_releases_the_portal()
+    {
+        JSInterop.SetupVoid("dryl.motion.clearExit", _ => true)
+            .SetException(new JSException("The exit element disappeared."));
+        var cut = RenderPopover();
+        cut.Find(TriggerSelector).Click();
+
+        await cut.InvokeAsync(async () => await cut.Instance.DisposeAsync());
+
+        Assert.Single(JSInterop.Invocations["dryl.popover.close"]);
+    }
+
+    [Fact]
+    public async Task Disposal_during_focus_release_does_not_resume_the_close_request()
+    {
+        var release = JSInterop.SetupVoid("dryl.popover.releaseFocus", _ => true);
+        var closed = 0;
+        var cut = Render<DrylPopover>(ps => ps
+            .Add(p => p.TriggerContent, "<button>open</button>")
+            .Add(p => p.PanelContent, "body")
+            .Add(p => p.OnClose, () => closed++));
+        cut.Find(TriggerSelector).Click();
+        var closing = cut.InvokeAsync(() => cut.Instance.SetOpenAsync(false));
+        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations["dryl.popover.releaseFocus"]));
+
+        await cut.InvokeAsync(async () => await cut.Instance.DisposeAsync());
+        release.SetVoidResult();
+        await closing;
+
+        Assert.Equal(0, closed);
+        Assert.Empty(JSInterop.Invocations["dryl.motion.onExit"]);
+    }
+
+    [Fact]
+    public async Task Exit_completion_during_focus_release_does_not_swallow_OnClose()
+    {
+        var release = JSInterop.SetupVoid("dryl.popover.releaseFocus", _ => true);
+        var closed = 0;
+        var cut = Render<DrylPopover>(ps => ps
+            .Add(p => p.TriggerContent, "<button>open</button>")
+            .Add(p => p.PanelContent, "<span class=\"body\">body</span>")
+            .Add(p => p.OnClose, () => closed++));
+        cut.Find(TriggerSelector).Click();
+        var closing = cut.InvokeAsync(() => cut.Instance.SetOpenAsync(false));
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".body")), PastTheWatchdog);
+        release.SetVoidResult();
+        await closing;
+
+        Assert.Equal(1, closed);
+    }
+
+    private object ExitCallback()
+    {
+        var reference = JSInterop.Invocations["dryl.motion.onExit"].Last().Arguments[1]!;
+        return reference.GetType().GetProperty("Value")!.GetValue(reference)!;
+    }
+
+    private static Task CompleteExit(object callback) =>
+        (Task)callback.GetType().GetMethod("OnExitFinished")!.Invoke(callback, null)!;
+
+    private sealed class QueuedContinuationContext : SynchronizationContext
+    {
+        public TaskCompletionSource<Action> Continuation { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override void Post(SendOrPostCallback callback, object? state) =>
+            Continuation.TrySetResult(() => callback(state));
     }
 }

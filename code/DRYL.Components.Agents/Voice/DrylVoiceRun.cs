@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
@@ -11,7 +12,7 @@ public enum VoicePhase
     /// <summary>Nothing running.</summary>
     Idle,
 
-    /// <summary>Microphone granted, peer connection being negotiated.</summary>
+    /// <summary>Token minting, microphone acquisition and peer connection negotiation.</summary>
     Connecting,
 
     /// <summary>Connected — the conversation is happening.</summary>
@@ -59,10 +60,17 @@ public sealed class DrylVoiceRun : DrylRunBase
 
     private readonly DrylVoiceRunner _runner;
     private readonly List<DrylVoiceMessage> _transcript = new();
-    private DotNetObjectReference<DrylVoiceRun>? _self;
-    private IJSObjectReference? _module;
-    private bool _attached;      // the JS module actually loaded (prerender guard)
-    private bool _starting;
+    private readonly List<DrylVoiceTranscriptDelta> _transcriptDeltas = new();
+    private readonly List<TranscriptGroup> _transcriptGroups = new();
+    private readonly HashSet<string> _backendResponses = new(StringComparer.Ordinal);
+    private readonly object _sync = new();
+    private Attempt? _attempt;
+    private Attempt? _closingAttempt;
+    private TaskCompletionSource? _stopCompletion;
+    private TaskCompletionSource? _disposeCompletion;
+    private long _generation;
+    private long _turnGeneration;
+    private bool _disposed;
     private int _autoTurns;      // consecutive turns continued without the user saying anything
 
     internal DrylVoiceRun(DrylVoiceRunner runner, DrylVoiceOptions options)
@@ -76,8 +84,8 @@ public sealed class DrylVoiceRun : DrylRunBase
         State = AiState.None;
     }
 
-    /// <summary>The session's configuration. The browser cannot change it: it is baked into the
-    /// minted token.</summary>
+    /// <summary>The session's server-side configuration. It is sent to the provider through
+    /// a Realtime token or the Live handshake.</summary>
     public DrylVoiceOptions Options { get; }
 
     /// <summary>Where the session is in its life.</summary>
@@ -89,7 +97,24 @@ public sealed class DrylVoiceRun : DrylRunBase
     /// <summary>Everything said in the current session, in order — both sides.</summary>
     public IReadOnlyList<DrylVoiceMessage> Transcript => _transcript;
 
-    /// <summary>True while a session is connecting or running.</summary>
+    /// <summary>Original Live fragments in arrival order. Display groups in
+    /// <see cref="Transcript"/> are only caption grouping, not completed turns.</summary>
+    public IReadOnlyList<DrylVoiceTranscriptDelta> TranscriptDeltas => _transcriptDeltas;
+
+    /// <summary>Receives completed delegated Responses JSON, including output annotations.
+    /// Results are separate from the spoken transcript. A notification failure does not end audio.</summary>
+    public Func<JsonElement, ValueTask>? BackendResponseReceived { get; set; }
+
+    /// <summary>The latest cumulative Live voice duration, in seconds; null until reported.</summary>
+    public double? LiveUsageSeconds { get; private set; }
+
+    /// <summary>The reason supplied by the final Live session event, if received.</summary>
+    public string? LiveCloseReason { get; private set; }
+
+    /// <summary>True only when the final Live session event was received.</summary>
+    public bool LiveFinalized { get; private set; }
+
+    /// <summary>True while a session is connecting, running or closing.</summary>
     public bool IsActive => Phase is not VoicePhase.Idle;
 
     /// <summary>
@@ -137,77 +162,146 @@ public sealed class DrylVoiceRun : DrylRunBase
     public int MaxAutoContinuations { get; set; } = 6;
 
     /// <summary>
-    /// Opens a session: the browser asks for the microphone, the server mints the token, and the
+    /// Opens a session: the runner mints the token, the browser asks for the microphone, and the
     /// two sides negotiate a peer connection.
     /// </summary>
     /// <param name="history">Earlier turns — typically the text conversation so far — replayed
     /// into the session so the voice knows what has already been discussed. Falls back to
     /// <see cref="SeedHistory"/>.</param>
-    /// <param name="ct">Cancels the token request.</param>
+    /// <param name="ct">Cancels startup while this operation is pending.</param>
     public async Task StartAsync(
         IEnumerable<DrylVoiceMessage>? history = null,
         CancellationToken ct = default)
     {
-        if (IsActive || _starting) return;
+        Attempt attempt;
+        lock (_sync)
+        {
+            if (_disposed || IsActive || _attempt is not null) return;
+            attempt = new Attempt(ct);
+            _attempt = attempt;
+            history ??= SeedHistory;
+            MarkConnecting();
+        }
 
-        _starting = true;
-        history ??= SeedHistory;
-        MarkConnecting();
+        // Cancellation invalidates the owner immediately. Resource-producing JS calls are
+        // still observed: cancelling their await could lose a reference returned afterwards.
+        using var registration = ct.Register(() => _ = EndAttemptAsync(attempt, null));
 
         try
         {
-            var token = await _runner.MintTokenAsync(Options, ct).ConfigureAwait(false);
-
-            _module ??= await _runner.Js
-                .InvokeAsync<IJSObjectReference>("import", ct, ModulePath)
-                .ConfigureAwait(false);
-            _attached = true;
-            _self ??= DotNetObjectReference.Create(this);
-
-            await _module.InvokeVoidAsync("start", ct, token, new
+            if (!Current(attempt)) return;
+            string? token = null;
+            if (Options.Live is not null)
             {
+                if (!Options.IsConfigured) throw new InvalidOperationException("DrylVoiceOptions.ApiKey is not set.");
+                attempt.LiveConnection = new DrylVoiceOptions
+                {
+                    ApiKey = Options.ApiKey, BaseUrl = Options.BaseUrl, SafetyIdentifier = Options.SafetyIdentifier,
+                };
+                attempt.LiveSession = Options.ToSessionPayload();
+                var input = LiveHistory(history);
+                if (input.Count > 0) attempt.LiveSession["input"] = input;
+            }
+            else token = await _runner.MintTokenAsync(Options, attempt.Token).ConfigureAwait(false);
+            if (!Current(attempt)) return;
+
+            var module = await _runner.Js
+                .InvokeAsync<IJSObjectReference>("import", ModulePath)
+                .ConfigureAwait(false);
+            lock (_sync)
+            {
+                if (Current(attempt))
+                {
+                    attempt.Module = module;
+                    attempt.Callback = DotNetObjectReference.Create(new AttemptCallbacks(this, attempt));
+                }
+            }
+            if (!ReferenceEquals(attempt.Module, module))
+            {
+                await ReleaseAsync(module, stop: false).ConfigureAwait(false);
+                return;
+            }
+
+            if (!Current(attempt)) return;
+            var handle = await module.InvokeAsync<IJSObjectReference>("createSession", token, new
+            {
+                live = attempt.LiveSession is not null,
                 baseUrl = Options.BaseUrl.TrimEnd('/'),
                 idleMs = (int)Options.IdleTimeout.TotalMilliseconds,
                 maxMs = (int)Options.MaxDuration.TotalMilliseconds,
-                history = (history ?? Array.Empty<DrylVoiceMessage>())
+                history = (attempt.LiveSession is null ? history ?? Array.Empty<DrylVoiceMessage>() : Array.Empty<DrylVoiceMessage>())
                     .Select(m => new { role = m.Role.ToString(), text = m.Text })
                     .ToArray(),
-            }, _self).ConfigureAwait(false);
+            }, attempt.Callback).ConfigureAwait(false);
+            bool adopted;
+            lock (_sync)
+            {
+                adopted = Current(attempt);
+                if (adopted) attempt.Handle = handle;
+            }
+            if (!adopted)
+            {
+                await ReleaseAsync(handle, stop: true).ConfigureAwait(false);
+                return;
+            }
+            // A stop racing dispatch closes this very handle. Its late start is then inert;
+            // it cannot claim the page or stop the handle belonging to a newer run.
+            if (Current(attempt)) await handle.InvokeVoidAsync("start").ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            OnClosed();
+            await EndAttemptAsync(attempt, null).ConfigureAwait(false);
         }
         catch (JSDisconnectedException)
         {
-            OnClosed();                          // circuit gone; there is nobody left to tell
+            await EndAttemptAsync(attempt, null).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            OnFailed(ex.Message);
-        }
-        finally
-        {
-            _starting = false;
+            await EndAttemptAsync(attempt, ex.Message).ConfigureAwait(false);
         }
     }
 
     /// <summary>Ends the session and releases the microphone.</summary>
-    public async Task StopAsync()
+    public Task StopAsync()
     {
-        if (Phase is VoicePhase.Idle) return;
-
-        Phase = VoicePhase.Closing;
-        Raise();
-
-        if (_attached && _module is not null)
+        Attempt? attempt;
+        long generation;
+        TaskCompletionSource completion;
+        lock (_sync)
         {
-            try { await _module.InvokeVoidAsync("stop").ConfigureAwait(false); }
-            catch (JSDisconnectedException) { /* circuit gone */ }
-            catch (JSException) { /* already torn down */ }
+            if (_stopCompletion is not null) return _stopCompletion.Task;
+            if (_disposed) return _disposeCompletion?.Task ?? Task.CompletedTask;
+            if (Phase is VoicePhase.Idle) return Task.CompletedTask;
+            completion = _stopCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            attempt = Invalidate();
+            _closingAttempt = attempt;
+            generation = _generation;
+            Phase = VoicePhase.Closing;
+            State = AiState.None;
+            Raise();
         }
+        _ = FinishStopAsync(attempt, generation, completion);
+        return completion.Task;
+    }
 
-        OnClosed();
+    private async Task FinishStopAsync(Attempt? attempt, long generation, TaskCompletionSource completion)
+    {
+        try
+        {
+            if (attempt is not null) await CleanupAsync(attempt).ConfigureAwait(false);
+            lock (_sync)
+            {
+                if (ReferenceEquals(_closingAttempt, attempt)) _closingAttempt = null;
+                if (ReferenceEquals(_stopCompletion, completion)) _stopCompletion = null;
+                if (!_disposed && _generation == generation) SetClosed();
+            }
+            completion.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            completion.TrySetException(ex);
+        }
     }
 
     // ── Reported by the browser ──────────────────────────────────────────────
@@ -215,10 +309,18 @@ public sealed class DrylVoiceRun : DrylRunBase
     /// <summary>Enters the connecting phase. The public way in is <see cref="StartAsync"/>.</summary>
     internal void MarkConnecting()
     {
+        _generation++;
         Phase = VoicePhase.Connecting;
         Activity = VoiceActivity.Listening;
         Error = null;                            // a new attempt does not carry the old failure
         _transcript.Clear();                     // a session is a conversation; a new one starts empty
+        _transcriptDeltas.Clear();
+        _transcriptGroups.Clear();
+        _backendResponses.Clear();
+        Text = string.Empty;
+        LiveUsageSeconds = null;
+        LiveCloseReason = null;
+        LiveFinalized = false;
         ClearToolCalls();                        // …and so is its trace
         _autoTurns = 0;                          // …and it does not inherit the last one's budget
         State = AiState.Thinking;
@@ -229,9 +331,18 @@ public sealed class DrylVoiceRun : DrylRunBase
     [JSInvokable]
     public void OnConnected()
     {
-        Phase = VoicePhase.Live;
-        Activity = VoiceActivity.Listening;
-        Sync();
+        Connected(null);
+    }
+
+    private void Connected(Attempt? expected)
+    {
+        lock (_sync)
+        {
+            if (!Accept(expected)) return;
+            Phase = VoicePhase.Live;
+            Activity = VoiceActivity.Listening;
+            Sync();
+        }
     }
 
     /// <summary>Who is doing what right now. Values are <see cref="VoiceActivity"/> names.</summary>
@@ -239,16 +350,28 @@ public sealed class DrylVoiceRun : DrylRunBase
     [JSInvokable]
     public void OnActivity(string activity)
     {
-        if (Phase is not VoicePhase.Live) return;
+        ActivityChanged(null, activity);
+    }
 
-        if (Enum.TryParse<VoiceActivity>(activity, ignoreCase: true, out var parsed))
-            Activity = parsed;
+    private void ActivityChanged(Attempt? expected, string activity)
+    {
+        lock (_sync)
+        {
+            if (!Accept(expected)) return;
+            if (Phase is not VoicePhase.Live) return;
 
-        // The user talking is the thing the continuation budget exists to protect: they now have
-        // the floor, and whatever happens after this is a fresh errand, not the old one spinning.
-        if (Activity is VoiceActivity.UserSpeaking) _autoTurns = 0;
+            if (Enum.TryParse<VoiceActivity>(activity, ignoreCase: true, out var parsed))
+                Activity = parsed;
 
-        Sync();
+            // The user has the floor; future work starts with a fresh continuation budget.
+            if (Activity is VoiceActivity.UserSpeaking)
+            {
+                _autoTurns = 0;
+                _turnGeneration++;
+            }
+
+            Sync();
+        }
     }
 
     /// <summary>A finished transcript line.</summary>
@@ -257,15 +380,171 @@ public sealed class DrylVoiceRun : DrylRunBase
     [JSInvokable]
     public void OnTranscript(string role, string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return;   // a cough transcribes to ""
-
-        var parsed = Enum.TryParse<VoiceRole>(role, ignoreCase: true, out var r)
-            ? r
-            : VoiceRole.Assistant;
-
-        _transcript.Add(new DrylVoiceMessage(parsed, text.Trim()));
-        Raise();
+        TranscriptReceived(null, role, text);
     }
+
+    private void TranscriptReceived(Attempt? expected, string role, string text)
+    {
+        lock (_sync)
+        {
+            if (!Accept(expected)) return;
+            if (string.IsNullOrWhiteSpace(text)) return;   // a cough transcribes to ""
+
+            var parsed = Enum.TryParse<VoiceRole>(role, ignoreCase: true, out var r)
+                ? r
+                : VoiceRole.Assistant;
+
+            _transcript.Add(new DrylVoiceMessage(parsed, text.Trim()));
+            Raise();
+        }
+    }
+
+    /// <summary>Creates the Live session from a browser SDP offer, retaining its credentials on the server.</summary>
+    [JSInvokable]
+    public Task<string> OnLiveOfferAsync(string sdp) => LiveOfferAsync(null, sdp);
+
+    private Task<string> LiveOfferAsync(Attempt? expected, string sdp)
+    {
+        lock (_sync)
+        {
+            if (!Accept(expected) || _attempt is not { LiveSession: not null } attempt)
+                return Task.FromException<string>(new InvalidOperationException("Voice session ended."));
+            // Store the promise before starting HTTP, including synchronous test handlers and
+            // reentrant callbacks. Repeated offers may reuse this answer, never create twice.
+            if (attempt.Offer is not null) return attempt.Offer.Task;
+            attempt.Offer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _ = ExchangeLiveOfferAsync(attempt, sdp);
+            return attempt.Offer.Task;
+        }
+    }
+
+    private async Task ExchangeLiveOfferAsync(Attempt attempt, string sdp)
+    {
+        try
+        {
+            if (!Current(attempt)) throw new OperationCanceledException();
+            var created = await _runner.CreateLiveSessionAsync(attempt.LiveConnection!, attempt.LiveSession!, sdp, attempt.Token).ConfigureAwait(false);
+            bool adopted;
+            lock (_sync)
+            {
+                adopted = Current(attempt);
+                if (adopted) attempt.LiveSessionId = created.Id;
+            }
+            if (!adopted)
+            {
+                await _runner.CloseLiveSessionAsync(attempt.LiveConnection!, created.Id).ConfigureAwait(false);
+                throw new OperationCanceledException();
+            }
+            attempt.Offer!.TrySetResult(created.Sdp);
+        }
+        catch (OperationCanceledException)
+        {
+            attempt.Offer!.TrySetCanceled();
+        }
+        catch (Exception ex)
+        {
+            attempt.Offer!.TrySetException(ex);
+        }
+    }
+
+    /// <summary>Receives original Live caption text without treating a fragment as a completed turn.</summary>
+    [JSInvokable]
+    public void OnLiveTranscriptDelta(string role, string delta, double startMs, double endMs) =>
+        LiveTranscriptReceived(null, role, delta, startMs, endMs);
+
+    private void LiveTranscriptReceived(Attempt? expected, string role, string delta, double startMs, double endMs)
+    {
+        lock (_sync)
+        {
+            if (!AcceptLiveFinalEvents(expected) || Options.Live is null) return;
+            var parsed = Enum.TryParse<VoiceRole>(role, true, out var r) ? r : VoiceRole.Assistant;
+            var fragment = new DrylVoiceTranscriptDelta(parsed, delta, startMs, endMs);
+            _transcriptDeltas.Add(fragment);
+            // Each speaker is grouped independently. A user interjection does not truncate
+            // assistant captions, and a delayed fragment can update a previously visible row.
+            var group = _transcriptGroups.Where(g => g.Role == parsed &&
+                    startMs <= g.EndMs + 1500 && endMs >= g.StartMs - 1500)
+                .OrderBy(g => Math.Max(0, Math.Max(g.StartMs - endMs, startMs - g.EndMs)))
+                .FirstOrDefault();
+            if (group is null)
+            {
+                group = new TranscriptGroup(parsed, _transcript.Count);
+                _transcriptGroups.Add(group);
+                _transcript.Add(new DrylVoiceMessage(parsed, string.Empty));
+            }
+            group.Fragments.Add(fragment);
+            _transcript[group.Index] = new DrylVoiceMessage(parsed,
+                string.Concat(group.Fragments.OrderBy(f => f.StartMs).Select(f => f.Delta)));
+            if (parsed == VoiceRole.Assistant)
+            {
+                Text += delta;
+                PushText(delta);
+            }
+            Raise();
+        }
+    }
+
+    /// <summary>Reports a completed delegated backend result, independent from spoken captions.</summary>
+    [JSInvokable]
+    public Task OnBackendResponseAsync(JsonElement response) => BackendResponseAsync(null, response);
+
+    private async Task BackendResponseAsync(Attempt? expected, JsonElement response)
+    {
+        ValueTask notification = ValueTask.CompletedTask;
+        lock (_sync)
+        {
+            if (!Accept(expected) || Options.Live is null || Phase != VoicePhase.Live || response.ValueKind != JsonValueKind.Object) return;
+            if (!response.TryGetProperty("status", out var status) || status.ValueKind != JsonValueKind.String || status.GetString() != "completed") return;
+            if (response.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String &&
+                !_backendResponses.Add(id.GetString()!)) return;
+            // Calling under the ownership lock prevents dispatch from crossing stop/restart.
+            // Already-running host work owns its external effects, like an in-flight tool.
+            try { notification = BackendResponseReceived?.Invoke(response.Clone()) ?? ValueTask.CompletedTask; }
+            catch { return; }
+        }
+        try { await notification.ConfigureAwait(false); }
+        catch { /* a host notification must not interrupt live speech or backend continuation */ }
+    }
+
+    /// <summary>Stores the latest cumulative Live voice duration.</summary>
+    [JSInvokable]
+    public void OnLiveUsage(double seconds) => LiveUsageReceived(null, seconds);
+
+    private void LiveUsageReceived(Attempt? expected, double seconds)
+    {
+        lock (_sync)
+        {
+            if (!AcceptLiveFinalEvents(expected) || Options.Live is null || !double.IsFinite(seconds) || seconds < 0) return;
+            LiveUsageSeconds = seconds;
+            Raise();
+        }
+    }
+
+    /// <summary>Records final Live usage and close reason before transport cleanup.</summary>
+    [JSInvokable]
+    public void OnLiveSessionClosed(JsonElement details) => LiveSessionClosed(expected: null, details);
+
+    private void LiveSessionClosed(Attempt? expected, JsonElement details)
+    {
+        lock (_sync)
+        {
+            if (!AcceptLiveFinalEvents(expected) || Options.Live is null || details.ValueKind != JsonValueKind.Object) return;
+            LiveFinalized = true;
+            if ((expected ?? _attempt) is { } owner) owner.LiveFinalized = true;
+            if (details.TryGetProperty("reason", out var reason) && reason.ValueKind == JsonValueKind.String)
+                LiveCloseReason = reason.GetString();
+            if (details.TryGetProperty("usage", out var usage) && usage.ValueKind == JsonValueKind.Object &&
+                usage.TryGetProperty("seconds", out var seconds) && seconds.ValueKind == JsonValueKind.Number &&
+                seconds.TryGetDouble(out var value) && double.IsFinite(value) && value >= 0)
+                LiveUsageSeconds = value;
+            Raise();
+        }
+    }
+
+    // Final captions and billing metadata may arrive during graceful stop. Action callbacks
+    // remain invalidated; only the exact draining owner can record these terminal facts.
+    private bool AcceptLiveFinalEvents(Attempt? expected) => Accept(expected) ||
+        (!_disposed && expected is not null && ReferenceEquals(_closingAttempt, expected) && Phase == VoicePhase.Closing);
 
     /// <summary>
     /// Runs a tool the model asked for and returns its result as JSON for the data channel.
@@ -276,43 +555,54 @@ public sealed class DrylVoiceRun : DrylRunBase
     /// <remarks>Never throws. A model waiting for a result that never arrives stops
     /// mid-conversation with no way back; an error it can read keeps it talking.</remarks>
     [JSInvokable]
-    public async Task<string> OnToolCallAsync(string callId, string name, string argumentsJson)
+    public Task<string> OnToolCallAsync(string callId, string name, string argumentsJson) =>
+        ToolCallAsync(null, callId, name, argumentsJson);
+
+    private async Task<string> ToolCallAsync(Attempt? expected, string callId, string name, string argumentsJson)
     {
+        long generation;
+        AIFunction? tool;
         var invocation = new DrylToolInvocation
         {
             CallId = callId,
             ToolName = name,
             Arguments = argumentsJson,
         };
-        AddToolCall(invocation);
-
-        // Running a tool is the model doing the work rather than talking about it, so the budget
-        // for fruitless nudges starts over. Without this a long plan would run out of turns
-        // halfway through precisely because it was going well.
-        _autoTurns = 0;
-
-        // The browser only ever supplies a name. What runs is whatever the host put in the tool
-        // list — a manipulated page cannot invent a tool.
-        var tool = Options.FindTool(name);
-        if (tool is null)
+        lock (_sync)
         {
-            invocation.Error = $"Unknown tool \"{name}\".";
-            Raise();
-            return Fail(invocation.Error);
+            if (!Accept(expected) || Phase is not VoicePhase.Live) return Fail("Voice session ended.");
+            generation = _generation;
+            // Only fruitless nudges are limited: a configured tool represents progress.
+            _autoTurns = 0;
+            tool = Options.FindTool(name);
+            if (tool is null) invocation.Error = $"Unknown tool \"{name}\".";
+            AddToolCall(invocation);
+            // OnChange may synchronously stop or restart the run. Complete all mutations
+            // before notifying, then recheck before dispatching host work.
+            if (!Accept(expected) || _generation != generation) return Fail("Voice session ended.");
+            if (tool is null) return Fail(invocation.Error!);
         }
 
         try
         {
             var result = await tool.InvokeAsync(ParseArguments(argumentsJson)).ConfigureAwait(false);
             var json = result as string ?? JsonSerializer.Serialize(result);
-            invocation.Result = json;
-            Raise();
+            lock (_sync)
+            {
+                if (!Accept(expected) || _generation != generation) return Fail("Voice session ended.");
+                invocation.Result = json;
+                Raise();
+            }
             return json;
         }
         catch (Exception ex)
         {
-            invocation.Error = ex.Message;
-            Raise();
+            lock (_sync)
+            {
+                if (!Accept(expected) || _generation != generation) return Fail("Voice session ended.");
+                invocation.Error = ex.Message;
+                Raise();
+            }
             return Fail(ex.Message);
         }
 
@@ -326,22 +616,33 @@ public sealed class DrylVoiceRun : DrylRunBase
     /// <remarks>Public because it is <c>[JSInvokable]</c>; the answer comes entirely from
     /// <see cref="ShouldContinue"/> and <see cref="MaxAutoContinuations"/>.</remarks>
     [JSInvokable]
-    public async Task<bool> OnTurnEndedAsync()
-    {
-        if (Phase is not VoicePhase.Live || ShouldContinue is null) return false;
+    public Task<bool> OnTurnEndedAsync() => TurnEndedAsync(null);
 
-        if (_autoTurns >= MaxAutoContinuations)
+    private async Task<bool> TurnEndedAsync(Attempt? expected)
+    {
+        long generation;
+        long turnGeneration;
+        Func<ValueTask<bool>> predicate;
+        lock (_sync)
         {
-            // Spent. Handing the floor back is the only honest move: the user can see the plan
-            // is unfinished and say so, which is far better than a model nudging itself forever.
-            _autoTurns = 0;
-            return false;
+            if (!Accept(expected)) return false;
+            if (Options.Live is not null || Phase is not VoicePhase.Live || ShouldContinue is null) return false;
+            generation = _generation;
+            turnGeneration = _turnGeneration;
+            predicate = ShouldContinue;
+
+            if (_autoTurns >= MaxAutoContinuations)
+            {
+                // The user can decide whether unfinished work deserves another attempt.
+                _autoTurns = 0;
+                return false;
+            }
         }
 
         bool more;
         try
         {
-            more = await ShouldContinue().ConfigureAwait(false);
+            more = await predicate().ConfigureAwait(false);
         }
         catch
         {
@@ -350,16 +651,20 @@ public sealed class DrylVoiceRun : DrylRunBase
             return false;
         }
 
-        if (!more)
+        lock (_sync)
         {
-            _autoTurns = 0;
-            return false;
+            if (!Accept(expected) || _generation != generation || _turnGeneration != turnGeneration || Phase is not VoicePhase.Live) return false;
+            if (!more)
+            {
+                _autoTurns = 0;
+                return false;
+            }
+            if (_autoTurns >= MaxAutoContinuations) return false;
+            _autoTurns++;
+            Activity = VoiceActivity.Thinking;
+            Sync();
+            return Accept(expected) && _generation == generation && _turnGeneration == turnGeneration;
         }
-
-        _autoTurns++;
-        Activity = VoiceActivity.Thinking;
-        Sync();
-        return true;
     }
 
     /// <summary>Something went wrong; the session is over.</summary>
@@ -367,16 +672,17 @@ public sealed class DrylVoiceRun : DrylRunBase
     [JSInvokable]
     public void OnFailed(string message)
     {
-        Error = new DrylRunError(message);
-        Phase = VoicePhase.Idle;
-        Activity = VoiceActivity.Listening;
-        State = AiState.None;
-        Raise();
+        _ = EndAttemptAsync(null, message);
     }
 
     /// <summary>The session ended — by the user, by a timeout, or by the network.</summary>
     [JSInvokable]
     public void OnClosed()
+    {
+        _ = EndAttemptAsync(null, null);
+    }
+
+    private void SetClosed()
     {
         Phase = VoicePhase.Idle;
         Activity = VoiceActivity.Listening;
@@ -417,26 +723,194 @@ public sealed class DrylVoiceRun : DrylRunBase
         return arguments;
     }
 
-    /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
+    private static JsonArray LiveHistory(IEnumerable<DrylVoiceMessage>? history)
     {
-        // _attached guards prerender: without a loaded module there is nothing to dispose, and
-        // calling JS from a static render throws.
-        if (_attached && _module is not null)
+        // UTF-8 bytes give a conservative token upper bound without a tokenizer dependency.
+        // Reserve per-message overhead as well; stay far below Live's 8,192 rendered tokens.
+        var remaining = 4096;
+        var messages = new List<JsonNode>();
+        foreach (var message in (history ?? []).Where(m => !string.IsNullOrWhiteSpace(m.Text)).TakeLast(128).Reverse())
         {
-            try
+            remaining -= 32;
+            if (remaining <= 0) break;
+            var text = message.Text;
+            if (Encoding.UTF8.GetByteCount(text) > remaining)
             {
-                await _module.InvokeVoidAsync("stop").ConfigureAwait(false);
-                await _module.DisposeAsync().ConfigureAwait(false);
+                var suffix = new List<Rune>();
+                var bytes = 0;
+                foreach (var rune in text.EnumerateRunes().Reverse())
+                {
+                    if (bytes + rune.Utf8SequenceLength > remaining) break;
+                    suffix.Add(rune);
+                    bytes += rune.Utf8SequenceLength;
+                }
+                suffix.Reverse();
+                text = string.Concat(suffix.Select(r => r.ToString()));
             }
-            catch (JSDisconnectedException) { /* circuit gone */ }
-            catch (JSException) { /* already torn down */ }
+            if (text.Length == 0) break;
+            remaining -= Encoding.UTF8.GetByteCount(text);
+            var assistant = message.Role == VoiceRole.Assistant;
+            messages.Add(new JsonObject
+            {
+                ["type"] = "message",
+                ["role"] = assistant ? "assistant" : "user",
+                ["content"] = new JsonArray(new JsonObject
+                {
+                    ["type"] = assistant ? "output_text" : "input_text",
+                    ["text"] = text,
+                }),
+            });
         }
+        messages.Reverse();
+        return new JsonArray(messages.ToArray());
+    }
 
-        _self?.Dispose();
-        _self = null;
-        _module = null;
+    /// <inheritdoc />
+    public override ValueTask DisposeAsync()
+    {
+        Attempt? attempt;
+        Task? pendingStop;
+        TaskCompletionSource completion;
+        lock (_sync)
+        {
+            if (_disposeCompletion is not null) return new(_disposeCompletion.Task);
+            completion = _disposeCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _disposed = true;
+            pendingStop = _stopCompletion?.Task;
+            attempt = Invalidate();
+            SetClosed();
+        }
+        _ = FinishDisposeAsync(attempt, pendingStop, completion);
+        return new(completion.Task);
+    }
 
-        await base.DisposeAsync().ConfigureAwait(false);
+    private async Task FinishDisposeAsync(Attempt? attempt, Task? pendingStop, TaskCompletionSource completion)
+    {
+        try
+        {
+            if (pendingStop is not null) await pendingStop.ConfigureAwait(false);
+            if (attempt is not null) await CleanupAsync(attempt).ConfigureAwait(false);
+            await base.DisposeAsync().ConfigureAwait(false);
+            completion.TrySetResult();
+        }
+        catch (Exception ex)
+        {
+            completion.TrySetException(ex);
+        }
+    }
+
+    private bool Current(Attempt attempt)
+    {
+        lock (_sync) return !_disposed && ReferenceEquals(_attempt, attempt);
+    }
+
+    private bool Accept(Attempt? expected) => !_disposed && (expected is null || ReferenceEquals(_attempt, expected));
+
+    // Called under _sync. Invalidation precedes every await and every cancellation callback.
+    private Attempt? Invalidate()
+    {
+        var previous = _attempt;
+        _attempt = null;
+        _generation++;
+        return previous;
+    }
+
+    private async Task EndAttemptAsync(Attempt? expected, string? error)
+    {
+        Attempt? attempt;
+        lock (_sync)
+        {
+            if (!Accept(expected)) return;
+            attempt = Invalidate();
+            if (error is not null) Error = new DrylRunError(error);
+            SetClosed();
+        }
+        if (attempt is not null) await CleanupAsync(attempt).ConfigureAwait(false);
+    }
+
+    private async Task CleanupAsync(Attempt attempt)
+    {
+        IJSObjectReference? handle, module;
+        DotNetObjectReference<AttemptCallbacks>? callback;
+        lock (_sync)
+        {
+            if (attempt.Released) return;
+            attempt.Released = true;
+            handle = attempt.Handle;
+            module = attempt.Module;
+            callback = attempt.Callback;
+        }
+        try { attempt.Cancellation.Cancel(); }
+        catch (AggregateException) { /* a host cancellation callback failed */ }
+        if (handle is not null) await ReleaseAsync(handle, stop: true).ConfigureAwait(false);
+        if (attempt.LiveSessionId is { } sessionId && !attempt.LiveFinalized)
+            await _runner.CloseLiveSessionAsync(attempt.LiveConnection!, sessionId).ConfigureAwait(false);
+        if (module is not null) await ReleaseAsync(module, stop: false).ConfigureAwait(false);
+        callback?.Dispose();
+        attempt.Cancellation.Dispose();
+    }
+
+    private static async Task ReleaseAsync(IJSObjectReference reference, bool stop)
+    {
+        if (stop)
+        {
+            try { await reference.InvokeVoidAsync("stop").ConfigureAwait(false); }
+            catch (Exception ex) when (ex is JSException or InvalidOperationException or OperationCanceledException) { }
+        }
+        try { await reference.DisposeAsync().ConfigureAwait(false); }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or OperationCanceledException) { }
+    }
+
+    private sealed class Attempt
+    {
+        internal Attempt(CancellationToken ct)
+        {
+            Cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Token = Cancellation.Token;
+        }
+        internal CancellationTokenSource Cancellation { get; }
+        internal CancellationToken Token { get; }
+        internal IJSObjectReference? Module, Handle;
+        internal DotNetObjectReference<AttemptCallbacks>? Callback;
+        internal JsonNode? LiveSession;
+        internal DrylVoiceOptions? LiveConnection;
+        internal string? LiveSessionId;
+        internal bool LiveFinalized;
+        internal TaskCompletionSource<string>? Offer;
+        internal bool Released;
+    }
+
+    private sealed class TranscriptGroup(VoiceRole role, int index)
+    {
+        internal VoiceRole Role { get; } = role;
+        internal int Index { get; } = index;
+        internal List<DrylVoiceTranscriptDelta> Fragments { get; } = [];
+        internal double StartMs => Fragments.Min(f => f.StartMs);
+        internal double EndMs => Fragments.Max(f => f.EndMs);
+    }
+
+    // The callback signature stays familiar to JS, but this target can never become a newer
+    // session. Even an invocation already dispatched before Dispose cannot cross that boundary.
+    private sealed class AttemptCallbacks(DrylVoiceRun run, Attempt attempt)
+    {
+        [JSInvokable] public void OnConnected() => run.Connected(attempt);
+        [JSInvokable] public void OnActivity(string activity) => run.ActivityChanged(attempt, activity);
+        [JSInvokable] public void OnTranscript(string role, string text) => run.TranscriptReceived(attempt, role, text);
+        [JSInvokable] public Task<string> OnLiveOfferAsync(string sdp) => run.LiveOfferAsync(attempt, sdp);
+        [JSInvokable] public void OnLiveTranscriptDelta(string role, string delta, double startMs, double endMs) => run.LiveTranscriptReceived(attempt, role, delta, startMs, endMs);
+        [JSInvokable] public Task OnBackendResponseAsync(JsonElement response) => run.BackendResponseAsync(attempt, response);
+        [JSInvokable] public void OnLiveUsage(double seconds) => run.LiveUsageReceived(attempt, seconds);
+        [JSInvokable] public void OnLiveSessionClosed(JsonElement details) => run.LiveSessionClosed(attempt, details);
+        [JSInvokable] public Task<string> OnToolCallAsync(string callId, string name, string argumentsJson) => run.ToolCallAsync(attempt, callId, name, argumentsJson);
+        [JSInvokable] public Task<bool> OnTurnEndedAsync() => run.TurnEndedAsync(attempt);
+        [JSInvokable] public Task OnFailed(string message) => run.EndAttemptAsync(attempt, message);
+        [JSInvokable] public Task OnClosed() => run.EndAttemptAsync(attempt, null);
     }
 }
+
+/// <summary>An unmodified GPT-Live speech fragment and its session-relative timing.</summary>
+/// <param name="Role">The speaker.</param>
+/// <param name="Delta">The original text, including whitespace.</param>
+/// <param name="StartMs">Inclusive start on the session timeline, in milliseconds.</param>
+/// <param name="EndMs">Exclusive end on the session timeline, in milliseconds.</param>
+public sealed record DrylVoiceTranscriptDelta(VoiceRole Role, string Delta, double StartMs, double EndMs);

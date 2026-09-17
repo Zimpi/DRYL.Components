@@ -14,6 +14,24 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.0.1] — 2026-09-17
+
+Core 3.0.1 and Agents 0.18.0 collect the unpublished I13 hardening work and
+the additive I14 voice feature. The new public Live API raises the Agents
+package's unpublished version from 0.17.7 to 0.18.0; Core remains a patch release.
+
+### Added
+- `DrylVoiceOptions.Live` (Agents 0.18.0) — Opt into `gpt-live-1` with an independent Responses backend, function tools and optional hosted web search. A server-owned SDP exchange keeps credentials private; the browser handles nested backend events and submits each function result once before continuing.
+- `DrylVoiceRun` (Agents 0.18.0) — Preserve overlapping transcript fragments and expose completed backend responses for cited research, cumulative voice usage and the final close reason. Live close drains final events with a bounded wait while stopping microphone capture immediately. Existing Realtime consumers retain their protocol and defaults.
+
+### Fixed
+- `DrylInputText`, `DrylTextarea`, `DrylSelect`, `DrylStepper`, `DrylDialog` — Keyboard focus retains a browser outline under forced colors when glow shadows disappear, using existing tokens and preserving ordinary focus styling.
+- `DrylBadge` — Success, warning and danger labels use `--fg` for readable small text while their dots, borders and tints retain semantic colors. CSS-derived and rendered checks enforce 4.5:1 on the tested light/dark surfaces.
+- `DrylPresence`, `DrylPopover`, `DrylDialogProvider` — Cancelled, missing or reduced-motion exits finish once; callbacks from a cancelled exit cannot remove reopened content. Modal teardown cancels queued focus transfer.
+- `DrylAuraElements`, `DrylStepper`, shared motion classes — Reduced motion now overrides the scoped aura variants, pseudo-elements, spinners, stagger/fade/ambient effects and dialog/Stepper entrances while retaining static content and normal-mode animation.
+- `DrylCanvas`, `DrylTable` — Reorder and resize gestures belong to one pointer and release capture/listeners on disposal, Escape, pointer cancellation or replacement. Cancelled previews restore the original transforms, markers and exact inline widths without committing a partial edit.
+- `DrylVoiceRun` (Agents 0.18.0) — Stop, disposal and cancellation invalidate the complete startup attempt, including delayed microphone, token and interop results. Each attempt owns its browser handle and callbacks; obsolete tools and continuation decisions cannot revive or mutate its replacement. User speech also invalidates an older continuation decision without consuming the new turn's budget. Existing public APIs remain compatible.
+
 ## [3.0.0] — 2026-08-22
 
 ### Removed

@@ -99,6 +99,12 @@ which is why it is scoped to a `PersistStateKey` and not to a user.
 
 ## Cleanup
 
+For I13, `dryl.table.disposeColumnResize` cancels any active resize as well as
+the delegated root listener. Cancellation restores each cell's pre-gesture
+inline width, clears `tbl-resizing`, releases capture/window handlers and never
+reports or persists the preview. Pointer identity isolates concurrent input;
+stale events after disposal cannot change cells or call `OnColumnResized`.
+
 Eight components implement a disposal.
 
 | Component | Disposes |

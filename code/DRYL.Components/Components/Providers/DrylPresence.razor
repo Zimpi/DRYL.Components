@@ -51,7 +51,10 @@
     [Parameter] public string? Class { get; set; }
 
     private ElementReference _el;
-    private DotNetObjectReference<DrylPresence>? _selfRef;
+    private DotNetObjectReference<ExitCallback>? _exitRef;
+    private long _exitGeneration;
+    private bool _clearExitRequested;
+    private bool _disposed;
 
     private bool _mounted;        // child is in the DOM
     private bool _exiting;        // exit animation is playing
@@ -62,6 +65,7 @@
 
     protected override void OnParametersSet()
     {
+        if (_disposed) return;
         if (_firstParams)
         {
             _firstParams = false;
@@ -78,6 +82,7 @@
             // (Re)enter — cancel any in-flight exit and replay the enter.
             if (!_mounted || _exiting)
             {
+                InvalidateExit();
                 _mounted = true;
                 _exiting = false;
                 _playEnter = true;
@@ -87,41 +92,78 @@
         {
             // Begin exit — stay mounted; JS wires the animationend in OnAfterRender.
             _exiting = true;
+            _exitGeneration++;
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_disposed) return;
+        if (_clearExitRequested)
+        {
+            _clearExitRequested = false;
+            await ClearExitAsync();
+            if (_disposed) return;
+        }
+
         if (_exiting && !_exitListening)
         {
-            _selfRef ??= DotNetObjectReference.Create(this);
+            var generation = _exitGeneration;
+            _exitRef = DotNetObjectReference.Create(new ExitCallback(this, generation));
+            // Own the registration before awaiting it: disposal and reopening
+            // can run while the browser invocation is still in flight.
+            _exitListening = true;
+            _attached = true;
             try
             {
-                await JS.InvokeVoidAsync("dryl.motion.onExit", _el, _selfRef);
-                _exitListening = true;
-                _attached = true;
+                await JS.InvokeVoidAsync("dryl.motion.onExit", _el, _exitRef);
             }
-            catch (JSDisconnectedException) { /* circuit gone */ }
-        }
-        else if (!_exiting && _exitListening)
-        {
-            // Re-entered before the exit finished — drop the stale listener.
-            try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _el); }
-            catch (JSDisconnectedException) { /* circuit gone */ }
-            _exitListening = false;
+            catch (JSDisconnectedException) { await FinishExitAsync(generation); }
+            catch (JSException) { await FinishExitAsync(generation); }
+            catch (InvalidOperationException) { await FinishExitAsync(generation); }
         }
     }
 
-    /// <summary>Invoked from JS when the exit animation ends.</summary>
+    /// <summary>Completes the current exit for existing direct callers.
+    /// Browser registrations use an internal callback tied to one exit.</summary>
     [JSInvokable]
-    public async Task OnExitFinished()
+    public Task OnExitFinished() => FinishExitAsync(_exitGeneration);
+
+    private Task FinishExitAsync(long generation)
     {
-        if (!_exiting) return;
-        _mounted = false;
-        _exiting = false;
+        if (_disposed) return Task.CompletedTask;
+        return InvokeAsync(async () =>
+        {
+            if (_disposed || !_exiting || Visible || generation != _exitGeneration) return;
+            _mounted = false;
+            _exiting = false;
+            InvalidateExit();
+            await OnExited.InvokeAsync();
+            if (!_disposed) StateHasChanged();
+        });
+    }
+
+    private void InvalidateExit()
+    {
+        _exitGeneration++;
+        _clearExitRequested |= _exitListening;
         _exitListening = false;
-        await OnExited.InvokeAsync();
-        StateHasChanged();
+        _exitRef?.Dispose();
+        _exitRef = null;
+    }
+
+    private async Task ClearExitAsync()
+    {
+        try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _el); }
+        catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (JSException) { /* element gone */ }
+        catch (InvalidOperationException) { /* prerender — no JS */ }
+    }
+
+    private sealed class ExitCallback(DrylPresence owner, long generation)
+    {
+        [JSInvokable]
+        public Task OnExitFinished() => owner.FinishExitAsync(generation);
     }
 
     private string WrapperCss
@@ -149,12 +191,10 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_attached)
-        {
-            try { await JS.InvokeVoidAsync("dryl.motion.clearExit", _el); }
-            catch (JSDisconnectedException) { /* circuit gone */ }
-            catch (InvalidOperationException) { /* prerender — no JS */ }
-        }
-        _selfRef?.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        _exiting = false;
+        InvalidateExit();
+        if (_attached) await ClearExitAsync();
     }
 }

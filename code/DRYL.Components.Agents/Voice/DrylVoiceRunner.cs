@@ -8,14 +8,14 @@ using Microsoft.JSInterop;
 namespace DRYL.Components.Agents;
 
 /// <summary>
-/// The server half of a voice session: it mints the short-lived client secret and owns the JS
+/// The server half of a voice session: it creates Live sessions or mints Realtime secrets and owns the JS
 /// runtime the browser side is driven through. Registered scoped by <c>AddDrylAgents()</c> — one
 /// per Blazor circuit.
 /// </summary>
 /// <remarks>
-/// The API key lives here and only here. The browser receives an <c>ek_…</c> token with the
-/// entire session baked into it, so it can neither read the key nor change the instructions, the
-/// model or the tool list.
+/// The API key stays on the server. Realtime browsers receive an <c>ek_…</c> token with the
+/// configuration baked into it. Live browsers receive only an SDP answer; session configuration
+/// and the created session ID stay on the server.
 /// </remarks>
 public sealed class DrylVoiceRunner
 {
@@ -89,9 +89,74 @@ public sealed class DrylVoiceRunner
             : value;
     }
 
+    internal async Task<LiveSession> CreateLiveSessionAsync(
+        DrylVoiceOptions options, JsonNode session, string sdp, CancellationToken ct)
+    {
+        if (!options.IsConfigured)
+            throw new InvalidOperationException("DrylVoiceOptions.ApiKey is not set.");
+        if (string.IsNullOrWhiteSpace(sdp))
+            throw new InvalidOperationException("The browser returned no Live SDP offer.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, options.BaseUrl.TrimEnd('/') + "/live/sessions")
+        {
+            Content = new StringContent(new JsonObject
+            {
+                ["session"] = session.DeepClone(),
+                ["transport"] = new JsonObject { ["type"] = "webrtc", ["sdp"] = sdp },
+            }.ToJsonString(), Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        if (!string.IsNullOrWhiteSpace(options.SafetyIdentifier))
+            request.Headers.Add("OpenAI-Safety-Identifier", options.SafetyIdentifier);
+
+        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        // Once creation succeeded, retain its ID even when cancellation races the body. The
+        // caller must be able to close a session whose answer arrived after its owner stopped.
+        using var bodyTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var body = await response.Content.ReadAsStringAsync(bodyTimeout.Token).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException(ReadApiError(body, response.StatusCode, "Live"));
+
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        var id = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("session", out var created) &&
+            created.ValueKind == JsonValueKind.Object && created.TryGetProperty("id", out var idValue)
+            && idValue.ValueKind == JsonValueKind.String ? idValue.GetString() : null;
+        var answer = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("transport", out var transport) &&
+            transport.ValueKind == JsonValueKind.Object && transport.TryGetProperty("sdp", out var sdpValue)
+            && sdpValue.ValueKind == JsonValueKind.String ? sdpValue.GetString() : null;
+        if (string.IsNullOrWhiteSpace(id))
+            throw new InvalidOperationException("The Live API returned no session ID.");
+        if (string.IsNullOrWhiteSpace(answer))
+        {
+            await CloseLiveSessionAsync(options, id).ConfigureAwait(false);
+            throw new InvalidOperationException("The Live API returned no SDP answer.");
+        }
+        return new LiveSession(id, answer);
+    }
+
+    internal async Task CloseLiveSessionAsync(DrylVoiceOptions options, string sessionId)
+    {
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                options.BaseUrl.TrimEnd('/') + "/live/sessions/" + Uri.EscapeDataString(sessionId) + "/hangup");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+            using var response = await _http.SendAsync(request, timeout.Token).ConfigureAwait(false);
+            // A disconnected/finalized session may already be gone. Cleanup must not fail stop.
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException)
+        {
+            // Best effort only; the browser also closes its media and sends session.close.
+        }
+    }
+
+    internal sealed record LiveSession(string Id, string Sdp);
+
     // The API's own message is far more useful than a status code: a wrong key, an exhausted
     // quota and an unknown model all arrive as 4xx and mean completely different things.
-    private static string ReadApiError(string body, HttpStatusCode status)
+    private static string ReadApiError(string body, HttpStatusCode status, string api = "realtime")
     {
         try
         {
@@ -103,6 +168,6 @@ public sealed class DrylVoiceRunner
             // not JSON — fall through to the status line
         }
 
-        return $"The realtime API rejected the session ({(int)status}).";
+        return $"The {api} API rejected the session ({(int)status}).";
     }
 }

@@ -38,6 +38,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+    permissions:
+      contents: read
+
   check:
     name: Check versions
     runs-on: ubuntu-latest
@@ -91,7 +96,7 @@ jobs:
 
   publish:
     name: Pack & Publish
-    needs: check
+    needs: [check, verify]
     if: needs.check.outputs.core_should_publish == 'true' || needs.check.outputs.agents_should_publish == 'true'
     runs-on: ubuntu-latest
     permissions:

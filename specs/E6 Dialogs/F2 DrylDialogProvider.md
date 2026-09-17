@@ -131,6 +131,10 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
   restarting.
 - Removing an entry detaches its JS listeners and disposes the object references
   it handed to JS.
+- Removal cancels pending focus transfer and every exit frame/listener, so an
+  old layer cannot steal focus from its successor or report another completion.
+- Changing to reduced motion during exit, or cancelling/removing the matching
+  animation, still finalizes the entry exactly once (I13).
 
 ### Sequential dialogs
 
@@ -146,8 +150,8 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
   so the transition captures one before-state and one after-state.
 - A dialog opened with `AnimateHandoff` while no predecessor is exiting opens
   normally.
-- The morph falls back to the cross-fade in browsers without view-transition
-  support, during prerender, and under reduced motion.
+- The FLIP morph runs on live elements; prerender and reduced motion settle
+  without decorative movement. It requires no browser View Transition API.
 - `DialogOptions.HandoffStyle` selects the morph tier, and defaults to the
   glass-merge tier rather than the shape-only one.
 - A handoff transition uses a transition instance of the provider's own, so it
@@ -203,7 +207,7 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
   robustness timeout rather than an animation duration, so `DESIGN-10` does not
   bind it, but it must stay longer than the exit animation it backs up: a
   shortened `--dur-med` would not break it, a lengthened one would.
-- The view-transition name used for a handoff is a fixed string, so only one
+- The morph identity used for a handoff is a fixed string, so only one
   handoff chain may be mid-transition per provider. That matches the sequential,
   non-stacked pattern the option is for; a second simultaneous chain voids its
   own morph rather than misbehaving.
@@ -229,3 +233,12 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
   `DRYL.Website/Components/ComponentCatalog.cs`. The provider has no entry of its
   own and should not: it is not a component a reader browses for and places on a
   page, it is the one-line mount that page documents.
+
+## I13 verification — 2026-09-17
+
+The adopted exit/motion contract is implemented. The 1,146-case .NET suite and
+10 deterministic motion cases pass; the browser matrix exercises normal,
+reduced, missing and cancelled animations in both modes. Final engine results
+and platform limits are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+This supersedes the earlier pending-I13 evidence wording; unrelated recorded
+debt remains outside this repair.

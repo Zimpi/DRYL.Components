@@ -142,15 +142,39 @@ popover would close behind the component's back on the first click elsewhere.
 ### Voice
 
 - The microphone button exists exactly while `Voice` is set and no session is
-  live: once the session runs, the whole dock is the voice and the way out is the
-  stop button.
-- A live session hides the composer, the suggestions and the context chip and
+  active: `Connecting`, `Live` and `Closing` use the voice surface and the way
+  out is the stop button.
+- An active session hides the composer, the suggestions and the context chip and
   shows the orb, the last spoken line and the stop button — each swap animated.
+- The stop button is available during `Connecting`, including while token
+  minting, module import or microphone permission is pending.
+- Activating the microphone calls `Voice.StartAsync()` and therefore uses the
+  run's `SeedHistory` when no explicit history is supplied.
+- Activating the stop button calls `Voice.StopAsync()`.
+- When stop settles the run at `Idle`, the composer and microphone affordance
+  return after their normal presence transitions.
+- A cancelled attempt does not leave a voice error in the status line.
+- With no other active work, cancellation settles the dock's AI state to
+  `AiState.None` (`AI-06`).
+- A late success, failure, transcript or activity callback from a stopped
+  attempt cannot restore the old voice takeover or replace the current status.
+- A restarted session displays only the new attempt's live transcript line.
 - The last spoken line is re-keyed on itself, so a new sentence fades in rather
   than replacing the old one in place.
 - The dock subscribes to `Run`, `Selection` and `Voice` by reference and
   re-subscribes only when the reference changes, so a host that hands over a
   stable instance is not re-wired on every render.
+
+The shared session contract lives in
+[`Agent Inputs — Public API`](../E15%20Agent%20Inputs/_Api.md) and
+[`Agent Inputs — Interop`](../E15%20Agent%20Inputs/_Interop.md). I13 verification
+uses a fake token provider and controlled microphone/WebRTC/network substitutes
+in the local browser host. Check startup cancellation, stop/restart, delayed old
+callbacks and view removal/re-mounting in both color modes; confirm the labelled
+microphone and stop buttons remain keyboard-operable. These lifecycle criteria are implemented and covered by `VoiceTests` in the
+real I13 browser host; final engine results are recorded in
+`docs/2026-09-15-i13-implementation-plan.md`. Controlled media verifies lifecycle
+ownership, not microphone hardware or provider audio quality.
 
 ### Top layer
 

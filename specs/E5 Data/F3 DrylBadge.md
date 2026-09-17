@@ -17,9 +17,9 @@ characters, tinted by one of five semantic kinds. It is content-agnostic — the
 label is `ChildContent`, so it takes text, a number or a formatted value alike.
 
 Two optional marks sit before the label. `Icon` renders a `DrylIcon` inside the
-pill. `Dot` prefixes a small glowing dot that takes the badge's own foreground
-colour, which is what turns a classification into a live status: "Healthy" reads
-differently with a green dot pulsing beside it than as green text alone.
+pill. `Dot` prefixes a small glowing status dot. For success, warning and danger,
+the dot keeps the semantic color while the label uses the legible `--fg` token;
+neutral and accent dots follow the label. The mark supplements the visible text.
 
 The badge is not a control. It has no press, no dismiss and no link — anything
 that needs those is a `DrylChip` or a `DrylButton` instead.
@@ -78,16 +78,18 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   and set in `--fg-muted`.
 - `BadgeKind.Accent` is filled with `--accent-soft`, outlined with
   `--accent-line` and set in `--accent-fg`.
-- `BadgeKind.Success`, `BadgeKind.Warning` and `BadgeKind.Danger` each derive
-  their text, border and fill from their own semantic token — `--success`,
-  `--warning` and `--danger` respectively.
-- The three semantic kinds derive their border and fill from the same token as
-  their text, so a new semantic colour needs one value rather than three.
+- `BadgeKind.Success`, `BadgeKind.Warning` and `BadgeKind.Danger` use `--fg`
+  for their small text, and derive their border, fill and optional dot from
+  `--success`, `--warning` and `--danger` respectively.
+- Small label text reaches the normal-text contrast floor on the default page,
+  `--bg-1` and representative flow/floating surfaces in both modes. Evidence uses
+  the rendered foreground and composed background, not a semantic token tested
+  against an unrelated opaque ground (I13, `UX-03`).
 - The pill's corner comes from `--r-pill`.
 - The label is set in `--font-mono`, so a badge holding a number does not change
   width as the number changes.
-- The dot takes `currentColor`, so it matches whatever kind the badge is without
-  a rule of its own.
+- The dot retains its semantic color for success/warning/danger; for neutral
+  and accent it follows the label's color.
 - The dot carries a glow of `currentColor`.
 - The badge paints no frost, being a small in-flow surface rather than a
   floating one (`DESIGN-06`).
@@ -123,9 +125,10 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — token-only colors, verified by
-  `node scripts/check-light-sync.mjs` and
-  `node scripts/validate-light-contrast.mjs`. `--glass-2`, `--line-strong`,
+- **Both color modes** — token-only colors; synchronization is checked by
+  `node scripts/check-light-sync.mjs`. I13's CSS-derived contrast script and
+  rendered browser scenarios must establish actual label contrast; the former
+  semantic-token check alone did not. `--glass-2`, `--line-strong`,
   `--fg-muted`, `--accent-soft`, `--accent-line`, `--accent-fg`, `--success`,
   `--warning` and `--danger` are the mode-dependent tokens; the component
   defines no mode-specific rule.
@@ -146,3 +149,13 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The badge is the
   best-covered component in the category, and the file says so explicitly — it
   doubles as the worked example of how a DRYL component is bUnit-tested.
+
+## I13 contrast verification — 2026-09-17
+
+`validate-light-contrast.mjs` derives its palette and badge rules from actual
+CSS and passes all 50 checks, including 40 small-label compositions at 4.5:1.
+`ContrastTests` checks 40 rendered badges per mode, including optional dots,
+on four surfaces. Semantic labels use `--fg`; their dots, fills and borders
+retain the semantic tokens. The browser matrix and visual inspection are
+recorded in `docs/2026-09-15-i13-implementation-plan.md`; token synchronization
+alone is not the contrast evidence.

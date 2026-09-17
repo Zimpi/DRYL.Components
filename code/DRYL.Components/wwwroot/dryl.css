@@ -1259,9 +1259,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
-.badge-success { color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
-.badge-warning { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
-.badge-danger  { color: var(--danger);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.badge-success { color: var(--fg); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.badge-warning { color: var(--fg); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.badge-danger  { color: var(--fg); border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.badge-success.badge-dot::before { color: var(--success); }
+.badge-warning.badge-dot::before { color: var(--warning); }
+.badge-danger.badge-dot::before { color: var(--danger); }
 .badge-dot::before {
   content: '';
   width: 6px;
@@ -4456,12 +4459,20 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ai-aura-ring, .ai-aura-ring::before, .ai-aura-ring::after,
-  .ai-aura-comet, .ai-aura-comet::before,
-  .ai-aura-glow, .ai-aura-glow::before, .ai-aura-wash,
-  .ai-aura.ai-generated { animation: none; }
+  .ai-aura .ai-aura-ring,
+  .ai-aura .ai-aura-ring::before,
+  .ai-aura .ai-aura-ring::after,
+  .ai-aura .ai-aura-comet,
+  .ai-aura .ai-aura-comet::before,
+  .ai-aura .ai-aura-glow,
+  .ai-aura .ai-aura-glow::before,
+  .ai-aura .ai-aura-wash,
+  .ai-aura.ai-generated .ai-aura-comet,
+  .ai-aura.ai-generated .ai-aura-glow,
+  .ai-aura.ai-generated .ai-aura-wash,
+  .ai-aura.ai-generated { animation: none; transition: none; }
   /* keep the calm, even static saum; hide the now-frozen travelling comet */
-  .ai-aura-comet { opacity: 0; }
+  .ai-aura .ai-aura-comet { opacity: 0; }
 }
 
 /* ============== EXPANSION PANELS ============== */
@@ -6065,3 +6076,29 @@ pre { overflow-x: auto; }
   will-change: transform, opacity;
 }
 
+/* These shared decorators and dialog variants must win over their ordinary
+   rules above, including exit/handoff selectors. Preference changes apply live. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .fade-in,
+  .stagger > *,
+  .aurora::before,
+  .aurora::after,
+  .aurora .orb,
+  .dialog-backdrop,
+  .dialog,
+  .dialog-layer.is-exiting .dialog,
+  .dialog-layer.is-handoff:not(.is-exiting) .dialog {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .input:focus-visible,
+  .textarea:focus-visible,
+  .select:focus-visible,
+  .dialog-close:focus-visible {
+    outline: auto var(--accent-b);
+  }
+}

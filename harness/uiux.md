@@ -84,6 +84,14 @@ carries its `outline: none` and its `box-shadow`/`border-color` replacement
 in the same rule block. The full set of 36 has not been individually
 re-verified for this document and should be walked during phase C.
 
+I13 adds a scoped forced-colors fallback for `.input`, `.textarea`, `.select`,
+`.dialog-close` and isolated Stepper `.step-header` focus-visible selectors.
+`FocusTests` verifies real keyboard actions and outlines after shadows disappear
+in Chromium, plus ordinary focus behavior in all three engines and both modes.
+Installed Chrome/Edge smoke and focus checks are recorded separately. A native
+Windows contrast-theme pass remains an explicit evidence gap; the bounded
+repair does not establish every isolated focus family's compliance.
+
 ### UX-03 — Contrast floor
 
 Status: **binding** | Enforced: **script**
@@ -92,11 +100,14 @@ Color contrast has a floor: body text on glass surfaces must be at least
 `var(--fg-muted)` (≈ 0.62 alpha on white); axial info text never below
 `var(--fg-dim)`.
 
-Check: `node scripts/validate-light-contrast.mjs` — currently **green**, all
-10 checked tokens `PASS` (`--fg (text)` 16.72:1, `--success` 4.06:1,
-`--warning` 4.62:1, `--danger` 4.44:1, `--info` 4.93:1, `--chart-3` 4.82:1,
-`--chart-4` 4.63:1, `--chart-5` 5.50:1, `--chart-6` 5.14:1, `--danger-fg`
-5.95:1 — all above their stated minimums), exit 0.
+Check: `node scripts/validate-light-contrast.mjs` reads the real CSS token
+blocks and badge declarations, resolves nested colors and composites alpha
+over actual surfaces. All 50 checks pass: ten semantic/chart checks keep their
+stated thresholds, and 40 badge-label compositions require 4.5:1 in both modes.
+`tests/js/contrast.test.mjs` rejects the old failing foregrounds and stale
+palette assumptions. `tests/DRYL.BrowserTests/ContrastTests.cs` independently
+checks computed foreground/background composition and semantic dots in each
+browser. This scoped evidence is not a full-library contrast audit.
 
 ### UX-04 — AI activity is announced via `aria-live="polite"`
 
@@ -144,13 +155,15 @@ Always honour `prefers-reduced-motion: reduce` — the component must be fully
 usable with motion off. The shared motion primitives already do this; any
 custom component CSS must mirror it.
 
-Check: `rg -c 'prefers-reduced-motion' code/DRYL.Components/wwwroot/dryl.css`
-— currently **23** (green, count > 0: `dryl.css` itself honours the media
-query). This only proves the shared primitive file does its part; it does
-not scan individual component `.razor.css` files for CSS that introduces new
-motion outside the shared primitives without its own
-`prefers-reduced-motion` mirror — that remains a reviewer check per
-component.
+Check: presence of a media query is not evidence that it wins the cascade.
+`tests/DRYL.BrowserTests/MotionTests.cs` checks computed styles and live exits
+in both modes, with the preference present initially and changed during use.
+The I13 scope is the shared aura variants/pseudo-elements, spinner, fade,
+stagger, ambient aurora, dialog/backdrop and Stepper panels. The deterministic
+`tests/js/motion.test.mjs` checks interrupted/absent exits and callback cleanup.
+Other isolated component motion remains a reviewer check. Final browser
+versions and native-platform limits are recorded in
+`docs/2026-09-15-i13-implementation-plan.md`.
 
 ### UX-07 — Animation never changes focus order, keyboard reachability or ARIA semantics
 

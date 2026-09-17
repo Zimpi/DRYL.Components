@@ -173,10 +173,54 @@ No `Instruction` (or `ShowPrompt`) opens a mini-prompt popover instead. The
 wrapped component is never touched — the value bridge dispatches native
 `input` events, so `@bind-Value` just works.
 
+## GPT-Live voice and delegated tools
+
+Opt into the Live API while keeping the existing dock and server-side functions:
+
+```csharp
+var voice = voiceRunner.Create(new DrylVoiceOptions
+{
+    ApiKey = configuration["OpenAI:ApiKey"]!, // server only
+    Model = "gpt-live-1",
+    Voice = "gleam",
+    Instructions = "Your short voice persona and delegation policy.",
+    Tools = functionTools,
+    Live = new DrylLiveOptions
+    {
+        BackendModel = "gpt-5.6-terra",
+        BackendInstructions = "Your task workflow and tool rules.",
+        ReasoningEffort = "medium",
+        EnableWebSearch = true,
+    },
+});
+voice.BackendResponseReceived = response => RenderCitedBackendResults(response);
+```
+
+`BackendResponseReceived` receives each completed Responses result with its output
+items restored. Research and its cited answer can span separate function-call
+continuations; preserve that context and render clickable URL annotations. Backend
+text is distinct from the spoken transcript. `TranscriptDeltas` retains exact text
+fragments and overlapping timestamps; `Transcript` groups them for display only.
+`LiveUsageSeconds`, `LiveCloseReason` and `LiveFinalized` describe voice usage and
+terminal state. Backend token usage remains in each completed response.
+
+The authenticated Blazor circuit exchanges SDP and executes configured functions;
+neither the API key nor a Live bearer token enters browser configuration. Configure
+the host's SignalR receive limit for the backend payload sizes it permits. The
+Portfolio example uses 256 KiB and a 4,096-token backend output bound. Protect
+business actions with your usual authorization and confirmation checks.
+
+`StopAsync` stops microphone capture immediately and waits up to fifteen seconds
+for final server events. Dispose the run when its owner ends. Without `Live`,
+existing Realtime settings and behavior are unchanged. See the
+[OpenAI Live guide](https://developers.openai.com/api/docs/guides/live).
+
 ## Versioning & publishing
 
-This package carries its own `Version` (starting at `0.1.0`) and is published independently
-of the core. CI validates that it packs; the first NuGet publish is a maintainer action.
+This package carries its own `Version` and is published independently of Core.
+The verified main-branch publishing workflow packs and publishes each untagged
+package version, then creates its release and tag. Do not publish packages or
+version tags manually; see `harness/releasing.md`.
 
 See the repository [`CHANGELOG.md`](https://github.com/Zimpi/DRYL.Components/blob/main/CHANGELOG.md)
 for the full list of public types.

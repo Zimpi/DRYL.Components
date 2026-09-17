@@ -32,25 +32,29 @@ public enum VoiceNoiseReduction
 /// anywhere in DRYL for this: voice, persona and model are code, not preferences.
 /// </summary>
 /// <remarks>
-/// The whole object is baked into the ephemeral client secret, so the browser can change none of
-/// it. Note that <see cref="Voice"/> is locked by the API once a session has emitted audio —
+/// Configuration is sent to the provider on the server, through a Realtime client secret or a
+/// Live session handshake. Note that <see cref="Voice"/> is locked once a session has emitted audio —
 /// switching voices means starting a new session, not updating this object.
 /// </remarks>
 public sealed class DrylVoiceOptions
 {
-    /// <summary>OpenAI API key. Stays on the server — only the minted <c>ek_…</c> token ever
-    /// reaches the browser.</summary>
+    /// <summary>OpenAI API key. Stays on the server. The browser receives a Realtime
+    /// client secret or a Live SDP answer, never this key.</summary>
     public string ApiKey { get; set; } = string.Empty;
 
-    /// <summary>Realtime model. Also <c>gpt-realtime-2</c> and <c>gpt-realtime-2.1-mini</c>.</summary>
+    /// <summary>Voice model. Defaults to Realtime; set <c>gpt-live-1</c> when opting into <see cref="Live"/>.</summary>
     public string Model { get; set; } = "gpt-realtime-2.1";
+
+    /// <summary>Opt into GPT-Live Responses delegation. Set <see cref="Model"/> to
+    /// <c>gpt-live-1</c>; null preserves the Realtime protocol.</summary>
+    public DrylLiveOptions? Live { get; set; }
 
     /// <summary>The system prompt — role, personality, tone, language. Hand it the same prompt
     /// the text assistant uses, plus whatever is specific to being spoken aloud.</summary>
     public string? Instructions { get; set; }
 
-    /// <summary>One of alloy, ash, ballad, coral, echo, sage, shimmer, verse, marin, cedar.
-    /// <c>marin</c> and <c>cedar</c> are the highest quality.</summary>
+    /// <summary>Provider voice name, for example <c>marin</c> or <c>cedar</c>.
+    /// Live also supports voices such as <c>gleam</c>. Availability depends on the model.</summary>
     public string Voice { get; set; } = "marin";
 
     /// <summary>Speaking rate, 0.25–1.5.</summary>
@@ -95,13 +99,16 @@ public sealed class DrylVoiceOptions
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
 
     /// <summary>
-    /// Builds the <c>session</c> block for <c>POST /v1/realtime/client_secrets</c>.
+    /// Builds the provider <c>session</c> block: Realtime client-secret configuration
+    /// by default, or Live startup configuration when <see cref="Live"/> is set.
     /// </summary>
     /// <remarks>Audio formats are deliberately absent: over WebRTC the peer connection negotiates
     /// the codec itself, and pinning <c>audio/pcm</c> here produces a session that connects and
     /// then stays silent.</remarks>
     public JsonNode ToSessionPayload()
     {
+        if (Live is not null) return ToLiveSessionPayload();
+
         var input = new JsonObject
         {
             ["turn_detection"] = new JsonObject
@@ -176,6 +183,43 @@ public sealed class DrylVoiceOptions
         }
 
         return array;
+    }
+
+    private JsonNode ToLiveSessionPayload()
+    {
+        var live = Live!;
+        if (string.IsNullOrWhiteSpace(Model) || string.IsNullOrWhiteSpace(live.BackendModel))
+            throw new InvalidOperationException("Live voice and backend models must be configured.");
+        if (live.MaxOutputTokens is < 16)
+            throw new InvalidOperationException("Live MaxOutputTokens must be at least 16 or null.");
+
+        var tools = ToolSchemas();
+        foreach (var tool in tools) tool!["strict"] = false;
+        if (live.EnableWebSearch) tools.Add(new JsonObject { ["type"] = "web_search" });
+        var backend = new JsonObject
+        {
+            ["model"] = live.BackendModel,
+            ["parallel_tool_calls"] = false,
+        };
+        if (!string.IsNullOrWhiteSpace(live.BackendInstructions)) backend["instructions"] = live.BackendInstructions;
+        if (!string.IsNullOrWhiteSpace(live.ReasoningEffort))
+            backend["reasoning"] = new JsonObject { ["effort"] = live.ReasoningEffort };
+        if (live.MaxOutputTokens is { } limit) backend["max_output_tokens"] = limit;
+        if (tools.Count > 0)
+        {
+            backend["tools"] = tools;
+            backend["tool_choice"] = "auto";
+        }
+
+        var session = new JsonObject
+        {
+            ["model"] = Model,
+            ["store"] = false,
+            ["audio"] = new JsonObject { ["output"] = new JsonObject { ["voice"] = Voice } },
+            ["delegation"] = new JsonObject { ["type"] = "responses", ["responses"] = backend },
+        };
+        if (!string.IsNullOrWhiteSpace(Instructions)) session["instructions"] = Instructions;
+        return session;
     }
 
     /// <summary>Finds a tool by the name the model used, or null if it invented one.</summary>

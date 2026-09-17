@@ -123,6 +123,9 @@ through a callback the host would have to wire.
   `--ease-in-out`, and mirrors the entrance.
 - Both are switched off under `prefers-reduced-motion: reduce`, leaving the
   dialog fully usable.
+- The reduced-motion treatment wins over every normal variant, including
+  backdrop and layer exits; changing preference during exit cannot leave a
+  closing dialog mounted indefinitely (I13).
 
 ### Keyboard and accessibility
 
@@ -132,6 +135,8 @@ through a callback the host would have to wire.
   screen at once do not label each other.
 - The close button carries an accessible label of its own, since it renders an
   icon and no text (`UX-05`).
+- Keyboard focus on the close button retains a visible outline when forced
+  colors removes shadows; the ordinary mode retains the accent treatment.
 - The header icon is decorative and adds no second announcement of the title.
 - The focus trap, the `Escape` key and the return of focus on close are the
   provider's (`F2`); this component adds no key handling of its own.
@@ -203,3 +208,19 @@ through a callback the host would have to wire.
 - **`ComponentCatalog`** — registered as `"Dialog"` / `dialog` in
   `DRYL.Website/Components/ComponentCatalog.cs`, with an explicit source-URL
   override because the component sits outside `Components/`.
+
+## I13 focus verification — 2026-09-17
+
+`tests/DRYL.BrowserTests/FocusTests.cs` exercises Tab/Shift+Tab, Stepper
+activation, text and multiline input, the actual Select popover with arrows,
+Enter/Escape and focus return, and dialog close/return in both modes.
+Ordinary keyboard cases pass in Chromium, Firefox and WebKit; Chromium and
+installed Chrome/Edge also pass forced-colors outline assertions. Shared
+controls and Stepper headers use existing `--accent-b` with browser-defined
+outline geometry. Normal focus styles remain unchanged. Visual inspection
+and final counts are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+
+This supersedes the earlier pending-I13 verification wording. A native Windows
+contrast-theme inspection and native Safari/Firefox smoke remain outstanding;
+forced-colors emulation is not claimed as that native evidence. No full-library
+accessibility audit or repair of the unrelated recorded debt is claimed.
