@@ -78,10 +78,25 @@
         return result;
     }
 
-    if (!navigator.mediaDevices) Object.defineProperty(navigator, "mediaDevices", { value: {} });
-    Object.defineProperty(navigator.mediaDevices, "getUserMedia", {
-        configurable: true, value: () => boundary("media", stream)
-    });
+    // Replace the accessor, not a property on the object it returns: where a browser hands
+    // out a real MediaDevices (Linux WebKit does, Windows WebKit has none at all), a property
+    // defined on that object did not survive to the next `navigator.mediaDevices` read, so the
+    // microphone call reached the browser — which denies it headlessly, and every startup
+    // stage the tests wait for was never entered. The fixture only ever needs getUserMedia.
+    const getUserMedia = () => boundary("media", stream);
+    const devices = { getUserMedia };
+    try {
+        Object.defineProperty(navigator, "mediaDevices", { configurable: true, get: () => devices });
+    } catch {
+        // A navigator that refuses the accessor still allows the object to be patched.
+    }
+    if (navigator.mediaDevices?.getUserMedia !== getUserMedia) {
+        if (!navigator.mediaDevices) Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: devices });
+        else Object.defineProperty(navigator.mediaDevices, "getUserMedia", { configurable: true, value: getUserMedia });
+    }
+    // Fail loudly here rather than as a ten-second timeout inside every voice test.
+    if (navigator.mediaDevices.getUserMedia !== getUserMedia)
+        throw new Error("Voice fixture could not take over navigator.mediaDevices.getUserMedia.");
 
     class FixtureChannel extends EventTarget {
         constructor(peer) {
