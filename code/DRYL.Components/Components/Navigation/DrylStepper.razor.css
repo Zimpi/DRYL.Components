@@ -235,3 +235,7 @@
 @media (prefers-reduced-motion: reduce) {
     .step-panel { animation: none; }
 }
+
+@media (forced-colors: active) {
+    .step-header:focus-visible { outline: auto var(--accent-b); }
+}

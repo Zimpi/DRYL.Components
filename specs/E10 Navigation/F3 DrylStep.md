@@ -1,7 +1,7 @@
 # DrylStep
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Navigation/DrylStep.razor
 
 ## User Story
@@ -168,3 +168,19 @@ in [`_Api.md`](_Api.md).
   Its parent’s reduced-motion and forced-colors changes, browser evidence,
   both-mode visual checks and reconciliation against this declaration remain
   outstanding. No `Implemented` claim is made from source review alone.
+
+## I13 focus verification — 2026-09-17
+
+`tests/DRYL.BrowserTests/FocusTests.cs` exercises Tab/Shift+Tab, Stepper
+activation, text and multiline input, the actual Select popover with arrows,
+Enter/Escape and focus return, and dialog close/return in both modes.
+Ordinary keyboard cases pass in Chromium, Firefox and WebKit; Chromium and
+installed Chrome/Edge also pass forced-colors outline assertions. Shared
+controls and Stepper headers use existing `--accent-b` with browser-defined
+outline geometry. Normal focus styles remain unchanged. Visual inspection
+and final counts are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+
+This supersedes the earlier pending-I13 verification wording. A native Windows
+contrast-theme inspection and native Safari/Firefox smoke remain outstanding;
+forced-colors emulation is not claimed as that native evidence. No full-library
+accessibility audit or repair of the unrelated recorded debt is claimed.

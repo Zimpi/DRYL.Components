@@ -84,6 +84,14 @@ carries its `outline: none` and its `box-shadow`/`border-color` replacement
 in the same rule block. The full set of 36 has not been individually
 re-verified for this document and should be walked during phase C.
 
+I13 adds a scoped forced-colors fallback for `.input`, `.textarea`, `.select`,
+`.dialog-close` and isolated Stepper `.step-header` focus-visible selectors.
+`FocusTests` verifies real keyboard actions and outlines after shadows disappear
+in Chromium, plus ordinary focus behavior in all three engines and both modes.
+Installed Chrome/Edge smoke and focus checks are recorded separately. A native
+Windows contrast-theme pass remains an explicit evidence gap; the bounded
+repair does not establish every isolated focus family's compliance.
+
 ### UX-03 — Contrast floor
 
 Status: **binding** | Enforced: **script**

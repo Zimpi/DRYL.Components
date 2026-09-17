@@ -14,7 +14,7 @@ H07–H10, I8 baselines and new tokens/public APIs remain outside this delivery.
 | T3 — gesture ownership | Complete | 19 deterministic gesture cases; Chromium live pointer matrix passes. Final cross-engine results below. |
 | T4 — exit ownership and reduced motion | Complete | JS 8/10 failed before and 10/10 pass after; 1,146 .NET tests pass with per-exit bridges. Browser matrix and timing-fixture reconciliation below. |
 | T5 — badge contrast | Complete | 50 CSS-derived checks, 7 Node regressions and rendered contrast assertions pass in Chromium/Firefox/WebKit, both modes. |
-| T6 — forced-colors focus | Pending | |
+| T6 — forced-colors focus | Implemented; native evidence pending | Browser focus matrix passes including Chromium/Chrome/Edge forced colors. Native Windows contrast-theme inspection is not available. |
 | T7 — review, full verification and documentation | Pending | |
 
 One verified commit per task. Only the named files are staged. Update this table

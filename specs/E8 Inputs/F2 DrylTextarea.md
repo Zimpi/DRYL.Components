@@ -1,7 +1,7 @@
 # DrylTextarea
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylTextarea.razor
 
 ## User Story
@@ -21,8 +21,8 @@ The aura can identify text currently being authored or edited by AI. The
 component supplies no AI generation or automatic textarea resizing.
 
 This newly documented contract includes I13 H05's forced-colors focus repair.
-`Modified` records the pending repair and verification. Existing debt below is
-not added to I13's scope.
+The repair is implemented. Existing debt below remains outside I13; native
+Windows contrast-theme evidence is still unavailable and is not claimed.
 
 ## Public API
 
@@ -174,3 +174,19 @@ the final visible size.
   typing, focus, reduced motion or rendered colors. No dedicated textarea
   unit-test suite was found in this contract pass. I13's real browser host owns
   the focus evidence with actual global and generated isolated CSS loaded.
+
+## I13 focus verification — 2026-09-17
+
+`tests/DRYL.BrowserTests/FocusTests.cs` exercises Tab/Shift+Tab, Stepper
+activation, text and multiline input, the actual Select popover with arrows,
+Enter/Escape and focus return, and dialog close/return in both modes.
+Ordinary keyboard cases pass in Chromium, Firefox and WebKit; Chromium and
+installed Chrome/Edge also pass forced-colors outline assertions. Shared
+controls and Stepper headers use existing `--accent-b` with browser-defined
+outline geometry. Normal focus styles remain unchanged. Visual inspection
+and final counts are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+
+This supersedes the earlier pending-I13 verification wording. A native Windows
+contrast-theme inspection and native Safari/Firefox smoke remain outstanding;
+forced-colors emulation is not claimed as that native evidence. No full-library
+accessibility audit or repair of the unrelated recorded debt is claimed.

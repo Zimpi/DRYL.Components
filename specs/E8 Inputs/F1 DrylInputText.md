@@ -1,7 +1,7 @@
 # DrylInputText
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylInputText.razor
 
 ## User Story
@@ -22,8 +22,8 @@ The field can identify content being authored or edited by AI through the
 shared aura vocabulary. AI styling does not generate or change its value.
 
 This newly documented contract includes the approved I13 H05 forced-colors
-focus repair. Its state remains `Modified` until the repair and required
-evidence are reconciled; recorded pre-existing debt remains outside that fix.
+focus repair. The repair is implemented; verification and the remaining native-platform
+evidence limits are recorded below. Pre-existing debt stays outside this fix.
 
 ## Public API
 
@@ -177,3 +177,19 @@ browser; this component does not implement type-specific parsing.
   `tests/DRYL.Components.Tests` during this contract pass. I13's separate browser
   host must render the working-tree library and both actual stylesheets for its
   focus evidence. Website source inspection is not a browser pass.
+
+## I13 focus verification — 2026-09-17
+
+`tests/DRYL.BrowserTests/FocusTests.cs` exercises Tab/Shift+Tab, Stepper
+activation, text and multiline input, the actual Select popover with arrows,
+Enter/Escape and focus return, and dialog close/return in both modes.
+Ordinary keyboard cases pass in Chromium, Firefox and WebKit; Chromium and
+installed Chrome/Edge also pass forced-colors outline assertions. Shared
+controls and Stepper headers use existing `--accent-b` with browser-defined
+outline geometry. Normal focus styles remain unchanged. Visual inspection
+and final counts are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+
+This supersedes the earlier pending-I13 verification wording. A native Windows
+contrast-theme inspection and native Safari/Firefox smoke remain outstanding;
+forced-colors emulation is not claimed as that native evidence. No full-library
+accessibility audit or repair of the unrelated recorded debt is claimed.

@@ -1,7 +1,7 @@
 # DrylStepper
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Navigation/DrylStepper.razor
               code/DRYL.Components/Components/Navigation/DrylStepper.razor.css
 
@@ -21,7 +21,7 @@ The developer supplies any Back, Next, validation or submission controls.
 This contract records the existing navigation behaviour and adopts the bounded
 panel-motion and forced-colors focus repairs from
 [`I13`](../../ideas/I13%20Performance%20and%20hardening%20update.md). Those repairs
-are the pending acceptance criteria explicitly identified below. Other existing
+are implemented and verified by the scoped browser matrix below. Other existing
 limitations remain recorded debt; this package does not redesign navigation,
 change public parameters or add a panel exit primitive.
 
@@ -222,3 +222,19 @@ exercise these selectors; token-sync success alone proves neither repair.
 
 The I13 reduced-motion panel override is implemented and exercised by
 `tests/DRYL.BrowserTests/MotionTests.cs`; focus verification is recorded separately.
+
+## I13 focus verification — 2026-09-17
+
+`tests/DRYL.BrowserTests/FocusTests.cs` exercises Tab/Shift+Tab, Stepper
+activation, text and multiline input, the actual Select popover with arrows,
+Enter/Escape and focus return, and dialog close/return in both modes.
+Ordinary keyboard cases pass in Chromium, Firefox and WebKit; Chromium and
+installed Chrome/Edge also pass forced-colors outline assertions. Shared
+controls and Stepper headers use existing `--accent-b` with browser-defined
+outline geometry. Normal focus styles remain unchanged. Visual inspection
+and final counts are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+
+This supersedes the earlier pending-I13 verification wording. A native Windows
+contrast-theme inspection and native Safari/Firefox smoke remain outstanding;
+forced-colors emulation is not claimed as that native evidence. No full-library
+accessibility audit or repair of the unrelated recorded debt is claimed.

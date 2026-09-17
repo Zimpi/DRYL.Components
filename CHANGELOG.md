@@ -17,6 +17,7 @@ Version bump guide:
 ## [3.0.1] — 2026-09-17
 
 ### Fixed
+- `DrylInputText`, `DrylTextarea`, `DrylSelect`, `DrylStepper`, `DrylDialog` — Keyboard focus retains a browser outline under forced colors when glow shadows disappear, using existing tokens and preserving ordinary focus styling.
 - `DrylBadge` — Success, warning and danger labels use `--fg` for readable small text while their dots, borders and tints retain semantic colors. CSS-derived and rendered checks enforce 4.5:1 on the tested light/dark surfaces.
 - `DrylPresence`, `DrylPopover`, `DrylDialogProvider` — Cancelled, missing or reduced-motion exits finish once; callbacks from a cancelled exit cannot remove reopened content. Modal teardown cancels queued focus transfer.
 - `DrylAuraElements`, `DrylStepper`, shared motion classes — Reduced motion now overrides the scoped aura variants, pseudo-elements, spinners, stagger/fade/ambient effects and dialog/Stepper entrances while retaining static content and normal-mode animation.

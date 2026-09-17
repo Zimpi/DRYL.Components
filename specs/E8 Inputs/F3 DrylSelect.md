@@ -1,7 +1,7 @@
 # DrylSelect
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylSelect.razor
               code/DRYL.Components/Components/Inputs/DrylSelect.razor.css
 
@@ -25,8 +25,8 @@ semantics and option keyboard behavior. AI styling belongs to the field
 trigger, where AI-assisted selection is visible to the user.
 
 This newly documented contract adds I13 H05's forced-colors focus requirement
-and integration evidence for I13 H03's shared exit repair. `Modified` records
-those pending results; unrelated existing gaps below remain visible.
+and integration evidence for I13 H03's shared exit repair. These repairs are
+implemented; unrelated existing gaps and native evidence limits remain visible.
 
 ## Public API
 
@@ -265,3 +265,19 @@ combobox, not a native `select` element.
   unit tests do not execute `dryl.js` or prove Select focus return. I13's browser
   host must load actual global and generated isolated CSS; bUnit-only or static
   markup substitutes cannot prove the forced-colors/portal result.
+
+## I13 focus verification — 2026-09-17
+
+`tests/DRYL.BrowserTests/FocusTests.cs` exercises Tab/Shift+Tab, Stepper
+activation, text and multiline input, the actual Select popover with arrows,
+Enter/Escape and focus return, and dialog close/return in both modes.
+Ordinary keyboard cases pass in Chromium, Firefox and WebKit; Chromium and
+installed Chrome/Edge also pass forced-colors outline assertions. Shared
+controls and Stepper headers use existing `--accent-b` with browser-defined
+outline geometry. Normal focus styles remain unchanged. Visual inspection
+and final counts are recorded in `docs/2026-09-15-i13-implementation-plan.md`.
+
+This supersedes the earlier pending-I13 verification wording. A native Windows
+contrast-theme inspection and native Safari/Firefox smoke remain outstanding;
+forced-colors emulation is not claimed as that native evidence. No full-library
+accessibility audit or repair of the unrelated recorded debt is claimed.

@@ -6093,3 +6093,12 @@ pre { overflow-x: auto; }
     transition: none;
   }
 }
+
+@media (forced-colors: active) {
+  .input:focus-visible,
+  .textarea:focus-visible,
+  .select:focus-visible,
+  .dialog-close:focus-visible {
+    outline: auto var(--accent-b);
+  }
+}
