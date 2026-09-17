@@ -7,8 +7,9 @@ part of the data contract the 1.0 freeze binds.
 
 The voice types below record the existing public surface and the cancellation
 contract adopted from [I13](../../ideas/I13%20Performance%20and%20hardening%20update.md).
-The I13 lifecycle criteria await implementation and verification. This companion
-file has no `Meta` block and claims no component coverage (`SPEC-03`). Shared
+The implementation uses an internal attempt-owned callback target; the verification
+record below distinguishes .NET, deterministic JS and live-browser evidence. This
+companion file has no `Meta` block and claims no component coverage (`SPEC-03`). Shared
 Field, CommandPalette and Generation types remain phase-C documentation debt.
 
 ## VoicePhase
@@ -189,6 +190,8 @@ is specified in [`_Interop.md`](_Interop.md).
   `MaxAutoContinuations` budget.
 - Reaching the continuation cap hands the floor back to the user.
 - User speech resets the continuation budget.
+- User speech invalidates a pending continuation decision for the previous turn
+  without spending the new turn's budget or replacing its activity.
 - A current-attempt tool invocation resets the continuation budget.
 
 ### Verification expectations
@@ -203,3 +206,20 @@ Exercise callbacks through their attempt-owned interop target as well as the
 preserved public methods; direct calls alone cannot prove cross-attempt isolation.
 Use the runner's injected `HttpClient` seam and fake JS references. These tests
 make no paid request and need neither a microphone nor a browser download.
+
+### I13 implementation and evidence
+
+`DrylVoiceRun.AttemptCallbacks` binds browser callbacks to the attempt that
+created the target. The public callbacks remain available with their existing
+signatures. `DrylVoiceRun.StartAsync` observes module and handle creation even
+after invalidation, releasing late references without starting them.
+`StopAsync` detaches the owner before cleanup; `DisposeAsync` also prevents
+reuse. HTTP startup receives the attempt's cancellation token.
+
+The initial `DrylVoiceCancellationTests` reproduction demonstrated token/import
+continuation after stop and an obsolete `ShouldContinue` result returning true.
+The expanded regression cases live in
+`tests/DRYL.Components.Tests/Agents/Voice/DrylVoiceCancellationTests.cs` and
+exercise the actual attempt callback target, including results already awaiting
+host work. Final command results and browser-engine coverage are recorded in
+`docs/2026-09-15-i13-implementation-plan.md`.

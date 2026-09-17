@@ -5,8 +5,7 @@ cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
 The voice contract below adopts H01 from
-[I13](../../ideas/I13%20Performance%20and%20hardening%20update.md); its new
-lifecycle criteria await implementation and verification. Other Agent Inputs
+[I13](../../ideas/I13%20Performance%20and%20hardening%20update.md). Other Agent Inputs
 interop and services remain phase-C documentation debt. This companion file
 claims no component coverage (`SPEC-03`).
 
@@ -23,6 +22,12 @@ claims no component coverage (`SPEC-03`).
 | `start(token, config, dotNet)` | `DrylVoiceRun.StartAsync` | Acquires microphone audio, negotiates one WebRTC connection and reports session events. `token` is the minted client secret. |
 | `stop()` | `DrylVoiceRun.StopAsync` / `DisposeAsync` | Tears down the browser session. |
 | `attachOrb(element)` | `DrylVoiceOrb` | Selects the meter's element; null detaches it. Attachment resets `--voice-level` and does not start voice. |
+
+`DrylVoiceRun.StartAsync` uses the internal `createSession(token, config, dotNet)`
+factory. It returns an owned JS reference exposing `start()`, `stop()` and
+`closed()`. Factory creation acquires no browser media resource. A stopped
+handle's `start()` is inert, including when the interop invocation arrives late.
+The original module-level `start` and `stop` remain compatibility wrappers.
 
 Startup config carries `baseUrl`, `idleMs`, `maxMs` and `history` with
 `{ role, text }` turns. The browser posts the local offer as SDP to
@@ -45,11 +50,13 @@ dispatched before teardown. Phase alone is insufficient: an old and a new
 attempt can both have been `Connecting` or `Live`.
 
 The existing public .NET signatures and JS export names remain compatible.
-An internal per-attempt interop target is the preferred way to bind callbacks
-to the originating attempt while preserving the public `[JSInvokable]`
-methods. An internal identity argument or config field may scope `start` and
-`stop`; it is not a new consumer parameter. The implementation plan chooses the
-mechanism before code changes.
+`DrylVoiceRun.AttemptCallbacks` binds callbacks to their originating attempt
+while preserving the public `[JSInvokable]` methods. Each attempt owns its
+module and session-handle references. A stopped handle cannot close another
+handle's session. Late factory results are stopped and disposed; late module
+results are disposed. Resource-producing interop awaits remain observed instead
+of being abandoned on cancellation. No consumer parameter or cancellation-ID
+registry is added.
 
 - The page has at most one acquiring or connected browser voice session.
 - A competing start acquires no second microphone and does not replace the
@@ -151,7 +158,9 @@ events cannot restart teardown or report into another attempt (`CODE-05`).
 
 ### .NET resources — I13
 
-- Stop-owned cancellation reaches token minting and pending startup interop.
+- Stop-owned cancellation reaches token minting; pending startup interop loses
+  its ownership immediately and any returned resource is still observed for
+  cleanup.
 - Invalidating an attempt makes its retained interop target inert immediately.
 - Every attempt-owned `DotNetObjectReference` is disposed when no longer needed.
 - Module references acquired after invalidation are released if no current
@@ -186,3 +195,11 @@ start, stop, restart and removal/re-mounting in both color modes. No physical
 microphone or paid provider request is required. Existing .NET tests with
 `NoopJsRuntime` establish only their named .NET assertions; they are not browser
 cleanup evidence.
+
+The initial deterministic `tests/js/voice.test.mjs` reproduction failed 17 of
+20 cases against the previous implementation: late successful operations
+continued the handshake, late rejections reported errors and delayed callbacks
+or timers survived teardown. The expanded suite covers fetch abort, rejected
+cleanup/interop promises and valid tool/continuation behavior as well. Final
+results and the separate live-browser evidence are recorded in
+`docs/2026-09-15-i13-implementation-plan.md`.

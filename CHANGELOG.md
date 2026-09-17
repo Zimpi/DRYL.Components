@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.0.1] — 2026-09-17
+
+### Fixed
+- `DrylVoiceRun` (Agents 0.17.7) — Stop, disposal and cancellation invalidate the complete startup attempt, including delayed microphone, token and interop results. Each attempt owns its browser handle and callbacks; obsolete tools and continuation decisions cannot revive or mutate its replacement. User speech also invalidates an older continuation decision without consuming the new turn's budget. Existing public APIs remain compatible.
+
 ## [3.0.0] — 2026-08-22
 
 ### Removed

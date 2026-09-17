@@ -36,7 +36,11 @@ export function attachOrb(element) {
 /** Opens a session. `token` is the ephemeral ek_… secret; the session config rides inside it. */
 export async function start(token, config, dotNet) {
     if (session) return;
+    await createSession(token, config, dotNet).start();
+}
 
+/** Internal owned handle. Creating it acquires nothing; stop also cancels a late start. */
+export function createSession(token, config, dotNet) {
     const state = {
         dotNet,
         pc: null,
@@ -60,24 +64,50 @@ export async function start(token, config, dotNet) {
         // Spoken answers arrive as deltas keyed by item; a turn is only worth a transcript line
         // once it is finished.
         answers: new Map(),
+        abort: new AbortController(),
+        started: false,
     };
+    return {
+        start: () => startSession(state, token, config),
+        stop: () => teardown(state, null),
+        closed: () => state.closed,
+    };
+}
+
+function current(state) { return !state.closed && session === state; }
+
+async function startSession(state, token, config) {
+    if (state.closed || state.started) return;
+    state.started = true;
+    if (session) {
+        state.closed = true;
+        await notify(state.dotNet, 'OnClosed');
+        return;
+    }
     session = state;
 
     try {
-        state.mic = await navigator.mediaDevices.getUserMedia({
+        const mic = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
+        if (!current(state)) {
+            for (const track of mic.getTracks()) safely(() => track.stop());
+            return;
+        }
+        state.mic = mic;
     } catch (err) {
-        session = null;
+        if (!current(state)) return;
+        teardown(state, null);
         // A denied microphone is by far the most likely failure, and the browser's own message
         // ("Permission denied") tells the user nothing about what to do next.
-        await report(dotNet, 'OnFailed', err && err.name === 'NotAllowedError'
+        await notify(state.dotNet, 'OnFailed', err && err.name === 'NotAllowedError'
             ? 'Kein Zugriff auf das Mikrofon. Erlaube ihn in den Browser-Einstellungen und starte neu.'
             : `Das Mikrofon ließ sich nicht öffnen: ${err?.message ?? err}`);
         return;
     }
 
     try {
+        if (!current(state)) return;
         const pc = new RTCPeerConnection();
         state.pc = pc;
 
@@ -89,6 +119,7 @@ export async function start(token, config, dotNet) {
         state.audio = audio;
 
         pc.ontrack = (event) => {
+            if (!current(state)) return;
             audio.srcObject = event.streams[0];
             // The microphone click is a user gesture, but this runs a server round trip later,
             // so the autoplay policy may still refuse. Sticky activation usually carries it —
@@ -101,6 +132,7 @@ export async function start(token, config, dotNet) {
         meter(state, state.mic, 'in');
 
         pc.oniceconnectionstatechange = () => {
+            if (!current(state)) return;
             if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
                 teardown(state, 'OnClosed');
             }
@@ -114,38 +146,48 @@ export async function start(token, config, dotNet) {
         // mistaken for something recoverable.
         channel.onclose = () => teardown(state, 'OnClosed');
         channel.onopen = async () => {
+            if (!current(state)) return;
             seed(state, config.history);
             state.idleMs = config.idleMs ?? 0;
             touch(state);
-            await report(state.dotNet, 'OnConnected');
+            await report(state, 'OnConnected');
         };
 
         const offer = await pc.createOffer();
+        if (!current(state)) return;
         await pc.setLocalDescription(offer);
+        if (!current(state)) return;
 
         const response = await fetch(`${config.baseUrl}/realtime/calls`, {
             method: 'POST',
             body: offer.sdp,
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/sdp' },
+            signal: state.abort.signal,
         });
+        if (!current(state)) return;
 
         if (!response.ok) {
             // The API says why in the body; the status alone cannot tell an expired token from
             // an unknown model.
             const detail = await response.text().catch(() => '');
+            if (!current(state)) return;
             throw new Error(
                 `Die Verbindung wurde abgelehnt (${response.status}). ${detail}`.trim());
         }
 
-        await pc.setRemoteDescription({ type: 'answer', sdp: await response.text() });
+        const answer = await response.text();
+        if (!current(state)) return;
+        await pc.setRemoteDescription({ type: 'answer', sdp: answer });
+        if (!current(state)) return;
 
         if (config.maxMs > 0) {
             state.maxTimer = setTimeout(() => teardown(state, 'OnClosed'), config.maxMs);
         }
     } catch (err) {
+        if (!current(state)) return;
         const message = err?.message ?? String(err);
         teardown(state, null);
-        await report(dotNet, 'OnFailed', message);
+        await notify(state.dotNet, 'OnFailed', message);
     }
 }
 
@@ -157,6 +199,7 @@ export function stop() {
 // ── events ───────────────────────────────────────────────────────────────────
 
 function handle(state, raw) {
+    if (!current(state)) return;
     let event;
     try { event = JSON.parse(raw); } catch { return; }
 
@@ -169,18 +212,18 @@ function handle(state, raw) {
             clearTimeout(state.retryTimer);
             state.retries = 0;
             touch(state);
-            report(state.dotNet, 'OnActivity', 'UserSpeaking');
+            report(state, 'OnActivity', 'UserSpeaking');
             break;
 
         case 'input_audio_buffer.speech_stopped':
-            report(state.dotNet, 'OnActivity', 'Thinking');
+            report(state, 'OnActivity', 'Thinking');
             break;
 
         case 'response.output_audio.delta':
             // Only the first delta of a turn is a state change; the rest are just audio.
             if (!state.speaking) {
                 state.speaking = true;
-                report(state.dotNet, 'OnActivity', 'Speaking');
+                report(state, 'OnActivity', 'Speaking');
             }
             break;
 
@@ -195,7 +238,7 @@ function handle(state, raw) {
             break;
 
         case 'conversation.item.input_audio_transcription.completed':
-            report(state.dotNet, 'OnTranscript', 'User', event.transcript ?? '');
+            report(state, 'OnTranscript', 'User', event.transcript ?? '');
             break;
 
         case 'response.done':
@@ -249,7 +292,7 @@ function flush(state, event) {
             .trim();
         const text = spoken || (state.answers.get(item.id) ?? '').trim();
 
-        if (text) report(state.dotNet, 'OnTranscript', 'Assistant', text);
+        if (text) report(state, 'OnTranscript', 'Assistant', text);
         state.answers.delete(item.id);
     }
 }
@@ -260,7 +303,7 @@ function calls(state, event) {
     const pending = (event.response?.output ?? []).filter((item) => item.type === 'function_call');
     if (pending.length === 0) return false;
 
-    report(state.dotNet, 'OnActivity', 'Thinking');
+    report(state, 'OnActivity', 'Thinking');
     const at = state.turn;
     const started = performance.now();
     trace('calls: running', pending.map((c) => c.name), { at });
@@ -275,6 +318,7 @@ function calls(state, event) {
             // answer, or the conversation stops dead with no way back.
             output = JSON.stringify({ error: err?.message ?? 'Der Werkzeugaufruf schlug fehl.' });
         }
+        if (!current(state)) return;
         // The result goes back whatever else happened — it belongs to a call the model made, and
         // an unanswered call sits in the conversation forever.
         send(state, {
@@ -300,7 +344,7 @@ function defer(state, response) {
         // A real failure. Nothing here can fix it, so say so plainly rather than retrying into
         // a wall; the user keeps the floor and the session stays up.
         console.warn('[dryl-voice]', error?.code ?? 'response failed', error?.message ?? '');
-        report(state.dotNet, 'OnActivity', 'Listening');
+        report(state, 'OnActivity', 'Listening');
         return true;
     }
 
@@ -308,7 +352,7 @@ function defer(state, response) {
         console.warn(
             `[dryl-voice] Gave up after ${MAX_RETRIES} attempts:`, error.message ?? error.code);
         state.retries = 0;
-        report(state.dotNet, 'OnActivity', 'Listening');
+        report(state, 'OnActivity', 'Listening');
         return true;
     }
 
@@ -319,7 +363,7 @@ function defer(state, response) {
 
     clearTimeout(state.retryTimer);
     state.retryTimer = setTimeout(() => {
-        if (state.closed || state.turn !== at) return;   // the user took over while we waited
+        if (!current(state) || state.turn !== at) return;   // the user took over while we waited
         trace('retrying response.create');
         send(state, { type: 'response.create' });
     }, wait);
@@ -344,6 +388,7 @@ function backoff(message, attempt) {
 // happens and the user has to ask whether it is still working. .NET owns the decision, because
 // it is the side that knows whether there is anything left on the plan.
 async function resume(state) {
+    if (!current(state)) return;
     const at = state.turn;
 
     let more = false;
@@ -352,7 +397,7 @@ async function resume(state) {
 
     trace('resume: OnTurnEndedAsync →', more, { at, turn: state.turn, closed: state.closed });
 
-    if (state.closed || state.turn !== at) {
+    if (!current(state) || state.turn !== at) {
         trace('resume: dropped — the floor changed hands while .NET decided', { at, turn: state.turn });
         return;   // the user took over while .NET decided
     }
@@ -361,14 +406,14 @@ async function resume(state) {
         trace('resume: sending response.create');
         send(state, { type: 'response.create' });
     } else {
-        report(state.dotNet, 'OnActivity', 'Listening');
+        report(state, 'OnActivity', 'Listening');
     }
 }
 
 // Asks the model for another turn, unless the floor changed hands since `at`. Sending on top of
 // a response the user's own speech already started is the collision the API rejects.
 function request(state, at) {
-    if (state.closed || state.turn !== at) {
+    if (!current(state) || state.turn !== at) {
         trace('request: dropped after tool results — the tool output stays unanswered',
             { at, turn: state.turn, closed: state.closed });
         return;
@@ -394,10 +439,16 @@ function seed(state, history) {
 }
 
 function send(state, payload) {
-    if (state.channel?.readyState === 'open') state.channel.send(JSON.stringify(payload));
+    if (current(state) && state.channel?.readyState === 'open') {
+        safely(() => state.channel.send(JSON.stringify(payload)));
+    }
 }
 
-async function report(dotNet, method, ...args) {
+async function report(state, method, ...args) {
+    if (current(state)) await notify(state.dotNet, method, ...args);
+}
+
+async function notify(dotNet, method, ...args) {
     try { await dotNet.invokeMethodAsync(method, ...args); }
     catch { /* circuit gone — the page is on its way out anyway */ }
 }
@@ -407,6 +458,7 @@ async function report(dotNet, method, ...args) {
 // One AnalyserNode per direction, both feeding the same CSS variable on the orb: the louder of
 // the two wins, because at any moment only one side is really talking.
 function meter(state, stream, direction) {
+    if (!current(state)) return;
     try {
         state.ctx ??= new (window.AudioContext || window.webkitAudioContext)();
         // A context created outside a gesture starts suspended, and a suspended analyser reads
@@ -430,7 +482,7 @@ function meter(state, stream, direction) {
 }
 
 function tick(state) {
-    if (state.closed) return;
+    if (!current(state)) return;
 
     for (const direction of ['in', 'out']) {
         const meterState = state[direction];
@@ -455,27 +507,39 @@ function tick(state) {
 // ── lifetime ─────────────────────────────────────────────────────────────────
 
 function touch(state) {
-    if (!state.idleMs) return;
+    if (!current(state) || !state.idleMs) return;
     clearTimeout(state.idleTimer);
     state.idleTimer = setTimeout(() => teardown(state, 'OnClosed'), state.idleMs);
 }
 
-function teardown(state, notify) {
+function teardown(state, notification) {
     if (state.closed) return;
     state.closed = true;
 
+    const owned = session === state;
+    if (owned) session = null;
+    safely(() => state.abort.abort());
     clearTimeout(state.idleTimer);
     clearTimeout(state.maxTimer);
     clearTimeout(state.retryTimer);
     if (state.raf) cancelAnimationFrame(state.raf);
 
-    try { state.channel?.close(); } catch { /* already gone */ }
-    try { state.pc?.close(); } catch { /* already gone */ }
-    for (const track of state.mic?.getTracks() ?? []) track.stop();
-    try { state.ctx?.close(); } catch { /* already gone */ }
-    state.audio?.remove();
-    orb?.style.setProperty('--voice-level', '0');
+    if (state.channel) state.channel.onopen = state.channel.onmessage = state.channel.onclose = null;
+    if (state.pc) state.pc.ontrack = state.pc.oniceconnectionstatechange = null;
+    safely(() => state.channel?.close());
+    safely(() => state.pc?.close());
+    for (const track of state.mic?.getTracks() ?? []) safely(() => track.stop());
+    safely(() => state.ctx?.close());
+    safely(() => state.audio?.pause?.());
+    safely(() => { if (state.audio) state.audio.srcObject = null; });
+    safely(() => state.audio?.remove());
+    if (owned) orb?.style.setProperty('--voice-level', '0');
+    state.answers.clear();
+    // A terminal report follows invalidation and deliberately bypasses current().
+    if (owned && notification) notify(state.dotNet, notification);
+}
 
-    if (session === state) session = null;
-    if (notify) report(state.dotNet, notify);
+function safely(action) {
+    try { const result = action(); result?.catch?.(() => {}); }
+    catch { /* release the remaining resources even if this one was already gone */ }
 }

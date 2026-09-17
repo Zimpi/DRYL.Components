@@ -67,7 +67,10 @@
         tracks.push(track);
         // An empty native stream satisfies the audio element's srcObject type;
         // its synthetic track never requests hardware or produces real audio.
-        const result = new MediaStream();
+        // Windows Playwright WebKit has no native MediaStream/WebRTC support.
+        // This offline fixture only passes the stream to the fake peer/meter;
+        // no remote track is emitted or assigned to an audio element.
+        const result = typeof MediaStream === "function" ? new MediaStream() : {};
         Object.defineProperties(result, {
             getTracks: { value: () => [track] },
             getAudioTracks: { value: () => [track] }

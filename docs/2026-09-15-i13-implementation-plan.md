@@ -9,11 +9,11 @@ H07–H10, I8 baselines and new tokens/public APIs remain outside this delivery.
 | Task | State | Commit / evidence |
 |---|---|---|
 | T0 — contracts and adoption | Complete | `17ed224`; coverage 60/129, no structural errors; harness links and whitespace check pass. |
-| T1 — regression host and release gates | Complete | 45 Node CLI tests; 2 smoke cases per engine in Chromium/Firefox/WebKit; host/suite builds and phase-C gate pass. |
-| T2 — voice cancellation | Pending | |
-| T3 — gesture ownership | Pending | |
-| T4 — exit ownership and reduced motion | Pending | |
-| T5 — badge contrast | Pending | |
+| T1 — regression host and release gates | Complete | `a3173d1`; 45 Node CLI tests; 2 smoke cases per engine in Chromium/Firefox/WebKit; host/suite builds and phase-C gate pass. |
+| T2 — voice cancellation | Complete | Owned-session/turn implementation; 25 JS voice cases and full 1,146-case .NET suite pass. Chromium/Firefox voice scenarios pass; final matrix below. |
+| T3 — gesture ownership | In progress | Independent implementation on disjoint gesture files; committed after T2. |
+| T4 — exit ownership and reduced motion | In progress | JS 8/10 failing before, 10/10 after; reduced-motion browser cases 4/4 fail before CSS fix. Per-exit C# bridge implementation in progress. |
+| T5 — badge contrast | In progress | CSS-derived checks reproduced 12 light badge failures; all 50 checks and 7 Node cases pass after label fix. Rendered verification pending. |
 | T6 — forced-colors focus | Pending | |
 | T7 — review, full verification and documentation | Pending | |
 
@@ -223,3 +223,13 @@ No manual publication, push or release tag. Commit:
   errors. Independent review verified the same-checkout publish dependency;
   its circuit-liveness and startup-diagnostic findings were addressed. All
   three workflow YAML files parse; hosted Actions execution is pending CI.
+- T2 browser reproduction: 12/12 Chromium cases failed to start a replacement
+  before the old startup settled. After the owned-session fix, 18/18 Firefox
+  cases pass, including actual dock keyboard stop and live removal/remount.
+- T4 reproduction: live and initial reduced-motion cases in both modes showed
+  `ai-aura-drift`, spinner, fade/stagger and ambient motion continuing. The new
+  rules keep a static aura cue and cover higher-specificity states/pseudo-elements.
+- T5: the old light semantic badge labels measured 3.50–4.20:1 over the four
+  test surfaces. The CSS-derived script now reads actual palette/rules, composes
+  alpha colors and requires 4.5:1 for badge text; it keeps the original semantic
+  indicator/chart checks as separate checks.

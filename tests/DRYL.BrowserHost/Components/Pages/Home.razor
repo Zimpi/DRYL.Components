@@ -121,12 +121,17 @@
             <button id="voice-stop" type="button" disabled="@_voiceDisposed" @onclick="StopVoice">Stop voice</button>
             <button id="voice-dispose" type="button" @onclick="DisposeVoice">Dispose voice</button>
             <button id="voice-recreate" type="button" @onclick="RecreateVoice">Recreate voice</button>
+            <button id="voice-dock-toggle" type="button" @onclick="() => _voiceDockMounted = !_voiceDockMounted">Mount / remove voice dock</button>
         </div>
         <output id="voice-phase">@_voice?.Phase</output>
         <output id="voice-disposed">@_voiceDisposed.ToString().ToLowerInvariant()</output>
         <output id="voice-changes">@_voiceChanges</output>
         <output id="voice-transcript">@(_voice?.Transcript.Count ?? 0)</output>
-        <output id="voice-error">@_voice?.Error</output>
+        <output id="voice-error">@_voice?.Error?.Message</output>
+        @if (_voiceDockMounted)
+        {
+            <DrylCanvasDock Voice="_voice" id="voice-dock" Title="Fixture assistant" VoiceLabel="Start fixture voice" />
+        }
     </section>
 </main>
 
@@ -154,6 +159,7 @@
     private IDrylDialogReference? _dialog;
     private DrylVoiceRun? _voice;
     private bool _voiceDisposed;
+    private bool _voiceDockMounted;
 
     protected override void OnInitialized() => CreateVoice();
 

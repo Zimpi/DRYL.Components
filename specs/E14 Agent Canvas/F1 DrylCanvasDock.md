@@ -1,7 +1,7 @@
 # DrylCanvasDock
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components.Agents/Canvas/DrylCanvasDock.razor
               code/DRYL.Components.Agents/Canvas/DrylCanvasDock.razor.css
 
@@ -171,8 +171,10 @@ The shared session contract lives in
 uses a fake token provider and controlled microphone/WebRTC/network substitutes
 in the local browser host. Check startup cancellation, stop/restart, delayed old
 callbacks and view removal/re-mounting in both color modes; confirm the labelled
-microphone and stop buttons remain keyboard-operable. These lifecycle criteria
-await implementation and do not replace the existing visual evidence below.
+microphone and stop buttons remain keyboard-operable. These lifecycle criteria are implemented and covered by `VoiceTests` in the
+real I13 browser host; final engine results are recorded in
+`docs/2026-09-15-i13-implementation-plan.md`. Controlled media verifies lifecycle
+ownership, not microphone hardware or provider audio quality.
 
 ### Top layer
 
