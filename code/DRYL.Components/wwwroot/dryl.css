@@ -2623,7 +2623,11 @@ code, .code-inline {
   color: var(--fg-muted);
   font-size: 12px;
 }
-.tbl-pagination-size .select { padding-top: 4px; padding-bottom: 4px; min-width: 64px; }
+.tbl-pagination-size-label { white-space: nowrap; flex-shrink: 0; }
+/* DrylSelect fills its container; the wrapper gives it a compact, fixed width so
+   the label beside it never gets squeezed into wrapping. */
+.tbl-pagination-size-select { width: calc(var(--sp-8) + var(--sp-3)); flex-shrink: 0; }
+.tbl-pagination-size .select { height: auto; padding-block: var(--sp-2); }
 
 .tbl-pagination-pages {
   display: inline-flex;

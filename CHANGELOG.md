@@ -28,6 +28,7 @@ package's unpublished version from 0.17.7 to 0.18.0; Core remains a patch releas
 - `DRYL.Components.Agents` (Agents 0.18.0) — Minimum `Microsoft.Agents.AI` raised from 1.18.0 to 1.21.0. No API of this package changes; consumers pinned to 1.18.x need to move up with it.
 
 ### Fixed
+- `DrylPagination` (and `DrylTable`'s footer) — The page-size selector is now a `DrylSelect` instead of a native `<select>`, so it opens the library's frosted panel in both color modes instead of the browser's unstyled dropdown. The "Rows" label no longer gets squeezed into wrapping, and it now names the selector for assistive technology instead of being overridden by a separate `aria-label`.
 - `DrylInputText`, `DrylTextarea`, `DrylSelect`, `DrylStepper`, `DrylDialog` — Keyboard focus retains a browser outline under forced colors when glow shadows disappear, using existing tokens and preserving ordinary focus styling.
 - `DrylBadge` — Success, warning and danger labels use `--fg` for readable small text while their dots, borders and tints retain semantic colors. CSS-derived and rendered checks enforce 4.5:1 on the tested light/dark surfaces.
 - `DrylPresence`, `DrylPopover`, `DrylDialogProvider` — Cancelled, missing or reduced-motion exits finish once; callbacks from a cancelled exit cannot remove reopened content. Modal teardown cancels queued focus transfer.
