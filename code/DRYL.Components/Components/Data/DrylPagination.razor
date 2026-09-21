@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@using System.Globalization
 
 @*  ─────────────────────────────────────────────────────────
     DrylPagination — page-size selector + page navigation.
@@ -31,16 +32,13 @@
     @if (ShowPageSize)
     {
         <div class="tbl-pagination-size">
-            <label for="@_sizeId">Rows</label>
-            <select id="@_sizeId" class="select"
-                    value="@PageSize"
-                    @onchange="OnSizeChange"
-                    aria-label="Rows per page">
-                @foreach (var opt in PageSizeOptions)
-                {
-                    <option value="@opt" selected="@(opt == PageSize)">@opt</option>
-                }
-            </select>
+            <span class="tbl-pagination-size-label" id="@_sizeLabelId">Rows</span>
+            <div class="tbl-pagination-size-select">
+                <DrylSelect Value="@PageSize.ToString(CultureInfo.InvariantCulture)"
+                            ValueChanged="OnSizeChange"
+                            Items="@SizeItems"
+                            aria-labelledby="@_sizeLabelId" />
+            </div>
         </div>
     }
 
@@ -131,7 +129,13 @@
     /// <summary>Extra CSS class(es) merged onto the pagination bar's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
-    private readonly string _sizeId = $"dryl-pgsize-{Guid.NewGuid():N}";
+    private readonly string _sizeLabelId = $"dryl-pgsize-{Guid.NewGuid():N}";
+
+    private IEnumerable<SelectItem> SizeItems => PageSizeOptions.Select(o =>
+    {
+        var s = o.ToString(CultureInfo.InvariantCulture);
+        return new SelectItem(s, s);
+    });
 
     private int TotalPages => PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling((double)TotalCount / PageSize));
 
@@ -141,10 +145,10 @@
         return clamped == CurrentPage ? Task.CompletedTask : CurrentPageChanged.InvokeAsync(clamped);
     }
 
-    private Task OnSizeChange(ChangeEventArgs e)
+    private Task OnSizeChange(string? value)
     {
-        if (e.Value is null) return Task.CompletedTask;
-        if (!int.TryParse(e.Value.ToString(), out var newSize) || newSize <= 0) return Task.CompletedTask;
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var newSize) || newSize <= 0)
+            return Task.CompletedTask;
         return PageSizeChanged.InvokeAsync(newSize);
     }
 

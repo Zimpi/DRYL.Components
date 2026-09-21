@@ -11,6 +11,8 @@ namespace DRYL.Components.Tests;
 /// </summary>
 public class DrylPaginationTests : BunitContext
 {
+    public DrylPaginationTests() => JSInterop.Mode = JSRuntimeMode.Loose;
+
     private IRenderedComponent<DrylPagination> RenderBar(
         int currentPage = 0, int pageSize = 20, int total = 247,
         Action<int>? onPage = null, Action<int>? onSize = null) =>
@@ -90,9 +92,22 @@ public class DrylPaginationTests : BunitContext
         int? captured = null;
         var cut = RenderBar(onSize: s => captured = s);
 
-        cut.Find("select.select").Change("50");
+        cut.Find(".tbl-pagination-size [role=combobox]").Click();
+        cut.FindAll(".select-option").Single(o => o.TextContent.Trim() == "50").Click();
 
         Assert.Equal(50, captured);
+    }
+
+    [Fact]
+    public void Size_selector_is_a_DrylSelect_labelled_by_the_visible_label()
+    {
+        var cut = RenderBar(pageSize: 20);
+
+        var trigger = cut.Find(".tbl-pagination-size [role=combobox]");
+        Assert.Contains("20", trigger.TextContent);
+        var labelId = trigger.GetAttribute("aria-labelledby");
+        Assert.Equal("Rows", cut.Find($"#{labelId}").TextContent);
+        Assert.Empty(cut.FindAll("select"));
     }
 
     [Fact]
@@ -103,6 +118,6 @@ public class DrylPaginationTests : BunitContext
             .Add(p => p.PageSize, 10)
             .Add(p => p.ShowPageSize, false));
 
-        Assert.Empty(cut.FindAll("select.select"));
+        Assert.Empty(cut.FindAll(".tbl-pagination-size"));
     }
 }

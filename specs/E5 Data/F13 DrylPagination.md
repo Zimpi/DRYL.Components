@@ -108,14 +108,20 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 ### The page-size selector
 
 - `ShowPageSize` left `true` renders a size selector listing `PageSizeOptions`.
+- The size selector is a `DrylSelect`, so it opens the library's frosted panel
+  and shares that component's keyboard behaviour rather than the browser's
+  native dropdown.
+- The visible "Rows" label never wraps or shrinks; the selector sits beside it
+  at a compact fixed width.
 - `ShowPageSize` set to `false` renders no selector.
 - The option matching `PageSize` is the selected one.
 - Picking a size raises `PageSizeChanged` with that size.
 - A size that does not parse as a number raises nothing.
 - A size of zero or less raises nothing, so the bar cannot ask its host for an
   impossible page size.
-- The selector's `label` is associated with it by a per-instance identifier, so
-  two bars on one page do not share a label.
+- The selector is named by the visible "Rows" label through `aria-labelledby`
+  and a per-instance identifier, so two bars on one page do not share a label
+  and what is seen is what is announced.
 
 ### Keyboard and accessibility
 
@@ -161,12 +167,6 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ## Recorded gaps
 
-- **The size selector is a raw `select`, not a `DrylSelect`.** It carries the
-  library's `select` class rather than the library's select component, so it
-  does not get that component's keyboard behaviour, its panel, its frost or its
-  animation — and it is the one control in the bar that does not look like the
-  rest of DRYL. It also carries both a visible `label` and an `aria-label`; the
-  latter wins, so the visible label is announced to nobody.
 - **The summary trusts `CurrentPage`.** The range is computed from the parameter
   without clamping, so a consumer who passes a page beyond the end renders a
   summary like "Showing 261–247 of 247" while the controls behave correctly. The
@@ -184,8 +184,8 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   disappearing at the breakpoint snaps (`DESIGN-11`, `DESIGN-12`). Nothing moves
   when the current page changes, which is the one moment the component exists
   for.
-- **The bar's own type sizes are literal**, as are the selector's paddings and
-  minimum width and the gaps between the page buttons (`DESIGN-01`).
+- **The bar's own type sizes are literal**, as are the gaps between the page
+  buttons (`DESIGN-01`).
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -197,8 +197,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   as debt rather than as an exception; its buttons carry `DrylButton`'s motion.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   substantive decisions are the pagination landmark, the per-control labels and
-  the current-page marking; the substantive omission is the selector's competing
-  labels, recorded above.
+  the current-page marking; the selector is named by its visible label.
 - **AI mode** — explicitly no, with the reason under "AI mode" above.
 - **Demo page** — `DRYL.Website/Components/Pages/DemoPagination.razor`, with the
   examples `Components/Examples/Pagination/Full.razor`, `.../Minimal.razor`,
@@ -208,6 +207,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 - **Tests** — `tests/DRYL.Components.Tests/DrylPaginationTests.cs` guards the
   summary, the empty message, the disabled edge controls, the next and last
   controls' raised values including the clamp, a numbered control's raised
-  value, the size change and the hidden selector. It is the second-best-covered
+  value, the size change through the `DrylSelect` panel, the
+  selector's labelling and the hidden selector. It is the second-best-covered
   component in the category, and it exists because the two callbacks were
   renamed — the file pins the current names against the 1.0 freeze.
