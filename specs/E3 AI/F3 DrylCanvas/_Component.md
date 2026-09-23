@@ -45,6 +45,9 @@ files carry a `State` and no `Source`.
 | `Error` | `string?` | `null` | A fatal error for the whole artifact; rendered instead of the tree. |
 | `Announcement` | `string?` | `null` | Text announced through the canvas's `aria-live` region. |
 | `EmptyText` | `string?` | `"Nothing to show yet."` | Message shown when there is no artifact. |
+| `EmptyTitle` | `string` | `"No artifact yet"` | Headline of the empty state. |
+| `FallbackTitle` | `string` | `"Artifact"` | Header title while the artifact has none of its own. |
+| `ErrorTitle` | `string` | `"Artifact failed"` | Title of the alert that replaces the tree when `Error` is set. |
 | `Epoch` | `int` | `0` | Bump to reset interactive form state when a fresh artifact recycles field names. |
 | `Pulse` | `CanvasPulseTracker?` | `null` | The change-pulse stamps to render. Without one the canvas owns its own. |
 | `Selection` | `CanvasSelection?` | `null` | Opt-in for direct manipulation. Without it nothing about the canvas changes. |

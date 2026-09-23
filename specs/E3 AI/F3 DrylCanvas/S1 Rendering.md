@@ -11,10 +11,11 @@ error, or nothing yet.
 ### Header
 
 - The header renders `Spec.Title` as the artifact title.
-- The header renders "Artifact" as the title when `Spec` is `null`.
-- The header renders "Artifact" as the title when `Spec.Title` is `null`. A
+- The header renders `FallbackTitle` as the title when `Spec` is `null`.
+- The header renders `FallbackTitle` as the title when `Spec.Title` is `null`. A
   `Spec.Title` that is present but empty renders as empty — the fallback is on
   `null`, not on blank.
+- `FallbackTitle` defaults to "Artifact".
 - The header renders `HeaderTools` in the tool row, before the built-in buttons.
 - The header renders the refresh button only when the artifact has at least one
   data binding (see `S3`).
@@ -23,15 +24,18 @@ error, or nothing yet.
 
 ### Body
 
-- The body renders a danger `DrylAlert` titled "Artifact failed" when `Error` is
+- The body renders a danger `DrylAlert` titled `ErrorTitle` when `Error` is
   non-null.
+- `ErrorTitle` defaults to "Artifact failed".
 - The body renders the alert instead of the tree — an artifact with an error
   shows no partial tree.
 - The body renders the spec's root through `CanvasNodeView` when `Spec.Root` is
   non-null and `Error` is null.
 - The body renders a `DrylEmptyState` carrying `EmptyText` when there is no
   `Spec.Root` and no `Error`.
+- The empty state's headline is `EmptyTitle`.
 - `EmptyText` defaults to "Nothing to show yet.".
+- `EmptyTitle` defaults to "No artifact yet".
 - The shared `CanvasContext` is cascaded to the tree as a single `IsFixed`
   cascade, so a node view never re-renders because the context object was
   replaced.
