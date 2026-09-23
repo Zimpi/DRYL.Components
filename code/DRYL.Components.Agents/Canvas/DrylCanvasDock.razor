@@ -26,7 +26,10 @@
       </DrylCanvasDock>
     ───────────────────────────────────────────────────────── *@
 
-<div class="@RootCssClass" popover="@PopoverMode" @ref="_el" @attributes="AdditionalAttributes">
+@*  data-dryl-modal-island: the dock floats above every dialog in the top layer, so it stays
+    operable while one is open — F6 moves the keyboard between the dialog and the dock
+    (dryl.modal). *@
+<div class="@RootCssClass" popover="@PopoverMode" data-dryl-modal-island @ref="_el" @attributes="AdditionalAttributes">
     <DrylPresence Visible="@Collapsed" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
         <div class="dock-fab">
             <DrylTooltip Text="@FabLabel">

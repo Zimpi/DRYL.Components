@@ -232,6 +232,17 @@ real I13 browser host; final engine results are recorded in
 `docs/2026-09-15-i13-implementation-plan.md`. Controlled media verifies lifecycle
 ownership, not microphone hardware or provider audio quality.
 
+### Reachable from an open dialog
+
+- The dock root carries `data-dryl-modal-island`, so while a service dialog is
+  open `F6` moves the keyboard between the dialog and the dock (the behaviour
+  is `DrylDialogProvider`'s, `E6/F2` "Modal islands").
+- `F6` lands in the composer while it is shown.
+- With a live voice session the composer is gone, so `F6` lands on the dock's
+  first focusable element and `Tab` within the dock reaches the stop button.
+- The dock stays above the dialog backdrop because it lives in the top layer,
+  so it stays operable by pointer while a dialog is open.
+
 ### Top layer
 
 - The dock renders `popover="manual"` and is promoted with `dryl.topLayer.show`,
@@ -269,7 +280,10 @@ ownership, not microphone hardware or provider audio quality.
   the status line is a polite live region; the log is a `role="log"` that is
   `aria-hidden` while closed, and its toggle reports `aria-pressed`. The dock is
   `popover="manual"`, so `Escape` does not dismiss it — the collapse button is
-  the way out, and the dock never traps focus.
+  the way out, and the dock never traps focus. With a dialog open it is a modal
+  island: `F6` moves between dialog and dock, and `Tab` stays inside the dock
+  until `F6` returns (browser-checked on 2026-09-23 against a service dialog on
+  the demo page).
 - **AI mode** — yes, and the dock is one of the components the vocabulary was
   built for. It derives one `AiState` for the whole dock and hands it to the
   `DrylAiIndicator`, the composer and the collapsed button, so the assistant's

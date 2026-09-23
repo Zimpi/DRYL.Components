@@ -304,6 +304,18 @@ public class DrylCanvasDockTests : BunitContext
         Assert.Contains("is-error", status.ClassList);
     }
 
+    // ── Reachable from an open dialog (Trello #66) ──────────────────────────
+
+    [Fact]
+    public void The_dock_marks_itself_as_a_modal_island()
+    {
+        // dryl.modal lets F6 move focus between an open dialog and every element carrying
+        // this attribute; the behaviour itself is covered in tests/js/modal-island.test.mjs.
+        var cut = Render<DrylCanvasDock>();
+
+        Assert.True(cut.Find(".canvas-dock").HasAttribute("data-dryl-modal-island"));
+    }
+
     // ── A failure outranks the host's status (Trello #62) ───────────────────
 
     [Fact]
