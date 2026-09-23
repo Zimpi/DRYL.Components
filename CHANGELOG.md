@@ -19,9 +19,12 @@ Version bump guide:
 ### Added
 - `DrylIcon` — Seven new icons in the same line style: `Map`, `MapPin`, `Route`, `Navigation`, `Paperclip`, `FileText` and `UploadCloud`.
 - `DrylFileUpload` — New `Title`, `SubText` and `RemoveLabel` parameters, so the drop zone's headline, its hint line and the remove buttons' accessible names can be localised. The defaults are the previous English texts; an empty `SubText` hides the hint line. New `ShowFileList` (default `true`) lets a host that renders its own list switch the built-in one off.
+- `DrylCanvasDock` (Agents 0.19.0) — Every text the dock shows can now be localised: `VoiceStopLabel`, `ShowLogLabel`, `HideLogLabel`, `CollapseLabel` and `ClearContextLabel` for the buttons, and `IdleText`, `WorkingText`, `BuildingText`, `ReadyText`, `VoiceStatusText` and `ErrorText` for the status line. The defaults are the previous English texts.
+- `DrylCanvasDock` (Agents 0.19.0) — New `VoiceFirst`: with a `Voice` run set, one press on the collapsed button expands the dock and starts listening; the button then carries `VoiceLabel` and a microphone. New `CollapsedIcon` replaces the collapsed button's glyph.
 
 ### Fixed
 - `DrylFileUpload` — The drop zone's upload glyph and the icon of PDF rows rendered as empty space, because the names they asked for (`UploadCloud`, `FileText`) were not in the icon set. Both now draw, and a test checks every literal icon name in the library against the set.
+- `DrylCanvasDock` (Agents 0.19.0) — Setting `Status` no longer hides a failure. A run or voice error now outranks the host's status line, and the error styling follows the error rather than whether `Status` is set. A live voice session still outranks a stale run error.
 
 ## [3.0.2] — 2026-09-21
 

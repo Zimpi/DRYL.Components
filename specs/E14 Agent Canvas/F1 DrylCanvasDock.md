@@ -53,13 +53,26 @@ popover would close behind the component's back on the first click elsewhere.
 | `OnSend` | `EventCallback<string>` | — | Raised with the submitted text, prefixed with the selection reference when there is one. |
 | `Corner` | `DockCorner` | `BottomRight` | Which corner the dock floats in. |
 | `Placeholder` | `string?` | `"Ask for a view…"` | Composer placeholder. |
-| `Status` | `string?` | `null` | Overrides the status line derived from `Run` and `Voice`. |
+| `Status` | `string?` | `null` | Overrides the status line derived from `Run` and `Voice`; a failure still outranks it. |
 | `Log` | `RenderFragment?` | `null` | The transcript, revealed on demand. Without it the dock offers no disclosure. |
 | `Actions` | `RenderFragment?` | `null` | Host controls in the dock head, left of the log toggle. |
 | `Suggestions` | `RenderFragment?` | `null` | Prompt chips above the composer. |
 | `Selection` | `CanvasSelection?` | `null` | The canvas's selection: drives the context chip and the prompt prefix. |
 | `Voice` | `DrylVoiceRun?` | `null` | A voice session for this dock. Without it nothing about the dock changes. |
 | `VoiceLabel` | `string` | `"Talk to the assistant"` | Label of the microphone button — tooltip and `aria-label` both. |
+| `VoiceFirst` | `bool` | `false` | With `Voice` set, the collapsed button expands the dock and starts the session in one press. |
+| `CollapsedIcon` | `string?` | `null` | `DrylIcon` name of the collapsed button; `null` gives `Sparkle`, or `Microphone` while `VoiceFirst` applies. |
+| `VoiceStopLabel` | `string` | `"End voice session"` | Text of the stop button during a live session. |
+| `ShowLogLabel` | `string` | `"Show conversation"` | Tooltip and `aria-label` of the log toggle while the log is closed. |
+| `HideLogLabel` | `string` | `"Hide conversation"` | Tooltip and `aria-label` of the log toggle while the log is open. |
+| `CollapseLabel` | `string` | `"Collapse assistant"` | Tooltip and `aria-label` of the head's collapse button. |
+| `ClearContextLabel` | `string` | `"Clear context"` | Tooltip and `aria-label` of the context chip's clear button. |
+| `IdleText` | `string` | `"Idle"` | Status line before anything has happened. |
+| `WorkingText` | `string` | `"Working…"` | Status line while work runs and no artifact streams. |
+| `BuildingText` | `Func<int, string>?` | `null` | Status line of a streaming artifact from its element count; `null` gives `Building · n elements`. |
+| `ReadyText` | `Func<int, string>?` | `null` | Status line of a standing artifact from its element count; `null` gives `Ready · n elements`. |
+| `VoiceStatusText` | `Func<VoicePhase, VoiceActivity, string?>?` | `null` | Status line of a voice session; a `null` result falls through to the built-in line. |
+| `ErrorText` | `Func<DrylRunError, string>?` | `null` | Status line of a failure; `null` shows the error's own message. |
 | `Collapsed` | `bool` | `false` | Whether the dock is collapsed to a single button. Two-way bindable. |
 | `CollapsedChanged` | `EventCallback<bool>` | — | Fires when the dock collapses or expands. |
 | `Title` | `string` | `"Assistant"` | Name of the assistant: the collapsed button's label and the composer's `aria-label`. |
@@ -88,22 +101,61 @@ popover would close behind the component's back on the first click elsewhere.
   for, and its affordance may not rest on the tooltip alone.
 - The collapsed button is icon-only and therefore carries both a `DrylTooltip`
   and an `AriaLabel`, each naming `Title` (`UX-05`).
+- `CollapsedIcon` set renders that icon in the collapsed button.
+- `CollapsedIcon` left `null` renders `Sparkle` in the collapsed button, unless
+  `VoiceFirst` applies.
+
+### Voice first
+
+- `VoiceFirst` defaults to `false`, so the collapsed button only expands the dock.
+- `VoiceFirst` applies exactly while it is set, `Voice` is set and no session is
+  active.
+- While `VoiceFirst` applies, the collapsed button's tooltip and `AriaLabel` name
+  `VoiceLabel`.
+- While `VoiceFirst` applies and `CollapsedIcon` is `null`, the collapsed button
+  renders `Microphone`.
+- While `VoiceFirst` applies, pressing the collapsed button raises
+  `CollapsedChanged` with `false`.
+- While `VoiceFirst` applies, pressing the collapsed button calls
+  `Voice.StartAsync()`.
+- The expanded panel then shows the voice takeover through the same
+  `DrylPresence` scale and slide transitions as a session started from the head.
+- `VoiceFirst` with no `Voice` changes nothing about the collapsed button.
+- The collapsed button is a native `button`, so Enter and Space press it.
 
 ### Status line
 
-- `Status`, when set, wins over every derived line, so a host can write the
-  status in its own language.
+- An error on the voice run or on the canvas run is reported, and the status
+  line carries the error modifier class while it does.
+- A reported error outranks `Status`, so a host's own status line can never
+  hide a failure.
+- The error modifier class follows the error being reported, not whether
+  `Status` is set.
+- A reported error reads `ErrorText` applied to the error when `ErrorText` is
+  set.
+- A reported error reads the error's own message when `ErrorText` is `null`.
+- A voice error is reported before a canvas run error.
+- While a voice session is active, a canvas run error is not reported, because
+  what the AI is doing then is what the voice is doing.
+- `Status`, when set and no error is reported, wins over every derived line.
 - A voice session's own phase — connecting, listening, thinking, speaking,
-  ending — is reported next, because a live session is what the AI is doing.
-- An error on the voice run or on the canvas run is reported as its message, and
-  the status line carries the error modifier class while it does.
+  ending — is reported next.
+- `VoiceStatusText` set words the voice phase line from the phase and the
+  activity.
+- A `null` from `VoiceStatusText` falls through to the built-in line for that
+  phase.
 - A run that has not yet streamed, produced or failed anything, with no `Busy`,
-  reads `Idle` rather than claiming work: `DrylRunBase` starts at
+  reads `IdleText` rather than claiming work: `DrylRunBase` starts at
   `AiState.Thinking`, so a freshly created run would otherwise make an untouched
   page claim the assistant is working.
-- A streaming run reports its node count; a settled run holding an artifact
-  reports the same count as ready, because no generation is coming to resolve a
-  "working" line that was never true.
+- A streaming run reports its node count through `BuildingText`; a settled run
+  holding an artifact reports the same count through `ReadyText`, because no
+  generation is coming to resolve a "working" line that was never true.
+- Working without a streaming artifact reads `WorkingText`.
+- `IdleText`, `WorkingText`, `BuildingText` and `ReadyText` default to the
+  English lines listed under "Public API", so a dock that sets none of them
+  reads exactly as before.
+- The built-in element count is composed with `InvariantCulture`.
 - The status line replaces itself with a movement rather than a jump: it is
   re-keyed on its own text inside a `DrylPresence`, so the old line fades out and
   the new one in.
@@ -121,7 +173,7 @@ popover would close behind the component's back on the first click elsewhere.
 - The context chip is shown exactly while there is a selection and no live voice
   session, and it arrives and leaves with a movement.
 - The chip's clear button clears the selection and is icon-only, so it carries a
-  tooltip and an `AriaLabel`.
+  tooltip and an `AriaLabel`, each naming `ClearContextLabel`.
 - The selection survives a send: a follow-up almost always concerns the same
   element.
 - A "prompt about this element" request from the canvas expands a collapsed dock
@@ -137,6 +189,9 @@ popover would close behind the component's back on the first click elsewhere.
 - The log carries `role="log"`, and `aria-hidden` exactly while it is closed.
 - The log toggle is a toggle in the accessibility tree: it carries `Pressed`, so
   it reports `aria-pressed` and takes the button's active modifier.
+- The log toggle's tooltip and `AriaLabel` name `ShowLogLabel` while the log is
+  closed and `HideLogLabel` while it is open.
+- The head's collapse button's tooltip and `AriaLabel` name `CollapseLabel`.
 - Sending a prompt, and opening the log, scroll it to the end.
 
 ### Voice
@@ -151,6 +206,7 @@ popover would close behind the component's back on the first click elsewhere.
 - Activating the microphone calls `Voice.StartAsync()` and therefore uses the
   run's `SeedHistory` when no explicit history is supplied.
 - Activating the stop button calls `Voice.StopAsync()`.
+- The stop button's text is `VoiceStopLabel`.
 - When stop settles the run at `Idle`, the composer and microphone affordance
   return after their normal presence transitions.
 - A cancelled attempt does not leave a voice error in the status line.
