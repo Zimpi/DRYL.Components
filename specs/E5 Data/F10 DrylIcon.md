@@ -112,20 +112,15 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ## Recorded gaps
 
-- **An unknown `Name` fails silently — and one is live in the library.** A
-  misspelt name renders a correctly sized, correctly stroked, entirely empty
-  `svg`: an invisible hole in the layout, with nothing in the browser console,
-  no exception and no fallback glyph. `Name` is `EditorRequired`, which catches
-  an omitted name at compile time but says nothing about a wrong one.
-  `DrylFileUpload` asks for `UploadCloud`, and the set has only `Upload` — so
-  the drop zone's 32px leading icon has been rendering as empty space rather
-  than as a glyph, and nothing anywhere reported it. This is the component's one
-  real defect and the reason it is worth fixing first: the silence is what let
-  the wrong name survive.
-
-  Comparing the `Name` values passed to `DrylIcon` anywhere under `code/`
-  against the keys of `Icons` finds exactly this one mismatch out of 38 names
-  in use.
+- **An unknown `Name` fails silently.** A misspelt name renders a correctly
+  sized, correctly stroked, entirely empty `svg`: an invisible hole in the
+  layout, with nothing in the browser console, no exception and no fallback
+  glyph. `Name` is `EditorRequired`, which catches an omitted name at compile
+  time but says nothing about a wrong one. The one live case — `DrylFileUpload`
+  asking for `UploadCloud` and `FileText`, neither of which was in the set — was
+  closed by adding both names, and a source-scanning test now guards the
+  library's own call sites (see "Tests" below). A consumer's misspelling still
+  renders blank.
 - **`Size` is an `int` of pixels.** A parameter of raw pixels is the one place
   the component contradicts `DESIGN-01`: every call site picks a number, and the
   library's own call sites picked `11`, `13`, `15`, `16` and `20` for what is
@@ -137,15 +132,14 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   German machine and silently breaking the attribute. The string is the safe
   form; what is missing is the `FormattableString.Invariant` wrapper that would
   let it be typed.
-- **The set is not enumerated by a test.** `tests/DRYL.Components.Tests/DrylIconTests.cs`
-  asserts that three specific names exist, which guards the icons one feature
-  needed rather than the invariant "every name any component uses is in the
-  set". That invariant is deliberately **not** an acceptance criterion of this
-  spec — it is a statement about the components that call `DrylIcon`, not about
-  `DrylIcon`, and a criterion referring to code outside its own component fails
-  INVEST's first letter (`SPEC-06`). Its natural home is a test over the whole
-  `code/` tree, which is also the only form in which it could have caught
-  `UploadCloud`.
+- **The invariant is guarded by a source scan, not by a type.** "Every name any
+  component uses is in the set" is deliberately **not** an acceptance criterion
+  of this spec — it is a statement about the components that call `DrylIcon`,
+  and a criterion referring to code outside its own component fails INVEST's
+  first letter (`SPEC-06`). It is enforced by a test that reads every literal
+  `<DrylIcon Name="…">` under `code/`; a name computed at runtime (such as
+  `DrylFileUpload`'s extension switch) is outside its reach and is guarded by
+  that component's own tests.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -169,5 +163,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   rather than listing names by hand.
 - **`ComponentCatalog`** — registered as `"Icons"` / `icons` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.
-- **Tests** — `tests/DRYL.Components.Tests/DrylIconTests.cs` guards three names
-  of the set; see the recorded gap above for what it does not guard.
+- **Tests** — `tests/DRYL.Components.Tests/DrylIconTests.cs` guards named
+  entries of the set (the history icons; the map, route, attachment and upload
+  icons) and scans every literal `<DrylIcon Name="…">` under `code/` against
+  `Icons`.

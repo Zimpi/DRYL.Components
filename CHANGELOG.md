@@ -14,6 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-09-23
+
+### Added
+- `DrylIcon` — Seven new icons in the same line style: `Map`, `MapPin`, `Route`, `Navigation`, `Paperclip`, `FileText` and `UploadCloud`.
+- `DrylFileUpload` — New `Title`, `SubText` and `RemoveLabel` parameters, so the drop zone's headline, its hint line and the remove buttons' accessible names can be localised. The defaults are the previous English texts; an empty `SubText` hides the hint line. New `ShowFileList` (default `true`) lets a host that renders its own list switch the built-in one off.
+
+### Fixed
+- `DrylFileUpload` — The drop zone's upload glyph and the icon of PDF rows rendered as empty space, because the names they asked for (`UploadCloud`, `FileText`) were not in the icon set. Both now draw, and a test checks every literal icon name in the library against the set.
+
 ## [3.0.2] — 2026-09-21
 
 ### Fixed
