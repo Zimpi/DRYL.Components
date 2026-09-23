@@ -29,6 +29,7 @@ Version bump guide:
 
 ### Fixed
 - `DrylFileUpload` — The drop zone's upload glyph and the icon of PDF rows rendered as empty space, because the names they asked for (`UploadCloud`, `FileText`) were not in the icon set. Both now draw, and a test checks every literal icon name in the library against the set.
+- `DrylFileUpload` — The browser's native file button ("Choose files" and the file name) showed inside the drop zone. The rule that hides the input never reached it, because the input is rendered by the `InputFile` child component; it now does, and the whole zone is the click target again.
 - `DrylAiCanvas` (Agents 0.19.0) — Unmounting the canvas, or rebinding it to another run, now withdraws its measured width from the run, so the next generation is no longer authored for a panel that is gone.
 - `DrylCanvasDock` (Agents 0.19.0) — Setting `Status` no longer hides a failure. A run or voice error now outranks the host's status line, and the error styling follows the error rather than whether `Status` is set. A live voice session still outranks a stale run error.
 

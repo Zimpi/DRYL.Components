@@ -1,5 +1,7 @@
-/* Invisible overlay that makes the entire drop zone clickable */
-.file-input-overlay {
+/* Invisible overlay that makes the entire drop zone clickable.
+   The <input> is rendered by InputFile, a child component, so it carries no scope
+   attribute of ours: the rules must reach it through ::deep from the zone. */
+.file-drop ::deep .file-input-overlay {
     position: absolute;
     inset: 0;
     opacity: 0;
@@ -9,7 +11,7 @@
     z-index: 1;
 }
 
-.file-input-overlay:disabled {
+.file-drop ::deep .file-input-overlay:disabled {
     cursor: not-allowed;
     pointer-events: none;
 }

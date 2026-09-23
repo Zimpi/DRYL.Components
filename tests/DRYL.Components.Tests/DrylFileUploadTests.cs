@@ -62,6 +62,28 @@ public class DrylFileUploadTests : BunitContext
         Assert.Single(reported!);
     }
 
+    /// <summary>
+    /// The native input is rendered by InputFile, a child component, so it never carries this
+    /// component's scope attribute — a plain scoped selector left it visible as a browser file
+    /// button inside the zone. The rule has to go through ::deep. Layout itself was checked in
+    /// the browser; this only stops the rule from being refactored back.
+    /// </summary>
+    [Fact]
+    public void The_overlay_rule_reaches_the_child_components_input()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? css = null;
+        while (dir is not null && css is null)
+        {
+            var candidate = Path.Combine(dir.FullName, "code", "DRYL.Components", "Components", "Inputs", "DrylFileUpload.razor.css");
+            if (File.Exists(candidate)) css = File.ReadAllText(candidate);
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(css);
+        Assert.Contains(".file-drop ::deep .file-input-overlay {", css);
+    }
+
     [Fact]
     public void The_drop_zone_and_a_pdf_row_draw_real_icons()
     {

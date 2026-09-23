@@ -58,6 +58,8 @@ renders its own list from `FilesChanged` switches that list off with
 
 - The component renders a drop zone containing an invisible native file input
   that covers the whole zone.
+- The native file input is not visible as a browser file button: the overlay
+  rule reaches the `InputFile` child's input through `::deep`.
 - `Label` set renders a field label above the zone.
 - `HelperText` set renders a helper line below the control.
 - The zone renders a leading `DrylIcon` whose name is in `DrylIcon.Icons`, so
@@ -160,5 +162,6 @@ renders its own list from `FilesChanged` switches that list off with
 - **`ComponentCatalog`** — registered as `"File Upload"` / `file-upload` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged AI-capable.
 - **Tests** — `tests/DRYL.Components.Tests/DrylFileUploadTests.cs` guards the
-  default wording, every text override, the hidden hint, `ShowFileList` and the
-  non-empty glyphs.
+  default wording, every text override, the hidden hint, `ShowFileList`, the
+  non-empty glyphs and the `::deep` overlay rule. The overlay and both color
+  modes were checked in the browser on the demo page on 2026-09-23.
