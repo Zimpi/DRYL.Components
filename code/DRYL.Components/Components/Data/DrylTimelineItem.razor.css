@@ -21,12 +21,30 @@
     background: var(--glass-2);
     border: 1px solid var(--line-strong);
     color: var(--fg-muted);
+    transition: border-color var(--dur-fast) var(--ease-out),
+                color        var(--dur-fast) var(--ease-out),
+                box-shadow   var(--dur-med)  var(--ease-out);
 }
 
 .timeline-marker--accent  { border-color: var(--accent-line);          color: var(--accent-a); }
 .timeline-marker--success { border-color: color-mix(in srgb, var(--success) 50%, transparent);        color: var(--success); }
 .timeline-marker--warning { border-color: color-mix(in srgb, var(--warning) 50%, transparent);        color: var(--warning); }
 .timeline-marker--danger  { border-color: color-mix(in srgb, var(--danger) 50%, transparent);       color: var(--danger); }
+
+.timeline-number {
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.timeline-marker-content {
+    display: inline-grid;
+    place-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+}
 
 .timeline-dot {
     width: 7px;
@@ -70,6 +88,64 @@
     font-size: 14px;
     font-weight: 500;
     color: var(--fg);
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* ── Interactive steps ────────────────────────────────────────
+   The button is stretched over the whole row, so the row is the target and the
+   focus ring (the global :focus-visible outline) traces the whole step. */
+.timeline-item.is-interactive {
+    position: relative;
+}
+
+.timeline-hit {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+}
+
+.timeline-hit:disabled {
+    cursor: not-allowed;
+}
+
+/* Anything operable inside the content stays reachable above the stretched button. */
+.timeline-item.is-interactive .timeline-content :is(a, button, input, select, textarea, [tabindex]) {
+    position: relative;
+    z-index: 1;
+}
+
+.timeline-item.is-interactive:not(.is-disabled):hover .timeline-marker {
+    border-color: var(--accent-line);
+    color: var(--accent-a);
+}
+
+.timeline-item.is-interactive:not(.is-disabled):hover .timeline-title {
+    color: var(--accent-a);
+}
+
+.timeline-item.is-disabled {
+    opacity: 0.5;
+}
+
+/* The current step: the accent as a 1px border and a glow ring, never as a fill. */
+.timeline-item.is-active .timeline-marker {
+    border-color: var(--accent-line);
+    color: var(--accent-a);
+    box-shadow: var(--glow-accent);
+}
+
+.timeline-item.is-active .timeline-title {
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .timeline-marker,
+    .timeline-title { transition: none; }
 }
 
 .timeline-time {

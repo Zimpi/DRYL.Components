@@ -7,13 +7,36 @@
     Renders a marker on the rail plus a title / timestamp / body.
     Variant tints the marker; the shared Ai state wraps the marker
     in the gradient aura (e.g. a tool call in flight).
+
+    With OnClick the item becomes a step you can jump to: a native
+    button stretched over the whole row (valid HTML, one tab stop,
+    Enter/Space for free), Active marks the chosen one.
+
+      <DrylTimeline AriaLabel="Route">
+          @for (var i = 0; i < _stops.Count; i++)
+          {
+              var n = i;
+              <DrylTimelineItem Number="n + 1" Title="@_stops[n]"
+                                Active="n == _current" OnClick="() => _current = n" />
+          }
+      </DrylTimeline>
     ───────────────────────────────────────────────────────── *@
 
-<div class="timeline-item @Class" role="listitem" @attributes="AdditionalAttributes">
+<div class="@RootCssClass" role="listitem"
+     aria-current="@(Active && !Interactive ? "step" : null)"
+     @attributes="AdditionalAttributes">
     <div class="timeline-gutter">
         <div class="@MarkerCssClass">
             <DrylAuraElements Aura="_aura" GenTick="_genTick" />
-            @if (!string.IsNullOrEmpty(Icon))
+            @if (MarkerContent is not null)
+            {
+                <span class="timeline-marker-content">@MarkerContent</span>
+            }
+            else if (Number is { } number)
+            {
+                <span class="timeline-number">@number.ToString(System.Globalization.CultureInfo.InvariantCulture)</span>
+            }
+            else if (!string.IsNullOrEmpty(Icon))
             {
                 <DrylIcon Name="@Icon" Size="13" />
             }
@@ -44,6 +67,18 @@
             <div class="timeline-content">@ChildContent</div>
         }
     </div>
+
+    @if (Interactive)
+    {
+        @*  Last in the row so it paints over the marker and the text: the whole item is the
+            target, while the button itself carries the name and the current-step state. *@
+        <button type="button"
+                class="timeline-hit"
+                aria-label="@(AriaLabel ?? Title)"
+                aria-current="@(Active ? "step" : null)"
+                disabled="@Disabled"
+                @onclick="OnClick"></button>
+    }
 </div>
 
 @code {
@@ -55,6 +90,29 @@
 
     /// <summary>Optional marker icon. When omitted, a dot is shown.</summary>
     [Parameter] public string? Icon { get; set; }
+
+    /// <summary>A number in the marker — the step's position in a sequence. Wins over
+    /// <see cref="Icon"/>.</summary>
+    [Parameter] public int? Number { get; set; }
+
+    /// <summary>Free content for the marker, e.g. a letter or a tiny avatar. Wins over
+    /// <see cref="Number"/> and <see cref="Icon"/>.</summary>
+    [Parameter] public RenderFragment? MarkerContent { get; set; }
+
+    /// <summary>Makes the item a step the user can jump to: the whole row becomes one native
+    /// button. Without a delegate the item stays static, exactly as before.</summary>
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    /// <summary>Marks the item as the current step: highlighted marker and
+    /// <c>aria-current="step"</c>.</summary>
+    [Parameter] public bool Active { get; set; }
+
+    /// <summary>Disables the item's button when <see cref="OnClick"/> is set.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible name of the item's button. Leave <c>null</c> to use
+    /// <see cref="Title"/>; set it when the item has no title.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
 
     /// <summary>Marker colour treatment.</summary>
     [Parameter] public TimelineVariant Variant { get; set; } = TimelineVariant.Default;
@@ -92,6 +150,21 @@
     }
 
     public void Dispose() => _aura.Dispose();
+
+    private bool Interactive => OnClick.HasDelegate;
+
+    private string RootCssClass
+    {
+        get
+        {
+            var parts = new List<string> { "timeline-item" };
+            if (Interactive) parts.Add("is-interactive");
+            if (Active) parts.Add("is-active");
+            if (Disabled) parts.Add("is-disabled");
+            if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
+            return string.Join(' ', parts);
+        }
+    }
 
     private string MarkerCssClass
     {
