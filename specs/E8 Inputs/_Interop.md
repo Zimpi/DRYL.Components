@@ -4,7 +4,8 @@ The JS interop surface this category uses, the DI services it registers, and the
 cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
-This reference covers `DrylInputText`, `DrylTextarea` and `DrylSelect`.
+This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect` and
+`DrylFileUpload`.
 The category's remaining components are still phase-C work.
 
 ## Interop
@@ -38,6 +39,17 @@ portal or dismissal listener. See
 [`../E11 Surfaces/F1 DrylPopover.md`](../E11%20Surfaces/F1%20DrylPopover.md).
 Its options stay under that popover's panel during the exit window.
 
+`DrylFileUpload` uses one module of the same file:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.fileupload.attach(element, dotnetRef)` | `OnAfterRenderAsync` on the first interactive render installs drag listeners on the drop zone, which report the drag-active state back through `SetDragActive`. |
+| `dryl.fileupload.detach(element)` | `DisposeAsync` removes those listeners. |
+
+The drop itself is handled by the native file input stretched over the zone;
+the module only tracks whether a drag is over it, counting nested
+enter/leave pairs so a child element does not flicker the state.
+
 ## Services
 
 No input-specific DI service is registered by these three components.
@@ -64,6 +76,11 @@ of `dryl.motion.onExit`/`clearExit` also applies to this consumer: rapid
 close/reopen, reduced-motion preference changes and disposal must not leave
 stale completion callbacks or portalled exits. The contract and repair belong
 to E1/E11, with a real Select scene providing integration evidence.
+
+`DrylFileUpload` disposes its `AuraLifecycle`, then detaches the drag
+listeners only after its first interactive render attached them, tolerating
+`JSDisconnectedException` and `JSException`, and finally disposes its
+`DotNetObjectReference`.
 
 ## Evidence boundary
 

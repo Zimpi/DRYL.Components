@@ -26,15 +26,18 @@
       </DrylCanvasDock>
     ───────────────────────────────────────────────────────── *@
 
-<div class="@RootCssClass" popover="@PopoverMode" @ref="_el" @attributes="AdditionalAttributes">
+@*  data-dryl-modal-island: the dock floats above every dialog in the top layer, so it stays
+    operable while one is open — F6 moves the keyboard between the dialog and the dock
+    (dryl.modal). *@
+<div class="@RootCssClass" popover="@PopoverMode" data-dryl-modal-island @ref="_el" @attributes="AdditionalAttributes">
     <DrylPresence Visible="@Collapsed" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
         <div class="dock-fab">
-            <DrylTooltip Text="@Title">
+            <DrylTooltip Text="@FabLabel">
                 <DrylButton Variant="DrylButton.ButtonVariant.Bold"
-                            AriaLabel="@Title"
+                            AriaLabel="@FabLabel"
                             Ai="@DockAi"
-                            OnClick="@(() => SetCollapsedAsync(false))">
-                    <DrylIcon Name="Sparkle" Size="16" />
+                            OnClick="OpenFromFabAsync">
+                    <DrylIcon Name="@FabIcon" Size="16" />
                 </DrylButton>
             </DrylTooltip>
         </div>
@@ -47,7 +50,7 @@
 
                 @*  One line, and it moves: re-keying the presence on the text fades the old line
                     out and the new one in — a status change is a change, not a jump. *@
-                <div class="dock-status @(HasError ? "is-error" : null)" aria-live="polite">
+                <div class="dock-status @(ShowsError ? "is-error" : null)" aria-live="polite">
                     <DrylPresence @key="StatusText" Visible Appear
                                   Transition="PresenceTransition.Fade" Speed="PresenceSpeed.Fast">
                         <span>@StatusText</span>
@@ -196,7 +199,8 @@
     /// <summary>Composer placeholder.</summary>
     [Parameter] public string? Placeholder { get; set; } = "Ask for a view…";
 
-    /// <summary>Overrides the status line derived from <see cref="Run"/>.</summary>
+    /// <summary>Overrides the status line derived from <see cref="Run"/> and <see cref="Voice"/>.
+    /// A failure still outranks it — see <see cref="ErrorText"/>.</summary>
     [Parameter] public string? Status { get; set; }
 
     /// <summary>The transcript, revealed on demand. Without it the dock offers no disclosure.</summary>
@@ -231,6 +235,60 @@
 
     /// <summary>Label of the microphone button — tooltip and aria-label both.</summary>
     [Parameter] public string VoiceLabel { get; set; } = "Talk to the assistant";
+
+    /// <summary>
+    /// Makes the collapsed button the way into a voice session: with <see cref="Voice"/> set and no
+    /// session running, one press expands the dock and starts listening. The button then carries
+    /// <see cref="VoiceLabel"/> and a microphone. Without <see cref="Voice"/> it has no effect.
+    /// </summary>
+    [Parameter] public bool VoiceFirst { get; set; }
+
+    /// <summary>A <c>DrylIcon</c> name for the collapsed button. Leave <c>null</c> for the sparkle —
+    /// or the microphone when <see cref="VoiceFirst"/> applies.</summary>
+    [Parameter] public string? CollapsedIcon { get; set; }
+
+    /// <summary>Text of the button that ends a live voice session.</summary>
+    [Parameter] public string VoiceStopLabel { get; set; } = "End voice session";
+
+    /// <summary>Tooltip and aria-label of the log toggle while the transcript is closed.</summary>
+    [Parameter] public string ShowLogLabel { get; set; } = "Show conversation";
+
+    /// <summary>Tooltip and aria-label of the log toggle while the transcript is open.</summary>
+    [Parameter] public string HideLogLabel { get; set; } = "Hide conversation";
+
+    /// <summary>Tooltip and aria-label of the collapse button in the dock head.</summary>
+    [Parameter] public string CollapseLabel { get; set; } = "Collapse assistant";
+
+    /// <summary>Tooltip and aria-label of the context chip's clear button.</summary>
+    [Parameter] public string ClearContextLabel { get; set; } = "Clear context";
+
+    /// <summary>Status line while nothing has happened yet.</summary>
+    [Parameter] public string IdleText { get; set; } = "Idle";
+
+    /// <summary>Status line while the host or the run is working and no artifact is streaming.</summary>
+    [Parameter] public string WorkingText { get; set; } = "Working…";
+
+    /// <summary>Status line while an artifact streams, from its element count. Leave <c>null</c> for
+    /// <c>"Building · n elements"</c>.</summary>
+    [Parameter] public Func<int, string>? BuildingText { get; set; }
+
+    /// <summary>Status line once an artifact stands, from its element count. Leave <c>null</c> for
+    /// <c>"Ready · n elements"</c>.</summary>
+    [Parameter] public Func<int, string>? ReadyText { get; set; }
+
+    /// <summary>
+    /// Status line of a voice session, from its phase and activity. Return <c>null</c> to fall
+    /// through to the built-in text for that combination. Leave the parameter <c>null</c> for
+    /// "Connecting…", "Listening…", "Thinking…", "Speaking…" and "Ending…".
+    /// </summary>
+    [Parameter] public Func<VoicePhase, VoiceActivity, string?>? VoiceStatusText { get; set; }
+
+    /// <summary>
+    /// Status line of a failed run or voice session. Leave <c>null</c> to show the error's own
+    /// message. A failure always outranks <see cref="Status"/>, so a translated status line can
+    /// never hide it.
+    /// </summary>
+    [Parameter] public Func<DrylRunError, string>? ErrorText { get; set; }
 
     /// <summary>Whether the dock is collapsed to a single button. Supports two-way binding.</summary>
     [Parameter] public bool Collapsed { get; set; }
@@ -373,15 +431,31 @@
 
     private bool VoiceActive => Voice?.IsActive == true;
 
-    private const string VoiceStopLabel = "End voice session";
+    // The collapsed button speaks for the voice only while it would start one.
+    private bool VoiceFromFab => VoiceFirst && Voice is not null && !VoiceActive;
 
-    // What the voice is doing, in one line. English like every other string in this component —
-    // a host that wants it in its own language overrides Status.
-    private string? VoiceStatus => Voice is null ? null : Voice.Phase switch
+    private string FabLabel => VoiceFromFab ? VoiceLabel : Title;
+
+    private string FabIcon => CollapsedIcon ?? (VoiceFromFab ? "Microphone" : "Sparkle");
+
+    // One press, one intent: expand for the orb, then start listening.
+    private async Task OpenFromFabAsync()
+    {
+        var startVoice = VoiceFromFab;
+        await SetCollapsedAsync(false);
+        if (startVoice) await StartVoiceAsync();
+    }
+
+    // What the voice is doing, in one line. The host's VoiceStatusText goes first; a null from it
+    // falls through to the built-in English line.
+    private string? VoiceStatus => Voice is null || Voice.Phase is VoicePhase.Idle ? null
+        : VoiceStatusText?.Invoke(Voice.Phase, Voice.Activity) ?? DefaultVoiceStatus(Voice);
+
+    private static string? DefaultVoiceStatus(DrylVoiceRun voice) => voice.Phase switch
     {
         VoicePhase.Connecting => "Connecting…",
         VoicePhase.Closing => "Ending…",
-        VoicePhase.Live => Voice.Activity switch
+        VoicePhase.Live => voice.Activity switch
         {
             VoiceActivity.Thinking => "Thinking…",
             VoiceActivity.Speaking => "Speaking…",
@@ -399,8 +473,12 @@
 
     private Task StopVoiceAsync() => Voice?.StopAsync() ?? Task.CompletedTask;
 
-    private bool HasError => string.IsNullOrWhiteSpace(Status)
-        && (Run?.Error is not null || Voice?.Error is not null);
+    // The failure the status line reports, if any. A live voice session outranks a stale run
+    // error — what the AI is doing now is what the voice is doing — but nothing else does: not
+    // even the host's own Status, which is how a translated line used to hide a failure.
+    private DrylRunError? ShownError => VoiceActive ? null : Voice?.Error ?? Run?.Error;
+
+    private bool ShowsError => ShownError is not null;
 
     // A canvas run is created by the host long before anything asks it for an artifact, and
     // DrylRunBase starts at Thinking — so an untouched run would make the dock claim it is
@@ -425,33 +503,33 @@
     {
         get
         {
+            if (ShownError is { } error) return ErrorText?.Invoke(error) ?? error.Message;
             if (!string.IsNullOrWhiteSpace(Status)) return Status!;
             if (VoiceStatus is { } spoken) return spoken;
-            if (Voice?.Error is { } voiceError) return voiceError.Message;
-            if (Run?.Error is { } error) return error.Message;
-            if (!Working) return "Idle";
+            if (!Working) return IdleText;
 
             var n = Run?.NodeCount ?? 0;
-            var elements = FormattableString.Invariant($"{n} element{(n == 1 ? "" : "s")}");
             return (Run?.State ?? AiState.None) switch
             {
-                AiState.Streaming => "Building · " + elements,
-                AiState.Thinking => "Working…",
-                AiState.Generated => "Ready · " + elements,
+                AiState.Streaming => Building(n),
+                AiState.Thinking => WorkingText,
+                AiState.Generated => Ready(n),
                 // Idle but holding an artifact: a document restored from a store, or one the host
                 // built in code. Nobody is working on it, so saying so would be a lie that never
                 // resolves — there is no generation coming to settle it.
-                _ when !Busy && Run?.Spec is not null => "Ready · " + elements,
-                _ => "Working…",
+                _ when !Busy && Run?.Spec is not null => Ready(n),
+                _ => WorkingText,
             };
         }
     }
 
-    private string LogLabel => _logOpen ? "Hide conversation" : "Show conversation";
+    private string Building(int n) => BuildingText?.Invoke(n) ?? "Building · " + Elements(n);
 
-    private const string CollapseLabel = "Collapse assistant";
+    private string Ready(int n) => ReadyText?.Invoke(n) ?? "Ready · " + Elements(n);
 
-    private const string ClearContextLabel = "Clear context";
+    private static string Elements(int n) => FormattableString.Invariant($"{n} element{(n == 1 ? "" : "s")}");
+
+    private string LogLabel => _logOpen ? HideLogLabel : ShowLogLabel;
 
     // "manual": the dock owns its own collapse; a light-dismissing popover would vanish behind
     // the component's back on the first click elsewhere on the page.

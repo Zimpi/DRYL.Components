@@ -14,6 +14,27 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-09-23
+
+### Added
+- `DrylIcon` — Seven new icons in the same line style: `Map`, `MapPin`, `Route`, `Navigation`, `Paperclip`, `FileText` and `UploadCloud`.
+- `DrylFileUpload` — New `Title`, `SubText` and `RemoveLabel` parameters, so the drop zone's headline, its hint line and the remove buttons' accessible names can be localised. The defaults are the previous English texts; an empty `SubText` hides the hint line. New `ShowFileList` (default `true`) lets a host that renders its own list switch the built-in one off.
+- `DrylCanvasDock` (Agents 0.19.0) — Every text the dock shows can now be localised: `VoiceStopLabel`, `ShowLogLabel`, `HideLogLabel`, `CollapseLabel` and `ClearContextLabel` for the buttons, and `IdleText`, `WorkingText`, `BuildingText`, `ReadyText`, `VoiceStatusText` and `ErrorText` for the status line. The defaults are the previous English texts.
+- `DrylCanvasDock` (Agents 0.19.0) — New `VoiceFirst`: with a `Voice` run set, one press on the collapsed button expands the dock and starts listening; the button then carries `VoiceLabel` and a microphone. New `CollapsedIcon` replaces the collapsed button's glyph.
+- `DrylDialogProvider` — Modal islands: an element marked `data-dryl-modal-island` stays reachable by keyboard while a dialog is open. `F6` moves focus from the dialog into the island and back to where it left the dialog; `Tab` stays inside whichever of the two holds focus, so the page behind the dialog remains unreachable. `Escape` keeps belonging to the dialog. Without an open dialog nothing is intercepted.
+- `DrylCanvasDock` (Agents 0.19.0) — The dock is a modal island: with a dialog open — a map, a fullscreen canvas — `F6` takes the keyboard to the composer or the voice stop button and back. The dock already stayed above the dialog and usable by pointer, because it lives in the top layer.
+- `DrylTimelineItem` — Items can now be steps: `Number` or free `MarkerContent` in the marker, `OnClick` turns the whole row into one native button, `Active` marks the current step (highlighted marker, `aria-current="step"`), plus `Disabled` and `AriaLabel`. Hover and the current step glide. Without the new parameters an item renders as before.
+- `DrylCanvas` — New `EmptyTitle`, `FallbackTitle` and `ErrorTitle` parameters for the empty state's headline, the header title of an untitled artifact and the error alert's title. The defaults are the previous English texts.
+- `DrylAiCanvas` (Agents 0.19.0) — Every text the AI canvas shows or announces can now be localised: `EmptyText`, `EmptyTitle`, `FallbackTitle` and `ErrorTitle` for the surface, `IdleText`, `WorkingText`, `BuildingText` and `ReadyText` for the status pill, and `BuildingAnnouncement`, `ReadyAnnouncement`, `UpdatedAnnouncement` and `FailedAnnouncement` for the screen-reader announcements. The defaults are the previous English texts.
+- `DrylCanvasRun` (Agents 0.19.0) — New `WaitForSurfaceAsync(timeout, ct)` and `OnWidthReported`: a host that opens the canvas only when the assistant starts drawing can wait until the canvas has measured itself, instead of guessing a delay, so the first generation gets the real layout budget.
+- `DrylCanvasTools` (Agents 0.19.0) — New `BeforeGenerate` hook, awaited at the start of every `create_artifact`, `update_artifact` and `open_view` call — the place to open the canvas and wait for it, without wrapping the tools.
+
+### Fixed
+- `DrylFileUpload` — The drop zone's upload glyph and the icon of PDF rows rendered as empty space, because the names they asked for (`UploadCloud`, `FileText`) were not in the icon set. Both now draw, and a test checks every literal icon name in the library against the set.
+- `DrylFileUpload` — The browser's native file button ("Choose files" and the file name) showed inside the drop zone. The rule that hides the input never reached it, because the input is rendered by the `InputFile` child component; it now does, and the whole zone is the click target again.
+- `DrylAiCanvas` (Agents 0.19.0) — Unmounting the canvas, or rebinding it to another run, now withdraws its measured width from the run, so the next generation is no longer authored for a panel that is gone.
+- `DrylCanvasDock` (Agents 0.19.0) — Setting `Status` no longer hides a failure. A run or voice error now outranks the host's status line, and the error styling follows the error rather than whether `Status` is set. A live voice session still outranks a stale run error.
+
 ## [3.0.2] — 2026-09-21
 
 ### Fixed

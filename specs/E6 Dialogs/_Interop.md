@@ -29,6 +29,14 @@ the provider's doing.
 - **The scroll lock** is reference-counted across layers, so a stack of dialogs
   locks the body once and unlocks it when the last one is gone.
 
+While at least one layer is attached, `dryl.modal` also holds one capturing
+`keydown` listener on `document` for **modal islands** — visible elements
+marked `data-dryl-modal-island`. `F6` moves focus between the topmost layer and
+the first island, remembering where it left the layer; `Tab` inside an island
+cycles within it. The listener is added when the first layer attaches and
+removed when the last one detaches, so no key is intercepted while no dialog is
+open. Covered by `tests/js/modal-island.test.mjs`.
+
 `dryl.modal.detach` restores focus to the element that had it before the dialog
 opened — but only when focus is still inside the closing dialog or has been lost
 to the body. A follow-up dialog may already own it, and stealing it back would

@@ -221,12 +221,75 @@ window.dryl.clipboard = {
 /* --------------------------------------------------------------
  * Modal — body scroll lock, focus trap and ESC handling for
  * DrylDialog / DrylDialogProvider.
+ *
+ * Islands: a surface that floats above every dialog in the top layer
+ * (DrylCanvasDock) and marks itself with data-dryl-modal-island stays
+ * operable while a dialog is open — the mouse reaches it anyway, and
+ * the keyboard reaches it through F6, the usual "next region" key.
+ * F6 moves focus from the topmost dialog into the island and back to
+ * where it left the dialog; Tab stays inside whichever of the two holds
+ * focus, so the page behind the dialog is never reachable. Escape keeps
+ * belonging to the dialog. Without an open dialog nothing here runs and
+ * F6 is the browser's.
  * -------------------------------------------------------------- */
 window.dryl.modal = (() => {
     const FOCUSABLE =
         'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), ' +
         'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     let openCount = 0;
+    const stack = [];   // attached layers, topmost last
+
+    function islands() {
+        return Array.from(document.querySelectorAll('[data-dryl-modal-island]'))
+            .filter(el => el.getClientRects().length > 0);
+    }
+
+    // Where focus lands in an island: its text field if it has one (the dock is a
+    // command bar — you go there to type), else its first focusable element.
+    function islandTarget(island) {
+        const items = focusable(island);
+        return items.find(el => el.matches('textarea, input')) || items[0] || null;
+    }
+
+    function cycle(root, e) {
+        const items = focusable(root);
+        if (items.length === 0) return;
+        const first = items[0], last = items[items.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    }
+
+    function onDocumentKeyDown(e) {
+        if (stack.length === 0 || (e.key !== 'F6' && e.key !== 'Tab')) return;
+        const top = stack[stack.length - 1];
+        const state = top.__drylModal;
+        const active = document.activeElement;
+        const island = islands().find(i => i.contains(active));
+
+        if (e.key === 'Tab') {
+            // The dialog's own trap handles Tab inside the dialog; an island keeps its
+            // own Tab ring, so Tab never walks out onto the page behind the dialog.
+            if (island && state && state.trapFocus) cycle(island, e);
+            return;
+        }
+
+        if (island) {
+            const back = state && state.lastInside && state.lastInside.isConnected
+                && top.contains(state.lastInside)
+                ? state.lastInside
+                : (focusable(top)[0] || top);
+            e.preventDefault();
+            back.focus();
+            return;
+        }
+
+        const target = islands().map(islandTarget).find(Boolean);
+        if (!target) return;   // nothing to jump to: F6 stays the browser's
+        e.preventDefault();
+        if (state && top.contains(active)) state.lastInside = active;
+        target.focus();
+    }
 
     function lockScroll() {
         if (openCount === 0) document.body.classList.add('dryl-scroll-locked');
@@ -279,8 +342,9 @@ window.dryl.modal = (() => {
 
         el.addEventListener('keydown', onKeyDown);
 
-        const state = { onKeyDown, previouslyFocused, focusTimer: 0 };
+        const state = { onKeyDown, previouslyFocused, focusTimer: 0, trapFocus, lastInside: null };
         el.__drylModal = state;
+        if (stack.push(el) === 1) document.addEventListener('keydown', onDocumentKeyDown, true);
         // A detached or replaced attachment must not take focus on the next turn.
         state.focusTimer = setTimeout(() => {
             state.focusTimer = 0;
@@ -299,11 +363,16 @@ window.dryl.modal = (() => {
         clearTimeout(focusTimer);
         el.removeEventListener('keydown', onKeyDown);
         delete el.__drylModal;
+        const at = stack.indexOf(el);
+        if (at >= 0) stack.splice(at, 1);
+        if (stack.length === 0) document.removeEventListener('keydown', onDocumentKeyDown, true);
         unlockScroll();
         // Only hand focus back if it is still inside this dialog (or was lost
         // to the body) — a follow-up dialog may already own it, and stealing
         // it back would break that dialog's focus trap.
         const active = document.activeElement;
+        // Focus in an island (the dock) is not ours: the user is working there — typing
+        // while the assistant closes the map — and must not be yanked out of it.
         const focusIsOurs = !active || active === document.body || el.contains(active);
         if (focusIsOurs && previouslyFocused && typeof previouslyFocused.focus === 'function') {
             try { previouslyFocused.focus(); } catch (_) { /* element gone */ }

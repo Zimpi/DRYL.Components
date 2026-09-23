@@ -24,7 +24,7 @@ function fixture(reduce = false) {
     media.matches = reduce;
     let next = 0;
     const body = new Element(); body.classList = { add() {}, remove() {} };
-    const document = { body, activeElement: body };
+    const document = { body, activeElement: body, addEventListener() {}, removeEventListener() {}, querySelectorAll: () => [] };
     const window = { dryl: { reduced: () => media.matches }, matchMedia: () => media };
     const context = vm.createContext({ window, document, console, Promise, WeakMap, Map,
         requestAnimationFrame: fn => { frames.set(++next, fn); return next; },

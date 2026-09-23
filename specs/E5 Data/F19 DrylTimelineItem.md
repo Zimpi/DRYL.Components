@@ -25,8 +25,15 @@ the shared aura, so a tool call in flight glows while the steps above it sit
 still. The two are independent: a `Success` step can be re-running.
 
 The marker's content follows the same "always something" rule as `DrylAvatar`:
-an `Icon` when one is given, and a plain dot when none is. The dot takes the
-marker's own colour, so the variant reads even without an icon.
+free `MarkerContent` when given, else a `Number`, else an `Icon`, and a plain
+dot when none is. The dot takes the marker's own colour, so the variant reads
+even without an icon.
+
+An item can also be a **step**: given `OnClick`, the whole row becomes one
+native button a user can jump to — the route of a trip, the stages of a
+process — and `Active` marks the chosen one as the current step, on the rail
+and in the accessibility tree. Without `OnClick` and `Active` the item is the
+static event it always was.
 
 The connecting line is drawn by every item except the last, and the bottom
 spacing is dropped on the last one, so a timeline ends flush rather than
@@ -39,6 +46,12 @@ trailing off.
 | `Title` | `string?` | `null` | Title line for the event. |
 | `Timestamp` | `string?` | `null` | Pre-formatted timestamp shown beside the title. |
 | `Icon` | `string?` | `null` | `DrylIcon` name in the marker. `null` renders a dot. |
+| `Number` | `int?` | `null` | A number in the marker; wins over `Icon`. |
+| `MarkerContent` | `RenderFragment?` | `null` | Free marker content; wins over `Number` and `Icon`. |
+| `OnClick` | `EventCallback<MouseEventArgs>` | — | Makes the row one native button. |
+| `Active` | `bool` | `false` | Marks the item as the current step. |
+| `Disabled` | `bool` | `false` | Disables the row's button. |
+| `AriaLabel` | `string?` | `null` | Accessible name of the row's button; `null` uses `Title`. |
 | `Variant` | `TimelineVariant` | `TimelineVariant.Default` | Colour treatment of the marker. |
 | `ChildContent` | `RenderFragment?` | `null` | Body content for the event. |
 | `Ai` | `AiState` | `AiState.None` | Ambient AI state; wraps the marker in the aura. |
@@ -56,8 +69,13 @@ trailing off.
   order.
 - The gutter holds the marker and the connecting line.
 - The gutter does not shrink, so a long title cannot squeeze the rail.
-- `Icon` set renders one `DrylIcon` inside the marker.
-- `Icon` unset renders a dot inside the marker.
+- `MarkerContent` set renders that content inside the marker and nothing else.
+- `Number` set, with no `MarkerContent`, renders the number inside the marker,
+  formatted with the invariant culture.
+- `Icon` set, with neither `MarkerContent` nor `Number`, renders one `DrylIcon`
+  inside the marker.
+- None of `MarkerContent`, `Number` and `Icon` set renders a dot inside the
+  marker.
 - `Title` or `Timestamp` set renders a head row inside the body.
 - Neither set renders no head row.
 - `Title` set renders the title in the head row.
@@ -85,12 +103,31 @@ trailing off.
 - Every item carries bottom spacing under its body.
 - The last item in its container carries none, so a timeline ends flush.
 
+### Steps
+
+- `OnClick` without a delegate renders no button, so a static item is unchanged.
+- `OnClick` with a delegate renders one native `button` with `type="button"`
+  stretched over the whole row.
+- Pressing that button raises `OnClick`.
+- The button's accessible name is `AriaLabel`, or `Title` when `AriaLabel` is
+  `null`.
+- `Active` set on an interactive item puts `aria-current="step"` on its button.
+- `Active` set on a static item puts `aria-current="step"` on the root.
+- `Active` unset renders no `aria-current`.
+- `Disabled` set on an interactive item disables its button and dims the row.
+- Operable elements inside `ChildContent` stay above the stretched button, so
+  they remain reachable.
+
 ### Keyboard and accessibility
 
 - The root carries `role="listitem"`, so the event is counted as one item of the
   timeline's list.
-- The item is not focusable and adds no stop to the tab order; anything operable
-  in `ChildContent` is the consumer's own.
+- A static item is not focusable and adds no stop to the tab order; anything
+  operable in `ChildContent` is the consumer's own.
+- An interactive item adds exactly one tab stop, its button, which Enter and
+  Space press natively.
+- The button's focus ring is the global `:focus-visible` outline and traces the
+  whole row.
 - The marker's icon is decorative and is not part of the item's accessible name,
   so the event is announced by its title rather than by its glyph.
 - Every aura layer is hidden from assistive technology.
@@ -112,6 +149,14 @@ trailing off.
   `TimelineVariant.Default`, so an unmapped value still renders a marker.
 - The dot takes `currentColor`, so it matches whatever variant the marker is
   without a rule of its own.
+- Hovering an enabled interactive item outlines its marker with
+  `--accent-line`, sets the marker and the title in `--accent-a`.
+- An active item outlines its marker with `--accent-line`, sets it in
+  `--accent-a` and rings it with `--glow-accent`.
+- The marker's border and color change over `--dur-fast` and its glow over
+  `--dur-med`, both with `--ease-out`, so hover and the current step glide
+  rather than snap.
+- Under `prefers-reduced-motion: reduce` those transitions are removed.
 - The connecting line is drawn in `--line`, quieter than any marker.
 - The title is set in `--fg`, the body in `--fg-muted` and the timestamp in
   `--fg-dim`, so the three levels of the entry are distinguishable in
@@ -154,21 +199,23 @@ trailing off.
   are dropped by a last-child selector, so any non-item element after the last
   item leaves a line dangling — the container-side half of this is recorded in
   `F18`.
-- **Nothing about the item is animated except its aura.** An event appended to a
-  feed appears instantly, and a `Variant` change swaps colours between two
-  frames (`DESIGN-11`, `DESIGN-12`). For an agent trace — the use the component
+- **An arriving item is not animated.** Hover and the current step glide, and
+  the aura has its own lifecycle, but an event appended to a feed appears
+  instantly, and a `Variant` change swaps colours between two frames
+  (`DESIGN-11`, `DESIGN-12`). For an agent trace — the use the component
   documents — a step arriving is the moment the component exists for.
 - **The marker's geometry is literal.** The marker's `28px` box, the dot's
   `7px`, the line's minimum height and margins, the body's inner gap and the
-  three type sizes are written into `DrylTimelineItem.razor.css` with no token
-  behind them (`DESIGN-01`). The outer gaps and the bottom spacing *are* tokens,
+  type sizes — the title, time, content and the marker's number — are written
+  into `DrylTimelineItem.razor.css` with no token behind them (`DESIGN-01`). The outer gaps and the bottom spacing *are* tokens,
   so the file is half-converted rather than untouched.
 - **The marker's size does not follow the icon's.** The icon inside it is
   rendered at a bare pixel size chosen in the component, the same literal-size
   gap `F10` records.
-- **No tests of its own.** None of the criteria above is guarded by a test,
-  including the independence of `Ai` and `Variant`, which is the component's one
-  non-obvious rule.
+- **The independence of `Ai` and `Variant` is untested.**
+  `tests/DRYL.Components.Tests/DrylTimelineItemTests.cs` guards the marker
+  precedence, the step button, `aria-current`, `Disabled` and the `Class` merge,
+  but not the component's one non-obvious rule.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -181,10 +228,11 @@ trailing off.
 - **Enter/exit animation** — **absent** for the item, and recorded above as debt
   rather than as an exception; the aura's enter, dissolve and completion wash
   are specified above.
-- **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
-  substantive decision is that the marker's icon never enters the accessible
-  name, so the event is announced by its title; the substantive omission is the
-  unmachine-readable timestamp, recorded above.
+- **Keyboard and a11y** — the "Steps" and "Keyboard and accessibility"
+  criteria above. The substantive decisions are that the marker's icon never
+  enters the accessible name, so the event is announced by its title, and that
+  a step is one native button with `aria-current="step"`; the substantive
+  omission is the unmachine-readable timestamp, recorded above.
 - **AI mode** — yes, and placed deliberately: the aura wraps the marker rather
   than the row, so a running step is signalled on the rail rather than by
   lighting up a paragraph.

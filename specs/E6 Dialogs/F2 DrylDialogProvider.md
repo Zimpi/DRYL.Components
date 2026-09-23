@@ -110,6 +110,28 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
 - Focus that has escaped the layer is pulled back into it on the next `Tab`.
 - Closing a dialog returns focus to the element that had it before the dialog
   opened.
+- Closing a dialog while focus sits in a modal island leaves focus in the
+  island, so a user typing there is not pulled out of it.
+
+### Modal islands
+
+An island is a visible element carrying `data-dryl-modal-island` — a surface
+that floats above every dialog in the top layer, such as `DrylCanvasDock`. The
+mouse reaches it anyway; these criteria make the keyboard reach it too, without
+opening the page behind the dialog.
+
+- With a dialog open, `F6` moves focus from the topmost dialog into the first
+  visible island.
+- Focus lands on the island's first text field, or on its first focusable
+  element when it has none.
+- With focus in an island, `F6` returns focus to the element that last had it
+  inside the topmost dialog, or to the dialog's first focusable element when
+  that element is gone.
+- With focus in an island and the focus trap on, `Tab` and `Shift+Tab` cycle
+  within the island and do not reach the page behind the dialog.
+- `F6` with no visible island is not intercepted and stays the browser's.
+- Without an open dialog no key is intercepted for islands at all.
+- `Escape` keeps belonging to the dialog; an island does not close it.
 - Closing a dialog does **not** return focus when a follow-up dialog has already
   taken it, so a handoff does not break the successor's trap.
 - Opening a dialog locks scrolling of the page behind it.
@@ -174,7 +196,8 @@ Usage is two lines in an app: `AddDrylComponents()` in startup, and
 - Each layer is focusable programmatically but takes no tab stop of its own, so
   it can receive focus when a dialog has no focusable content without adding a
   stop when it does.
-- The page behind an open dialog is unreachable by keyboard.
+- The page behind an open dialog is unreachable by keyboard; a modal island is
+  reachable only through `F6` (see "Modal islands").
 
 ### Appearance
 

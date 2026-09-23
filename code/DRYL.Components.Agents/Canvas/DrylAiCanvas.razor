@@ -29,7 +29,10 @@
             Ai="@(Run?.State ?? AiState.None)"
             Error="@(Run?.Error?.Message)"
             Announcement="@_announcement"
-            EmptyText="Ask the assistant to create one."
+            EmptyText="@EmptyText"
+            EmptyTitle="@EmptyTitle"
+            FallbackTitle="@FallbackTitle"
+            ErrorTitle="@ErrorTitle"
             Epoch="@(Run?.ArtifactEpoch ?? 0)"
             Pulse="Run?.Pulse"
             OnInteraction="OnInteraction"
@@ -76,6 +79,45 @@
     /// </summary>
     [Parameter] public bool AllowExpand { get; set; } = true;
 
+    /// <summary>Message of the empty state shown before the first artifact.</summary>
+    [Parameter] public string? EmptyText { get; set; } = "Ask the assistant to create one.";
+
+    /// <summary>Headline of the empty state shown before the first artifact.</summary>
+    [Parameter] public string EmptyTitle { get; set; } = "No artifact yet";
+
+    /// <summary>Header title while the artifact has none of its own.</summary>
+    [Parameter] public string FallbackTitle { get; set; } = "Artifact";
+
+    /// <summary>Title of the alert shown when the run failed.</summary>
+    [Parameter] public string ErrorTitle { get; set; } = "Artifact failed";
+
+    /// <summary>Status pill while nothing is running.</summary>
+    [Parameter] public string IdleText { get; set; } = "Idle";
+
+    /// <summary>Status pill while the run is thinking.</summary>
+    [Parameter] public string WorkingText { get; set; } = "Working";
+
+    /// <summary>Status pill while the artifact streams, from its element count (0 before the
+    /// first element). Leave <c>null</c> for <c>"Building"</c> / <c>"Building · n elements"</c>.</summary>
+    [Parameter] public Func<int, string>? BuildingText { get; set; }
+
+    /// <summary>Status pill once the artifact stands, from its element count. Leave <c>null</c>
+    /// for <c>"Ready"</c>.</summary>
+    [Parameter] public Func<int, string>? ReadyText { get; set; }
+
+    /// <summary>Screen-reader announcement when a generation starts streaming.</summary>
+    [Parameter] public string BuildingAnnouncement { get; set; } = "Building artifact…";
+
+    /// <summary>Screen-reader announcement when the first generation of an artifact completes.</summary>
+    [Parameter] public string ReadyAnnouncement { get; set; } = "Artifact ready.";
+
+    /// <summary>Screen-reader announcement when an update completes, from the number of changed
+    /// elements. Leave <c>null</c> for <c>"Artifact updated, n changes."</c>.</summary>
+    [Parameter] public Func<int, string>? UpdatedAnnouncement { get; set; }
+
+    /// <summary>Screen-reader announcement when the run fails.</summary>
+    [Parameter] public string FailedAnnouncement { get; set; } = "Artifact failed.";
+
     /// <summary>Extra CSS class(es) merged onto the canvas root.</summary>
     [Parameter] public string? Class { get; set; }
 
@@ -100,7 +142,12 @@
     {
         if (!ReferenceEquals(_subscribed, Run))
         {
-            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            if (_subscribed is not null)
+            {
+                _subscribed.OnChange -= HandleChange;
+                // The old run no longer has this surface: its width would be a lie.
+                if (_lastWidth > 0) _subscribed.ForgetWidth();
+            }
             _subscribed = Run;
             if (_subscribed is not null) _subscribed.OnChange += HandleChange;
             // A run bound after the first measurement would otherwise stay width-blind until
@@ -167,16 +214,17 @@
 
         if (Run.Error is not null)
         {
-            _announcement = "Artifact failed.";
+            _announcement = FailedAnnouncement;
             return;
         }
 
         _announcement = Run.State switch
         {
-            AiState.Streaming => "Building artifact…",
+            AiState.Streaming => BuildingAnnouncement,
             AiState.Generated when Run.Round > 1 =>
-                FormattableString.Invariant($"Artifact updated, {Run.ChangedIds.Count} changes."),
-            AiState.Generated => "Artifact ready.",
+                UpdatedAnnouncement?.Invoke(Run.ChangedIds.Count)
+                ?? FormattableString.Invariant($"Artifact updated, {Run.ChangedIds.Count} changes."),
+            AiState.Generated => ReadyAnnouncement,
             _ => _announcement,
         };
     }
@@ -186,9 +234,9 @@
     private string StatusLabel => (Run?.State ?? AiState.None) switch
     {
         AiState.Streaming => BuildingLabel,
-        AiState.Thinking => "Working",
-        AiState.Generated => "Ready",
-        _ => "Idle",
+        AiState.Thinking => WorkingText,
+        AiState.Generated => ReadyText?.Invoke(Run?.NodeCount ?? 0) ?? "Ready",
+        _ => IdleText,
     };
 
     private string BuildingLabel
@@ -196,6 +244,7 @@
         get
         {
             var n = Run?.NodeCount ?? 0;
+            if (BuildingText is { } text) return text(n);
             if (n == 0) return "Building";
             return FormattableString.Invariant($"Building · {n} element{(n == 1 ? "" : "s")}");
         }
@@ -216,7 +265,13 @@
 
     public void Dispose()
     {
-        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        if (_subscribed is not null)
+        {
+            _subscribed.OnChange -= HandleChange;
+            // Unmounted — a dialog closed, a panel folded away. The next generation must wait for
+            // (or do without) a new measurement rather than build for the old width.
+            if (_lastWidth > 0) _subscribed.ForgetWidth();
+        }
         _aura.Dispose();
     }
 }

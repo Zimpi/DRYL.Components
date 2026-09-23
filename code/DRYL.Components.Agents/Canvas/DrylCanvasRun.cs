@@ -101,14 +101,73 @@ public sealed class DrylCanvasRun : DrylRunBase
     /// </summary>
     public int? AvailableWidth { get; private set; }
 
+    private readonly object _widthSync = new();
+    private TaskCompletionSource? _surface;
+
+    /// <summary>
+    /// Raised with the width every time a rendering surface reports one — the first measurement
+    /// after a canvas mounts, and every resize after it. Raised on whichever thread reported it.
+    /// </summary>
+    public event Action<int>? OnWidthReported;
+
     /// <summary>
     /// Reports the measured width of the rendering surface (see <see cref="AvailableWidth"/>).
     /// Deliberately does not raise <c>OnChange</c> — the value only feeds the next generation's
-    /// prompt, and a resize must never re-render the artifact tree.
+    /// prompt, and a resize must never re-render the artifact tree. It does raise
+    /// <see cref="OnWidthReported"/> and completes a pending <see cref="WaitForSurfaceAsync"/>.
     /// </summary>
     public void ReportWidth(int widthPx)
     {
-        if (widthPx > 0) AvailableWidth = widthPx;
+        if (widthPx <= 0) return;
+        TaskCompletionSource? waiting;
+        lock (_widthSync)
+        {
+            AvailableWidth = widthPx;
+            waiting = _surface;
+            _surface = null;
+        }
+        waiting?.TrySetResult();
+        OnWidthReported?.Invoke(widthPx);
+    }
+
+    /// <summary>
+    /// Waits until a mounted canvas has measured its surface, so a generation started right after
+    /// the host opened the canvas (a dialog, a side panel) is authored for the width it really has.
+    /// Completes at once when a width is already known.
+    /// </summary>
+    /// <param name="timeout">How long to wait at most. A canvas that never mounts — no JS, a closed
+    /// panel — must not hold a generation hostage.</param>
+    /// <param name="ct">Cancels the wait.</param>
+    /// <returns><c>true</c> once a width is known; <c>false</c> when the timeout passed first.</returns>
+    public async Task<bool> WaitForSurfaceAsync(TimeSpan timeout, CancellationToken ct = default)
+    {
+        Task measured;
+        lock (_widthSync)
+        {
+            if (AvailableWidth is not null) return true;
+            _surface ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            measured = _surface.Task;
+        }
+
+        try
+        {
+            await measured.WaitAsync(timeout, ct).ConfigureAwait(false);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The canvas that measured this run's surface is gone: forget the width, so the next
+    /// generation is not authored for a panel that no longer exists and the next
+    /// <see cref="WaitForSurfaceAsync"/> waits for the new one.
+    /// </summary>
+    internal void ForgetWidth()
+    {
+        lock (_widthSync) AvailableWidth = null;
     }
 
     private static int Count(CanvasNode node)

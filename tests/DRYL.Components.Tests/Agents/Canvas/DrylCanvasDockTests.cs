@@ -303,4 +303,293 @@ public class DrylCanvasDockTests : BunitContext
         Assert.Contains("Mikrofon", status.TextContent);
         Assert.Contains("is-error", status.ClassList);
     }
+
+    // ── Reachable from an open dialog (Trello #66) ──────────────────────────
+
+    [Fact]
+    public void The_dock_marks_itself_as_a_modal_island()
+    {
+        // dryl.modal lets F6 move focus between an open dialog and every element carrying
+        // this attribute; the behaviour itself is covered in tests/js/modal-island.test.mjs.
+        var cut = Render<DrylCanvasDock>();
+
+        Assert.True(cut.Find(".canvas-dock").HasAttribute("data-dryl-modal-island"));
+    }
+
+    // ── A failure outranks the host's status (Trello #62) ───────────────────
+
+    [Fact]
+    public void A_voice_failure_outranks_a_host_status()
+    {
+        var voice = VoiceRun();
+        voice.OnFailed("Kein Zugriff auf das Mikrofon.");
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Voice, voice)
+            .Add(x => x.Status, "Bereit"));
+
+        var status = cut.Find(".dock-status");
+        Assert.Contains("Mikrofon", status.TextContent);
+        Assert.DoesNotContain("Bereit", status.TextContent);
+        Assert.Contains("is-error", status.ClassList);
+    }
+
+    [Fact]
+    public void A_run_failure_outranks_a_host_status()
+    {
+        var run = new DrylCanvasRun();
+        run.BeginCreate();
+        run.FailGeneration(new InvalidOperationException("generator gave up"));
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, run)
+            .Add(x => x.Status, "Bereit"));
+
+        Assert.Contains("generator gave up", cut.Find(".dock-status").TextContent);
+        Assert.Contains("is-error", cut.Find(".dock-status").ClassList);
+    }
+
+    [Fact]
+    public void ErrorText_words_the_failure()
+    {
+        var run = new DrylCanvasRun();
+        run.BeginCreate();
+        run.FailGeneration(new InvalidOperationException("generator gave up"));
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, run)
+            .Add(x => x.ErrorText, e => "Fehler: " + e.Message));
+
+        Assert.Contains("Fehler: generator gave up", cut.Find(".dock-status").TextContent);
+        Assert.Contains("is-error", cut.Find(".dock-status").ClassList);
+    }
+
+    [Fact]
+    public void A_live_voice_session_outranks_a_stale_run_failure()
+    {
+        var run = new DrylCanvasRun();
+        run.BeginCreate();
+        run.FailGeneration(new InvalidOperationException("generator gave up"));
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, run)
+            .Add(x => x.Voice, voice));
+
+        Assert.Contains("Listening", cut.Find(".dock-status").TextContent);
+        Assert.DoesNotContain("is-error", cut.Find(".dock-status").ClassList);
+    }
+
+    // ── Every label and status line can be localised (Trello #61) ────────────
+
+    [Fact]
+    public void The_default_labels_are_unchanged()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Log, (RenderFragment)(b => b.AddMarkupContent(0, "<p>x</p>"))));
+
+        Assert.Equal("Show conversation", cut.Find(".dock-log-toggle").GetAttribute("aria-label"));
+        Assert.Equal("Collapse assistant", cut.Find(".dock-collapse").GetAttribute("aria-label"));
+        cut.Find(".dock-log-toggle").Click();
+        Assert.Equal("Hide conversation", cut.Find(".dock-log-toggle").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void The_head_labels_can_be_overridden()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Log, (RenderFragment)(b => b.AddMarkupContent(0, "<p>x</p>")))
+            .Add(x => x.ShowLogLabel, "Verlauf zeigen")
+            .Add(x => x.HideLogLabel, "Verlauf verbergen")
+            .Add(x => x.CollapseLabel, "Assistent einklappen"));
+
+        Assert.Equal("Verlauf zeigen", cut.Find(".dock-log-toggle").GetAttribute("aria-label"));
+        Assert.Equal("Assistent einklappen", cut.Find(".dock-collapse").GetAttribute("aria-label"));
+        Assert.Contains("Assistent einklappen", cut.Markup);   // the tooltip text
+        cut.Find(".dock-log-toggle").Click();
+        Assert.Equal("Verlauf verbergen", cut.Find(".dock-log-toggle").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void The_clear_context_label_can_be_overridden()
+    {
+        var selection = new CanvasSelection();
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Selection, selection)
+            .Add(x => x.ClearContextLabel, "Bezug entfernen"));
+        cut.InvokeAsync(() => selection.Select(new CanvasNode
+        {
+            Id = "c3", Type = "lineChart",
+            Props = JsonSerializer.Deserialize<JsonElement>("""{ "title": "Umsatz" }"""),
+        }));
+
+        Assert.NotNull(cut.Find(".dock-context button[aria-label='Bezug entfernen']"));
+    }
+
+    [Fact]
+    public void The_stop_button_text_can_be_overridden()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Voice, voice)
+            .Add(x => x.VoiceStopLabel, "Gespräch beenden"));
+
+        Assert.Contains("Gespräch beenden", cut.Find(".dock-voice-stop").TextContent);
+    }
+
+    [Fact]
+    public void The_default_stop_button_text_is_unchanged()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Voice, voice));
+
+        Assert.Contains("End voice session", cut.Find(".dock-voice-stop").TextContent);
+    }
+
+    [Fact]
+    public void The_status_lines_can_be_overridden()
+    {
+        var idle = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.IdleText, "Bereit"));
+        Assert.Contains("Bereit", idle.Find(".dock-status").TextContent);
+
+        var working = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, new DrylCanvasRun())
+            .Add(x => x.Busy, true)
+            .Add(x => x.WorkingText, "Arbeitet…"));
+        Assert.Contains("Arbeitet…", working.Find(".dock-status").TextContent);
+
+        var building = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, BuildingRun())
+            .Add(x => x.BuildingText, n => $"Baut · {n} Elemente"));
+        Assert.Matches(@"Baut · \d+ Elemente", building.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
+    public void ReadyText_words_a_standing_artifact()
+    {
+        var spec = JsonSerializer.Deserialize<CanvasSpec>(
+            """
+            { "title": "Report", "root": { "id": "root", "type": "stack", "children": [
+                { "id": "a", "type": "markdown", "props": { "content": "x" } } ] } }
+            """, CanvasJson.Options)!;
+        var workspace = new CanvasWorkspace();
+        workspace.Open("Übersicht").Spec = spec;
+        var run = new DrylCanvasRun();
+        run.UseWorkspace(workspace);
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Run, run)
+            .Add(x => x.ReadyText, n => $"Fertig · {n}"));
+
+        Assert.Matches(@"Fertig · \d+", cut.Find(".dock-status").TextContent);
+    }
+
+    [Fact]
+    public void VoiceStatusText_words_the_voice_and_null_falls_through()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+        voice.OnActivity(nameof(VoiceActivity.Speaking));
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Voice, voice)
+            .Add(x => x.VoiceStatusText, (phase, activity) =>
+                activity == VoiceActivity.Speaking ? "Spricht…" : null));
+        Assert.Contains("Spricht…", cut.Find(".dock-status").TextContent);
+
+        voice.OnActivity(nameof(VoiceActivity.Listening));
+        cut.Render();
+        Assert.Contains("Listening", cut.Find(".dock-status").TextContent);
+    }
+
+    // ── One press into a voice session (Trello #63) ─────────────────────────
+
+    /// <summary>A voice run whose token request never answers, so it stays in Connecting.</summary>
+    private static DrylVoiceRun PendingVoiceRun() =>
+        new DrylVoiceRunner(new DRYL.Components.Tests.Agents.Voice.NoopJsRuntime(), new HttpClient(new NeverAnswers()))
+            .Create(new DrylVoiceOptions { ApiKey = "sk-test" });
+
+    private sealed class NeverAnswers : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(ct);
+    }
+
+    [Fact]
+    public void Without_VoiceFirst_the_collapsed_button_only_expands()
+    {
+        var voice = PendingVoiceRun();
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Collapsed, true)
+            .Add(x => x.Voice, voice));
+
+        Assert.Equal("Assistant", cut.Find(".dock-fab button").GetAttribute("aria-label"));
+        cut.Find(".dock-fab button").Click();
+
+        Assert.Single(cut.FindAll(".dock-panel"));
+        Assert.Equal(VoicePhase.Idle, voice.Phase);
+    }
+
+    [Fact]
+    public void VoiceFirst_labels_the_collapsed_button_with_the_voice_label()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Collapsed, true)
+            .Add(x => x.Voice, PendingVoiceRun())
+            .Add(x => x.VoiceFirst, true)
+            .Add(x => x.VoiceLabel, "Mit Santiago sprechen"));
+
+        var button = cut.Find(".dock-fab button");
+        Assert.Equal("Mit Santiago sprechen", button.GetAttribute("aria-label"));
+        Assert.Equal("button", button.TagName.ToLowerInvariant());   // native: Enter and Space press it
+        Assert.Equal("Microphone", cut.FindComponent<DrylIcon>().Instance.Name);
+    }
+
+    [Fact]
+    public void VoiceFirst_expands_and_starts_the_session_in_one_press()
+    {
+        var voice = PendingVoiceRun();
+        bool? collapsed = null;
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Collapsed, true)
+            .Add(x => x.CollapsedChanged, c => collapsed = c)
+            .Add(x => x.Voice, voice)
+            .Add(x => x.VoiceFirst, true));
+
+        cut.Find(".dock-fab button").Click();
+
+        Assert.False(collapsed);
+        Assert.Equal(VoicePhase.Connecting, voice.Phase);
+        cut.WaitForAssertion(() => Assert.NotNull(cut.Find(".dock-voice .voice-orb")));
+    }
+
+    [Fact]
+    public void VoiceFirst_without_a_voice_run_changes_nothing()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Collapsed, true)
+            .Add(x => x.VoiceFirst, true));
+
+        Assert.Equal("Assistant", cut.Find(".dock-fab button").GetAttribute("aria-label"));
+        cut.Find(".dock-fab button").Click();
+        Assert.Single(cut.FindAll(".dock-panel"));
+    }
+
+    [Fact]
+    public void CollapsedIcon_replaces_the_glyph()
+    {
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Collapsed, true)
+            .Add(x => x.CollapsedIcon, "MapPin"));
+
+        Assert.Equal("MapPin", cut.FindComponent<DrylIcon>().Instance.Name);
+    }
 }

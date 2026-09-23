@@ -35,7 +35,7 @@
     @Overlay
 
     <div class="canvas-head">
-        <span class="canvas-title">@(Spec?.Title ?? "Artifact")</span>
+        <span class="canvas-title">@(Spec?.Title ?? FallbackTitle)</span>
         <div class="canvas-head-tools">
             @HeaderTools
             @if (_binder?.HasBindings == true)
@@ -77,7 +77,7 @@
     <div class="canvas-body" @ref="_bodyEl">
         @if (Error is not null)
         {
-            <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="Artifact failed">@Error</DrylAlert>
+            <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="@ErrorTitle">@Error</DrylAlert>
         }
         else if (Spec?.Root is { } root)
         {
@@ -87,7 +87,7 @@
         }
         else
         {
-            <DrylEmptyState Title="No artifact yet">@EmptyText</DrylEmptyState>
+            <DrylEmptyState Title="@EmptyTitle">@EmptyText</DrylEmptyState>
         }
     </div>
 </div>
@@ -118,6 +118,15 @@
 
     /// <summary>Message shown when there is no artifact yet.</summary>
     [Parameter] public string? EmptyText { get; set; } = "Nothing to show yet.";
+
+    /// <summary>Headline of the empty state shown when there is no artifact yet.</summary>
+    [Parameter] public string EmptyTitle { get; set; } = "No artifact yet";
+
+    /// <summary>Header title while the artifact has none of its own.</summary>
+    [Parameter] public string FallbackTitle { get; set; } = "Artifact";
+
+    /// <summary>Title of the alert that replaces the tree when <see cref="Error"/> is set.</summary>
+    [Parameter] public string ErrorTitle { get; set; } = "Artifact failed";
 
     /// <summary>Bump this to reset the interactive form state — a fresh artifact recycles field
     /// names, and the previous artifact's user input must not leak into it.</summary>

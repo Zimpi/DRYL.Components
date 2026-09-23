@@ -98,6 +98,15 @@ public sealed class DrylCanvasTools
     /// runs a create generation into it. Null when the tools were built without a workspace.</summary>
     public AITool? OpenView { get; }
 
+    /// <summary>
+    /// Runs at the start of every <c>create_artifact</c>, <c>update_artifact</c> and
+    /// <c>open_view</c> call, before the generation begins. The place for a host that shows the
+    /// canvas only on demand to open it and wait for it — typically
+    /// <c>await run.WaitForSurfaceAsync(timeout, ct)</c> — so the generation gets the real
+    /// layout budget. Receives the tool call's cancellation token.
+    /// </summary>
+    public Func<CancellationToken, Task>? BeforeGenerate { get; set; }
+
     /// <summary>The tool set to hand to the chat agent: <see cref="CreateArtifact"/>,
     /// <see cref="UpdateArtifact"/> and — with a workspace — <see cref="OpenView"/>.</summary>
     public IList<AITool> All { get; }
@@ -121,6 +130,7 @@ public sealed class DrylCanvasTools
         CancellationToken ct = default,
         string? viewName = null)
     {
+        if (BeforeGenerate is { } before) await before(ct);
         _run.BeginCreate();
         var reader = new PartialJsonReader<CanvasSpec>(CanvasJson.Options);
         try
@@ -196,6 +206,7 @@ public sealed class DrylCanvasTools
     {
         if (_run.Spec?.Root is null)
             return "There is no artifact yet — call create_artifact first.";
+        if (BeforeGenerate is { } before) await before(ct);
         _run.BeginGeneration();
         var reader = new PartialJsonReader<CanvasPatchDoc>(CanvasJson.Options);
         var applied = 0;

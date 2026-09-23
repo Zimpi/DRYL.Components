@@ -42,16 +42,14 @@
                        OnChange="HandleFilesChanged" />
 
             <DrylIcon Name="UploadCloud" Size="32" Class="file-drop-icon" />
-            <span class="file-drop-title">Drag & drop or click to browse</span>
-            @if (!string.IsNullOrEmpty(Accept) || MaxFileSizeBytes > 0)
+            <span class="file-drop-title">@Title</span>
+            @if (EffectiveSubText is { Length: > 0 } sub)
             {
-                <span class="file-drop-sub">
-                    @BuildSubText()
-                </span>
+                <span class="file-drop-sub">@sub</span>
             }
         </div>
 
-        @if (_files.Count > 0)
+        @if (ShowFileList && _files.Count > 0)
         {
             <div class="file-list">
                 @for (int i = 0; i < _files.Count; i++)
@@ -63,7 +61,7 @@
                         <span class="file-item-name" title="@file.Name">@file.Name</span>
                         <span class="file-item-size">@FormatBytes(file.Size)</span>
                         <button type="button" class="file-item-remove"
-                                aria-label="@($"Remove {file.Name}")"
+                                aria-label="@RemoveAriaLabel(file.Name)"
                                 @onclick="() => RemoveFile(idx)">
                             <DrylIcon Name="X" Size="14" />
                         </button>
@@ -97,6 +95,28 @@
 
     /// <summary>Helper text shown below the control.</summary>
     [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Headline inside the drop zone. Override it to localise the component.</summary>
+    [Parameter] public string Title { get; set; } = "Drag & drop or click to browse";
+
+    /// <summary>
+    /// Hint line under <see cref="Title"/>. Leave <c>null</c> to derive it from <see cref="Accept"/>
+    /// and <see cref="MaxFileSizeBytes"/> (e.g. <c>"image/*,.pdf · max 10.0 MB"</c>); an empty string
+    /// hides the line.
+    /// </summary>
+    [Parameter] public string? SubText { get; set; }
+
+    /// <summary>
+    /// Builds the accessible name of a file's remove button from the file name. Leave <c>null</c>
+    /// for the default <c>"Remove {name}"</c>; pass e.g. <c>name =&gt; $"{name} entfernen"</c> to localise it.
+    /// </summary>
+    [Parameter] public Func<string, string>? RemoveLabel { get; set; }
+
+    /// <summary>
+    /// Whether the component lists the selected files under the drop zone. Set it to <c>false</c>
+    /// when the host renders its own list from <see cref="FilesChanged"/>.
+    /// </summary>
+    [Parameter] public bool ShowFileList { get; set; } = true;
 
     /// <summary>If true, the drop zone is greyed out and non-interactive.</summary>
     [Parameter] public bool Disabled { get; set; }
@@ -188,6 +208,10 @@
             return c;
         }
     }
+
+    private string EffectiveSubText => SubText ?? BuildSubText();
+
+    private string RemoveAriaLabel(string name) => RemoveLabel?.Invoke(name) ?? $"Remove {name}";
 
     private string BuildSubText()
     {
