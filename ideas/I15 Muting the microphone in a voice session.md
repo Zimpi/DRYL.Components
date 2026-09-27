@@ -1,7 +1,10 @@
 # Muting the microphone in a voice session
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** [`specs/E14 Agent Canvas/F1 DrylCanvasDock.md`](../specs/E14%20Agent%20Canvas/F1%20DrylCanvasDock.md),
+  [`specs/E15 Agent Inputs/_Api.md`](../specs/E15%20Agent%20Inputs/_Api.md),
+  [`specs/E15 Agent Inputs/_Interop.md`](../specs/E15%20Agent%20Inputs/_Interop.md)
 
 ## Problem
 
@@ -38,7 +41,8 @@ The mute state belongs to the session, not to the dock, so it lives on
   voice. The user's voice no longer moves it because the track is silent.
 - **Status line:** while muted and `Listening`, the line reads
   `VoiceMutedText` (default `"Muted"`); `Thinking` and `Speaking` lines stay
-  as they are. `VoiceStatusText` and a failure still outrank it as today.
+  as they are. A failure and `Status` still outrank it; `VoiceStatusText` does
+  not, because its signature cannot see the mute.
 - **Reset:** a session end (stop, failure, close) sets `IsMuted` back to
   `false`; a new session starts unmuted.
 
@@ -96,5 +100,9 @@ The mute state belongs to the session, not to the dock, so it lives on
 - 2026-09-27 — Jan: muting mid-sentence leaves the half-said input as it is.
   Rejected: clearing the input buffer on mute (Tech Lead's recommendation).
 - 2026-09-27 — Jan confirmed the final summary and set the idea to `Ready`.
+- 2026-09-27 — Tech Lead, during implementation: `VoiceMutedText` goes ahead of
+  `VoiceStatusText` (the draft had it behind). A host that words its listening
+  line would otherwise never show the mute; `VoiceMutedText` is the localisation
+  point instead.
 
 ## Open Points
