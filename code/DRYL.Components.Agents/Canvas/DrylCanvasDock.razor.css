@@ -186,6 +186,14 @@
     padding: var(--sp-4) var(--sp-2) var(--sp-3);
 }
 
+/* Mute and stop side by side — one row, so the takeover does not grow a line. */
+.dock-voice-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+}
+
 /* The last spoken line. Two lines at most: this is a glance, the full transcript lives in the
    log. The fixed min-height keeps the panel from jumping every time a sentence arrives. */
 .dock-voice-line {

@@ -442,6 +442,90 @@ public class DrylCanvasDockTests : BunitContext
     }
 
     [Fact]
+    public void The_mute_toggle_sits_beside_the_stop_button_and_mutes_the_run()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Voice, voice));
+
+        var mute = cut.Find(".dock-voice-actions .dock-voice-mute");
+        Assert.NotNull(cut.Find(".dock-voice-actions .dock-voice-stop"));
+        Assert.Equal("Mute microphone", mute.GetAttribute("aria-label"));
+        Assert.Equal("false", mute.GetAttribute("aria-pressed"));
+
+        mute.Click();
+
+        Assert.True(voice.IsMuted);
+        cut.WaitForAssertion(() =>
+        {
+            var pressed = cut.Find(".dock-voice-mute");
+            Assert.Equal("true", pressed.GetAttribute("aria-pressed"));
+            Assert.Equal("Unmute microphone", pressed.GetAttribute("aria-label"));
+            Assert.Contains("voice-orb--muted", cut.Find(".voice-orb").ClassList);
+        });
+
+        cut.Find(".dock-voice-mute").Click();
+
+        Assert.False(voice.IsMuted);
+        cut.WaitForAssertion(() =>
+            Assert.Equal("false", cut.Find(".dock-voice-mute").GetAttribute("aria-pressed")));
+    }
+
+    [Fact]
+    public void The_mute_toggle_is_there_while_connecting()
+    {
+        var voice = VoiceRun();
+        voice.MarkConnecting();
+
+        var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Voice, voice));
+
+        cut.Find(".dock-voice-mute").Click();
+        Assert.True(voice.IsMuted);
+    }
+
+    [Fact]
+    public void Muted_replaces_listening_but_not_thinking_or_speaking()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+        voice.SetMutedAsync(true).GetAwaiter().GetResult();
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Voice, voice)
+            // The host's line cannot see the mute, so the muted line goes first.
+            .Add(x => x.VoiceStatusText, (_, _) => "Hört zu…"));
+
+        Assert.Contains("Muted", cut.Find(".dock-status").TextContent);
+
+        voice.OnActivity(nameof(VoiceActivity.Speaking));
+        cut.WaitForAssertion(() => Assert.Contains("Hört zu…", cut.Find(".dock-status").TextContent));
+    }
+
+    [Fact]
+    public void The_mute_texts_can_be_overridden()
+    {
+        var voice = VoiceRun();
+        voice.OnConnected();
+
+        var cut = Render<DrylCanvasDock>(p => p
+            .Add(x => x.Voice, voice)
+            .Add(x => x.VoiceMuteLabel, "Mikrofon stummschalten")
+            .Add(x => x.VoiceUnmuteLabel, "Mikrofon einschalten")
+            .Add(x => x.VoiceMutedText, "Stumm"));
+
+        Assert.Equal("Mikrofon stummschalten", cut.Find(".dock-voice-mute").GetAttribute("aria-label"));
+
+        cut.Find(".dock-voice-mute").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Mikrofon einschalten", cut.Find(".dock-voice-mute").GetAttribute("aria-label"));
+            Assert.Contains("Stumm", cut.Find(".dock-status").TextContent);
+        });
+    }
+
+    [Fact]
     public void The_default_stop_button_text_is_unchanged()
     {
         var voice = VoiceRun();

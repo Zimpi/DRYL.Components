@@ -329,12 +329,12 @@ public sealed class DrylVoiceRun : DrylRunBase
         lock (_sync)
         {
             attempt = _attempt;
-            if (_disposed || attempt is null || Phase is not (VoicePhase.Connecting or VoicePhase.Live)) return;
+            if (_disposed || Phase is not (VoicePhase.Connecting or VoicePhase.Live)) return;
             if (IsMuted == muted) return;
             IsMuted = muted;
             Raise();
         }
-        await SyncMuteAsync(attempt).ConfigureAwait(false);
+        if (attempt is not null) await SyncMuteAsync(attempt).ConfigureAwait(false);
     }
 
     // Hands the current mute to the attempt's browser session. Every sender re-reads the state

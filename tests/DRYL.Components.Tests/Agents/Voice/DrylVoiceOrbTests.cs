@@ -82,4 +82,18 @@ public class DrylVoiceOrbTests : BunitContext
 
         Assert.Equal("true", cut.Find(".voice-orb").GetAttribute("aria-hidden"));
     }
+    [Fact]
+    public void A_muted_run_steps_the_aura_back()
+    {
+        var run = LiveRun(VoiceActivity.Listening);
+        var cut = Render<DrylVoiceOrb>(p => p.Add(x => x.Run, run));
+        Assert.DoesNotContain("voice-orb--muted", cut.Find(".voice-orb").ClassList);
+
+        run.SetMutedAsync(true).GetAwaiter().GetResult();
+        cut.WaitForAssertion(() => Assert.Contains("voice-orb--muted", cut.Find(".voice-orb").ClassList));
+
+        // The mute is not an AI state: a model that speaks into a muted session still streams.
+        run.OnActivity(nameof(VoiceActivity.Speaking));
+        cut.WaitForAssertion(() => Assert.Contains("ai-streaming", cut.Find(".voice-orb").ClassList));
+    }
 }

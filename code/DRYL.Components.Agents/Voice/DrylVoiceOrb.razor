@@ -70,6 +70,9 @@
                 case AiState.Generated: parts.Add("ai-generated"); break;
             }
 
+            // Muted: the aura steps back and only the core keeps answering — the model's voice.
+            if (Run?.IsMuted == true) parts.Add("voice-orb--muted");
+
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }

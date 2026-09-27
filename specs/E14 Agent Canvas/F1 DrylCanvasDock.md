@@ -63,6 +63,9 @@ popover would close behind the component's back on the first click elsewhere.
 | `VoiceFirst` | `bool` | `false` | With `Voice` set, the collapsed button expands the dock and starts the session in one press. |
 | `CollapsedIcon` | `string?` | `null` | `DrylIcon` name of the collapsed button; `null` gives `Sparkle`, or `Microphone` while `VoiceFirst` applies. |
 | `VoiceStopLabel` | `string` | `"End voice session"` | Text of the stop button during a live session. |
+| `VoiceMuteLabel` | `string` | `"Mute microphone"` | Tooltip and `aria-label` of the mute toggle while the microphone is open. |
+| `VoiceUnmuteLabel` | `string` | `"Unmute microphone"` | Tooltip and `aria-label` of the mute toggle while the microphone is muted. |
+| `VoiceMutedText` | `string` | `"Muted"` | Status line while the microphone is muted and the model neither thinks nor speaks. |
 | `ShowLogLabel` | `string` | `"Show conversation"` | Tooltip and `aria-label` of the log toggle while the log is closed. |
 | `HideLogLabel` | `string` | `"Hide conversation"` | Tooltip and `aria-label` of the log toggle while the log is open. |
 | `CollapseLabel` | `string` | `"Collapse assistant"` | Tooltip and `aria-label` of the head's collapse button. |
@@ -140,6 +143,11 @@ popover would close behind the component's back on the first click elsewhere.
 - `Status`, when set and no error is reported, wins over every derived line.
 - A voice session's own phase — connecting, listening, thinking, speaking,
   ending — is reported next.
+- While the session is `Live`, the microphone is muted and the activity is
+  neither `Thinking` nor `Speaking`, the voice line reads `VoiceMutedText`,
+  ahead of `VoiceStatusText` — whose signature cannot see the mute.
+- While muted, `Thinking` and `Speaking` still report their own line, and
+  `Connecting` and `Ending` are unchanged.
 - `VoiceStatusText` set words the voice phase line from the phase and the
   activity.
 - A `null` from `VoiceStatusText` falls through to the built-in line for that
@@ -207,6 +215,23 @@ popover would close behind the component's back on the first click elsewhere.
   run's `SeedHistory` when no explicit history is supplied.
 - Activating the stop button calls `Voice.StopAsync()`.
 - The stop button's text is `VoiceStopLabel`.
+- A mute toggle sits left of the stop button, in one row with it, for as long as
+  the takeover is shown (`Connecting`, `Live`, `Closing`); it is disabled while
+  `Closing`.
+- Activating the mute toggle calls `Voice.SetMutedAsync(!Voice.IsMuted)`.
+- The mute toggle reports `aria-pressed` equal to `Voice.IsMuted` and takes the
+  button's active modifier while pressed.
+- The mute toggle shows the `Microphone` icon while the microphone is open and
+  `MicrophoneOff` while it is muted.
+- The mute toggle's tooltip and `AriaLabel` name `VoiceMuteLabel` while the
+  microphone is open and `VoiceUnmuteLabel` while it is muted.
+- While `Voice.IsMuted`, the orb carries `voice-orb--muted`: its ring and comet
+  fade out on `--dur-slow` / `--ease-out` and then stop drawing
+  (`visibility: hidden`), while its core and halo stay. The core keeps scaling
+  with `--voice-level`, which only the model's voice can raise while the
+  microphone track is silent. Unmuting fades the aura back in on the same beat.
+- The mute is not an `AiState`: the orb's and the dock's AI state follow the
+  voice activity exactly as unmuted.
 - When stop settles the run at `Idle`, the composer and microphone affordance
   return after their normal presence transitions.
 - A cancelled attempt does not leave a voice error in the status line.
@@ -239,7 +264,8 @@ ownership, not microphone hardware or provider audio quality.
   is `DrylDialogProvider`'s, `E6/F2` "Modal islands").
 - `F6` lands in the composer while it is shown.
 - With a live voice session the composer is gone, so `F6` lands on the dock's
-  first focusable element and `Tab` within the dock reaches the stop button.
+  first focusable element and `Tab` within the dock reaches the mute toggle and
+  then the stop button.
 - The dock stays above the dialog backdrop because it lives in the top layer,
   so it stays operable by pointer while a dialog is open.
 
