@@ -76,6 +76,18 @@ component's classes rather than merge them. A supplied `id` can likewise
 disconnect the generated label association. These are existing limitations;
 I13 does not change the attribute contract.
 
+## `InputBase<TItem?>` — `DrylAutocomplete`
+
+`DrylAutocomplete<TItem>` (`TItem : class`) inherits `InputBase<TItem?>` rather
+than `InputBase<string>`: it binds the picked or created item itself. `Value`,
+`ValueChanged` and `ValueExpression` are typed `TItem?`; the component supplies
+`() => Value` when no expression is given, as the string fields do. Parsing from
+a string is not used — `TryParseValueFromString` always succeeds with `null`.
+It uses the same `InputState`, validation-message and `AiState`/`AiAura`
+contracts as the fields above. Its own parameters, including the creation path
+(`OnCreate`, `CreateLabel`) and the status texts (`EmptyText`, `LoadingText`),
+are listed in [`F5 DrylAutocomplete.md`](F5%20DrylAutocomplete.md).
+
 ## AI state and aura inheritance
 
 `AiState` and `AiAura` are Foundation types, defined in

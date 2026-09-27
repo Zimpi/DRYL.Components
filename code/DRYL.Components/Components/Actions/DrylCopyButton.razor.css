@@ -1,0 +1,59 @@
+/* ── DrylCopyButton ─────────────────────────────────────────
+   The button itself is DrylButton's; this sheet only owns the crossfade between
+   rest, copied and failed. Glyphs and labels are stacked in one grid cell each,
+   so the swap never changes the button's width. The glyph span also carries
+   .btn-ico-lead, which gives it DrylButton's hover spring. */
+
+.copy-btn-host {
+    display: inline-flex;
+    vertical-align: middle;
+}
+
+.copy-btn-glyph,
+.copy-btn-text {
+    display: inline-grid;
+    place-items: center;
+}
+
+.copy-btn-text {
+    justify-items: start;
+}
+
+.copy-btn-ico,
+.copy-btn-label {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transition: opacity var(--dur-med) var(--ease-out),
+                transform var(--dur-med) var(--ease-spring);
+}
+
+.copy-btn-ico {
+    display: inline-flex;
+    transform: scale(0.6);
+}
+
+.copy-btn-label {
+    transform: translateY(var(--sp-1));
+}
+
+.copy-btn-ico--failed {
+    color: var(--danger);
+}
+
+.is-idle > .copy-btn-ico--idle,
+.is-copied > .copy-btn-ico--copied,
+.is-failed > .copy-btn-ico--failed,
+.is-idle > .copy-btn-label--idle,
+.is-copied > .copy-btn-label--copied,
+.is-failed > .copy-btn-label--failed {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .copy-btn-ico,
+    .copy-btn-label {
+        transition: none;
+        transform: none;
+    }
+}

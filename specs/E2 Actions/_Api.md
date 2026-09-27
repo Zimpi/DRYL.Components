@@ -6,9 +6,9 @@ part of the data contract the 1.0 freeze binds.
 **Source folder:** `code/DRYL.Components/Components/Actions/`
 
 This file carries no `Meta` block: it is a reference for the specs around it, not
-a unit of implementation (`SPEC-03`). The category holds three components —
-`DrylButton`, `DrylButtonGroup` and `DrylSplitButton` — and owns exactly two
-types, both of them enums nested inside `DrylButton`.
+a unit of implementation (`SPEC-03`). The category holds four components —
+`DrylButton`, `DrylButtonGroup`, `DrylSplitButton` and `DrylCopyButton` — and
+owns exactly two types, both of them enums nested inside `DrylButton`.
 
 ## `DrylButton.ButtonVariant`
 
@@ -51,6 +51,15 @@ types its own parameters with them:
 [Parameter] public DrylButton.ButtonSize    Size    { get; set; } = DrylButton.ButtonSize.Medium;
 ```
 
+`DrylCopyButton` types its `Variant` and `Size` with them too, with its own
+defaults — `ButtonVariant.Ghost` and `ButtonSize.Small`, because a copy button
+sits beside the value it copies and should not compete with it:
+
+```csharp
+[Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Ghost;
+[Parameter] public DrylButton.ButtonSize    Size    { get; set; } = DrylButton.ButtonSize.Small;
+```
+
 That is the whole reason they belong in this file. The two components now agree on
 both defaults: `Variant` is `ButtonVariant.Primary` and `Size` is
 `ButtonSize.Medium` on each.
@@ -90,12 +99,13 @@ listed here.
 
 ## The AI opt-in contract
 
-The three components take **two** shapes:
+The four components take **two** shapes:
 
 | Component | Shape | Consequence |
 |---|---|---|
 | `DrylButton`, `DrylSplitButton` | `@inherits DrylAiAware` | Both have `Ai` (`AiState`, default `AiState.None`) and `Aura` (`AiAura?`, default `null`), plus the `[CascadingParameter]` named `Scope` (of type `DRYL.Components.Ai.AiScope`) and the `EffectiveAi` / `EffectiveAura` resolution built on it. An explicit value wins over a surrounding `DrylAiScope`; `Aura` falls back through the scope to `AiAura.Comet`. |
 | `DrylButtonGroup` | Neither | No `Ai`, no `Aura`, no aura of any kind. It is a layout wrapper; AI mode is set on the segments the consumer places inside it. |
+| `DrylCopyButton` | Neither | No `Ai`, no `Aura`. The copy is the user's own action on content; the surface showing AI-authored content carries the aura. `F4 DrylCopyButton.md` records the decision. |
 
 Both `Ai` parameters satisfy `AI-03`: named `Ai`, typed `AiState`, defaulting to
 `AiState.None`, and a switch on a component that renders as an ordinary control
@@ -108,13 +118,13 @@ reasoning; it is not repeated here.
 
 ## Shared parameter conventions
 
-All three components carry the same two pass-through parameters, and the 1.0
+All four components carry the same two pass-through parameters, and the 1.0
 freeze binds them:
 
 | Member | Type | Default | Behaviour |
 |---|---|---|---|
 | `Class` | `string?` | `null` | Extra CSS class(es) **merged** onto the component's own class list, never replacing it. Because Blazor matches parameter names case-insensitively, a consumer-supplied `class="…"` attribute also binds here and is merged the same way, instead of landing in `AdditionalAttributes` and clobbering the identity classes. |
-| `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | `[Parameter(CaptureUnmatchedValues = true)]`. Splatted onto the component's root element — the `button` for `DrylButton`, the wrapper `div` for `DrylButtonGroup` and `DrylSplitButton`. |
+| `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | `[Parameter(CaptureUnmatchedValues = true)]`. Splatted onto the component's root element — the `button` for `DrylButton`, the wrapper `div` for `DrylButtonGroup` and `DrylSplitButton`. `DrylCopyButton` is the exception: it passes both to its composed `DrylButton`, so they land on the `button`, not on its host `span`. |
 
 ### Attribute precedence
 
@@ -141,5 +151,6 @@ of overriding.
 
 ## Services
 
-**None** — this category owns no service, registers none and consumes none; the
-evidence is in [`_Interop.md`](_Interop.md), which carries the argument.
+**None** — this category owns no service and registers none. `DrylCopyButton`
+consumes the framework's `IJSRuntime` for the clipboard call; the evidence is
+in [`_Interop.md`](_Interop.md), which carries the argument.
