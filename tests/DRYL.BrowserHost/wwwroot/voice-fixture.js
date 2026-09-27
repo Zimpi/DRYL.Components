@@ -217,6 +217,7 @@
             tracksCreated: tracks.length,
             tracksStopped: tracks.filter(track => track.readyState === "ended").length,
             liveTracks: tracks.filter(track => track.readyState === "live").length,
+            mutedTracks: tracks.filter(track => track.readyState === "live" && track.enabled === false).length,
             peersCreated: peers.length, livePeers: peers.filter(peer => !peer.closed).length,
             liveChannels: peers.filter(peer => peer.channel && peer.channel.readyState !== "closed").length,
             contextsCreated: contexts.length, liveContexts: contexts.filter(context => context.state !== "closed").length,
