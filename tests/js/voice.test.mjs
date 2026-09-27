@@ -56,7 +56,7 @@ function fixture(held = null, failedResponse = false) {
         assert.equal(audio.filter(a => !a.removed || a.srcObject).length, 0, 'audio elements');
         assert.equal(timers.size, 0, 'timers'); assert.equal(frames.size, 0, 'frames');
     };
-    return { api, begin, config, dotNet, finish, pending, calls, reports, peers, contexts, audio, timers, frames, clean, hold: name => { held = name; } };
+    return { api, begin, config, dotNet, finish, pending, calls, reports, peers, tracks, contexts, audio, timers, frames, clean, hold: name => { held = name; } };
 }
 
 for (const stage of ['media', 'offer', 'local', 'fetch', 'body', 'remote']) {
@@ -170,4 +170,22 @@ test('current tool results survive user interruption without starting another re
     channel.onmessage({ data: JSON.stringify({ type: 'input_audio_buffer.speech_started' }) });
     gate.resolve('{}'); await settle(); assert.equal(channel.sent.length, 1);
     assert.equal(channel.sent[0].item.type, 'function_call_output'); f.api.stop(); f.clean();
+});
+
+test('a mute set while the microphone is pending lands on its track, and unmute reopens it', async () => {
+    const f = fixture('media'); const handle = f.api.createSession('token', f.config, f.dotNet);
+    const started = handle.start(); await settle();
+    handle.setMuted(true); f.finish(); await started; await settle();
+    assert.equal(f.tracks[0].enabled, false, 'muted before acquisition');
+    assert.equal(f.peers[0].closed, false, 'the connection stays up');
+    handle.setMuted(false); assert.equal(f.tracks[0].enabled, true);
+    handle.setMuted(true); assert.equal(f.tracks[0].enabled, false);
+    handle.stop(); f.clean();
+});
+
+test('a mute after stop touches nothing', async () => {
+    const f = fixture(); const handle = f.api.createSession('token', f.config, f.dotNet);
+    await handle.start(); handle.stop();
+    handle.setMuted(true);
+    assert.notEqual(f.tracks[0].enabled, false); f.clean();
 });

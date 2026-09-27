@@ -18,6 +18,7 @@ Version bump guide:
 
 ### Added
 - `DrylIcon` — New `MicrophoneOff` icon, the crossed-out counterpart of `Microphone`.
+- `DrylVoiceRun` (Agents 0.20.0) — The user's microphone can be muted without ending the session: new `IsMuted` and `SetMutedAsync(bool)`. Muting disables the outgoing track, so the connection stays up, the model keeps talking and hears silence, and unmuting needs no renegotiation or new permission prompt. A mute set while the session is still connecting lands on the microphone as soon as it is acquired. Every session starts unmuted, and the end of a session resets it.
 
 ## [3.1.0] — 2026-09-23
 

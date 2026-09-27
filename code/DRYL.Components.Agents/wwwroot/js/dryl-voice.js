@@ -56,6 +56,9 @@ export function createSession(token, config, dotNet) {
         pc: null,
         channel: null,
         mic: null,
+        // The user's mute. Kept on the state rather than read off the track, because it may be
+        // set while the microphone is still being acquired and has to land on it when it arrives.
+        muted: false,
         audio: null,
         ctx: null,
         raf: 0,
@@ -80,6 +83,7 @@ export function createSession(token, config, dotNet) {
     return {
         start: () => startSession(state, token, config),
         stop: () => stopSession(state, null),
+        setMuted: (muted) => setMuted(state, muted),
         closed: () => state.closed,
     };
 }
@@ -105,6 +109,7 @@ async function startSession(state, token, config) {
             return;
         }
         state.mic = mic;
+        applyMute(state);
     } catch (err) {
         if (!current(state)) return;
         teardown(state, null);
@@ -363,6 +368,20 @@ function liveActivity(state) {
         state.activity = activity;
         report(state, 'OnActivity', activity);
     }
+}
+
+// Muting disables the outgoing track instead of removing it: the peer connection keeps its
+// sender, the far side simply hears silence, and unmuting needs no renegotiation and no second
+// permission prompt. The input meter reads the same silence, so the orb stops answering the
+// user's voice by itself.
+function setMuted(state, muted) {
+    if (state.closed) return;
+    state.muted = muted === true;
+    applyMute(state);
+}
+
+function applyMute(state) {
+    for (const track of state.mic?.getAudioTracks() ?? []) safely(() => { track.enabled = !state.muted; });
 }
 
 function stopSession(state, notification) {
