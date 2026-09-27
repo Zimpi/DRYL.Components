@@ -485,11 +485,11 @@ public class DrylCanvasDockTests : BunitContext
     }
 
     [Fact]
-    public void Muted_replaces_listening_but_not_thinking_or_speaking()
+    public async Task Muted_replaces_listening_but_not_thinking_or_speaking()
     {
         var voice = VoiceRun();
         voice.OnConnected();
-        voice.SetMutedAsync(true).GetAwaiter().GetResult();
+        await voice.SetMutedAsync(true);
 
         var cut = Render<DrylCanvasDock>(p => p
             .Add(x => x.Voice, voice)
