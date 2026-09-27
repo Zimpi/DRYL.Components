@@ -4,8 +4,8 @@ The JS interop surface this category uses, the DI services it registers, and the
 cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
-This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect` and
-`DrylFileUpload`.
+This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect`,
+`DrylFileUpload` and `DrylAutocomplete`.
 The category's remaining components are still phase-C work.
 
 ## Interop
@@ -50,6 +50,19 @@ The drop itself is handled by the native file input stretched over the zone;
 the module only tracks whether a drag is over it, counting nested
 enter/leave pairs so a child element does not flicker the state.
 
+`DrylAutocomplete` uses one entry point of the same file:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.autocomplete.scrollOptionIntoView(panel, index)` | `ScrollHighlightedIntoView` scrolls the indexed `role="option"` descendant — the create option included, as the last one — nearest into view during arrow navigation. |
+
+Like Select it delegates portal, width, outside dismissal and the list's
+enter/exit to `DrylPopover`; the popover's outside press reaches the
+component as `OnClose`, which is where a pending query is committed when
+`OnCreate` is set. The create option's enter/exit belongs to `DrylPresence`
+(`dryl.motion.onExit`, E1). The search runs on the thread pool; its results
+are applied through `InvokeAsync`, never written from the pool thread.
+
 ## Services
 
 No input-specific DI service is registered by these three components.
@@ -76,6 +89,11 @@ of `dryl.motion.onExit`/`clearExit` also applies to this consumer: rapid
 close/reopen, reduced-motion preference changes and disposal must not leave
 stale completion callbacks or portalled exits. The contract and repair belong
 to E1/E11, with a real Select scene providing integration evidence.
+
+`DrylAutocomplete` implements `IDisposable`: it disposes its `AuraLifecycle`,
+cancels and disposes the running search's `CancellationTokenSource`, and marks
+itself disposed so a search or a create that finishes later neither writes
+state nor renders.
 
 `DrylFileUpload` disposes its `AuraLifecycle`, then detaches the drag
 listeners only after its first interactive render attached them, tolerating

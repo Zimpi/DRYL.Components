@@ -34,8 +34,15 @@
           </ItemTemplate>
       </DrylAutocomplete>
 
+    Creating entries that do not exist yet (opt-in):
+      <DrylAutocomplete TItem="string" @bind-Value="_tag"
+                        Items="@_tags" DisplayText="s => s"
+                        OnCreate="q => Task.FromResult<string?>(q)" />
+
     Keyboard: ArrowDown/Up navigate options, Enter selects,
-    Escape closes, Tab accepts highlighted item (if any).
+    Escape closes, Tab accepts highlighted item (if any). With
+    OnCreate, Enter/Tab without a highlight — and a press outside
+    the field — commit the typed query: exact match or create.
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
@@ -99,29 +106,31 @@
                  class="autocomplete-panel"
                  aria-label="@(string.IsNullOrEmpty(Label) ? "Suggestions" : $"{Label} suggestions")">
 
-                @if (_isLoading && !_filteredItems.Any())
+                @{
+                    var items = _filteredItems;
+                    var showCreate = ShowCreateOption;
+                }
+                @if (_isLoading && items.Count == 0)
                 {
                     <div class="autocomplete-loading" aria-live="polite">
-                        Searching…
+                        @LoadingText
                     </div>
                 }
-                else if (!_filteredItems.Any())
+                else if (items.Count == 0 && !showCreate)
                 {
                     <div class="autocomplete-empty" aria-live="polite">
-                        No results
+                        @EmptyText
                     </div>
                 }
                 else
                 {
-                    var items = _filteredItems.ToList();
                     for (int i = 0; i < items.Count; i++)
                     {
                         var item = items[i];
                         var idx = i;
-                        var isHighlighted = idx == _highlightedIndex;
                         var isSelected = ReferenceEquals(item, CurrentValue);
 
-                        <div id="@($"opt-{_id}-{idx}")"
+                        <div id="@OptionId(idx)"
                              role="option"
                              class="@OptionCss(idx, isSelected)"
                              aria-selected="@(isSelected ? "true" : "false")"
@@ -138,6 +147,30 @@
                             }
                         </div>
                     }
+                }
+
+                @if (OnCreate is not null)
+                {
+                    @* The create option is always the last option, so its index is the
+                       item count and the options above keep theirs. It fades in and out
+                       rather than popping as the query starts or stops matching. *@
+                    var createIdx = items.Count;
+                    <DrylPresence Visible="showCreate"
+                                  Transition="PresenceTransition.Fade"
+                                  Speed="PresenceSpeed.Fast"
+                                  Class="autocomplete-create-presence">
+                        <div id="@OptionId(createIdx)"
+                             role="option"
+                             class="@CreateOptionCss(createIdx, items.Count > 0)"
+                             aria-selected="false"
+                             @onclick="CreateFromQueryAsync"
+                             @onmouseenter="() => _highlightedIndex = createIdx">
+                            <span class="autocomplete-create-icon" aria-hidden="true">
+                                <DrylIcon Name="Plus" Size="14" />
+                            </span>
+                            <span class="autocomplete-create-label">@CreateOptionText</span>
+                        </div>
+                    </DrylPresence>
                 }
             </div>
         </PanelContent>
@@ -207,16 +240,41 @@
     /// <summary>Converts an item to its display string. Defaults to <c>item.ToString()</c>.</summary>
     [Parameter] public Func<TItem, string>? DisplayText { get; set; }
 
+    /// <summary>
+    /// Enables creating an entry that does not exist yet. Receives the trimmed query and
+    /// returns the new item, or <c>null</c> to abort. The returned item becomes the bound
+    /// value exactly like a picked one; adding it to <see cref="Items"/> or the provider's
+    /// source is the host's concern. Leave <c>null</c> (default) for a pick-only field.
+    /// </summary>
+    [Parameter] public Func<string, Task<TItem?>>? OnCreate { get; set; }
+
+    /// <summary>
+    /// Text of the create option, built from the trimmed query. <c>null</c> (default)
+    /// renders <c>Create "{query}"</c>. Only used when <see cref="OnCreate"/> is set.
+    /// </summary>
+    [Parameter] public Func<string, string>? CreateLabel { get; set; }
+
+    /// <summary>Text shown in an open list without options. Default <c>"No results"</c>.</summary>
+    [Parameter] public string EmptyText { get; set; } = "No results";
+
+    /// <summary>Text shown while a provider search runs and nothing is listed yet. Default <c>"Searching…"</c>.</summary>
+    [Parameter] public string LoadingText { get; set; } = "Searching…";
+
     private readonly string _id       = $"dryl-ac-{Guid.NewGuid():N}";
     private readonly string _listboxId = $"dryl-ac-lb-{Guid.NewGuid():N}";
     private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
 
     private string _inputText = string.Empty;
-    private IEnumerable<TItem> _filteredItems = Array.Empty<TItem>();
+    private IReadOnlyList<TItem> _filteredItems = Array.Empty<TItem>();
+    // The query the listed results belong to; null until a filter has finished. With an
+    // ItemsProvider the list lags the input by the debounce, and a commit must know that.
+    private string? _resultsQuery;
     private bool _isOpen;
     private int _highlightedIndex = -1;
     private bool _isLoading;
+    private bool _creating;
     private CancellationTokenSource? _searchCts;
+    private bool _disposed;
 
     private DrylPopover? _popover;
 
@@ -273,37 +331,45 @@
         _searchCts = new CancellationTokenSource();
         var cts = _searchCts;
 
+        // The search itself runs off the renderer; every write to component state and every
+        // render goes back through InvokeAsync so it lands on the renderer's dispatcher.
         _ = Task.Run(async () =>
         {
             try
             {
-                IEnumerable<TItem> results;
+                List<TItem> results;
 
                 if (ItemsProvider != null)
                 {
-                    _isLoading = true;
-                    await InvokeAsync(StateHasChanged);
+                    await InvokeAsync(() =>
+                    {
+                        if (cts.IsCancellationRequested || _disposed) return;
+                        _isLoading = true;
+                        StateHasChanged();
+                    });
 
                     // Debounce
                     await Task.Delay(300, cts.Token);
 
-                    results = await ItemsProvider(query, cts.Token);
-                    _isLoading = false;
+                    results = (await ItemsProvider(query, cts.Token)).ToList();
                 }
                 else
                 {
                     var source = Items ?? Array.Empty<TItem>();
-                    results = SearchFunc != null
+                    results = (SearchFunc != null
                         ? SearchFunc(query, source)
-                        : DefaultFilter(query, source);
+                        : DefaultFilter(query, source)).ToList();
                 }
 
-                if (!cts.IsCancellationRequested)
+                await InvokeAsync(() =>
                 {
+                    if (cts.IsCancellationRequested || _disposed) return;
+                    _isLoading = false;
                     _filteredItems = results;
+                    _resultsQuery = query;
                     _highlightedIndex = -1;
-                    await InvokeAsync(StateHasChanged);
-                }
+                    StateHasChanged();
+                });
             }
             catch (OperationCanceledException)
             {
@@ -311,10 +377,20 @@
             }
             catch
             {
-                _isLoading = false;
-                await InvokeAsync(StateHasChanged);
+                await InvokeAsync(() =>
+                {
+                    if (cts.IsCancellationRequested || _disposed) return;
+                    _isLoading = false;
+                    StateHasChanged();
+                });
             }
         }, cts.Token);
+    }
+
+    private void CancelSearch()
+    {
+        _searchCts?.Cancel();
+        _isLoading = false;
     }
 
     private static IEnumerable<TItem> DefaultFilter(string query, IEnumerable<TItem> items)
@@ -335,7 +411,7 @@
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        var count = _filteredItems.Count();
+        var count = OptionCount;
 
         switch (e.Key)
         {
@@ -357,7 +433,9 @@
 
             case "Enter":
                 if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
-                    SelectItem(_filteredItems.ElementAt(_highlightedIndex));
+                    await ActivateOptionAsync(_highlightedIndex, resetOnAbort: false);
+                else if (OnCreate is not null)
+                    await CommitQueryAsync(resetOnAbort: false);
                 break;
 
             case "Escape":
@@ -367,15 +445,148 @@
 
             case "Tab":
                 if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
-                    SelectItem(_filteredItems.ElementAt(_highlightedIndex));
+                    await ActivateOptionAsync(_highlightedIndex, resetOnAbort: true);
+                else if (OnCreate is not null)
+                    await CommitQueryAsync(resetOnAbort: true);
                 _isOpen = false;
                 break;
         }
     }
 
-    /// <summary>Called by DrylPopover when it closes (click-outside). Reverts the input text.</summary>
-    private void HandleClosed() =>
+    /// <summary>Picks the option at <paramref name="index"/>: an item, or the create option after the last item.</summary>
+    private async Task ActivateOptionAsync(int index, bool resetOnAbort)
+    {
+        if (index < _filteredItems.Count)
+            SelectItem(_filteredItems[index]);
+        else if (ShowCreateOption)
+            await CreateAsync(TrimmedQuery, resetOnAbort);
+    }
+
+    /// <summary>
+    /// Called by DrylPopover when it closes on a press outside the field. With
+    /// <see cref="OnCreate"/> a pending query is committed so typed text is not lost;
+    /// otherwise the input text reverts to the bound value.
+    /// </summary>
+    private async Task HandleClosed()
+    {
+        if (OnCreate is not null && await CommitQueryAsync(resetOnAbort: true)) return;
         _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
+    }
+
+    /// <summary>
+    /// Commits the typed query: the item whose display text matches it exactly, otherwise a
+    /// new one from <see cref="OnCreate"/>. Returns whether the field now holds a value for
+    /// the query. Only reached from UI events, so it runs on the renderer's dispatcher.
+    /// </summary>
+    private async Task<bool> CommitQueryAsync(bool resetOnAbort)
+    {
+        var query = TrimmedQuery;
+        if (query.Length == 0 || OnCreate is null) return false;
+        if (CurrentValue is not null && GetDisplayText(CurrentValue) == _inputText) return true;
+
+        var match = await ResolveExactMatchAsync(query);
+        if (match is not null)
+        {
+            CancelSearch();
+            SelectItem(match);
+            return true;
+        }
+        return await CreateAsync(query, resetOnAbort);
+    }
+
+    /// <summary>
+    /// Finds an exact match for <paramref name="query"/>. With an ItemsProvider whose listed
+    /// results belong to an older query, the provider is asked for the current one first —
+    /// otherwise a fast Enter would create a duplicate of an item the list had not shown yet.
+    /// </summary>
+    private async Task<TItem?> ResolveExactMatchAsync(string query)
+    {
+        var match = FindExactMatch(query);
+        if (match is not null || ItemsProvider is null || _resultsQuery == _inputText) return match;
+
+        try
+        {
+            var fresh = await ItemsProvider(query, CancellationToken.None);
+            return fresh.FirstOrDefault(i => IsExactMatch(i, query));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private Task CreateFromQueryAsync() => CreateAsync(TrimmedQuery, resetOnAbort: false);
+
+    private async Task<bool> CreateAsync(string query, bool resetOnAbort)
+    {
+        if (OnCreate is null || query.Length == 0 || _creating) return false;
+
+        _creating = true;
+        CancelSearch();
+        TItem? created;
+        try
+        {
+            created = await OnCreate(query);
+        }
+        finally
+        {
+            _creating = false;
+        }
+
+        if (_disposed) return false;
+        if (created is null)
+        {
+            if (resetOnAbort)
+            {
+                _isOpen = false;
+                _inputText = CurrentValue is not null ? GetDisplayText(CurrentValue) : string.Empty;
+            }
+            return false;
+        }
+
+        SelectItem(created);
+        return true;
+    }
+
+    private string TrimmedQuery => _inputText.Trim();
+
+    private bool IsExactMatch(TItem item, string trimmedQuery) =>
+        string.Equals(GetDisplayText(item).Trim(), trimmedQuery, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The first listed item — or, without a provider, the first of <see cref="Items"/> — whose display text equals the query.</summary>
+    private TItem? FindExactMatch(string trimmedQuery)
+    {
+        foreach (var item in _filteredItems)
+            if (IsExactMatch(item, trimmedQuery)) return item;
+
+        if (ItemsProvider is null && Items is not null)
+            foreach (var item in Items)
+                if (IsExactMatch(item, trimmedQuery)) return item;
+
+        return null;
+    }
+
+    /// <summary>Whether the list ends with the create option.</summary>
+    private bool ShowCreateOption
+    {
+        get
+        {
+            if (OnCreate is null) return false;
+            var query = TrimmedQuery;
+            return query.Length > 0 && FindExactMatch(query) is null;
+        }
+    }
+
+    private int OptionCount => _filteredItems.Count + (ShowCreateOption ? 1 : 0);
+
+    private string CreateOptionText
+    {
+        get
+        {
+            var query = TrimmedQuery;
+            return CreateLabel?.Invoke(query) ?? $"Create \"{query}\"";
+        }
+    }
 
     private async Task ScrollHighlightedIntoView()
     {
@@ -386,8 +597,10 @@
     private string GetDisplayText(TItem item) =>
         DisplayText?.Invoke(item) ?? item.ToString() ?? string.Empty;
 
+    private string OptionId(int idx) => $"opt-{_id}-{idx}";
+
     private string? ActiveDescendant =>
-        _highlightedIndex >= 0 ? $"opt-{_id}-{_highlightedIndex}" : null;
+        _highlightedIndex >= 0 ? OptionId(_highlightedIndex) : null;
 
     // ── CSS helpers ────────────────────────────────────────
 
@@ -413,10 +626,21 @@
         }
     }
 
-    private static string OptionCss(int idx, bool isSelected) =>
-        isSelected
-            ? "autocomplete-option is-selected"
-            : "autocomplete-option";
+    private string OptionCss(int idx, bool isSelected)
+    {
+        var c = "autocomplete-option";
+        if (idx == _highlightedIndex) c += " is-highlighted";
+        if (isSelected) c += " is-selected";
+        return c;
+    }
+
+    private string CreateOptionCss(int idx, bool hasItemsAbove)
+    {
+        var c = "autocomplete-option autocomplete-create";
+        if (hasItemsAbove) c += " has-items-above";
+        if (idx == _highlightedIndex) c += " is-highlighted";
+        return c;
+    }
 
     // ── Form plumbing ──────────────────────────────────────
 
@@ -437,6 +661,7 @@
 
     public void Dispose()
     {
+        _disposed = true;
         _aura.Dispose();
         _searchCts?.Cancel();
         _searchCts?.Dispose();

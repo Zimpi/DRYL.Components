@@ -5,18 +5,27 @@ cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
 The category is small and almost entirely inert: `DrylButton`, `DrylButtonGroup`
-and `DrylSplitButton` are markup plus class-list composition. Two of the three
-sections below are "none", and that is a fact established at the code rather than
-a section left unwritten.
+and `DrylSplitButton` are markup plus class-list composition. `DrylCopyButton` is
+the one component that calls into `dryl.js`, for the clipboard.
 
 ## Interop
 
-**None.** No component in this category injects `IJSRuntime`, imports a JS module,
-declares a `[JSInvokable]` method or hands out a `DotNetObjectReference`. Nothing
-under `code/DRYL.Components/Components/Actions/` calls a `dryl.*` entry point.
-`rg -n 'IJSRuntime|@inject|JSInvokable|DotNetObjectReference' code/DRYL.Components/Components/Actions/`
-returns nothing at all; the only match of that whole search family in the folder
-is `DrylButton`'s `@implements IDisposable`, which is the aura duty below.
+One entry point, used by one component:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.clipboard.copy(text)` | `DrylCopyButton.CopyAsync` on press. Writes `text` through the async Clipboard API in a secure context, otherwise through a hidden `textarea` and `execCommand('copy')`, and returns whether it worked. The same helper serves `DrylCodeBlock` (`E5 Data`). |
+
+`DrylCopyButton` injects `IJSRuntime` for that call and nothing else. It declares
+no `[JSInvokable]` method, hands out no `DotNetObjectReference` and attaches no
+listener, so there is no handle to release. A `JSException` or a cancelled call
+counts as a failed copy; a `JSDisconnectedException` is swallowed, because there is
+no one left to tell. The call only happens on a press, which cannot occur during
+static prerender.
+
+`DrylButton`, `DrylButtonGroup` and `DrylSplitButton` make no interop call:
+`rg -n 'IJSRuntime|JSInvokable|DotNetObjectReference' code/DRYL.Components/Components/Actions/`
+matches `DrylCopyButton.razor` only.
 
 The `AuraLifecycle` that `DrylButton` composes is deliberately prerender-safe: it
 drives the aura's mount and fade with `Task.Delay` plus the host's re-render
@@ -42,8 +51,8 @@ slots, the first with the caret `DrylButton`; it holds no open state. See
 
 ## Services
 
-**None.** This category registers no service and consumes none. There is no
-`@inject` and no `[Inject]` in any of the three components, and
+This category registers no service. The only `@inject` is `DrylCopyButton`'s
+framework `IJSRuntime`; there is no `[Inject]` in any of the four components, and
 `AddDrylComponents()` in
 `code/DRYL.Components/Extensions/ServiceCollectionExtensions.cs` registers nothing
 on their behalf — every entry it makes belongs to another category.
@@ -57,11 +66,12 @@ that never called `AddDrylComponents()`.
 
 ## Cleanup
 
-One duty exists in this category, on one component.
+Two duties exist in this category, on two components.
 
 | Component | Contract | Released |
 |---|---|---|
 | `DrylButton` | `IDisposable` | Its `AuraLifecycle`. |
+| `DrylCopyButton` | `IDisposable` | The `CancellationTokenSource` behind the pending return to rest; a cancelled or post-disposal timer never renders. |
 | `DrylButtonGroup` | none | It holds nothing: no timer, no subscription, no interop handle. |
 | `DrylSplitButton` | none | The same. |
 

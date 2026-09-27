@@ -1,0 +1,187 @@
+@namespace DRYL.Components
+@inject IJSRuntime JS
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCopyButton — copies a text to the clipboard and says so.
+
+    Usage:
+      <DrylCopyButton Text="@_phone" AriaLabel="Copy number" />
+
+      <DrylCopyButton Text="@_link"
+                      Label="Copy link"
+                      CopiedLabel="Link copied"
+                      Variant="DrylButton.ButtonVariant.Secondary" />
+
+    Composes DrylButton and dryl.clipboard.copy. On success the Copy
+    glyph crossfades to Check (and a visible label to CopiedLabel);
+    on failure to Alert and FailedLabel. After about two seconds it
+    returns. The result is announced through a polite live region so
+    the button's own accessible name stays stable. Without a Label
+    the button is icon-only and wrapped in a DrylTooltip (UX-05).
+    ───────────────────────────────────────────────────────── *@
+
+<span class="copy-btn-host">
+    @if (IconOnly)
+    {
+        <DrylTooltip Text="@TooltipText">
+            @RenderButton()
+        </DrylTooltip>
+    }
+    else
+    {
+        @RenderButton()
+    }
+    <span class="visually-hidden" role="status" aria-live="polite">@_announcement</span>
+</span>
+
+@code {
+    /// <summary>The text written to the clipboard.</summary>
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+
+    /// <summary>Visible text beside the glyph. <c>null</c> (default) renders an icon-only button.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>
+    /// Accessible name, and the tooltip of an icon-only button. Without a <see cref="Label"/>
+    /// it falls back to <c>"Copy"</c>; with a <see cref="Label"/> it is only applied when set,
+    /// so the visible label stays the accessible name.
+    /// </summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Short confirmation after a successful copy — shown and announced. Default <c>"Copied"</c>.</summary>
+    [Parameter] public string CopiedLabel { get; set; } = "Copied";
+
+    /// <summary>Short notice when the browser refused the copy — shown and announced. Default <c>"Copy failed"</c>.</summary>
+    [Parameter] public string FailedLabel { get; set; } = "Copy failed";
+
+    /// <summary>Visual style of the underlying <see cref="DrylButton"/>. Default <see cref="DrylButton.ButtonVariant.Ghost"/>.</summary>
+    [Parameter] public DrylButton.ButtonVariant Variant { get; set; } = DrylButton.ButtonVariant.Ghost;
+
+    /// <summary>Size of the underlying <see cref="DrylButton"/>. Default <see cref="DrylButton.ButtonSize.Small"/>.</summary>
+    [Parameter] public DrylButton.ButtonSize Size { get; set; } = DrylButton.ButtonSize.Small;
+
+    /// <summary>Fires after the text was copied successfully.</summary>
+    [Parameter] public EventCallback OnCopied { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the button's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes, applied to the button.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>How long the confirmation stays before the button returns to rest.</summary>
+    internal static readonly TimeSpan ResetDelay = TimeSpan.FromSeconds(2);
+
+    private enum CopyState { Idle, Copied, Failed }
+
+    private CopyState _state = CopyState.Idle;
+    private string? _announcement;
+    private CancellationTokenSource? _resetCts;
+    private bool _disposed;
+
+    private bool IconOnly => string.IsNullOrEmpty(Label);
+
+    private string? ButtonAriaLabel => IconOnly ? (string.IsNullOrEmpty(AriaLabel) ? "Copy" : AriaLabel) : AriaLabel;
+
+    private string TooltipText => _state switch
+    {
+        CopyState.Copied => CopiedLabel,
+        CopyState.Failed => FailedLabel,
+        _ => ButtonAriaLabel ?? "Copy"
+    };
+
+    private string StateClass => _state switch
+    {
+        CopyState.Copied => "is-copied",
+        CopyState.Failed => "is-failed",
+        _ => "is-idle"
+    };
+
+    private string ButtonClass =>
+        string.Join(' ', new[] { "copy-btn", IconOnly ? "btn-icon" : null, Class }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    // Every glyph and label is rendered at once and stacked in one grid cell, so the swap
+    // is a crossfade and the button keeps the width of its longest text instead of jumping.
+    private RenderFragment RenderButton() =>
+        @<DrylButton Variant="Variant"
+                     Size="Size"
+                     Class="@ButtonClass"
+                     AriaLabel="@ButtonAriaLabel"
+                     OnClick="CopyAsync"
+                     @attributes="AdditionalAttributes">
+            <span class="copy-btn-glyph btn-ico-lead @StateClass" aria-hidden="true">
+                <span class="copy-btn-ico copy-btn-ico--idle"><DrylIcon Name="Copy" Size="14" /></span>
+                <span class="copy-btn-ico copy-btn-ico--copied"><DrylIcon Name="Check" Size="14" /></span>
+                <span class="copy-btn-ico copy-btn-ico--failed"><DrylIcon Name="Alert" Size="14" /></span>
+            </span>
+            @if (!IconOnly)
+            {
+                <span class="copy-btn-text @StateClass">
+                    <span class="copy-btn-label copy-btn-label--idle">@Label</span>
+                    <span class="copy-btn-label copy-btn-label--copied" aria-hidden="true">@CopiedLabel</span>
+                    <span class="copy-btn-label copy-btn-label--failed" aria-hidden="true">@FailedLabel</span>
+                </span>
+            }
+        </DrylButton>;
+
+    private async Task CopyAsync()
+    {
+        bool ok;
+        try
+        {
+            ok = await JS.InvokeAsync<bool>("dryl.clipboard.copy", Text ?? string.Empty);
+        }
+        catch (JSDisconnectedException)
+        {
+            return; // circuit gone — nobody left to tell
+        }
+        catch (Exception ex) when (ex is JSException or TaskCanceledException or InvalidOperationException)
+        {
+            ok = false;
+        }
+
+        if (_disposed) return;
+
+        _state = ok ? CopyState.Copied : CopyState.Failed;
+        _announcement = ok ? CopiedLabel : FailedLabel;
+        ScheduleReset();
+
+        if (ok) await OnCopied.InvokeAsync();
+    }
+
+    /// <summary>Returns to rest after <see cref="ResetDelay"/>; a second press restarts the wait.</summary>
+    private void ScheduleReset()
+    {
+        _resetCts?.Cancel();
+        _resetCts?.Dispose();
+        _resetCts = new CancellationTokenSource();
+        var token = _resetCts.Token;
+
+        _ = ResetLaterAsync(token);
+    }
+
+    private async Task ResetLaterAsync(CancellationToken token)
+    {
+        try { await Task.Delay(ResetDelay, token); }
+        catch (OperationCanceledException) { return; }
+
+        await InvokeAsync(() =>
+        {
+            if (_disposed || token.IsCancellationRequested) return;
+            _state = CopyState.Idle;
+            _announcement = null;
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _resetCts?.Cancel();
+        _resetCts?.Dispose();
+        _resetCts = null;
+    }
+}

@@ -14,7 +14,6 @@
     "code/DRYL.Components.Agents/Tools/DrylAskMultiChoiceDialog.razor",
     "code/DRYL.Components.Agents/Tools/DrylAskTextDialog.razor",
     "code/DRYL.Components.Agents/Voice/DrylVoiceOrb.razor",
-    "code/DRYL.Components/Components/Inputs/DrylAutocomplete.razor",
     "code/DRYL.Components/Components/Inputs/DrylCheckbox.razor",
     "code/DRYL.Components/Components/Inputs/DrylChipInput.razor",
     "code/DRYL.Components/Components/Inputs/DrylDatePicker.razor",

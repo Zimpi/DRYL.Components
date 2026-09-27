@@ -73,3 +73,43 @@
     font-size: 13px;
     text-align: center;
 }
+
+/* ── Create option (OnCreate) ───────────────────────────── */
+
+/* The last option when OnCreate is set and nothing matches the query exactly. It
+   enters and leaves through DrylPresence; here it only needs its hairline, its
+   glyph and the glyph's response to the highlight. */
+.autocomplete-create {
+    color: var(--fg);
+}
+
+.autocomplete-create.has-items-above {
+    border-top: 1px solid var(--line);
+}
+
+.autocomplete-create-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--fg-dim);
+    transition: color var(--dur-fast) var(--ease-out),
+                transform var(--dur-med) var(--ease-spring);
+}
+
+.autocomplete-create:hover .autocomplete-create-icon,
+.autocomplete-create.is-highlighted .autocomplete-create-icon {
+    color: var(--fg);
+    transform: scale(1.12);
+}
+
+.autocomplete-create-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .autocomplete-create-icon { transition: color var(--dur-fast) var(--ease-out); }
+    .autocomplete-create:hover .autocomplete-create-icon,
+    .autocomplete-create.is-highlighted .autocomplete-create-icon { transform: none; }
+}

@@ -14,6 +14,18 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.3.0] — 2026-09-27
+
+### Added
+- `DrylIcon` — Four new icons in the same line style: `Phone`, `Car`, `Fingerprint` and `Crown`.
+- `DrylCopyButton` — New action: copies `Text` to the clipboard through the existing `dryl.clipboard.copy` helper and confirms it. On success the `Copy` glyph crossfades to `Check` (a visible `Label` to `CopiedLabel`) and `OnCopied` fires; a refused copy shows `Alert` and `FailedLabel`. The result is announced through a polite live region, so the button's name stays stable, and the button returns to rest after two seconds. Icon-only by default, named by `AriaLabel` (fallback "Copy") and wrapped in a `DrylTooltip`; `Variant`/`Size` reuse `DrylButton`'s enums, defaulting to `Ghost`/`Small`.
+- `DrylAutocomplete` — Entries can be created from the field: with the new `OnCreate` (`Func<string, Task<TItem?>>`) set, a query no item matches exactly ends the list with a create option (plus glyph, `CreateLabel`, default `Create "{query}"`). Enter or Tab without a highlight, and a press outside the field, commit the typed query — the exact match is picked, otherwise the item is created and bound — so typed text is no longer lost. Without `OnCreate` nothing changes.
+- `DrylAutocomplete` — New `EmptyText` and `LoadingText` localise the list's status texts. The defaults are the previous English texts.
+
+### Fixed
+- `DrylAutocomplete` — The keyboard highlight is now drawn: the highlighted option carries `.is-highlighted`, which was never applied, so arrow navigation moved an invisible cursor.
+- `DrylAutocomplete` — Search results from the background filter are applied on the renderer's dispatcher instead of being written from a thread-pool thread.
+
 ## [3.2.0] — 2026-09-27
 
 ### Added
