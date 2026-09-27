@@ -170,13 +170,29 @@
                         </DrylPresence>
                     </div>
 
-                    <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
-                                Size="DrylButton.ButtonSize.Small"
-                                LeadingIcon="X"
-                                Class="dock-voice-stop"
-                                OnClick="StopVoiceAsync">
-                        @VoiceStopLabel
-                    </DrylButton>
+                    @*  Mute first, then the way out: pausing the microphone is the lighter of the
+                        two, so it sits where the eye lands before it reaches "end". *@
+                    <div class="dock-voice-actions">
+                        <DrylTooltip Text="@MuteLabel">
+                            <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                        Size="DrylButton.ButtonSize.Small"
+                                        AriaLabel="@MuteLabel"
+                                        Pressed="@VoiceMuted"
+                                        Disabled="@(Voice?.Phase is VoicePhase.Closing)"
+                                        Class="dock-voice-mute"
+                                        OnClick="ToggleMuteAsync">
+                                <DrylIcon Name="@(VoiceMuted ? "MicrophoneOff" : "Microphone")" Size="14" />
+                            </DrylButton>
+                        </DrylTooltip>
+
+                        <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                                    Size="DrylButton.ButtonSize.Small"
+                                    LeadingIcon="X"
+                                    Class="dock-voice-stop"
+                                    OnClick="StopVoiceAsync">
+                            @VoiceStopLabel
+                        </DrylButton>
+                    </div>
                 </div>
             </DrylPresence>
         </div>
@@ -249,6 +265,18 @@
 
     /// <summary>Text of the button that ends a live voice session.</summary>
     [Parameter] public string VoiceStopLabel { get; set; } = "End voice session";
+
+    /// <summary>Tooltip and aria-label of the mute toggle while the microphone is open.</summary>
+    [Parameter] public string VoiceMuteLabel { get; set; } = "Mute microphone";
+
+    /// <summary>Tooltip and aria-label of the mute toggle while the microphone is muted.</summary>
+    [Parameter] public string VoiceUnmuteLabel { get; set; } = "Unmute microphone";
+
+    /// <summary>
+    /// Status line of a live session while the microphone is muted and the model is neither
+    /// thinking nor speaking. It outranks <see cref="VoiceStatusText"/>, which cannot see the mute.
+    /// </summary>
+    [Parameter] public string VoiceMutedText { get; set; } = "Muted";
 
     /// <summary>Tooltip and aria-label of the log toggle while the transcript is closed.</summary>
     [Parameter] public string ShowLogLabel { get; set; } = "Show conversation";
@@ -449,7 +477,20 @@
     // What the voice is doing, in one line. The host's VoiceStatusText goes first; a null from it
     // falls through to the built-in English line.
     private string? VoiceStatus => Voice is null || Voice.Phase is VoicePhase.Idle ? null
+        : MutedAndListening(Voice) ? VoiceMutedText
         : VoiceStatusText?.Invoke(Voice.Phase, Voice.Activity) ?? DefaultVoiceStatus(Voice);
+
+    // While the model thinks or talks, that is still the news; "muted" replaces only the line
+    // that would otherwise claim the dock is listening.
+    private static bool MutedAndListening(DrylVoiceRun voice) =>
+        voice is { IsMuted: true, Phase: VoicePhase.Live }
+        && voice.Activity is not (VoiceActivity.Thinking or VoiceActivity.Speaking);
+
+    private bool VoiceMuted => Voice?.IsMuted == true;
+
+    private string MuteLabel => VoiceMuted ? VoiceUnmuteLabel : VoiceMuteLabel;
+
+    private Task ToggleMuteAsync() => Voice?.SetMutedAsync(!Voice.IsMuted) ?? Task.CompletedTask;
 
     private static string? DefaultVoiceStatus(DrylVoiceRun voice) => voice.Phase switch
     {

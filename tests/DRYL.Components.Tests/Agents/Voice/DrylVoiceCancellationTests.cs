@@ -66,11 +66,15 @@ public class DrylVoiceCancellationTests
         public int Starts, Stops, Disposals;
         public bool Closed, RejectStop;
         public int Acquisitions;
+        public readonly List<string> Calls = [];
+        public readonly List<bool> Mutes = [];
         public TaskCompletionSource<bool>? PendingStart;
         public TaskCompletionSource<bool> Entered = Gate<bool>();
         public ValueTask<T> InvokeAsync<T>(string name, object?[]? args) => InvokeAsync<T>(name, CancellationToken.None, args);
         public async ValueTask<T> InvokeAsync<T>(string name, CancellationToken ct, object?[]? args)
         {
+            Calls.Add(name);
+            if (name == "setMuted") Mutes.Add((bool)args![0]!);
             if (name == "start")
             {
                 Starts++; Entered.TrySetResult(true);
@@ -250,6 +254,72 @@ public class DrylVoiceCancellationTests
         Assert.Equal(0, beats);
         run.ShouldContinue = () => ValueTask.FromResult(true);
         Assert.True(await (Task<bool>)Call(module, "OnTurnEndedAsync")!);
+        await run.DisposeAsync();
+    }
+    [Fact]
+    public async Task Mute_is_forwarded_to_the_session_and_unmute_opens_the_microphone_again()
+    {
+        var js = new Js(); var run = Run(js, new());
+        await run.StartAsync(); run.OnConnected();
+        var session = js.Modules[^1].Session; var beats = 0; run.OnChange += () => beats++;
+
+        await run.SetMutedAsync(true);
+        Assert.True(run.IsMuted); Assert.Equal([true], session.Mutes);
+
+        await run.SetMutedAsync(true);                        // no change, no call
+        Assert.Equal([true], session.Mutes);
+
+        await run.SetMutedAsync(false);
+        Assert.False(run.IsMuted); Assert.Equal([true, false], session.Mutes);
+        Assert.Equal(2, beats);
+        await run.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Mute_pressed_before_the_handle_exists_lands_on_it_before_the_session_starts()
+    {
+        var js = new Js(); var gate = Gate<IJSObjectReference>();
+        js.Configure = module => module.Pending = gate;
+        var run = Run(js, new());
+        var start = run.StartAsync(); await js.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var module = js.Modules[^1]; await module.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await run.SetMutedAsync(true);
+        Assert.True(run.IsMuted); Assert.Empty(module.Session.Calls);
+
+        gate.SetResult(module.Session); await start;
+        Assert.Equal(["setMuted", "start"], module.Session.Calls);
+        Assert.Equal([true], module.Session.Mutes);
+        await run.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Mute_is_ignored_while_idle_and_reset_when_the_session_ends()
+    {
+        var js = new Js(); var run = Run(js, new());
+        await run.SetMutedAsync(true);
+        Assert.False(run.IsMuted); Assert.Equal(0, js.Imports);
+
+        await run.StartAsync(); run.OnConnected(); await run.SetMutedAsync(true);
+        var first = js.Modules[^1].Session;
+        await run.StopAsync();
+        Assert.False(run.IsMuted); Assert.Equal(VoicePhase.Idle, run.Phase);
+
+        await run.SetMutedAsync(true);                        // the stopped session hears nothing more
+        Assert.Equal([true], first.Mutes);
+
+        await run.StartAsync();
+        Assert.False(run.IsMuted); Assert.Empty(js.Modules[^1].Session.Mutes);
+        await run.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task A_failed_session_does_not_stay_muted()
+    {
+        var js = new Js(); var run = Run(js, new());
+        await run.StartAsync(); run.OnConnected(); await run.SetMutedAsync(true);
+        run.OnFailed("network");
+        Assert.False(run.IsMuted); Assert.Equal(VoicePhase.Idle, run.Phase);
         await run.DisposeAsync();
     }
 }

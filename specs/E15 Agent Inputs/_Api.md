@@ -151,6 +151,7 @@ handle, not a Razor component (`SPEC-02`). Its constructor is internal.
 | `Activity` | `VoiceActivity`, public getter, private setter | `Listening`. |
 | `Transcript` | `IReadOnlyList<DrylVoiceMessage>`, getter only | Empty; completed Realtime lines or independently grouped Live captions, in stable row order. |
 | `IsActive` | `bool`, getter only | `Phase != VoicePhase.Idle`, including `Closing`. |
+| `IsMuted` | `bool`, public getter, private setter | `false`; true while the user's microphone is muted. Reset to `false` when a session starts and when it ends. |
 | `SeedHistory` | `IEnumerable<DrylVoiceMessage>?`, get/set | `null`; fallback history for `StartAsync`. |
 | `ShouldContinue` | `Func<ValueTask<bool>>?`, get/set | `null`; optional decision after a speech-only response. |
 | `MaxAutoContinuations` | `int`, get/set | `6`; cap on consecutive continuations without tool progress or user speech. |
@@ -170,6 +171,7 @@ and meter levels remain in the browser and do not raise `OnChange`.
 |---|---|
 | `Task StartAsync(IEnumerable<DrylVoiceMessage>? history = null, CancellationToken ct = default)` | Starts an idle, undisposed run. Null history falls back to `SeedHistory`; explicit empty history seeds nothing. Repeated calls while an attempt is active do not start another attempt. |
 | `Task StopAsync()` | Invalidates the current attempt and releases its session resources. Idle stop is a no-op. The run remains reusable. |
+| `Task SetMutedAsync(bool muted)` | Mutes or unmutes the current attempt's microphone while `Phase` is `Connecting` or `Live`; ignored in `Idle`, `Closing` and after disposal. A change raises `OnChange`. |
 | `override ValueTask DisposeAsync()` | Permanently invalidates the run and releases its owned resources. Repeated disposal is safe. |
 
 These existing public `[JSInvokable]` signatures remain unchanged:
@@ -281,6 +283,35 @@ make no paid request and need neither a microphone nor a browser download.
 - Disconnection without a final event leaves `LiveFinalized` false.
 - Deterministic tests cover HTTP payloads, duplicate offers, late creation,
   cancellation, startup rejection, transcript overlap and stale callbacks.
+
+### Mute acceptance criteria — I15
+
+Specified by [I15](../../ideas/I15%20Muting%20the%20microphone%20in%20a%20voice%20session.md).
+
+- `SetMutedAsync(true)` while `Connecting` or `Live` sets `IsMuted` and raises
+  `OnChange` once; setting the value it already has raises nothing and makes no
+  interop call.
+- A mute reaches the current attempt's browser session, which disables the
+  outgoing microphone track; the peer connection, the model's audio and the
+  transcript continue.
+- `SetMutedAsync(false)` re-enables the same track, with no renegotiation and no
+  new permission prompt.
+- A mute set before the attempt's session handle exists is applied to that
+  handle before its `start()`, so the microphone is muted from the moment it is
+  acquired.
+- Two mutes racing each other, or a mute racing the handle's adoption, settle
+  on the last value set.
+- `SetMutedAsync` while `Idle` or `Closing` leaves `IsMuted` unchanged and makes
+  no interop call; a stopped attempt's session receives no further mute.
+- Stop, failure, transport closure and disposal reset `IsMuted` to `false`; a
+  new session starts unmuted.
+- Muting mid-utterance does not discard what was already said; the model may
+  answer it.
+- A muted session is still subject to `IdleTimeout`: silence from a muted
+  microphone is silence.
+- Evidence: the mute cases in
+  `tests/DRYL.Components.Tests/Agents/Voice/DrylVoiceCancellationTests.cs` and
+  `tests/js/voice.test.mjs`.
 
 ### I13 implementation and evidence
 

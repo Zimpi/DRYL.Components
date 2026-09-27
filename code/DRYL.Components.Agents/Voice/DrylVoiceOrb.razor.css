@@ -32,6 +32,22 @@
     z-index: 1;
 }
 
+/* Muted: the ring and the comet fade out, then stop drawing — visibility, not just opacity, so a
+   comet that keeps spinning underneath costs no frames. The core and the halo stay, and the core
+   keeps scaling with --voice-level, which now only the model's voice can raise: the user's track
+   is silent. Unmuting brings the aura straight back and fades it in on the same beat. */
+.voice-orb .ai-aura-ring,
+.voice-orb .ai-aura-comet {
+    transition: opacity var(--dur-slow) var(--ease-out), visibility 0s;
+}
+
+.voice-orb--muted .ai-aura-ring,
+.voice-orb--muted .ai-aura-comet {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--dur-slow) var(--ease-out), visibility 0s var(--dur-slow);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .voice-orb {
         scale: 1;

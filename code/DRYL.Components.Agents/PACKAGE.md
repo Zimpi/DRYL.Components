@@ -215,6 +215,13 @@ for final server events. Dispose the run when its owner ends. Without `Live`,
 existing Realtime settings and behavior are unchanged. See the
 [OpenAI Live guide](https://developers.openai.com/api/docs/guides/live).
 
+`SetMutedAsync(true)` mutes the user's microphone without ending the session —
+Realtime and Live alike: the outgoing track is disabled, the model keeps talking
+and hears silence, and `SetMutedAsync(false)` reopens it without renegotiation.
+`IsMuted` reports the state and resets when the session ends. `DrylCanvasDock`
+shows the toggle beside its stop button; `VoiceMuteLabel`, `VoiceUnmuteLabel` and
+`VoiceMutedText` localise it.
+
 ## Versioning & publishing
 
 This package carries its own `Version` and is published independently of Core.

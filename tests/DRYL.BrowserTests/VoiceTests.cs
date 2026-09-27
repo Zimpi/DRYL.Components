@@ -116,6 +116,46 @@ public sealed class VoiceTests(BrowserFixture browser)
             await NoResources(page);
         });
 
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public Task Real_dock_mutes_the_microphone_without_ending_the_session(string mode) =>
+        browser.RunAsync(nameof(Real_dock_mutes_the_microphone_without_ending_the_session), mode, async page =>
+        {
+            await page.Locator("#voice-dock-toggle").ClickAsync();
+            await page.WaitForFunctionAsync("() => document.querySelector('#voice-dock')?.matches(':popover-open')");
+            await page.GetByRole(AriaRole.Button, new() { Name = "Start fixture voice", Exact = true }).ClickAsync();
+            var media = await Pending(page, "media");
+            await Phase(page, "Connecting");
+
+            // Muted while the microphone permission is still pending: it lands on the track.
+            var mute = page.Locator("#voice-dock .dock-voice-mute");
+            await mute.FocusAsync();
+            await page.Keyboard.PressAsync("Enter");
+            await Assertions.Expect(mute).ToHaveAttributeAsync("aria-pressed", "true");
+            await Assertions.Expect(mute).ToHaveAttributeAsync("aria-label", "Unmute microphone");
+            await Settle(page, "media", media);
+            await Phase(page, "Live");
+            await page.WaitForFunctionAsync("() => voiceFixture.stats().mutedTracks === 1");
+            Assert.Equal(1, await page.EvaluateAsync<int>("() => voiceFixture.stats().livePeers"));
+            await Assertions.Expect(page.Locator("#voice-dock .dock-status")).ToContainTextAsync("Muted");
+            await Assertions.Expect(page.Locator("#voice-dock .voice-orb")).ToHaveClassAsync(new System.Text.RegularExpressions.Regex("voice-orb--muted"));
+            await page.WaitForFunctionAsync("() => getComputedStyle(document.querySelector('#voice-dock .voice-orb .ai-aura-comet')).visibility === 'hidden'");
+            await page.Locator("#voice-dock").ScreenshotAsync(new() { Path = Path.Combine(browser.Artifacts, $"voice-muted-{mode}.png") });
+
+            // Unmuting reopens the same track; the connection never went away.
+            await mute.ClickAsync();
+            await Assertions.Expect(mute).ToHaveAttributeAsync("aria-pressed", "false");
+            await page.WaitForFunctionAsync("() => voiceFixture.stats().mutedTracks === 0 && voiceFixture.stats().liveTracks === 1");
+            Assert.Equal(1, await page.EvaluateAsync<int>("() => voiceFixture.stats().tracksCreated"));
+            await Assertions.Expect(page.Locator("#voice-dock .voice-orb")).Not.ToHaveClassAsync(new System.Text.RegularExpressions.Regex("voice-orb--muted"));
+            await page.Locator("#voice-dock").ScreenshotAsync(new() { Path = Path.Combine(browser.Artifacts, $"voice-unmuted-{mode}.png") });
+
+            await page.Locator("#voice-dock .dock-voice-stop").ClickAsync();
+            await Phase(page, "Idle");
+            await NoResources(page);
+        });
+
     private static async Task HoldOnly(IPage page, string stage) =>
         await page.EvaluateAsync("stage => { voiceFixture.hold('media', false); voiceFixture.hold(stage); }", stage);
 

@@ -24,8 +24,12 @@ claims no component coverage (`SPEC-03`).
 | `attachOrb(element)` | `DrylVoiceOrb` | Selects the meter's element; null detaches it. Attachment resets `--voice-level` and does not start voice. |
 
 `DrylVoiceRun.StartAsync` uses the internal `createSession(token, config, dotNet)`
-factory. It returns an owned JS reference exposing `start()`, `stop()` and
-`closed()`. Factory creation acquires no browser media resource. A stopped
+factory. It returns an owned JS reference exposing `start()`, `stop()`,
+`setMuted(muted)` and `closed()`. Factory creation acquires no browser media resource.
+`setMuted(muted)` records the mute on the handle and sets `enabled = !muted` on
+the microphone's audio tracks; acquisition applies a recorded mute to the new
+tracks, and a closed handle ignores the call. `DrylVoiceRun.SetMutedAsync`
+calls it on the current attempt's handle only. A stopped
 handle's `start()` is inert, including when the interop invocation arrives late.
 The original module-level `start` and `stop` remain compatibility wrappers.
 

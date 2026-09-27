@@ -118,6 +118,13 @@ public sealed class DrylVoiceRun : DrylRunBase
     public bool IsActive => Phase is not VoicePhase.Idle;
 
     /// <summary>
+    /// True while the user's microphone is muted. The session stays connected and the model keeps
+    /// talking; it hears silence until <see cref="SetMutedAsync"/> opens the microphone again.
+    /// Every session starts unmuted, and the end of a session resets it.
+    /// </summary>
+    public bool IsMuted { get; private set; }
+
+    /// <summary>
     /// Turns replayed into every new session — the conversation so far, from either channel. Set
     /// it before the session starts; <see cref="StartAsync"/> falls back to it when it is called
     /// without an explicit history, which is what the dock's microphone button does.
@@ -233,17 +240,20 @@ public sealed class DrylVoiceRun : DrylRunBase
                     .Select(m => new { role = m.Role.ToString(), text = m.Text })
                     .ToArray(),
             }, attempt.Callback).ConfigureAwait(false);
-            bool adopted;
+            bool adopted, muted;
             lock (_sync)
             {
                 adopted = Current(attempt);
                 if (adopted) attempt.Handle = handle;
+                muted = IsMuted;
             }
             if (!adopted)
             {
                 await ReleaseAsync(handle, stop: true).ConfigureAwait(false);
                 return;
             }
+            // A mute pressed during token minting or module import had no handle to go to.
+            if (muted) await SyncMuteAsync(attempt).ConfigureAwait(false);
             // A stop racing dispatch closes this very handle. Its late start is then inert;
             // it cannot claim the page or stop the handle belonging to a newer run.
             if (Current(attempt)) await handle.InvokeVoidAsync("start").ConfigureAwait(false);
@@ -304,6 +314,53 @@ public sealed class DrylVoiceRun : DrylRunBase
         }
     }
 
+    /// <summary>
+    /// Mutes or unmutes the user's microphone. Accepted while the session is
+    /// <see cref="VoicePhase.Connecting"/> or <see cref="VoicePhase.Live"/> — a mute set while the
+    /// microphone is still being acquired lands on it when it arrives — and ignored otherwise.
+    /// </summary>
+    /// <param name="muted">True to mute, false to open the microphone again.</param>
+    /// <remarks>The browser disables the outgoing track rather than removing it, so unmuting
+    /// needs no renegotiation and asks for no permission. What was said before the mute stays
+    /// in the conversation, and the model may still answer it.</remarks>
+    public async Task SetMutedAsync(bool muted)
+    {
+        Attempt? attempt;
+        lock (_sync)
+        {
+            attempt = _attempt;
+            if (_disposed || Phase is not (VoicePhase.Connecting or VoicePhase.Live)) return;
+            if (IsMuted == muted) return;
+            IsMuted = muted;
+            Raise();
+        }
+        if (attempt is not null) await SyncMuteAsync(attempt).ConfigureAwait(false);
+    }
+
+    // Hands the current mute to the attempt's browser session. Every sender re-reads the state
+    // after its own call has landed and sends again if it moved meanwhile, so two toggles racing
+    // each other — or a toggle racing the handle's adoption — always settle on the last value.
+    private async Task SyncMuteAsync(Attempt attempt)
+    {
+        bool? sent = null;
+        while (true)
+        {
+            IJSObjectReference? handle;
+            bool muted;
+            lock (_sync)
+            {
+                if (_disposed || !ReferenceEquals(_attempt, attempt)) return;
+                handle = attempt.Handle;
+                muted = IsMuted;
+                // No handle yet: adoption applies the mute before the session starts.
+                if (handle is null || sent == muted) return;
+            }
+            try { await handle.InvokeVoidAsync("setMuted", muted).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException) { return; }
+            sent = muted;
+        }
+    }
+
     // ── Reported by the browser ──────────────────────────────────────────────
 
     /// <summary>Enters the connecting phase. The public way in is <see cref="StartAsync"/>.</summary>
@@ -312,6 +369,7 @@ public sealed class DrylVoiceRun : DrylRunBase
         _generation++;
         Phase = VoicePhase.Connecting;
         Activity = VoiceActivity.Listening;
+        IsMuted = false;                         // a session starts with the microphone open
         Error = null;                            // a new attempt does not carry the old failure
         _transcript.Clear();                     // a session is a conversation; a new one starts empty
         _transcriptDeltas.Clear();
@@ -686,6 +744,7 @@ public sealed class DrylVoiceRun : DrylRunBase
     {
         Phase = VoicePhase.Idle;
         Activity = VoiceActivity.Listening;
+        IsMuted = false;
         State = AiState.None;
         Raise();
     }
