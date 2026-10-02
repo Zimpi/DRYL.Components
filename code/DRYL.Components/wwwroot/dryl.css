@@ -3675,8 +3675,13 @@ td.tbl-td-editing select {
   min-width: 0;
 }
 
+/* flex: none — the strip scrolls sideways (overflow-x), which drops its
+   automatic minimum height to 0. In a height-constrained .tabs-root (a
+   column flex) a tall panel would then squeeze the strip down to its ink.
+   The panel is the part that may shrink, never the strip. */
 .tabs {
   position: relative;
+  flex: none;
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--line);
