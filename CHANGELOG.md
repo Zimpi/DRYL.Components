@@ -14,6 +14,12 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.3.1] — 2026-10-02
+
+### Fixed
+- `DrylTabs` — The tab strip keeps its height inside a height-constrained `.tabs-root`. Because the strip scrolls sideways (`overflow-x: auto`), its automatic minimum height was 0, so a tall panel squeezed it down to the ink line. The strip is now `flex: none`; only the panel gives way.
+- `DrylSegmentedControl` — The selection indicator now lines up with the selected segment in a track narrower than its widest labels. The grid columns were `1fr` (`minmax(auto, 1fr)`), so long labels kept their width and the columns stopped being equal, while the indicator assumes equal columns. Columns are now `minmax(0, 1fr)`; a squeezed label runs into the segment's padding and is clipped only at the segment edge.
+
 ## [3.3.0] — 2026-09-27
 
 ### Added
