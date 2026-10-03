@@ -41,6 +41,18 @@ public class DrylIconTests
         Assert.NotEmpty(DrylIcon.Icons[name]);
     }
 
+    [Theory]
+    [InlineData("Play")]
+    [InlineData("Pause")]
+    [InlineData("Square")]
+    [InlineData("Monitor")]
+    [InlineData("AudioLines")]
+    public void The_playback_screen_and_audio_icons_are_in_the_set(string name)
+    {
+        Assert.True(DrylIcon.Icons.ContainsKey(name));
+        Assert.NotEmpty(DrylIcon.Icons[name]);
+    }
+
     /// <summary>
     /// An unknown name renders an empty <c>svg</c> and nothing reports it — that is how
     /// <c>DrylFileUpload</c>'s <c>UploadCloud</c> went unnoticed. So every literal
