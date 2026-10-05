@@ -47,6 +47,8 @@ public class DrylIconTests
     [InlineData("Square")]
     [InlineData("Monitor")]
     [InlineData("AudioLines")]
+    [InlineData("Ear")]
+    [InlineData("EarOff")]
     public void The_playback_screen_and_audio_icons_are_in_the_set(string name)
     {
         Assert.True(DrylIcon.Icons.ContainsKey(name));
