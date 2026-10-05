@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [3.4.0] — 2026-10-05
+## [3.4.0] — 2026-10-06
 
 ### Added
 - `DrylIcon` — Seven new icons in the same line style for playback, screens and audio: `Play`, `Pause`, `Square` (stop), `Monitor`, `AudioLines`, `Ear` and `EarOff` (lucide `play`, `pause`, `square`, `monitor`, `audio-lines`, `ear`, `ear-off`).
