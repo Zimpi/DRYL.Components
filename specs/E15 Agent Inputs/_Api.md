@@ -67,6 +67,7 @@ configured defaults, not a claim about a provider's current model catalog.
 | `ApiKey` | `string` | `string.Empty` | Used by server token/session HTTP requests; never included in browser startup arguments. |
 | `Model` | `string` | `"gpt-realtime-2.1"` | Voice session model. |
 | `Live` | `DrylLiveOptions?` | `null` | Non-null selects the Live protocol; set `Model` to `gpt-live-1`. |
+| `ElevenLabs` | `DrylElevenLabsOptions?` | `null` | Non-null selects an ElevenLabs agent; `Model`, `Voice`, `Live` and `ApiKey` are then ignored. |
 | `Instructions` | `string?` | `null` | Session instructions. |
 | `Voice` | `string` | `"marin"` | Session output voice. |
 | `Speed` | `double` | `1.0` | Session speaking rate. |
@@ -80,7 +81,7 @@ configured defaults, not a claim about a provider's current model catalog.
 | `MaxDuration` | `TimeSpan` | `TimeSpan.FromMinutes(30)` | Browser session duration cap; non-positive values schedule no duration timeout. |
 | `BaseUrl` | `string` | `"https://api.openai.com/v1"` | Base URL for token minting and the browser handshake. |
 | `SafetyIdentifier` | `string?` | `null` | Optional `OpenAI-Safety-Identifier` header on token minting. |
-| `IsConfigured` | `bool`, getter only | Derived | True exactly when `ApiKey` is not null or whitespace. |
+| `IsConfigured` | `bool`, getter only | Derived | With `ElevenLabs` set, its `IsConfigured`; otherwise true exactly when `ApiKey` is not null or whitespace. |
 
 All listed properties except `IsConfigured` have public getters and setters.
 `public JsonNode ToSessionPayload()` returns the provider session object with
@@ -115,6 +116,58 @@ Neither API credentials nor backend configuration are sent to browser startup.
 | `EnableWebSearch` | `bool` | `false` | Adds hosted Responses web search. |
 
 All properties have public getters and setters.
+
+`public JsonObject ToElevenLabsOverrides(IEnumerable<DrylVoiceMessage>? history = null)`
+returns the ElevenLabs session overrides in the client SDK's camelCase shape and
+throws `InvalidOperationException` when `ElevenLabs` is null:
+`agent.prompt.prompt` holds `Instructions`, followed — when there is history — by
+a `## Conversation so far` section of `User: …`/`Assistant: …` lines;
+`agent.firstMessage` holds `FirstMessage` (empty when null); `agent.language` is
+present only for a non-blank `Language`; `tts.voiceId` only for a non-blank
+`VoiceId`. Blank history turns are skipped, and the history is bounded to 6,000
+characters with the most recent turns kept.
+
+## DrylElevenLabsOptions
+
+`public sealed class DrylElevenLabsOptions`, declared in
+`code/DRYL.Components.Agents/Voice/DrylElevenLabsOptions.cs`. Specified by
+[I18](../../ideas/I18%20ElevenLabs%20as%20a%20voice%20transport.md). The agent
+itself — its LLM, voice model and client tools — lives in the ElevenLabs
+workspace; it must allow the overrides a session sends.
+
+| Property | Type | Default | Contract |
+|---|---|---|---|
+| `ApiKey` | `string` | `string.Empty` | Sent only as the server-side `xi-api-key` header; never in browser startup arguments. |
+| `AgentId` | `string` | `string.Empty` | The agent the conversation token is issued for. |
+| `VoiceId` | `string?` | `null` | Voice override; null keeps the agent's voice. |
+| `FirstMessage` | `string?` | `null` | The agent's opening line; null or empty lets the user speak first. |
+| `BaseUrl` | `string` | `"https://api.elevenlabs.io"` | API base URL, for data-residency regions. |
+| `ClientScriptUrl` | `string` | jsDelivr `@elevenlabs/client@1.27.0` IIFE bundle | Version-pinned SDK URL; point it at the host's own origin to drop the CDN. |
+| `IsConfigured` | `bool`, getter only | Derived | True exactly when `ApiKey` and `AgentId` are both non-blank. |
+
+All properties except `IsConfigured` have public getters and setters.
+
+### ElevenLabs acceptance criteria — I18
+
+- `DrylVoiceOptions.IsConfigured` reads the ElevenLabs key and agent when
+  `ElevenLabs` is set, and ignores the OpenAI `ApiKey`.
+- Startup builds the overrides before fetching the token, so a broken
+  configuration fails without a round trip.
+- The token is fetched server-side; the browser receives only the token, the
+  overrides, the tool names and the pinned script URL — never `ApiKey`.
+- A refused token request fails the session with the API's own message
+  (`detail.message` or `detail`), falling back to the status code.
+- A response without a token fails the session.
+- Earlier turns reach the agent only inside the prompt override; the startup
+  `history` array stays empty.
+- Every `AIFunction` in `Tools` becomes a client tool answered through
+  `OnToolCallAsync`, with the same trace and error contract as an OpenAI tool.
+- `ConversationId` is set by the current attempt's `OnConversationStarted`,
+  ignored for a blank id or a non-ElevenLabs session, and cleared when a new
+  session starts.
+- Realtime and Live sessions are unchanged when `ElevenLabs` is null.
+- Evidence: `tests/DRYL.Components.Tests/Agents/Voice/DrylElevenLabsTests.cs`
+  and `tests/js/elevenlabs.test.mjs`.
 
 ## DrylVoiceTranscriptDelta
 
@@ -160,6 +213,7 @@ handle, not a Razor component (`SPEC-02`). Its constructor is internal.
 | `LiveUsageSeconds` | `double?`, getter only | Latest cumulative Live duration, never a sum of snapshots. |
 | `LiveCloseReason` | `string?`, getter only | Final `session.closed` reason, if received. |
 | `LiveFinalized` | `bool`, getter only | True only after a valid current session final event. |
+| `ConversationId` | `string?`, public getter, private setter | `null`; the ElevenLabs conversation id once the agent connected, kept after the session ends for duration and cost lookups. |
 
 The inherited public members remain those of `DrylRunBase` in
 `code/DRYL.Components.Agents/Agents/DrylRunBase.cs`: `State`, `Text`, `Error`,
@@ -185,6 +239,7 @@ These existing public `[JSInvokable]` signatures remain unchanged:
 | `Task<bool> OnTurnEndedAsync()` | Returns whether the current live conversation may continue. |
 | `void OnFailed(string message)` | Records a `DrylRunError` for the current attempt and settles idle. |
 | `void OnClosed()` | Settles the current attempt idle without adding an error. |
+| `void OnConversationStarted(string conversationId)` | ElevenLabs only: records a non-blank `ConversationId`. Added by I18. |
 
 Public callback availability is preserved for compatibility. Browser callbacks
 must also carry internal attempt ownership across interop; their unversioned

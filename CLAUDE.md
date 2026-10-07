@@ -118,7 +118,8 @@ Every rule has a stable ID. Cite it when you flag a violation.
 6. **`Dryl`-prefixed components, typed parameters.** `enum` for variants, never
    `string`. → `CODE-01`, `CODE-02`
 7. **Zero external runtime dependencies.** No npm, no JS framework. `Markdig` is
-   the one approved exception. → `CODE-03`
+   the one approved NuGet exception; the opt-in, CDN-loaded ElevenLabs voice
+   client is the one approved JS exception. → `CODE-03`
 8. **Touching library code means bumping `<Version>` and writing a changelog
    entry, in the same commit** — unless `<Version>` already names a version that
    has not shipped yet, in which case the entry joins that block and the version

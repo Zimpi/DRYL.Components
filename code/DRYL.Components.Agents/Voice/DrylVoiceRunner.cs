@@ -154,18 +154,52 @@ public sealed class DrylVoiceRunner
 
     internal sealed record LiveSession(string Id, string Sdp);
 
+    /// <summary>
+    /// Exchanges the ElevenLabs key for a WebRTC conversation token for the configured agent.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Not configured, or the API refused.</exception>
+    internal async Task<string> CreateElevenLabsTokenAsync(DrylElevenLabsOptions options, CancellationToken ct)
+    {
+        if (!options.IsConfigured)
+            throw new InvalidOperationException("DrylElevenLabsOptions.ApiKey and AgentId must be set.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            options.BaseUrl.TrimEnd('/') + "/v1/convai/conversation/token?agent_id=" + Uri.EscapeDataString(options.AgentId));
+        request.Headers.Add("xi-api-key", options.ApiKey);
+
+        using var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException(ReadApiError(body, response.StatusCode, "ElevenLabs"));
+
+        var token = (string?)JsonNode.Parse(body)?["token"];
+
+        return string.IsNullOrWhiteSpace(token)
+            ? throw new InvalidOperationException("The ElevenLabs API returned no conversation token.")
+            : token;
+    }
+
     // The API's own message is far more useful than a status code: a wrong key, an exhausted
     // quota and an unknown model all arrive as 4xx and mean completely different things.
     private static string ReadApiError(string body, HttpStatusCode status, string api = "realtime")
     {
         try
         {
-            if ((string?)JsonNode.Parse(body)?["error"]?["message"] is { Length: > 0 } message)
+            var root = JsonNode.Parse(body);
+            if ((string?)root?["error"]?["message"] is { Length: > 0 } message)
                 return message;
+
+            // ElevenLabs answers {"detail":{"message":"…"}} or {"detail":"…"}.
+            var detail = root?["detail"];
+            if (detail is JsonObject && (string?)detail["message"] is { Length: > 0 } elevenLabs)
+                return elevenLabs;
+            if (detail is JsonValue value && value.TryGetValue<string>(out var plain) && plain.Length > 0)
+                return plain;
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
-            // not JSON — fall through to the status line
+            // not JSON, or not the shape we know — fall through to the status line
         }
 
         return $"The {api} API rejected the session ({(int)status}).";

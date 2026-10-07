@@ -155,6 +155,52 @@ Startup cancellation and transport failure release resources immediately. Late
 offer completions are ignored by JS and any created remote session is cleaned up
 server-side. Existing Realtime behavior and I13 ownership rules remain unchanged.
 
+### ElevenLabs transport — I18
+
+Specified by [I18](../../ideas/I18%20ElevenLabs%20as%20a%20voice%20transport.md).
+When `DrylVoiceOptions.ElevenLabs` is set, the runner fetches a WebRTC
+conversation token server-side (`GET {BaseUrl}/v1/convai/conversation/token?agent_id=…`
+with the `xi-api-key` header) and passes only that token to `createSession`. The
+startup config carries `elevenLabs: { scriptUrl, overrides, tools }` and an empty
+`history`; the conversation so far travels inside `overrides`.
+
+The handle loads the ElevenLabs client SDK from `scriptUrl` as a classic script
+(once per URL and page; a failed load is forgotten so the next session retries)
+and calls `ElevenLabsClient.VoiceConversation.startSession` with
+`connectionType: 'webrtc'`, the token, the overrides and one client tool per name
+in `tools`. The SDK owns the microphone and the room; the handle owns the
+translation:
+
+| SDK callback | Report |
+|---|---|
+| `onConnect({ conversationId })` | `OnConversationStarted(conversationId)`, then `OnConnected` |
+| `onMessage({ role or source, message })` | `OnTranscript` with `User` or `Assistant`; empty messages are dropped |
+| `onModeChange({ mode })` | `OnActivity` — `Speaking`, otherwise derived (below) |
+| client tool `(parameters)` | `OnToolCallAsync(el_<n>, name, json)`; its string is the tool's answer, a throw answers `{ error }` |
+| `onDisconnect({ reason: 'error' })` | `OnFailed(message)` |
+| `onDisconnect` otherwise | `OnClosed` |
+
+Activity is `Speaking` while the SDK speaks, `Thinking` while a client tool is
+running, `UserSpeaking` while the input level is above the speech threshold and
+`Listening` otherwise. The orb's levels come from `getInputVolume` and
+`getOutputVolume`, smoothed like the analyser peaks. `setMuted` forwards to
+`setMicMuted`; a mute recorded before the room is joined is applied as soon as it
+is. The idle timer does not fire while a client tool is still running.
+
+Stop ends the conversation once (`endSession`) and reports nothing further. A stop
+while the room is still being joined leaves it as soon as `startSession` resolves.
+Callbacks of a stopped or replaced handle are ignored. The single-session-per-page
+rule and I13 attempt ownership apply unchanged.
+
+The SDK is the documented runtime dependency of `CODE-03`: loaded only when this
+transport is configured, from a version-pinned `ClientScriptUrl` that a host can
+point at its own origin.
+
+Evidence: `tests/js/elevenlabs.test.mjs` replays the SDK callbacks against a fake
+`ElevenLabsClient` — token and overrides, reports and their order, tool answers
+and errors, mute before join, stop during join, single `endSession`, script
+loading and retry.
+
 `AddDrylAgents()` in
 `code/DRYL.Components.Agents/Extensions/ServiceCollectionExtensions.cs`
 registers `DrylVoiceRunner` scoped, resolving its `IJSRuntime` from the current

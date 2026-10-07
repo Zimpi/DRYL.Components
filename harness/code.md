@@ -77,6 +77,15 @@ sign-off. This is the bar for any future dependency: a .NET NuGet only, never
 npm/JS, and only after the maintainer approves it here. Do not add others
 without the same approval.
 
+**Documented exception, opt-in:** the ElevenLabs client SDK
+(`@elevenlabs/client`, MIT) — approved by the maintainer on 2026-10-07 with
+I18 (`ideas/I18 ElevenLabs as a voice transport.md`). It is the one
+JS exception, under three conditions that keep the default install
+dependency-free: it is never bundled, never referenced by a project file, and
+loaded by `dryl-voice.js` only when a host sets `DrylVoiceOptions.ElevenLabs`,
+from the version-pinned `DrylElevenLabsOptions.ClientScriptUrl` the host may
+point at its own origin. It does not lower the bar for any other JS library.
+
 Check: `rg -n '<PackageReference' code/*/*.csproj` — currently **green**: all
 `<PackageReference>` entries are either `Markdig` or `Microsoft.*` packages
 (`Microsoft.Agents.AI`, `Microsoft.AspNetCore.Components.Web`).
