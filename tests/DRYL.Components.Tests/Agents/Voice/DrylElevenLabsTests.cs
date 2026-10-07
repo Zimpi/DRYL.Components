@@ -237,6 +237,33 @@ public class DrylElevenLabsTests
     }
 
     [Fact]
+    public async Task Audio_tags_are_performed_not_transcribed()
+    {
+        var js = new Js(); var http = new Http();
+        await using var run = Run(js, http);
+        await run.StartAsync();
+
+        Call(js.Module, "OnTranscript", "Assistant", "[nachdenklich] Das Lager Nord, hermano. [laughs] Sauber.");
+        Call(js.Module, "OnTranscript", "Assistant", "[sighs]");
+        Call(js.Module, "OnTranscript", "Assistant", "Sprecher [49] hat das gesagt.");
+        Call(js.Module, "OnTranscript", "User", "[räuspert sich] Danke");
+
+        Assert.Equal(
+            ["Das Lager Nord, hermano. Sauber.", "Sprecher [49] hat das gesagt.", "[räuspert sich] Danke"],
+            run.Transcript.Select(z => z.Text));
+    }
+
+    [Fact]
+    public void An_OpenAI_session_keeps_brackets_as_spoken()
+    {
+        var run = new DrylVoiceRunner(new Js(), new HttpClient(new Http())).Create(new DrylVoiceOptions { ApiKey = "sk" });
+
+        run.OnTranscript("Assistant", "[laughs] Gut.");
+
+        Assert.Equal("[laughs] Gut.", run.Transcript.Single().Text);
+    }
+
+    [Fact]
     public async Task A_new_session_forgets_the_old_conversation_id()
     {
         var js = new Js(); var http = new Http();
