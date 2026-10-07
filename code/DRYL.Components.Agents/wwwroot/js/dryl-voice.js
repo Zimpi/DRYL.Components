@@ -5,6 +5,10 @@
 // carries the JSON both ways. .NET never sees a byte of audio — it only learns who is talking
 // and which tool was asked for.
 //
+// An ElevenLabs agent takes a different road to the same place: the ElevenLabs client SDK owns
+// the microphone and the WebRTC room, and this file only translates its callbacks into the same
+// reports — transcript, activity, tool calls — so the dock cannot tell the two apart.
+//
 // The levels are half the reason this file exists. Measuring them here and writing a CSS
 // variable straight onto the orb keeps a per-frame signal out of the Blazor circuit; the same
 // value shipped over interop would be sixty renders a second for a decoration.
@@ -44,6 +48,11 @@ export function createSession(token, config, dotNet) {
     const state = {
         dotNet,
         live: config.live === true,
+        // ElevenLabs: script URL, session overrides and the client tool names. Null for OpenAI.
+        eleven: config.elevenLabs ?? null,
+        conversation: null,
+        mode: 'listening',
+        toolsBusy: 0,
         ready: false,
         closing: false,
         closeTimer: 0,
@@ -81,7 +90,7 @@ export function createSession(token, config, dotNet) {
         started: false,
     };
     return {
-        start: () => startSession(state, token, config),
+        start: () => state.eleven ? startElevenLabs(state, token, config) : startSession(state, token, config),
         stop: () => stopSession(state, null),
         setMuted: (muted) => setMuted(state, muted),
         closed: () => state.closed,
@@ -382,10 +391,12 @@ function setMuted(state, muted) {
 
 function applyMute(state) {
     for (const track of state.mic?.getAudioTracks() ?? []) safely(() => { track.enabled = !state.muted; });
+    if (state.conversation) safely(() => state.conversation.setMicMuted(state.muted));
 }
 
 function stopSession(state, notification) {
     if (state.closed) return;
+    if (state.eleven) return stopElevenLabs(state, notification);
     if (!state.live || !state.ready || state.channel?.readyState !== 'open') {
         teardown(state, notification);
         return;
@@ -400,6 +411,158 @@ function stopSession(state, notification) {
     for (const track of state.mic?.getTracks() ?? []) safely(() => track.stop());
     state.closeTimer = setTimeout(() => teardown(state, notification), 15000);
     send(state, { type: 'session.close', event_id: `dryl_${++state.eventSequence}` });
+    return state.closePromise;
+}
+
+// ── ElevenLabs ───────────────────────────────────────────────────────────────
+
+// One load per script URL and page. The SDK is an IIFE bundle that installs `ElevenLabsClient`;
+// a failed load is forgotten so the next session can try again.
+const elevenLabsLoads = new Map();
+
+function loadElevenLabs(url) {
+    if (globalThis.ElevenLabsClient?.VoiceConversation) return Promise.resolve(globalThis.ElevenLabsClient);
+    let pending = elevenLabsLoads.get(url);
+    if (!pending) {
+        pending = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.async = true;
+            script.crossOrigin = 'anonymous';
+            script.onload = () => globalThis.ElevenLabsClient?.VoiceConversation
+                ? resolve(globalThis.ElevenLabsClient)
+                : reject(new Error('Der ElevenLabs-Client hat sich nach dem Laden nicht gemeldet.'));
+            script.onerror = () => reject(new Error('Der ElevenLabs-Client ließ sich nicht laden.'));
+            document.head.appendChild(script);
+        });
+        pending.catch(() => elevenLabsLoads.delete(url));
+        elevenLabsLoads.set(url, pending);
+    }
+    return pending;
+}
+
+async function startElevenLabs(state, token, config) {
+    if (state.closed || state.started) return;
+    state.started = true;
+    if (session) {
+        state.closed = true;
+        await notify(state.dotNet, 'OnClosed');
+        return;
+    }
+    session = state;
+
+    try {
+        const sdk = await loadElevenLabs(state.eleven.scriptUrl);
+        if (!current(state)) return;
+
+        // Every tool the agent may call is answered by .NET, exactly like an OpenAI tool call.
+        const clientTools = {};
+        for (const name of state.eleven.tools ?? []) {
+            clientTools[name] = (parameters) => elevenLabsTool(state, name, parameters);
+        }
+
+        const conversation = await sdk.VoiceConversation.startSession({
+            conversationToken: token,
+            connectionType: 'webrtc',
+            overrides: state.eleven.overrides ?? undefined,
+            clientTools,
+            onConnect: ({ conversationId }) => {
+                if (!current(state) || state.ready) return;
+                state.ready = true;
+                touch(state);
+                report(state, 'OnConversationStarted', conversationId ?? '');
+                report(state, 'OnConnected');
+            },
+            onDisconnect: (details) => {
+                // Our own stop tears down itself; this is the agent, the network or a failure.
+                if (!current(state) || state.closing) return;
+                if (details?.reason === 'error') {
+                    teardown(state, null);
+                    notify(state.dotNet, 'OnFailed', details.message || 'Die Verbindung zu ElevenLabs brach ab.');
+                } else {
+                    teardown(state, 'OnClosed');
+                }
+            },
+            onError: (message) => console.warn('[dryl-voice] ElevenLabs:', message),
+            onMessage: ({ role, source, message }) => {
+                if (!current(state) || !message) return;
+                const mine = role ? role === 'user' : source === 'user';
+                touch(state);
+                report(state, 'OnTranscript', mine ? 'User' : 'Assistant', message);
+            },
+            onModeChange: ({ mode }) => {
+                if (!current(state)) return;
+                state.mode = mode;
+                touch(state);
+                elevenLabsActivity(state);
+            },
+        });
+
+        if (!current(state)) {
+            // Stopped while the room was still being joined: leave it again at once.
+            safely(() => conversation.endSession());
+            return;
+        }
+        state.conversation = conversation;
+        applyMute(state);
+        if (!state.raf) state.raf = requestAnimationFrame(() => tick(state));
+        if (config.maxMs > 0) {
+            state.maxTimer = setTimeout(() => stopSession(state, 'OnClosed'), config.maxMs);
+        }
+        state.idleMs = config.idleMs ?? 0;
+        touch(state);
+    } catch (err) {
+        if (!current(state)) return;
+        teardown(state, null);
+        await notify(state.dotNet, 'OnFailed', err?.name === 'NotAllowedError'
+            ? 'Kein Zugriff auf das Mikrofon. Erlaube ihn in den Browser-Einstellungen und starte neu.'
+            : err?.message ?? String(err));
+    }
+}
+
+async function elevenLabsTool(state, name, parameters) {
+    if (!current(state)) return JSON.stringify({ error: 'Voice session ended.' });
+    state.toolsBusy++;
+    elevenLabsActivity(state);
+    touch(state);
+    try {
+        return await state.dotNet.invokeMethodAsync(
+            'OnToolCallAsync', `el_${++state.eventSequence}`, name, JSON.stringify(parameters ?? {}));
+    } catch (err) {
+        // The agent waits for an answer; an error it can read keeps the conversation alive.
+        return JSON.stringify({ error: err?.message ?? 'Der Werkzeugaufruf schlug fehl.' });
+    } finally {
+        state.toolsBusy = Math.max(0, state.toolsBusy - 1);
+        touch(state);
+        elevenLabsActivity(state);
+    }
+}
+
+// The SDK only knows speaking and listening. Thinking is a tool still running; the user speaking
+// is read off the input level, like the Live session does.
+function elevenLabsActivity(state) {
+    if (!current(state) || !state.ready || state.closing) return;
+    const activity = state.mode === 'speaking' ? 'Speaking'
+        : state.toolsBusy ? 'Thinking'
+        : (state.in?.level ?? 0) > 0.06 ? 'UserSpeaking'
+        : 'Listening';
+    if (activity !== state.activity) {
+        state.activity = activity;
+        report(state, 'OnActivity', activity);
+    }
+}
+
+function stopElevenLabs(state, notification) {
+    if (state.closed) return;
+    if (state.closing) return state.closePromise;
+    state.closing = true;
+    clearTimeout(state.idleTimer);
+    clearTimeout(state.maxTimer);
+    const conversation = state.conversation;
+    state.closePromise = (async () => {
+        try { await conversation?.endSession(); } catch { /* the room is gone either way */ }
+        teardown(state, notification);
+    })();
     return state.closePromise;
 }
 
@@ -691,9 +854,19 @@ function meter(state, stream, direction) {
 function tick(state) {
     if (!current(state)) return;
 
+    // ElevenLabs measures its own levels; they are smoothed exactly like the analyser peaks.
+    if (state.conversation) {
+        for (const [direction, read] of [['in', 'getInputVolume'], ['out', 'getOutputVolume']]) {
+            const meterState = state[direction] ??= { level: 0 };
+            let volume = 0;
+            try { volume = state.conversation[read]?.() ?? 0; } catch { /* no level */ }
+            meterState.level += (Math.min(1, volume * 1.6) - meterState.level) * 0.25;
+        }
+    }
+
     for (const direction of ['in', 'out']) {
         const meterState = state[direction];
-        if (!meterState) continue;
+        if (!meterState?.analyser) continue;
 
         meterState.analyser.getByteTimeDomainData(meterState.buffer);
         let peak = 0;
@@ -709,6 +882,7 @@ function tick(state) {
     }
 
     if (state.live) liveActivity(state);
+    if (state.eleven) elevenLabsActivity(state);
 
     state.raf = requestAnimationFrame(() => tick(state));
 }
@@ -718,7 +892,9 @@ function tick(state) {
 function touch(state) {
     if (!current(state) || state.closing || !state.idleMs) return;
     clearTimeout(state.idleTimer);
-    state.idleTimer = setTimeout(() => stopSession(state, 'OnClosed'), state.idleMs);
+    // A tool still at work is not silence: the user is waiting for its answer.
+    state.idleTimer = setTimeout(
+        () => state.toolsBusy ? touch(state) : stopSession(state, 'OnClosed'), state.idleMs);
 }
 
 function teardown(state, notification) {
@@ -739,6 +915,9 @@ function teardown(state, notification) {
     if (state.pc) state.pc.ontrack = state.pc.oniceconnectionstatechange = null;
     safely(() => state.channel?.close());
     safely(() => state.pc?.close());
+    const conversation = state.conversation;
+    state.conversation = null;
+    if (conversation && !state.closing) safely(() => conversation.endSession());
     for (const track of state.mic?.getTracks() ?? []) safely(() => track.stop());
     safely(() => state.ctx?.close());
     safely(() => state.audio?.pause?.());

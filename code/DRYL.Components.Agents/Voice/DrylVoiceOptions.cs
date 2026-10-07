@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
 
@@ -49,6 +50,12 @@ public sealed class DrylVoiceOptions
     /// <c>gpt-live-1</c>; null preserves the Realtime protocol.</summary>
     public DrylLiveOptions? Live { get; set; }
 
+    /// <summary>Opt into an ElevenLabs agent instead of an OpenAI model. When set, <see cref="Model"/>,
+    /// <see cref="Voice"/>, <see cref="Live"/> and the OpenAI key are ignored; <see cref="Instructions"/>
+    /// and <see cref="Language"/> become session overrides and <see cref="Tools"/> answer the agent's
+    /// client tool calls.</summary>
+    public DrylElevenLabsOptions? ElevenLabs { get; set; }
+
     /// <summary>The system prompt — role, personality, tone, language. Hand it the same prompt
     /// the text assistant uses, plus whatever is specific to being spoken aloud.</summary>
     public string? Instructions { get; set; }
@@ -96,7 +103,56 @@ public sealed class DrylVoiceOptions
 
     /// <summary>True when a key is configured — hosts use this to decide whether to offer voice
     /// at all.</summary>
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(ApiKey);
+    public bool IsConfigured => ElevenLabs is { } elevenLabs
+        ? elevenLabs.IsConfigured
+        : !string.IsNullOrWhiteSpace(ApiKey);
+
+    /// <summary>
+    /// Builds the ElevenLabs session overrides in the client SDK's camelCase shape: the prompt
+    /// (with earlier turns appended, because an ElevenLabs session cannot be seeded with
+    /// conversation items), the first message, the language and the voice.
+    /// </summary>
+    public JsonObject ToElevenLabsOverrides(IEnumerable<DrylVoiceMessage>? history = null)
+    {
+        var elevenLabs = ElevenLabs ?? throw new InvalidOperationException("ElevenLabs is not configured.");
+
+        var prompt = new StringBuilder(Instructions ?? string.Empty);
+        var lines = new List<string>();
+        var remaining = 6000;
+
+        // The history arrives as text in the prompt, so it is bounded like a prompt: the most
+        // recent turns win, older ones fall away.
+        foreach (var turn in (history ?? []).Where(m => !string.IsNullOrWhiteSpace(m.Text)).Reverse())
+        {
+            var line = (turn.Role == VoiceRole.User ? "User: " : "Assistant: ") + turn.Text.Trim();
+            if (line.Length + 1 > remaining) break;
+            remaining -= line.Length + 1;   // the line break joins it to the next
+            lines.Add(line);
+        }
+
+        if (lines.Count > 0)
+        {
+            lines.Reverse();
+            prompt.Append("\n\n## Conversation so far\n\n");
+            prompt.AppendJoin('\n', lines);
+        }
+
+        var agent = new JsonObject
+        {
+            ["prompt"] = new JsonObject { ["prompt"] = prompt.ToString() },
+            ["firstMessage"] = elevenLabs.FirstMessage ?? string.Empty,
+        };
+        if (!string.IsNullOrWhiteSpace(Language)) agent["language"] = Language;
+
+        var overrides = new JsonObject { ["agent"] = agent };
+        if (!string.IsNullOrWhiteSpace(elevenLabs.VoiceId))
+            overrides["tts"] = new JsonObject { ["voiceId"] = elevenLabs.VoiceId };
+
+        return overrides;
+    }
+
+    /// <summary>The names of the tools the browser registers as ElevenLabs client tools.</summary>
+    internal string[] ToolNames() => Tools.OfType<AIFunction>().Select(f => f.Name).ToArray();
 
     /// <summary>
     /// Builds the provider <c>session</c> block: Realtime client-secret configuration

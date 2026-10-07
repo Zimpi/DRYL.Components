@@ -14,6 +14,18 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [Agents 0.21.0] — 2026-10-07
+
+Agents-only release; the core package stays at 3.4.0.
+
+### Added
+- `DrylVoiceOptions` (Agents 0.21.0) — New opt-in `ElevenLabs` transport: set a `DrylElevenLabsOptions` (`ApiKey`, `AgentId`, optional `VoiceId`, `FirstMessage`, `BaseUrl`) and the same `DrylVoiceRun`, `DrylCanvasDock` and orb talk to an ElevenLabs agent instead of an OpenAI model. The server exchanges the key for a WebRTC conversation token; only the token reaches the browser. `Instructions`, `Language` and the voice are sent as session overrides, and earlier turns are appended to the prompt. Every function in `Tools` answers the agent's client tool of the same name on the circuit, with the usual tool trace. Mute, idle timeout and maximum duration work as in the OpenAI transports. `IsConfigured` reads the ElevenLabs key and agent when the transport is set. Realtime and Live are unchanged.
+- `DrylVoiceOptions` (Agents 0.21.0) — New `ToElevenLabsOverrides(history)` builds the session overrides; the history is bounded to the most recent 6,000 characters.
+- `DrylVoiceRun` (Agents 0.21.0) — New `ConversationId`: the ElevenLabs conversation id, kept after the session ends so the host can fetch its duration and cost.
+
+### Changed
+- `DRYL.Components.Agents` (Agents 0.21.0) — The ElevenLabs transport loads the official `@elevenlabs/client` SDK (MIT) in the browser from a version-pinned jsDelivr URL, and only when `DrylVoiceOptions.ElevenLabs` is set. Point `DrylElevenLabsOptions.ClientScriptUrl` at a copy on your own origin to avoid the CDN. Hosts that do not use the transport load nothing new.
+
 ## [3.4.0] — 2026-10-06
 
 ### Added

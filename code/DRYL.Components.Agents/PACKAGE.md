@@ -222,6 +222,37 @@ and hears silence, and `SetMutedAsync(false)` reopens it without renegotiation.
 shows the toggle beside its stop button; `VoiceMuteLabel`, `VoiceUnmuteLabel` and
 `VoiceMutedText` localise it.
 
+## ElevenLabs voice agents
+
+The same run, dock and orb can talk to an ElevenLabs agent instead of an OpenAI model:
+
+```csharp
+var voice = voiceRunner.Create(new DrylVoiceOptions
+{
+    Instructions = "Your voice persona.",   // sent as the agent's prompt override
+    Language = "de",
+    Tools = functionTools,                   // answered as ElevenLabs client tools
+    ElevenLabs = new DrylElevenLabsOptions
+    {
+        ApiKey = configuration["ElevenLabs:ApiKey"]!, // server only
+        AgentId = "agent_…",
+        VoiceId = "…",                       // optional: overrides the agent's voice
+        FirstMessage = "Hola, ¿en qué te ayudo?",
+    },
+});
+```
+
+The server exchanges the key for a WebRTC conversation token; the browser only gets the
+token. The agent must allow the prompt, first-message, language and voice overrides, and
+register every tool it may call as a *client* tool whose name matches one in `Tools` — the
+tools then run on the circuit, exactly like OpenAI tool calls. Earlier turns are appended to
+the prompt, because an ElevenLabs session cannot be seeded with conversation items.
+`ConversationId` names the conversation for a later duration and cost lookup.
+
+The browser loads the official ElevenLabs client from a version-pinned jsDelivr URL, only
+when this transport is used. Set `ClientScriptUrl` to a copy on your own origin to drop the
+CDN. Mute, idle timeout and maximum duration work as in the OpenAI transports.
+
 ## Versioning & publishing
 
 This package carries its own `Version` and is published independently of Core.

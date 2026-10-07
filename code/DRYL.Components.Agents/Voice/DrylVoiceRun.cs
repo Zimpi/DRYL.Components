@@ -114,6 +114,10 @@ public sealed class DrylVoiceRun : DrylRunBase
     /// <summary>True only when the final Live session event was received.</summary>
     public bool LiveFinalized { get; private set; }
 
+    /// <summary>The ElevenLabs conversation id of the current or most recent session; null until
+    /// the agent connected. Hosts use it to fetch duration and cost once the session is over.</summary>
+    public string? ConversationId { get; private set; }
+
     /// <summary>True while a session is connecting, running or closing.</summary>
     public bool IsActive => Phase is not VoicePhase.Idle;
 
@@ -198,7 +202,15 @@ public sealed class DrylVoiceRun : DrylRunBase
         {
             if (!Current(attempt)) return;
             string? token = null;
-            if (Options.Live is not null)
+            object? elevenLabs = null;
+            if (Options.ElevenLabs is { } agent)
+            {
+                // Built before the token, so a broken configuration fails without a round trip.
+                var overrides = Options.ToElevenLabsOverrides(history);
+                token = await _runner.CreateElevenLabsTokenAsync(agent, attempt.Token).ConfigureAwait(false);
+                elevenLabs = new { scriptUrl = agent.ClientScriptUrl, overrides, tools = Options.ToolNames() };
+            }
+            else if (Options.Live is not null)
             {
                 if (!Options.IsConfigured) throw new InvalidOperationException("DrylVoiceOptions.ApiKey is not set.");
                 attempt.LiveConnection = new DrylVoiceOptions
@@ -233,10 +245,12 @@ public sealed class DrylVoiceRun : DrylRunBase
             var handle = await module.InvokeAsync<IJSObjectReference>("createSession", token, new
             {
                 live = attempt.LiveSession is not null,
+                elevenLabs,
                 baseUrl = Options.BaseUrl.TrimEnd('/'),
                 idleMs = (int)Options.IdleTimeout.TotalMilliseconds,
                 maxMs = (int)Options.MaxDuration.TotalMilliseconds,
-                history = (attempt.LiveSession is null ? history ?? Array.Empty<DrylVoiceMessage>() : Array.Empty<DrylVoiceMessage>())
+                // Live and ElevenLabs carry the history in their session configuration instead.
+                history = (attempt.LiveSession is null && elevenLabs is null ? history ?? Array.Empty<DrylVoiceMessage>() : Array.Empty<DrylVoiceMessage>())
                     .Select(m => new { role = m.Role.ToString(), text = m.Text })
                     .ToArray(),
             }, attempt.Callback).ConfigureAwait(false);
@@ -379,7 +393,8 @@ public sealed class DrylVoiceRun : DrylRunBase
         LiveUsageSeconds = null;
         LiveCloseReason = null;
         LiveFinalized = false;
-        ClearToolCalls();                        // …and so is its trace
+        ConversationId = null;
+        ClearToolCalls();                      // …and so is its trace
         _autoTurns = 0;                          // …and it does not inherit the last one's budget
         State = AiState.Thinking;
         Raise();
@@ -562,6 +577,20 @@ public sealed class DrylVoiceRun : DrylRunBase
         }
         try { await notification.ConfigureAwait(false); }
         catch { /* a host notification must not interrupt live speech or backend continuation */ }
+    }
+
+    /// <summary>Records the ElevenLabs conversation id once the agent has connected.</summary>
+    [JSInvokable]
+    public void OnConversationStarted(string conversationId) => ConversationStarted(null, conversationId);
+
+    private void ConversationStarted(Attempt? expected, string conversationId)
+    {
+        lock (_sync)
+        {
+            if (!Accept(expected) || Options.ElevenLabs is null || string.IsNullOrWhiteSpace(conversationId)) return;
+            ConversationId = conversationId;
+            Raise();
+        }
     }
 
     /// <summary>Stores the latest cumulative Live voice duration.</summary>
@@ -959,6 +988,7 @@ public sealed class DrylVoiceRun : DrylRunBase
         [JSInvokable] public void OnLiveTranscriptDelta(string role, string delta, double startMs, double endMs) => run.LiveTranscriptReceived(attempt, role, delta, startMs, endMs);
         [JSInvokable] public Task OnBackendResponseAsync(JsonElement response) => run.BackendResponseAsync(attempt, response);
         [JSInvokable] public void OnLiveUsage(double seconds) => run.LiveUsageReceived(attempt, seconds);
+        [JSInvokable] public void OnConversationStarted(string conversationId) => run.ConversationStarted(attempt, conversationId);
         [JSInvokable] public void OnLiveSessionClosed(JsonElement details) => run.LiveSessionClosed(attempt, details);
         [JSInvokable] public Task<string> OnToolCallAsync(string callId, string name, string argumentsJson) => run.ToolCallAsync(attempt, callId, name, argumentsJson);
         [JSInvokable] public Task<bool> OnTurnEndedAsync() => run.TurnEndedAsync(attempt);
