@@ -54,7 +54,7 @@ public enum VoiceActivity
 /// 30 times a second and raises <see cref="DrylRunBase.OnChange"/> is 30 renders a second for a
 /// decoration; the level stays in the browser and drives a CSS variable on the orb.</para>
 /// </remarks>
-public sealed class DrylVoiceRun : DrylRunBase
+public sealed partial class DrylVoiceRun : DrylRunBase
 {
     private const string ModulePath = "./_content/DRYL.Components.Agents/js/dryl-voice.js";
 
@@ -467,10 +467,27 @@ public sealed class DrylVoiceRun : DrylRunBase
                 ? r
                 : VoiceRole.Assistant;
 
+            // An expressive ElevenLabs voice performs its audio tags; they are direction, not words.
+            if (parsed == VoiceRole.Assistant && Options.ElevenLabs is not null)
+            {
+                text = WithoutAudioTags(text);
+                if (text.Length == 0) return;
+            }
+
             _transcript.Add(new DrylVoiceMessage(parsed, text.Trim()));
             Raise();
         }
     }
+
+    /// <summary>
+    /// Removes ElevenLabs audio tags (<c>[laughs]</c>, <c>[nachdenklich]</c>) from a line the
+    /// agent spoke. Only brackets holding words count, so a spoken reference like <c>[49]</c> stays.
+    /// </summary>
+    public static string WithoutAudioTags(string text) =>
+        AudioTag().Replace(text, " ").Trim();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s*\[\p{L}[\p{L} '’-]{0,48}\]\s*")]
+    private static partial System.Text.RegularExpressions.Regex AudioTag();
 
     /// <summary>Creates the Live session from a browser SDP offer, retaining its credentials on the server.</summary>
     [JSInvokable]
