@@ -2,7 +2,7 @@ namespace DRYL.Components;
 
 /// <summary>
 /// A span of working time or an absence of one person, drawn by a
-/// <c>DrylCalendar</c> as information behind the events.
+/// <see cref="DrylCalendar"/> as information behind the events.
 /// </summary>
 public sealed record CalendarAvailability
 {

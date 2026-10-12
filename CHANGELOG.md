@@ -17,7 +17,8 @@ Version bump guide:
 ## [3.5.0] — 2026-10-12
 
 ### Added
-- `DrylCalendar` — New scheduling calendar, stage one (show). This entry starts with its types: the enums `CalendarView` (`Week` / `Day` / `Month`), `CalendarPersonLayout` (`Overlay` / `Columns`), `CalendarColor` (`Auto`, `Slot1`–`Slot6`, the six chart colours) and `CalendarAvailabilityKind` (`Working` / `Absent`), and the records `CalendarEvent`, `CalendarPerson`, `CalendarAvailability`, `CalendarRange` and `CalendarLabels`. The records use `init` properties and no positional constructor, so later stages can add members without breaking a host.
+- `DrylCalendar` — New scheduling calendar, stage one (show): day, week and month views of the events the host supplies. `View` and `Date` are two-way bound and also work unbound; `OnRangeChanged` reports the visible range once after the first render and whenever it changes, so the host can load what belongs in it. The toolbar (`ShowToolbar`, `ToolbarContent`) carries previous / today / next, a title and the view switch. The time grid is set by `DayStart`, `DayEnd` and `SlotMinutes` and scrolls inside `Height` under sticky day headers; today is marked and a current-time line follows `Now`, or the server's clock when `Now` is `null`. `FirstDayOfWeek` and `Culture` drive week start and all date and time formatting, `Labels` (`CalendarLabels`) every other text. `Loading` marks the calendar busy without emptying it.
+- `DrylCalendar` — Its types: the enums `CalendarView` (`Week` / `Day` / `Month`), `CalendarPersonLayout` (`Overlay` / `Columns`), `CalendarColor` (`Auto`, `Slot1`–`Slot6`, the six chart colours) and `CalendarAvailabilityKind` (`Working` / `Absent`), and the records `CalendarEvent`, `CalendarPerson`, `CalendarAvailability`, `CalendarRange` and `CalendarLabels`. The records use `init` properties and no positional constructor, so later stages can add members without breaking a host.
 
 ## [Agents 0.21.0] — 2026-10-12
 

@@ -1,6 +1,6 @@
 namespace DRYL.Components;
 
-/// <summary>How a <c>DrylCalendar</c> shows several people at once.</summary>
+/// <summary>How a <see cref="DrylCalendar"/> shows several people at once.</summary>
 public enum CalendarPersonLayout
 {
     /// <summary>Every person's events share one grid and are told apart by colour. Default.</summary>

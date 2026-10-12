@@ -1,0 +1,481 @@
+@namespace DRYL.Components
+@using System.Globalization
+@using System.Text.RegularExpressions
+@using DRYL.Components.Internal
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCalendar — a scheduling calendar: day, week and month
+    views of the events the host supplies.
+
+    The host owns the data. The calendar tells it which span of
+    time is showing through OnRangeChanged and renders what it is
+    given. Times are wall-clock times in one zone; every end is
+    exclusive.
+
+    Usage:
+      <DrylCalendar @bind-View="_view"
+                    @bind-Date="_date"
+                    OnRangeChanged="LoadAsync"
+                    DayStart="@TimeSpan.FromHours(7)"
+                    DayEnd="@TimeSpan.FromHours(20)"
+                    Height="640px"
+                    AriaLabel="Team calendar" />
+
+    All layout arithmetic is server-side (Internal/CalendarLayout);
+    positions reach the markup as percentages, lengths stay in the
+    stylesheet.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootClass"
+     style="@RootStyle"
+     role="group"
+     aria-label="@AriaLabel"
+     aria-busy="@(Loading ? "true" : null)"
+     @attributes="AdditionalAttributes">
+
+    @if (ShowToolbar)
+    {
+        <div class="cal-toolbar">
+            <div class="cal-nav">
+                <DrylTooltip Text="@Labels.Previous">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                LeadingIcon="ChevronLeft"
+                                AriaLabel="@Labels.Previous"
+                                OnClick="() => NavigateAsync(-1)" />
+                </DrylTooltip>
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                            Size="DrylButton.ButtonSize.Small"
+                            Class="cal-today"
+                            OnClick="GoToTodayAsync">@Labels.Today</DrylButton>
+                <DrylTooltip Text="@Labels.Next">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                LeadingIcon="ChevronRight"
+                                AriaLabel="@Labels.Next"
+                                OnClick="() => NavigateAsync(1)" />
+                </DrylTooltip>
+            </div>
+
+            <div class="cal-title" aria-live="polite" aria-atomic="true">@Title</div>
+
+            <DrylPresence Visible="Loading" Appear>
+                <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" Label="@Labels.Loading" />
+            </DrylPresence>
+
+            <div class="cal-toolbar-end">
+                <DrylSegmentedControl TValue="CalendarView"
+                                      Value="_view"
+                                      ValueChanged="SelectViewAsync"
+                                      Size="SegmentedSize.Small">
+                    <DrylSegment TValue="CalendarView" Value="CalendarView.Day" Label="@Labels.Day" />
+                    <DrylSegment TValue="CalendarView" Value="CalendarView.Week" Label="@Labels.Week" />
+                    <DrylSegment TValue="CalendarView" Value="CalendarView.Month" Label="@Labels.Month" />
+                </DrylSegmentedControl>
+                @ToolbarContent
+            </div>
+        </div>
+    }
+
+    <div class="cal-body">
+        @if (_view == CalendarView.Month)
+        {
+            var (first, count) = CalendarLayout.VisibleDays(CalendarView.Month, _date, FirstDay);
+            <div class="cal-month">
+                <div class="cal-month-head">
+                    @for (var d = 0; d < 7; d++)
+                    {
+                        <div class="cal-weekday">@_culture.DateTimeFormat.GetAbbreviatedDayName(first.AddDays(d).DayOfWeek)</div>
+                    }
+                </div>
+                @for (var w = 0; w < count / 7; w++)
+                {
+                    var weekStart = first.AddDays(w * 7);
+                    <div class="cal-week" @key="weekStart">
+                        @for (var d = 0; d < 7; d++)
+                        {
+                            var day = weekStart.AddDays(d);
+                            var isToday = day == Today;
+                            <div class="@MonthCellClass(day, isToday)"
+                                 data-date="@Iso(day)"
+                                 aria-current="@(isToday ? "date" : null)">
+                                <button type="button"
+                                        class="cal-cell-num"
+                                        aria-label="@LongDate(day)"
+                                        @onclick="() => ShowDayAsync(day)">@day.Day.ToString(_culture)</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            var (first, count) = CalendarLayout.VisibleDays(_view, _date, FirstDay);
+            var now = EffectiveNow;
+            <div class="cal-scroll">
+                <div class="cal-time" style="@TimeStyle(count)">
+                    <div class="cal-head">
+                        <div class="cal-head-row">
+                            <div class="cal-corner" aria-hidden="true"></div>
+                            @for (var d = 0; d < count; d++)
+                            {
+                                var day = first.AddDays(d);
+                                var isToday = day == Today;
+                                if (_view == CalendarView.Week)
+                                {
+                                    <button type="button"
+                                            class="@DayHeadClass(isToday)"
+                                            data-date="@Iso(day)"
+                                            aria-current="@(isToday ? "date" : null)"
+                                            aria-label="@LongDate(day)"
+                                            @key="day"
+                                            @onclick="() => ShowDayAsync(day)">
+                                        <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
+                                        <span class="cal-day-num">@day.Day.ToString(_culture)</span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="@DayHeadClass(isToday)"
+                                         data-date="@Iso(day)"
+                                         aria-current="@(isToday ? "date" : null)"
+                                         @key="day">
+                                        <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
+                                        <span class="cal-day-num">@day.Day.ToString(_culture)</span>
+                                    </div>
+                                }
+                            }
+                        </div>
+                        <div class="cal-allday">
+                            <div class="cal-allday-label">@Labels.AllDay</div>
+                            @for (var d = 0; d < count; d++)
+                            {
+                                <div class="cal-allday-cell" @key="first.AddDays(d)"></div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="cal-grid">
+                        <div class="cal-axis">
+                            @foreach (var hour in HourMarks())
+                            {
+                                <div class="cal-hour" style="top:@CalendarLayout.Pct(_grid.Fraction(hour))">@FormatTime(hour)</div>
+                            }
+                        </div>
+                        <div class="cal-lines" aria-hidden="true">
+                            @for (var s = 1; s < _grid.SlotCount; s++)
+                            {
+                                var time = _grid.DayStart + TimeSpan.FromMinutes(s * _grid.SlotMinutes);
+                                <div class="@(time.Minutes == 0 ? "cal-line cal-line--hour" : "cal-line")"
+                                     style="top:@CalendarLayout.Pct(_grid.Fraction(time))"></div>
+                            }
+                        </div>
+                        @for (var d = 0; d < count; d++)
+                        {
+                            var day = first.AddDays(d);
+                            var isToday = day == Today;
+                            <div class="@(isToday ? "cal-col is-today" : "cal-col")" data-date="@Iso(day)" @key="day">
+                                @if (isToday && now.TimeOfDay >= _grid.DayStart && now.TimeOfDay < _grid.DayEnd)
+                                {
+                                    <div class="cal-now" aria-hidden="true"
+                                         style="top:@CalendarLayout.Pct(_grid.Fraction(now.TimeOfDay))"></div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // ── View and date ───────────────────────────────────────────────────
+
+    /// <summary>The view shown. Supports two-way binding via <c>@bind-View</c>.</summary>
+    [Parameter] public CalendarView View { get; set; } = CalendarView.Week;
+
+    /// <summary>Raised when the user switches the view.</summary>
+    [Parameter] public EventCallback<CalendarView> ViewChanged { get; set; }
+
+    /// <summary>
+    /// The date the visible range is built around. Supports two-way binding via
+    /// <c>@bind-Date</c>. Left unset, the calendar starts on the date of
+    /// <see cref="Now"/>, or of the server's clock.
+    /// </summary>
+    [Parameter] public DateOnly Date { get; set; }
+
+    /// <summary>Raised when the user navigates.</summary>
+    [Parameter] public EventCallback<DateOnly> DateChanged { get; set; }
+
+    /// <summary>
+    /// Raised with the visible range — once after the first render, then whenever
+    /// the range changes. The host supplies the events of that range.
+    /// </summary>
+    [Parameter] public EventCallback<CalendarRange> OnRangeChanged { get; set; }
+
+    /// <summary>
+    /// The host's current time, for "today" and the current-time line.
+    /// <c>null</c> uses the server's clock, and the line then advances on its own.
+    /// </summary>
+    [Parameter] public DateTime? Now { get; set; }
+
+    /// <summary>The first column of a week. <c>null</c> follows <see cref="Culture"/>.</summary>
+    [Parameter] public DayOfWeek? FirstDayOfWeek { get; set; }
+
+    /// <summary>Formats dates, day names and times. <c>null</c> uses the current culture.</summary>
+    [Parameter] public CultureInfo? Culture { get; set; }
+
+    // ── The time grid ───────────────────────────────────────────────────
+
+    /// <summary>First time of day the grid shows. Defaults to midnight.</summary>
+    [Parameter] public TimeSpan DayStart { get; set; } = TimeSpan.Zero;
+
+    /// <summary>
+    /// Time of day the grid ends at. Defaults to the following midnight; a value
+    /// that is not later than <see cref="DayStart"/> is replaced by it.
+    /// </summary>
+    [Parameter] public TimeSpan DayEnd { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Length of one grid slot, in minutes. Must divide sixty evenly; any other
+    /// value is replaced by 30.
+    /// </summary>
+    [Parameter] public int SlotMinutes { get; set; } = 30;
+
+    /// <summary>Height of the calendar, any CSS length; the grid scrolls inside it.</summary>
+    [Parameter] public string? Height { get; set; }
+
+    // ── Slots ───────────────────────────────────────────────────────────
+
+    /// <summary>Extra content at the end of the toolbar.</summary>
+    [Parameter] public RenderFragment? ToolbarContent { get; set; }
+
+    // ── Presentation ────────────────────────────────────────────────────
+
+    /// <summary>Renders the toolbar. Defaults to <c>true</c>.</summary>
+    [Parameter] public bool ShowToolbar { get; set; } = true;
+
+    /// <summary>
+    /// Marks the calendar as waiting for the host's data. What is already rendered
+    /// stays in place.
+    /// </summary>
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>Every text the calendar renders that is not a formatted date or time.</summary>
+    [Parameter] public CalendarLabels Labels { get; set; } = new();
+
+    /// <summary>Accessible label of the calendar.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the calendar's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // ── State ───────────────────────────────────────────────────────────
+
+    private CultureInfo _culture = CultureInfo.CurrentCulture;
+    private CalendarGrid _grid;
+
+    // View and Date are bound parameters with an internal fallback: the calendar
+    // keeps its own copy and adopts the parameter only when the parameter changes,
+    // so it works the same bound and unbound.
+    private CalendarView _view;
+    private CalendarView _lastView;
+    private DateOnly _date;
+    private DateOnly _lastDate;
+    private bool _dateSupplied;
+    private bool _initialised;
+
+    private bool _rangeRaised;
+    private CalendarRange _lastRange;
+
+    private bool _dayEndReported;
+    private bool _slotMinutesReported;
+
+    private System.Threading.Timer? _clock;
+
+    private DateTime EffectiveNow => Now ?? DateTime.Now;
+    private DateOnly Today => DateOnly.FromDateTime(EffectiveNow);
+    private DayOfWeek FirstDay => FirstDayOfWeek ?? _culture.DateTimeFormat.FirstDayOfWeek;
+
+    /// <summary>Whether the timer that advances the current-time line is running.</summary>
+    internal bool ClockRunning => _clock is not null;
+
+    /// <inheritdoc />
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        // A DateOnly parameter cannot say "unset" by its value, so note whether the
+        // host supplied one at all.
+        if (parameters.TryGetValue<DateOnly>(nameof(Date), out _)) _dateSupplied = true;
+        return base.SetParametersAsync(parameters);
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        _culture = Culture ?? CultureInfo.CurrentCulture;
+
+        _grid = CalendarLayout.Grid(DayStart, DayEnd, SlotMinutes, out var dayEndReplaced, out var slotMinutesReplaced);
+        if (dayEndReplaced && !_dayEndReported)
+        {
+            _dayEndReported = true;
+            Console.WriteLine(
+                "DrylCalendar: DayEnd must be later than DayStart and no later than 24:00 — the grid ends at the following midnight.");
+        }
+        if (slotMinutesReplaced && !_slotMinutesReported)
+        {
+            _slotMinutesReported = true;
+            Console.WriteLine(
+                "DrylCalendar: SlotMinutes must divide 60 evenly — 30 is used instead.");
+        }
+
+        if (!_initialised)
+        {
+            _initialised = true;
+            _view = _lastView = View;
+            _lastDate = Date;
+            _date = _dateSupplied ? Date : Today;
+        }
+        else
+        {
+            if (View != _lastView) _view = _lastView = View;
+            if (_dateSupplied && Date != _lastDate) _date = _lastDate = Date;
+        }
+
+        SyncClock();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var range = CalendarLayout.VisibleRange(_view, _date, FirstDay);
+        if (_rangeRaised && range == _lastRange) return;
+
+        _rangeRaised = true;
+        _lastRange = range;
+        await OnRangeChanged.InvokeAsync(range);
+    }
+
+    // The current-time line follows the server's clock only while the host gives
+    // no time of its own; with Now set, nothing moves by itself.
+    private void SyncClock()
+    {
+        if (Now is null)
+        {
+            if (_clock is not null) return;
+            var untilNextMinute = TimeSpan.FromSeconds(60 - DateTime.Now.Second);
+            _clock = new System.Threading.Timer(_ => _ = InvokeAsync(StateHasChanged), null, untilNextMinute, TimeSpan.FromMinutes(1));
+        }
+        else
+        {
+            _clock?.Dispose();
+            _clock = null;
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _clock?.Dispose();
+        _clock = null;
+    }
+
+    // ── Navigation ──────────────────────────────────────────────────────
+
+    private Task NavigateAsync(int direction) => SetDateAsync(CalendarLayout.Step(_view, _date, direction));
+
+    private Task GoToTodayAsync() => SetDateAsync(Today);
+
+    private async Task SetDateAsync(DateOnly date)
+    {
+        if (date == _date) return;
+        _date = date;
+        await DateChanged.InvokeAsync(date);
+    }
+
+    private async Task SelectViewAsync(CalendarView view)
+    {
+        if (view == _view) return;
+        _view = view;
+        await ViewChanged.InvokeAsync(view);
+    }
+
+    private async Task ShowDayAsync(DateOnly day)
+    {
+        await SetDateAsync(day);
+        await SelectViewAsync(CalendarView.Day);
+    }
+
+    // ── Formatting ──────────────────────────────────────────────────────
+
+    private string Title
+    {
+        get
+        {
+            switch (_view)
+            {
+                case CalendarView.Day:
+                    return LongDate(_date);
+                case CalendarView.Month:
+                    return _date.ToString("Y", _culture);
+                default:
+                    var first = CalendarLayout.StartOfWeek(_date, FirstDay);
+                    return $"{first.ToString("M", _culture)} – {first.AddDays(6).ToString(DateWithoutWeekday(_culture), _culture)}";
+            }
+        }
+    }
+
+    private string LongDate(DateOnly day) => day.ToString("D", _culture);
+
+    private string FormatTime(TimeSpan timeOfDay) => DateTime.MinValue.Add(timeOfDay).ToString("t", _culture);
+
+    // The culture's long date pattern with its weekday taken out: "October 18, 2026".
+    private static string DateWithoutWeekday(CultureInfo culture)
+    {
+        var pattern = Regex.Replace(culture.DateTimeFormat.LongDatePattern, @"dddd[,\s]*|[,\s]*dddd", "").Trim();
+        return pattern.Length > 0 ? pattern : "d";
+    }
+
+    private static string Iso(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private IEnumerable<TimeSpan> HourMarks()
+    {
+        var hour = TimeSpan.FromHours(Math.Ceiling(_grid.DayStart.TotalHours));
+        for (; hour < _grid.DayEnd; hour += TimeSpan.FromHours(1))
+            yield return hour;
+    }
+
+    // ── Classes and styles ──────────────────────────────────────────────
+
+    private string RootClass
+    {
+        get
+        {
+            var classes = new List<string> { "cal-root", "glass-card", "p-0" };
+            if (!string.IsNullOrEmpty(Height)) classes.Add("cal-root--fixed");
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string? RootStyle => string.IsNullOrEmpty(Height) ? null : $"height: {Height}";
+
+    private string TimeStyle(int days)
+        => $"--cal-cols:{days.ToString(CultureInfo.InvariantCulture)};--cal-hours:{CalendarLayout.F(_grid.Length.TotalHours)}";
+
+    private static string DayHeadClass(bool isToday) => isToday ? "cal-day-head is-today" : "cal-day-head";
+
+    private string MonthCellClass(DateOnly day, bool isToday)
+    {
+        var css = "cal-cell";
+        if (day.Month != _date.Month || day.Year != _date.Year) css += " is-outside";
+        if (isToday) css += " is-today";
+        return css;
+    }
+}

@@ -1,0 +1,272 @@
+/* DrylCalendar — the surface is the shared .glass-card; everything here is the
+   calendar's own anatomy. Positions inside the time grid arrive as percentages
+   from CalendarLayout; every length below derives from a token. */
+
+.cal-root {
+    /* Component-local lengths, derived from the spacing scale. */
+    --cal-hour: var(--sp-7);   /* height of one hour */
+    --cal-axis: var(--sp-8);   /* width of the time axis */
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;          /* clip the grid to the card's radius */
+    color: var(--fg);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────── */
+
+.cal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+.cal-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.cal-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.cal-toolbar-end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-left: auto;
+}
+
+/* ── Body ────────────────────────────────────────────────── */
+
+.cal-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.cal-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* ── Time grid (day and week) ────────────────────────────── */
+
+.cal-time {
+    min-width: 100%;
+}
+
+.cal-head-row,
+.cal-allday,
+.cal-grid {
+    display: grid;
+    grid-template-columns: var(--cal-axis) repeat(var(--cal-cols), minmax(0, 1fr));
+}
+
+/* Stays put while the grid scrolls beneath it — opaque, so no frost. */
+.cal-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--panel-sticky);
+    border-bottom: 1px solid var(--line);
+}
+
+.cal-day-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-1);
+    min-width: 0;
+    padding: var(--sp-2) var(--sp-1);
+    border: 0;
+    border-left: 1px solid var(--line);
+    background: none;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 12px;
+}
+
+button.cal-day-head {
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) * -1);
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+button.cal-day-head:hover {
+    color: var(--fg);
+}
+
+.cal-day-num {
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.cal-day-head.is-today {
+    color: var(--fg);
+}
+
+/* Today's accent indicator — a small mark, never a fill (DESIGN-08). */
+.cal-day-head.is-today::after {
+    content: "";
+    width: var(--sp-4);
+    height: calc(var(--sp-1) / 2);
+    border-radius: var(--r-pill);
+    background: var(--accent-grad);
+}
+
+.cal-allday {
+    min-height: var(--sp-5);
+    border-top: 1px solid var(--line);
+}
+
+.cal-allday-label {
+    padding: var(--sp-1) var(--sp-2);
+    color: var(--fg-dim);
+    font-size: 11px;
+    text-align: right;
+}
+
+.cal-allday-cell {
+    min-width: 0;
+    border-left: 1px solid var(--line);
+}
+
+.cal-grid {
+    position: relative;
+    height: calc(var(--cal-hours) * var(--cal-hour));
+}
+
+.cal-axis {
+    position: relative;
+}
+
+.cal-hour {
+    position: absolute;
+    right: 0;
+    left: 0;
+    padding: var(--sp-1) var(--sp-2) 0 0;
+    color: var(--fg-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.cal-lines {
+    position: absolute;
+    inset: 0 0 0 var(--cal-axis);
+    pointer-events: none;
+}
+
+.cal-line {
+    position: absolute;
+    right: 0;
+    left: 0;
+    border-top: 1px solid var(--line-soft);
+}
+
+.cal-line--hour {
+    border-top-color: var(--line);
+}
+
+.cal-col {
+    position: relative;
+    min-width: 0;
+    border-left: 1px solid var(--line);
+}
+
+.cal-now {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 1;
+    border-top: 1px solid var(--accent-line);
+    pointer-events: none;
+}
+
+/* ── Month ───────────────────────────────────────────────── */
+
+.cal-month {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+
+.cal-month-head,
+.cal-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cal-weekday {
+    padding: var(--sp-2);
+    color: var(--fg-dim);
+    font-size: 12px;
+    text-align: center;
+}
+
+.cal-week {
+    flex: 1 1 auto;
+    min-height: calc(var(--sp-7) * 2);
+    border-top: 1px solid var(--line);
+}
+
+.cal-cell {
+    min-width: 0;
+    padding: var(--sp-1);
+    border-left: 1px solid var(--line);
+}
+
+.cal-cell:first-child {
+    border-left: 0;
+}
+
+.cal-cell-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--sp-5);
+    height: var(--sp-5);
+    padding: 0 var(--sp-1);
+    border: 0;
+    border-radius: var(--r-pill);
+    background: none;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.cal-cell-num:hover {
+    background-color: var(--glass-2);
+    color: var(--fg);
+}
+
+.cal-cell.is-outside .cal-cell-num {
+    color: var(--fg-faint);
+}
+
+/* Today's accent indicator — a 1px ring around the number (DESIGN-08). */
+.cal-cell.is-today .cal-cell-num {
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+    color: var(--fg);
+}

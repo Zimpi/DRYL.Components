@@ -1,6 +1,6 @@
 namespace DRYL.Components;
 
-/// <summary>The view a <c>DrylCalendar</c> shows.</summary>
+/// <summary>The view a <see cref="DrylCalendar"/> shows.</summary>
 public enum CalendarView
 {
     /// <summary>Seven consecutive days as a time grid. Default.</summary>

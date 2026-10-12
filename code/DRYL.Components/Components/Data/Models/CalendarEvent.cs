@@ -1,7 +1,7 @@
 namespace DRYL.Components;
 
 /// <summary>
-/// One event of a <c>DrylCalendar</c>. Times are wall-clock times in one zone:
+/// One event of a <see cref="DrylCalendar"/>. Times are wall-clock times in one zone:
 /// the calendar reads the date and time of <see cref="Start"/> and <see cref="End"/>
 /// and ignores their <see cref="DateTime.Kind"/>.
 /// </summary>

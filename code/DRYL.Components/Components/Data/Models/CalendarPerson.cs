@@ -1,6 +1,6 @@
 namespace DRYL.Components;
 
-/// <summary>A person whose events a <c>DrylCalendar</c> shows.</summary>
+/// <summary>A person whose events a <see cref="DrylCalendar"/> shows.</summary>
 public sealed record CalendarPerson
 {
     /// <summary>Stable identity of the person.</summary>

@@ -16,8 +16,8 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 |---|---|---|
 | T0 — spec | Complete | `f67f168`; harness links pass; coverage reports only the eleven not-yet-existing `Source` paths of `F22`. |
 | T1 — types and version | Complete | `bcd3420` `feat(calendar): the calendar's types (3.5.0)`; gate passes (1305 tests, 10 new in `CalendarTypesTests`); coverage's missing `Source` paths of `F22` fall from eleven to the two component files. Doc comments name `DrylCalendar` as `<c>` rather than `<see cref>` until T3 creates the type — a cref to it does not resolve yet (CS1574). No browser pass: nothing renders yet. |
-| T2 — layout engine | Complete | `feat(calendar): the layout engine`; gate passes (1394 tests, 89 new in `CalendarLayoutTests`, every row of the T2 table and every named edge case covered). Written by the main agent, not a subagent. Limitations below. |
-| T3 — shell: views, toolbar, time grid | Open | |
+| T2 — layout engine | Complete | `8460167` `feat(calendar): the layout engine`; gate passes (1394 tests, 89 new in `CalendarLayoutTests`, every row of the T2 table and every named edge case covered). Written by the main agent, not a subagent. Limitations below. |
+| T3 — shell: views, toolbar, time grid | Complete | `feat(calendar): views, toolbar and the time grid`; gate passes (1445 tests, 51 new in `DrylCalendarTests`); coverage has no missing `Source` path left for `F22`. Looked at in the browser on a pulled-forward website demo (`DRYL.Website`, branch `feat/calendar`, uncommitted until T7): week view in light mode, month view in dark mode, no console warning, no horizontal page scroll at 1280px. The scroll to `InitialScrollTime` and `CollapseBelow` arrive with T6. |
 | T4 — events | Open | |
 | T5 — people and availability | Open | |
 | T6 — motion, narrow layouts, accessibility, interop | Open | |
@@ -59,6 +59,18 @@ Recorded here as they arise; T8 turns those that fall short of a criterion into
 - **T2 — a timed event wholly outside `DayStart`–`DayEnd` on every day it
   touches** (22:00–02:00 on an 08:00–18:00 grid) appears in neither column, as
   `S2` "Placement" says, and so is invisible in the day and week views.
+
+- **T3 — the view switch has no accessible group label.** `CalendarLabels` has
+  no member for it and every text must come from `Labels` (`S4` "Labels"), so
+  the radiogroup is unnamed; its three radios carry `Day` / `Week` / `Month`.
+- **T3 — `Date` cannot say "unset" by its value.** The parameter is a
+  `DateOnly`; the calendar notes in `SetParametersAsync` whether the host
+  supplied one and otherwise starts on today. A host that reads `Date` back
+  without binding it sees `default`.
+- **T3 — the week title drops the weekday from the culture's long date pattern**
+  by pattern surgery (`October 12 – October 18, 2026`,
+  `12. Oktober – 18. Oktober 2026`); a culture whose pattern is nothing but a
+  weekday falls back to the short date.
 
 ## Decisions carried from the spec
 

@@ -1,7 +1,7 @@
 namespace DRYL.Components;
 
 /// <summary>
-/// Every text a <c>DrylCalendar</c> renders that is not a formatted date or
+/// Every text a <see cref="DrylCalendar"/> renders that is not a formatted date or
 /// time. Each member defaults to an English text; day names, month names, dates and
 /// times follow the calendar's culture instead.
 /// </summary>
