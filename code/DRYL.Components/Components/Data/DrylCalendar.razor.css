@@ -46,6 +46,77 @@
     margin-left: auto;
 }
 
+/* ── Legend ──────────────────────────────────────────────── */
+
+.cal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+/* A toggle: pressed while its person is shown. */
+.cal-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+    padding: var(--sp-1) var(--sp-3) var(--sp-1) var(--sp-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    background: var(--glass-1);
+    color: var(--fg);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out),
+                opacity var(--dur-fast) var(--ease-out);
+}
+
+.cal-legend-item:hover {
+    border-color: var(--line-hover);
+    background-color: var(--glass-2);
+}
+
+.cal-legend-item.is-hidden {
+    color: var(--fg-dim);
+    opacity: 0.6;
+}
+
+/* The person's colour — a small dot, hollow while they are hidden. */
+.cal-legend-swatch {
+    flex: none;
+    width: var(--sp-2);
+    height: var(--sp-2);
+    border: 1px solid var(--cal-c);
+    border-radius: var(--r-pill);
+    background: var(--cal-c);
+    transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.cal-legend-item.is-hidden .cal-legend-swatch {
+    background: none;
+}
+
+.cal-person-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-legend-item ::deep .avatar,
+.cal-person-head ::deep .avatar {
+    flex-basis: var(--sp-5);
+    width: var(--sp-5);
+    height: var(--sp-5);
+    box-shadow: none;
+    font-size: 10px;
+}
+
 /* ── Body ────────────────────────────────────────────────── */
 
 .cal-body {
@@ -106,6 +177,19 @@ button.cal-day-head {
 
 button.cal-day-head:hover {
     color: var(--fg);
+}
+
+/* A person's column header in the day view. */
+.cal-person-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    min-width: 0;
+    padding: var(--sp-2);
+    border-left: 1px solid var(--line);
+    color: var(--fg-dim);
+    font-size: 12px;
 }
 
 .cal-day-num {
@@ -282,13 +366,13 @@ button.cal-day-head:hover {
 
 /* ── Events ──────────────────────────────────────────────── */
 
-/* The six categorical slots the charts use. */
-.cal-event[data-color="1"] { --cal-c: var(--chart-1); }
-.cal-event[data-color="2"] { --cal-c: var(--chart-2); }
-.cal-event[data-color="3"] { --cal-c: var(--chart-3); }
-.cal-event[data-color="4"] { --cal-c: var(--chart-4); }
-.cal-event[data-color="5"] { --cal-c: var(--chart-5); }
-.cal-event[data-color="6"] { --cal-c: var(--chart-6); }
+/* The six categorical slots the charts use — for events and legend entries. */
+[data-color="1"] { --cal-c: var(--chart-1); }
+[data-color="2"] { --cal-c: var(--chart-2); }
+[data-color="3"] { --cal-c: var(--chart-3); }
+[data-color="4"] { --cal-c: var(--chart-4); }
+[data-color="5"] { --cal-c: var(--chart-5); }
+[data-color="6"] { --cal-c: var(--chart-6); }
 
 /* Colour is a tint and an edge, never a solid fill (DESIGN-08); the text stays
    --fg so its contrast does not depend on the slot. The tint sits on the opaque
@@ -403,6 +487,13 @@ button.cal-day-head:hover {
     padding-block: 0;
 }
 
+/* On that one line the title comes first; the times give way before it does. */
+.cal-event--timed.is-compact .cal-event-time {
+    flex: 0 99 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
 /* A bar or line: placed on the lanes of the all-day row or a month's week row. */
 .cal-event--bar,
 .cal-event--line {
@@ -449,4 +540,47 @@ button.cal-day-head:hover {
 .cal-more:hover {
     background-color: var(--glass-2);
     color: var(--fg);
+}
+
+/* ── Availability ────────────────────────────────────────── */
+
+/* --line-soft darkens a light ground and lightens a dark one, so one rule
+   serves both colour modes (DESIGN-02). Behind the events, never interactive. */
+.cal-muted {
+    position: absolute;
+    right: 0;
+    left: 0;
+    background: var(--line-soft);
+    pointer-events: none;
+}
+
+.cal-absence {
+    position: absolute;
+    right: 0;
+    left: 0;
+    padding: var(--sp-1) var(--sp-2);
+    overflow: hidden;
+    color: var(--fg-dim);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* An absence that takes the whole day, named in the person's all-day row. */
+.cal-absence-chip {
+    z-index: 1;
+    align-self: center;
+    min-width: 0;
+    height: calc(var(--sp-5) - var(--sp-1));
+    margin-inline: calc(var(--sp-1) / 2);
+    padding: 0 var(--sp-2);
+    overflow: hidden;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-xs);
+    color: var(--fg-muted);
+    font-size: 12px;
+    line-height: calc(var(--sp-5) - var(--sp-1) - 2px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

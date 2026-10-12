@@ -78,6 +78,28 @@
         </div>
     }
 
+    @if (ShowLegend && _people.Count > 0)
+    {
+        <div class="cal-legend" role="group" aria-label="@Labels.People">
+            @foreach (var person in _people)
+            {
+                var shown = !_hidden.Contains(person.Id);
+                <button type="button"
+                        class="@(shown ? "cal-legend-item" : "cal-legend-item is-hidden")"
+                        data-color="@PersonColor(person)"
+                        data-person-id="@person.Id"
+                        aria-pressed="@(shown ? "true" : "false")"
+                        @key="person.Id"
+                        @onclick="() => TogglePersonAsync(person)">
+                    <span class="cal-legend-swatch" aria-hidden="true"></span>
+                    @PersonContent(person)
+                </button>
+            }
+        </div>
+    }
+
+    @{ var visible = VisibleEvents(); }
+
     <div class="cal-body">
         @if (_view == CalendarView.Month)
         {
@@ -92,7 +114,7 @@
                 @for (var w = 0; w < count / 7; w++)
                 {
                     var weekStart = first.AddDays(w * 7);
-                    var week = CalendarLayout.MonthWeek(_events, weekStart, MonthCapacity);
+                    var week = CalendarLayout.MonthWeek(visible, weekStart, MonthCapacity);
                     <div class="cal-week" style="@WeekStyle" @key="weekStart">
                         @for (var d = 0; d < 7; d++)
                         {
@@ -159,25 +181,48 @@
         {
             var (first, count) = CalendarLayout.VisibleDays(_view, _date, FirstDay);
             var now = EffectiveNow;
-            var bars = CalendarLayout.Bars(_events.Where(CalendarLayout.IsAllDayRow), first, count);
-            var lanes = Math.Max(1, bars.Count == 0 ? 0 : bars.Max(b => b.Lane) + 1);
+            var byPerson = PersonColumns;
+            var columns = TimeColumns(first, count, visible, byPerson);
+            // Overlaid, bars span the days; in person columns every column stacks its own.
+            IReadOnlyList<CalendarBar> bars = byPerson
+                ? NoBars
+                : CalendarLayout.Bars(visible.Where(CalendarLayout.IsAllDayRow), first, count);
+            var lanes = Math.Max(1, byPerson
+                ? columns.Max(c => c.Bars.Count + c.WholeDayAbsences.Count)
+                : bars.Count == 0 ? 0 : bars.Max(b => b.Lane) + 1);
             <div class="cal-scroll">
-                <div class="cal-time" style="@TimeStyle(count)">
+                <div class="@(byPerson ? "cal-time cal-time--people" : "cal-time")" style="@TimeStyle(columns.Count)">
                     <div class="cal-head">
                         <div class="cal-head-row">
                             <div class="cal-corner" aria-hidden="true"></div>
-                            @for (var d = 0; d < count; d++)
+                            @foreach (var column in columns)
                             {
-                                var day = first.AddDays(d);
+                                var day = column.Day;
                                 var isToday = day == Today;
-                                if (_view == CalendarView.Week)
+                                if (byPerson)
+                                {
+                                    <div class="@PersonHeadClass(isToday)"
+                                         data-person-id="@column.Person?.Id"
+                                         aria-current="@(isToday ? "date" : null)"
+                                         @key="column.Key">
+                                        @if (column.Person is { } person)
+                                        {
+                                            @PersonContent(person)
+                                        }
+                                        else
+                                        {
+                                            <span class="cal-person-name">@Labels.Unassigned</span>
+                                        }
+                                    </div>
+                                }
+                                else if (_view == CalendarView.Week)
                                 {
                                     <button type="button"
                                             class="@DayHeadClass(isToday)"
                                             data-date="@Iso(day)"
                                             aria-current="@(isToday ? "date" : null)"
                                             aria-label="@LongDate(day)"
-                                            @key="day"
+                                            @key="column.Key"
                                             @onclick="() => ShowDayAsync(day)">
                                         <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
                                         <span class="cal-day-num">@day.Day.ToString(_culture)</span>
@@ -188,7 +233,7 @@
                                     <div class="@DayHeadClass(isToday)"
                                          data-date="@Iso(day)"
                                          aria-current="@(isToday ? "date" : null)"
-                                         @key="day">
+                                         @key="column.Key">
                                         <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
                                         <span class="cal-day-num">@day.Day.ToString(_culture)</span>
                                     </div>
@@ -197,9 +242,9 @@
                         </div>
                         <div class="cal-allday" style="--cal-lanes:@lanes.ToString(CultureInfo.InvariantCulture)">
                             <div class="cal-allday-label">@Labels.AllDay</div>
-                            @for (var d = 0; d < count; d++)
+                            @for (var c = 0; c < columns.Count; c++)
                             {
-                                <div class="cal-allday-cell" style="@Column(d + 2)" aria-hidden="true" @key="first.AddDays(d)"></div>
+                                <div class="cal-allday-cell" style="@Column(c + 2)" aria-hidden="true" @key="columns[c].Key"></div>
                             }
                             @foreach (var bar in bars.OrderBy(b => b.Column).ThenBy(b => b.Lane))
                             {
@@ -214,6 +259,31 @@
                                         @onclick="() => OnEventClick.InvokeAsync(e)">
                                     @EventContent(e, EventShape.Bar)
                                 </button>
+                            }
+                            @for (var c = 0; byPerson && c < columns.Count; c++)
+                            {
+                                var column = columns[c];
+                                var gridColumn = c + 2;
+                                foreach (var bar in column.Bars)
+                                {
+                                    var e = bar.Event;
+                                    <button type="button"
+                                            class="@BarClass(bar)"
+                                            style="@Placement(gridColumn, 1, bar.Lane + 1)"
+                                            data-color="@Color(e)"
+                                            data-event-id="@e.Id"
+                                            aria-label="@EventName(e)"
+                                            @key="@($"{e.Id}|allday|{column.Key}")"
+                                            @onclick="() => OnEventClick.InvokeAsync(e)">
+                                        @EventContent(e, EventShape.Bar)
+                                    </button>
+                                }
+                                for (var a = 0; a < column.WholeDayAbsences.Count; a++)
+                                {
+                                    <div class="cal-absence-chip"
+                                         style="@Placement(gridColumn, 1, column.Bars.Count + a + 1)"
+                                         @key="@($"absence|{column.Key}|{a}")">@column.WholeDayAbsences[a].Source.Label</div>
+                                }
                             }
                         </div>
                     </div>
@@ -233,12 +303,24 @@
                                      style="top:@CalendarLayout.Pct(_grid.Fraction(time))"></div>
                             }
                         </div>
-                        @for (var d = 0; d < count; d++)
+                        @foreach (var column in columns)
                         {
-                            var day = first.AddDays(d);
+                            var day = column.Day;
                             var isToday = day == Today;
-                            <div class="@(isToday ? "cal-col is-today" : "cal-col")" data-date="@Iso(day)" @key="day">
-                                @foreach (var segment in CalendarLayout.Column(_events, day, _grid))
+                            <div class="@(isToday ? "cal-col is-today" : "cal-col")"
+                                 data-date="@Iso(day)"
+                                 data-person-id="@column.Person?.Id"
+                                 @key="column.Key">
+                                @foreach (var span in column.Muted)
+                                {
+                                    <div class="cal-muted" aria-hidden="true" style="@SpanStyle(span)"></div>
+                                }
+                                @foreach (var absence in column.Absences)
+                                {
+                                    if (string.IsNullOrWhiteSpace(absence.Source.Label)) continue;
+                                    <div class="cal-absence" style="@SpanStyle(absence.Span)">@absence.Source.Label</div>
+                                }
+                                @foreach (var segment in CalendarLayout.Column(column.Events, day, _grid))
                                 {
                                     var e = segment.Event;
                                     <button type="button"
@@ -247,7 +329,7 @@
                                             data-color="@Color(e)"
                                             data-event-id="@e.Id"
                                             aria-label="@EventName(e)"
-                                            @key="@($"{e.Id}|{Iso(day)}")"
+                                            @key="@($"{e.Id}|{column.Key}")"
                                             @onclick="() => OnEventClick.InvokeAsync(e)">
                                         @EventContent(e, EventShape.Timed)
                                     </button>
@@ -277,6 +359,12 @@
 
     /// <summary>The people events are assigned to, in display order.</summary>
     [Parameter] public IEnumerable<CalendarPerson> People { get; set; } = [];
+
+    /// <summary>
+    /// Working hours and absences per person. Drawn as muted areas behind the
+    /// events — information only; the calendar repeats no span on other days.
+    /// </summary>
+    [Parameter] public IEnumerable<CalendarAvailability> Availability { get; set; } = [];
 
     // ── View and date ───────────────────────────────────────────────────
 
@@ -334,6 +422,26 @@
     /// <summary>Height of the calendar, any CSS length; the grid scrolls inside it.</summary>
     [Parameter] public string? Height { get; set; }
 
+    // ── People ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Overlaid in one grid, or a column per person in the day view. The week and
+    /// month views are always overlaid.
+    /// </summary>
+    [Parameter] public CalendarPersonLayout PersonLayout { get; set; } = CalendarPersonLayout.Overlay;
+
+    /// <summary>
+    /// The ids of hidden people. Supports two-way binding via
+    /// <c>@bind-HiddenPersonIds</c>; <c>null</c> shows everyone.
+    /// </summary>
+    [Parameter] public IReadOnlySet<string>? HiddenPersonIds { get; set; }
+
+    /// <summary>Raised with the complete new set when the user hides or shows a person.</summary>
+    [Parameter] public EventCallback<IReadOnlySet<string>> HiddenPersonIdsChanged { get; set; }
+
+    /// <summary>Renders the legend of people. Defaults to <c>true</c>.</summary>
+    [Parameter] public bool ShowLegend { get; set; } = true;
+
     // ── Slots ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -341,6 +449,12 @@
     /// recurring mark. The event's box, position and colour stay the calendar's.
     /// </summary>
     [Parameter] public RenderFragment<CalendarEvent>? EventTemplate { get; set; }
+
+    /// <summary>
+    /// Replaces the avatar and the name of a person's column header and legend
+    /// entry.
+    /// </summary>
+    [Parameter] public RenderFragment<CalendarPerson>? PersonTemplate { get; set; }
 
     /// <summary>Extra content at the end of the toolbar.</summary>
     [Parameter] public RenderFragment? ToolbarContent { get; set; }
@@ -403,6 +517,14 @@
     private Dictionary<string, CalendarPerson> _peopleById = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, CalendarColor> _personColors = new Dictionary<string, CalendarColor>();
 
+    private HashSet<string> _knownPersonIds = new(StringComparer.Ordinal);
+    private Dictionary<string, List<CalendarAvailability>> _availability = new(StringComparer.Ordinal);
+
+    // Like View and Date: the calendar keeps its own set and adopts the parameter
+    // only when the host hands it a different one.
+    private IReadOnlySet<string> _hidden = new HashSet<string>(StringComparer.Ordinal);
+    private IReadOnlySet<string>? _lastHidden;
+
     private bool _duplicateEventsReported;
     private bool _duplicatePeopleReported;
     private bool _dayEndReported;
@@ -454,6 +576,21 @@
         }
         _peopleById = _people.ToDictionary(p => p.Id, StringComparer.Ordinal);
         _personColors = CalendarLayout.PersonColors(_people);
+        _knownPersonIds = new HashSet<string>(_peopleById.Keys, StringComparer.Ordinal);
+
+        _availability = new Dictionary<string, List<CalendarAvailability>>(StringComparer.Ordinal);
+        foreach (var span in Availability ?? [])
+        {
+            if (!_knownPersonIds.Contains(span.PersonId)) continue;
+            if (!_availability.TryGetValue(span.PersonId, out var spans)) _availability[span.PersonId] = spans = [];
+            spans.Add(span);
+        }
+
+        if (!ReferenceEquals(HiddenPersonIds, _lastHidden))
+        {
+            _lastHidden = HiddenPersonIds;
+            _hidden = HiddenPersonIds ?? new HashSet<string>(StringComparer.Ordinal);
+        }
 
         _events = CalendarLayout.DistinctById(Events ?? [], e => e.Id, out var duplicateEvents);
         if (duplicateEvents && !_duplicateEventsReported)
@@ -578,6 +715,112 @@
         for (; hour < _grid.DayEnd; hour += TimeSpan.FromHours(1))
             yield return hour;
     }
+
+    // ── People and availability ─────────────────────────────────────────
+
+    // One column of the time grid: a day, or — in person columns — one person's
+    // share of the day.
+    private sealed record TimeColumn(
+        string Key,
+        DateOnly Day,
+        CalendarPerson? Person,
+        IReadOnlyList<CalendarEvent> Events,
+        IReadOnlyList<CalendarBar> Bars,
+        IReadOnlyList<CalendarSpan> Muted,
+        IReadOnlyList<CalendarAbsence> Absences,
+        IReadOnlyList<CalendarAbsence> WholeDayAbsences);
+
+    private static readonly IReadOnlyList<CalendarSpan> NoSpans = [];
+    private static readonly IReadOnlyList<CalendarAbsence> NoAbsences = [];
+    private static readonly IReadOnlyList<CalendarBar> NoBars = [];
+
+    // Person columns apply to the day view, and only when there is anyone to give
+    // a column to.
+    private bool PersonColumns
+        => _view == CalendarView.Day && PersonLayout == CalendarPersonLayout.Columns && _people.Count > 0;
+
+    private List<CalendarPerson> ShownPeople() => _people.Where(p => !_hidden.Contains(p.Id)).ToList();
+
+    private List<CalendarEvent> VisibleEvents()
+        => _people.Count == 0
+            ? _events
+            : _events.Where(e => CalendarLayout.IsVisible(e, _knownPersonIds, _hidden)).ToList();
+
+    private IReadOnlyList<CalendarAvailability> AvailabilityOf(CalendarPerson person)
+        => _availability.TryGetValue(person.Id, out var spans) ? spans : [];
+
+    private List<TimeColumn> TimeColumns(DateOnly first, int days, List<CalendarEvent> visible, bool byPerson)
+    {
+        var shown = ShownPeople();
+        var columns = new List<TimeColumn>();
+
+        if (!byPerson)
+        {
+            for (var d = 0; d < days; d++)
+            {
+                var day = first.AddDays(d);
+                // A time is muted only when every shown person is unavailable at it.
+                var muted = CalendarLayout.Intersect(
+                    shown.Select(p => CalendarLayout.Unavailable(AvailabilityOf(p), day, _grid)).ToList());
+                columns.Add(new TimeColumn(Iso(day), day, null, visible, NoBars, muted, NoAbsences, NoAbsences));
+            }
+            return columns;
+        }
+
+        var theDay = first;
+        var unassigned = visible
+            .Where(e => CalendarLayout.Touches(e, theDay, 1) && CalendarLayout.IsUnassigned(e, _knownPersonIds))
+            .ToList();
+        // With nobody shown, the unassigned column is all there is to draw.
+        if (unassigned.Count > 0 || shown.Count == 0)
+        {
+            columns.Add(new TimeColumn("unassigned", theDay, null, unassigned,
+                CalendarLayout.Bars(unassigned.Where(CalendarLayout.IsAllDayRow), theDay, 1),
+                NoSpans, NoAbsences, NoAbsences));
+        }
+
+        foreach (var person in shown)
+        {
+            var events = visible.Where(e => e.PersonIds.Contains(person.Id)).ToList();
+            var spans = AvailabilityOf(person);
+            var absences = CalendarLayout.Absences(spans, theDay, _grid);
+            columns.Add(new TimeColumn("person|" + person.Id, theDay, person, events,
+                CalendarLayout.Bars(events.Where(CalendarLayout.IsAllDayRow), theDay, 1),
+                CalendarLayout.Unavailable(spans, theDay, _grid),
+                absences,
+                absences.Where(a => a.WholeDay && !string.IsNullOrWhiteSpace(a.Source.Label)).ToList()));
+        }
+        return columns;
+    }
+
+    // Avatar and name of a person, in the legend and in a column header.
+    private RenderFragment PersonContent(CalendarPerson person) => __builder =>
+    {
+        if (PersonTemplate is not null)
+        {
+            @PersonTemplate(person)
+            return;
+        }
+
+        <DrylAvatar Src="@person.AvatarSrc" Name="@person.Name" Alt="@person.Name" Size="AvatarSize.Small" />
+        <span class="cal-person-name">@person.Name</span>
+    };
+
+    private string PersonColor(CalendarPerson person)
+        => CalendarLayout.SlotNumber(_personColors[person.Id]).ToString(CultureInfo.InvariantCulture);
+
+    private async Task TogglePersonAsync(CalendarPerson person)
+    {
+        var hidden = new HashSet<string>(_hidden, StringComparer.Ordinal);
+        if (!hidden.Remove(person.Id)) hidden.Add(person.Id);
+        _hidden = hidden;
+        await HiddenPersonIdsChanged.InvokeAsync(hidden);
+    }
+
+    private string SpanStyle(CalendarSpan span)
+        => $"top:{CalendarLayout.Pct(_grid.Fraction(span.Start))};height:{CalendarLayout.Pct(_grid.Fraction(span.End) - _grid.Fraction(span.Start))}";
+
+    private static string PersonHeadClass(bool isToday) => isToday ? "cal-person-head is-today" : "cal-person-head";
 
     // ── Events ──────────────────────────────────────────────────────────
 

@@ -1052,4 +1052,408 @@ public class DrylCalendarTests : BunitContext
 
         Assert.Equal(2, cut.FindAll(".cal-event").Count);
     }
+
+    // ── S3 · People ─────────────────────────────────────────────────────
+
+    private static CalendarAvailability Working(string person, DateOnly day, int from, int to)
+        => new() { PersonId = person, Start = At(day, 0).AddHours(from), End = At(day, 0).AddHours(to) };
+
+    private static CalendarAvailability Absent(string person, DateTime start, DateTime end, string? label = null)
+        => new() { PersonId = person, Kind = CalendarAvailabilityKind.Absent, Start = start, End = end, Label = label };
+
+    private IRenderedComponent<DrylCalendar> RenderColumns(
+        IEnumerable<CalendarEvent> events,
+        Action<ComponentParameterCollectionBuilder<DrylCalendar>>? configure = null)
+        => RenderEvents(events, p =>
+        {
+            p.Add(c => c.View, CalendarView.Day);
+            p.Add(c => c.PersonLayout, CalendarPersonLayout.Columns);
+            configure?.Invoke(p);
+        });
+
+    private static IReadOnlySet<string> Hidden(params string[] ids) => new HashSet<string>(ids);
+
+    [Fact]
+    public void People_left_empty_renders_no_legend_no_person_columns_and_no_avatars()
+    {
+        var cut = RenderCalendar(p => p
+            .Add(c => c.Events, new[] { Timed("e", Mon, 9, 10, "ada") })
+            .Add(c => c.View, CalendarView.Day)
+            .Add(c => c.PersonLayout, CalendarPersonLayout.Columns));
+
+        Assert.Empty(cut.FindAll(".cal-legend"));
+        Assert.Empty(cut.FindAll(".cal-person-head"));
+        Assert.Empty(cut.FindAll(".avatar"));
+        // Columns without people renders the day as the overlaid layout does.
+        Assert.Single(cut.FindAll(".cal-col"));
+        Assert.Single(cut.FindAll(".cal-day-head"));
+        Assert.Single(cut.FindAll(".cal-event"));
+    }
+
+    [Fact]
+    public void A_person_with_Auto_takes_a_slot_by_position_and_an_explicit_slot_is_kept()
+    {
+        var cut = RenderEvents([]);
+
+        Assert.Equal(["1", "2", "5"], cut.FindAll(".cal-legend-item").Select(i => i.GetAttribute("data-color")));
+    }
+
+    [Fact]
+    public void Of_two_people_with_the_same_Id_the_later_one_is_not_rendered_and_it_is_reported_once()
+    {
+        var original = Console.Out;
+        var console = new StringWriter();
+        Console.SetOut(console);
+        IRenderedComponent<DrylCalendar> cut;
+        try
+        {
+            cut = RenderCalendar(p => p.Add(c => c.People, new[] { Ada, Bob, new CalendarPerson { Id = "ada", Name = "Impostor" } }));
+            cut.Render(p => p.Add(c => c.Loading, true));
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+
+        Assert.Equal(["Ada Lovelace", "Bob Ross"], cut.FindAll(".cal-legend-item .cal-person-name").Select(n => n.TextContent));
+        Assert.Equal(1, Occurrences(console.ToString(), "DrylCalendar: two people share an Id"));
+    }
+
+    // ── S3 · The legend ─────────────────────────────────────────────────
+
+    [Fact]
+    public void ShowLegend_left_true_renders_an_entry_for_every_person_in_the_order_of_People()
+    {
+        var cut = RenderEvents([]);
+
+        var legend = cut.Find(".cal-legend");
+        Assert.Equal("People", legend.GetAttribute("aria-label"));
+        var entries = legend.QuerySelectorAll(".cal-legend-item");
+        Assert.Equal(["Ada Lovelace", "Bob Ross", "Cy Twombly"], entries.Select(e => e.QuerySelector(".cal-person-name")!.TextContent));
+        Assert.All(entries, e =>
+        {
+            Assert.Equal("BUTTON", e.TagName);
+            Assert.NotNull(e.QuerySelector(".avatar"));
+            Assert.Equal("true", e.QuerySelector(".cal-legend-swatch")!.GetAttribute("aria-hidden"));
+            Assert.Equal("true", e.GetAttribute("aria-pressed"));
+        });
+    }
+
+    [Fact]
+    public void The_legend_sits_between_the_toolbar_and_the_grid()
+    {
+        var cut = RenderEvents([]);
+
+        Assert.Equal(
+            ["cal-toolbar", "cal-legend", "cal-body"],
+            cut.Find(".cal-root").Children.Select(c => c.ClassList.First(n => n.StartsWith("cal-"))));
+    }
+
+    [Fact]
+    public void ShowLegend_set_to_false_renders_no_legend_element_at_all()
+    {
+        var cut = RenderEvents([], p => p.Add(c => c.ShowLegend, false));
+
+        Assert.Empty(cut.FindAll(".cal-legend"));
+    }
+
+    [Fact]
+    public void PersonTemplate_replaces_the_avatar_and_the_name_of_a_legend_entry()
+    {
+        var cut = RenderEvents([], p => p.Add(c => c.PersonTemplate, person => $"<b class=\"mine\">{person.Id}</b>"));
+
+        var entry = cut.FindAll(".cal-legend-item")[1];
+        Assert.Equal("bob", entry.QuerySelector(".mine")!.TextContent);
+        Assert.Null(entry.QuerySelector(".avatar"));
+        Assert.Null(entry.QuerySelector(".cal-person-name"));
+        Assert.NotNull(entry.QuerySelector(".cal-legend-swatch"));
+    }
+
+    [Fact]
+    public void Activating_a_legend_entry_hides_a_shown_person_and_shows_a_hidden_one()
+    {
+        var sets = new List<IReadOnlySet<string>>();
+        var cut = RenderEvents([Timed("a", Mon, 9, 10, "ada"), Timed("b", Mon, 11, 12, "bob")],
+            p => p.Add(c => c.HiddenPersonIdsChanged, sets.Add));
+
+        cut.Find(".cal-legend-item[data-person-id='ada']").Click();
+
+        Assert.Equal(["ada"], sets[0]);
+        Assert.Equal("false", cut.Find(".cal-legend-item[data-person-id='ada']").GetAttribute("aria-pressed"));
+        Assert.Equal(["b"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));   // applied unbound
+
+        cut.Find(".cal-legend-item[data-person-id='bob']").Click();
+        cut.Find(".cal-legend-item[data-person-id='ada']").Click();
+
+        Assert.Equal(3, sets.Count);
+        Assert.Equal(["ada", "bob"], sets[1].Order());
+        Assert.Equal(["bob"], sets[2]);
+        Assert.Equal("true", cut.Find(".cal-legend-item[data-person-id='ada']").GetAttribute("aria-pressed"));
+        Assert.Equal(["a"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+    }
+
+    [Fact]
+    public void HiddenPersonIds_is_adopted_and_an_id_that_matches_no_person_has_no_effect()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10, "ada"), Timed("b", Mon, 11, 12, "bob")],
+            p => p.Add(c => c.HiddenPersonIds, Hidden("bob", "ghost")));
+
+        Assert.Equal(["true", "false", "true"], cut.FindAll(".cal-legend-item").Select(i => i.GetAttribute("aria-pressed")));
+        Assert.Equal(["a"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+
+        cut.Render(p => p.Add(c => c.HiddenPersonIds, (IReadOnlySet<string>?)null));
+
+        Assert.Equal(2, cut.FindAll(".cal-event").Count);
+    }
+
+    // ── S3 · Hidden people ──────────────────────────────────────────────
+
+    [Fact]
+    public void Hiding_decides_which_events_are_rendered_but_not_their_colours_or_avatars()
+    {
+        var cut = RenderEvents(
+        [
+            Timed("all-hidden", Mon, 8, 9, "ada"),
+            Timed("one-shown", Mon, 10, 11, "ada", "bob"),
+            Timed("unassigned", Mon, 12, 13, "ghost"),
+            Timed("bobs", Mon, 14, 15, "bob")
+        ], p => p.Add(c => c.HiddenPersonIds, Hidden("ada")));
+
+        Assert.Equal(["one-shown", "unassigned", "bobs"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        // Bob keeps the slot of his position; hiding Ada recolours nobody.
+        Assert.Equal("2", cut.Find("[data-event-id='bobs']").GetAttribute("data-color"));
+        Assert.Equal("2", cut.Find(".cal-legend-item[data-person-id='bob']").GetAttribute("data-color"));
+        // The event still takes its first person's colour and still shows her avatar.
+        Assert.Equal("1", cut.Find("[data-event-id='one-shown']").GetAttribute("data-color"));
+        Assert.Equal(["AL", "BR"], cut.FindAll("[data-event-id='one-shown'] .avatar").Select(a => a.TextContent.Trim()));
+    }
+
+    [Fact]
+    public void An_unassigned_event_is_rendered_even_with_every_person_hidden()
+    {
+        var cut = RenderMonth([Timed("orphan", Mon, 9, 10), Timed("adas", Mon, 11, 12, "ada")],
+            p => p.Add(c => c.HiddenPersonIds, Hidden("ada", "bob", "cy")));
+
+        Assert.Equal(["orphan"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+    }
+
+    // ── S3 · The overlaid layout and person columns ─────────────────────
+
+    [Fact]
+    public void PersonLayout_defaults_to_Overlay_and_every_shown_persons_events_share_the_days_column()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10, "ada"), Timed("b", Mon, 11, 12, "bob")],
+            p => p.Add(c => c.View, CalendarView.Day));
+
+        var column = Assert.Single(cut.FindAll(".cal-col"));
+        Assert.Equal(2, column.QuerySelectorAll(".cal-event").Length);
+        Assert.Empty(cut.FindAll(".cal-person-head"));
+    }
+
+    [Theory]
+    [InlineData(CalendarView.Week)]
+    [InlineData(CalendarView.Month)]
+    public void The_week_and_month_views_are_always_overlaid(CalendarView view)
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10, "ada")],
+            p => p.Add(c => c.View, view).Add(c => c.PersonLayout, CalendarPersonLayout.Columns));
+
+        Assert.Empty(cut.FindAll(".cal-person-head"));
+        Assert.Equal(view == CalendarView.Week ? 7 : 0, cut.FindAll(".cal-col").Count);
+        Assert.Single(cut.FindAll(".cal-event"));
+    }
+
+    [Fact]
+    public void Columns_in_the_day_view_renders_one_column_per_shown_person_under_one_time_axis()
+    {
+        var cut = RenderColumns([Timed("a", Mon, 9, 10, "ada")], p => p.Add(c => c.HiddenPersonIds, Hidden("bob")));
+
+        Assert.Equal(["ada", "cy"], cut.FindAll(".cal-col").Select(c => c.GetAttribute("data-person-id")));
+        Assert.Equal(["Ada Lovelace", "Cy Twombly"], cut.FindAll(".cal-person-head .cal-person-name").Select(n => n.TextContent));
+        Assert.All(cut.FindAll(".cal-person-head"), h => Assert.NotNull(h.QuerySelector(".avatar")));
+        Assert.Single(cut.FindAll(".cal-axis"));
+        Assert.Contains("--cal-cols:2", cut.Find(".cal-time").GetAttribute("style"));
+        Assert.Empty(cut.FindAll(".cal-day-head"));
+    }
+
+    [Fact]
+    public void PersonTemplate_replaces_the_avatar_and_the_name_of_a_column_header()
+    {
+        var cut = RenderColumns([], p => p.Add(c => c.PersonTemplate, person => $"<b class=\"mine\">{person.Id}</b>"));
+
+        var head = cut.FindAll(".cal-person-head")[2];
+        Assert.Equal("cy", head.QuerySelector(".mine")!.TextContent);
+        Assert.Null(head.QuerySelector(".avatar"));
+        Assert.Null(head.QuerySelector(".cal-person-name"));
+    }
+
+    [Fact]
+    public void An_event_is_drawn_in_the_column_of_every_shown_person_assigned_to_it()
+    {
+        var shared = Timed("shared", Mon, 9, 10, "ada", "bob");
+        var clicked = new List<CalendarEvent>();
+        var cut = RenderColumns([shared, AllDay("fair", Mon, Mon.AddDays(1)) with { PersonIds = ["bob", "cy"] }],
+            p => p.Add(c => c.OnEventClick, clicked.Add));
+
+        Assert.Single(cut.FindAll(".cal-col[data-person-id='ada'] [data-event-id='shared']"));
+        Assert.Single(cut.FindAll(".cal-col[data-person-id='bob'] [data-event-id='shared']"));
+        Assert.Empty(cut.FindAll(".cal-col[data-person-id='cy'] .cal-event"));
+
+        // The all-day event sits in the all-day row of Bob's and Cy's columns.
+        var bars = cut.FindAll(".cal-allday [data-event-id='fair']");
+        Assert.Equal(["grid-column:3 / span 1;grid-row:1", "grid-column:4 / span 1;grid-row:1"], bars.Select(b => b.GetAttribute("style")));
+
+        cut.FindAll("[data-event-id='shared']")[0].Click();
+        cut.FindAll("[data-event-id='shared']")[1].Click();
+        Assert.All(clicked, e => Assert.Same(shared, e));
+        Assert.Equal(2, clicked.Count);
+    }
+
+    [Fact]
+    public void Overlaps_are_resolved_per_column()
+    {
+        // The two events overlap in time but belong to different people.
+        var cut = RenderColumns([Timed("a", Mon, 9, 11, "ada"), Timed("b", Mon, 10, 12, "bob"), Timed("c", Mon, 10, 12, "ada")]);
+
+        Assert.EndsWith("left:0%;width:100%", cut.Find(".cal-col[data-person-id='bob'] [data-event-id='b']").GetAttribute("style"));
+        Assert.EndsWith("left:0%;width:50%", cut.Find(".cal-col[data-person-id='ada'] [data-event-id='a']").GetAttribute("style"));
+        Assert.EndsWith("left:50%;width:50%", cut.Find(".cal-col[data-person-id='ada'] [data-event-id='c']").GetAttribute("style"));
+    }
+
+    [Fact]
+    public void A_leading_unassigned_column_is_rendered_only_when_the_day_has_an_unassigned_event()
+    {
+        var without = RenderColumns([Timed("a", Mon, 9, 10, "ada"), Timed("tomorrow", Mon.AddDays(1), 9, 10)]);
+        var with = RenderColumns([Timed("a", Mon, 9, 10, "ada"), Timed("orphan", Mon, 11, 12, "ghost")]);
+
+        Assert.Equal(3, without.FindAll(".cal-col").Count);
+        Assert.DoesNotContain(without.FindAll(".cal-person-head"), h => h.TextContent.Trim() == "Unassigned");
+
+        var columns = with.FindAll(".cal-col");
+        Assert.Equal(4, columns.Count);
+        Assert.False(columns[0].HasAttribute("data-person-id"));
+        Assert.Equal("orphan", columns[0].QuerySelector(".cal-event")!.GetAttribute("data-event-id"));
+        Assert.Equal("Unassigned", with.FindAll(".cal-person-head")[0].TextContent.Trim());
+    }
+
+    [Fact]
+    public void With_every_person_hidden_the_day_view_renders_its_time_axis_and_the_unassigned_column_only()
+    {
+        var cut = RenderColumns([Timed("a", Mon, 9, 10, "ada")], p => p.Add(c => c.HiddenPersonIds, Hidden("ada", "bob", "cy")));
+
+        Assert.Single(cut.FindAll(".cal-axis"));
+        var head = Assert.Single(cut.FindAll(".cal-person-head"));
+        Assert.Equal("Unassigned", head.TextContent.Trim());
+        Assert.Single(cut.FindAll(".cal-col"));
+        Assert.Empty(cut.FindAll(".cal-event"));
+    }
+
+    // ── S3 · Availability ───────────────────────────────────────────────
+
+    [Fact]
+    public void In_a_persons_column_their_unavailable_time_is_a_muted_area_behind_the_events()
+    {
+        var cut = RenderColumns([Timed("a", Mon, 9, 10, "ada")], p => p.Add(c => c.Availability, new[]
+        {
+            Working("ada", Mon, 6, 18),
+            Working("ghost", Mon, 0, 1)
+        }));
+
+        var column = cut.Find(".cal-col[data-person-id='ada']");
+        var muted = column.QuerySelectorAll(".cal-muted");
+        Assert.Equal(["top:0%;height:25%", "top:75%;height:25%"], muted.Select(m => m.GetAttribute("style")));
+        Assert.All(muted, m =>
+        {
+            Assert.Equal("true", m.GetAttribute("aria-hidden"));
+            Assert.Equal("DIV", m.TagName);
+            Assert.False(m.HasAttribute("tabindex"));
+        });
+        // Behind the events: the muted areas come first in the column.
+        Assert.Contains("cal-muted", column.Children[0].ClassList);
+        Assert.Contains("cal-event", column.Children[^2].ClassList);
+        // No working span, no unavailable time; an unknown person's span is ignored.
+        Assert.Empty(cut.FindAll(".cal-col[data-person-id='bob'] .cal-muted"));
+    }
+
+    [Fact]
+    public void A_working_span_is_not_repeated_on_other_days()
+    {
+        var cut = RenderColumns([], p => p
+            .Add(c => c.Date, Mon.AddDays(1))
+            .Add(c => c.Availability, new[] { Working("ada", Mon, 6, 18) }));
+
+        Assert.Empty(cut.FindAll(".cal-muted"));
+    }
+
+    [Fact]
+    public void An_absence_in_a_persons_column_renders_its_label_and_a_whole_day_is_named_in_the_all_day_row()
+    {
+        var cut = RenderColumns([], p => p.Add(c => c.Availability, new[]
+        {
+            Absent("ada", At(Mon, 12), At(Mon, 18), "Dentist"),
+            Absent("bob", At(Mon.AddDays(-1), 0), At(Mon.AddDays(2), 0), "Holiday"),
+            Absent("cy", At(Mon, 0), At(Mon, 6))
+        }));
+
+        var dentist = cut.Find(".cal-col[data-person-id='ada'] .cal-absence");
+        Assert.Equal("Dentist", dentist.TextContent.Trim());
+        Assert.Equal("top:50%;height:25%", dentist.GetAttribute("style"));
+        Assert.Equal("top:50%;height:25%", cut.Find(".cal-col[data-person-id='ada'] .cal-muted").GetAttribute("style"));
+
+        Assert.Equal("top:0%;height:100%", cut.Find(".cal-col[data-person-id='bob'] .cal-muted").GetAttribute("style"));
+        var chip = Assert.Single(cut.FindAll(".cal-absence-chip"));
+        Assert.Equal("Holiday", chip.TextContent.Trim());
+        Assert.Equal("grid-column:3 / span 1;grid-row:1", chip.GetAttribute("style"));
+
+        // An absence without a label mutes its time and names nothing.
+        Assert.Single(cut.FindAll(".cal-col[data-person-id='cy'] .cal-muted"));
+        Assert.Empty(cut.FindAll(".cal-col[data-person-id='cy'] .cal-absence"));
+    }
+
+    [Fact]
+    public void Overlaid_a_time_is_muted_only_when_every_shown_person_is_unavailable_at_it()
+    {
+        var availability = new[]
+        {
+            Working("ada", Mon, 6, 18),
+            Working("bob", Mon, 12, 24),
+            Working("cy", Mon, 0, 24)
+        };
+        var cut = RenderEvents([], p => p.Add(c => c.Availability, availability));
+
+        // Cy is available all day, so nothing is muted.
+        Assert.Empty(cut.FindAll(".cal-muted"));
+
+        cut.Render(p => p.Add(c => c.HiddenPersonIds, Hidden("cy")));
+
+        // Ada is out before 6 and after 18, Bob before 12: both are out before 6.
+        var muted = Assert.Single(cut.FindAll(".cal-muted"));
+        Assert.Equal("top:0%;height:25%", muted.GetAttribute("style"));
+        Assert.Equal("2026-10-12", muted.ParentElement!.GetAttribute("data-date"));
+        Assert.Empty(cut.FindAll(".cal-absence"));
+    }
+
+    [Fact]
+    public void Overlaid_no_muted_area_is_drawn_when_no_person_is_shown()
+    {
+        var cut = RenderEvents([], p => p
+            .Add(c => c.Availability, new[] { Working("ada", Mon, 6, 18) })
+            .Add(c => c.HiddenPersonIds, Hidden("ada", "bob", "cy")));
+
+        Assert.Empty(cut.FindAll(".cal-muted"));
+    }
+
+    [Fact]
+    public void The_month_view_draws_no_availability()
+    {
+        var cut = RenderMonth([], p => p.Add(c => c.Availability, new[]
+        {
+            Working("ada", Mon, 6, 18), Working("bob", Mon, 6, 18), Working("cy", Mon, 6, 18),
+            Absent("ada", At(Mon, 0), At(Mon.AddDays(1), 0), "Holiday")
+        }));
+
+        Assert.Empty(cut.FindAll(".cal-muted"));
+        Assert.Empty(cut.FindAll(".cal-absence"));
+        Assert.Empty(cut.FindAll(".cal-absence-chip"));
+    }
 }

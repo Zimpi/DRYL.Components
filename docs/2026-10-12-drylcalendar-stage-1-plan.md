@@ -18,8 +18,8 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 | T1 — types and version | Complete | `bcd3420` `feat(calendar): the calendar's types (3.5.0)`; gate passes (1305 tests, 10 new in `CalendarTypesTests`); coverage's missing `Source` paths of `F22` fall from eleven to the two component files. Doc comments name `DrylCalendar` as `<c>` rather than `<see cref>` until T3 creates the type — a cref to it does not resolve yet (CS1574). No browser pass: nothing renders yet. |
 | T2 — layout engine | Complete | `8460167` `feat(calendar): the layout engine`; gate passes (1394 tests, 89 new in `CalendarLayoutTests`, every row of the T2 table and every named edge case covered). Written by the main agent, not a subagent. Limitations below. |
 | T3 — shell: views, toolbar, time grid | Complete | `02ee9dd` `feat(calendar): views, toolbar and the time grid`; gate passes (1445 tests, 51 new in `DrylCalendarTests`); coverage has no missing `Source` path left for `F22`. Looked at in the browser on a pulled-forward website demo (`DRYL.Website`, branch `feat/calendar`, uncommitted until T7): week view in light mode, month view in dark mode, no console warning, no horizontal page scroll at 1280px. The scroll to `InitialScrollTime` and `CollapseBelow` arrive with T6. |
-| T4 — events | Complete | `feat(calendar): events in all three views`; gate passes (1473 tests, 28 new). Looked at on the website demo with sample events: week view in both colour modes, month view in light mode — tints over `--chart-1`…`--chart-6` hold up by eye in both modes, text stays readable. `People` came in with this task (colour and avatars need it); legend, hiding, columns and availability remain T5. Enter/exit motion of events remains T6. |
-| T5 — people and availability | Open | |
+| T4 — events | Complete | `45aa9b3` `feat(calendar): events in all three views`; gate passes (1473 tests, 28 new). Looked at on the website demo with sample events: week view in both colour modes, month view in light mode — tints over `--chart-1`…`--chart-6` hold up by eye in both modes, text stays readable. `People` came in with this task (colour and avatars need it); legend, hiding, columns and availability remain T5. Enter/exit motion of events remains T6. |
+| T5 — people and availability | Complete | `feat(calendar): people, columns and availability`; gate passes (1499 tests, 26 new). Looked at on the website demo (new example "Person columns and availability"): the day view with three person columns, an unassigned column, working hours, a labelled absence and a whole-day absence, in both colour modes. **Muted areas over `--line-soft`: clear in light mode, visible but faint in dark mode** (computed `rgba(255,255,255,0.04)` on the dark ground) — judged to hold up, flagged for the maintainer's eye rather than changed (`DESIGN-03`). |
 | T6 — motion, narrow layouts, accessibility, interop | Open | |
 | T7 — website demo and catalog | Open | |
 | T8 — review, full verification, close the loop | Open | |
@@ -88,6 +88,19 @@ Recorded here as they arise; T8 turns those that fall short of a criterion into
   recurring mark are clipped before the title is.
 - **T4 — a segment drawn shorter than 45 minutes is single-line** (`is-compact`),
   so its text is cut at the box and not through the middle of a second line.
+
+- **T5 — with every person hidden, the unassigned column is always rendered**
+  in person columns, with or without an unassigned event: `S3` asks for "the
+  time axis and the unassigned column only", and a grid of no columns would
+  show nothing at all.
+- **T5 — "today" in person columns.** The day view has no day header there, so
+  every person's column header carries `aria-current="date"` on today, and the
+  current-time line is drawn across every column.
+- **T5 — an absence without a `Label` mutes its time and names nothing**, in the
+  column and in the all-day row alike.
+- **T5 — a hidden legend entry is dimmed with `opacity: 0.6`** and a hollow
+  colour dot; there is no opacity token, and existing components write the
+  number the same way.
 
 ## Decisions carried from the spec
 
