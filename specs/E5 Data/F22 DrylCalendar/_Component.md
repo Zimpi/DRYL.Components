@@ -13,6 +13,7 @@
               code/DRYL.Components/Components/Data/Models/CalendarAvailability.cs
               code/DRYL.Components/Components/Data/Models/CalendarRange.cs
               code/DRYL.Components/Components/Data/Models/CalendarLabels.cs
+              code/DRYL.Components/Components/Data/Internal/CalendarLayout.cs
 
 This spec is split (`SPEC-02`). The acceptance criteria live in the `S{n}` files
 beside this one; this file carries the `Meta` block, the description and the

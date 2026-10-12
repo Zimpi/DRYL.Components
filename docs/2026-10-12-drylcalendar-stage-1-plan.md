@@ -15,8 +15,8 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 | Task | State | Commit / evidence |
 |---|---|---|
 | T0 — spec | Complete | `f67f168`; harness links pass; coverage reports only the eleven not-yet-existing `Source` paths of `F22`. |
-| T1 — types and version | Complete | `feat(calendar): the calendar's types (3.5.0)`; gate passes (1305 tests, 10 new in `CalendarTypesTests`); coverage's missing `Source` paths of `F22` fall from eleven to the two component files. Doc comments name `DrylCalendar` as `<c>` rather than `<see cref>` until T3 creates the type — a cref to it does not resolve yet (CS1574). No browser pass: nothing renders yet. |
-| T2 — layout engine | Open | |
+| T1 — types and version | Complete | `bcd3420` `feat(calendar): the calendar's types (3.5.0)`; gate passes (1305 tests, 10 new in `CalendarTypesTests`); coverage's missing `Source` paths of `F22` fall from eleven to the two component files. Doc comments name `DrylCalendar` as `<c>` rather than `<see cref>` until T3 creates the type — a cref to it does not resolve yet (CS1574). No browser pass: nothing renders yet. |
+| T2 — layout engine | Complete | `feat(calendar): the layout engine`; gate passes (1394 tests, 89 new in `CalendarLayoutTests`, every row of the T2 table and every named edge case covered). Written by the main agent, not a subagent. Limitations below. |
 | T3 — shell: views, toolbar, time grid | Open | |
 | T4 — events | Open | |
 | T5 — people and availability | Open | |
@@ -38,6 +38,27 @@ dotnet test DRYL.slnx -c Release --no-build
 node scripts/check-motion-tokens.mjs
 git diff --check
 ```
+
+## Known limitations and decisions taken while implementing
+
+Recorded here as they arise; T8 turns those that fall short of a criterion into
+`## Recorded gaps` in the story concerned.
+
+- **T2 — the spec is silent, the engine decides.** A `DayStart` outside the day
+  becomes midnight without a report; a `DayEnd` beyond the following midnight is
+  replaced and reported like one that is not later than `DayStart`. An
+  availability span whose `End` is not later than its `Start` is ignored.
+- **T2 — overlap is judged on the drawn box.** A short event is drawn one slot
+  high (`S2`), and packing uses that drawn height, so two five-minute events ten
+  minutes apart sit side by side instead of on top of each other.
+- **T2 — a month cell's capacity is a number, not a measurement.** All layout is
+  server-side C#, so "as many events as fit its height" (`S2`) is a row count
+  the component passes to `CalendarLayout.MonthWeek`, not the cell's rendered
+  height. A day that hides anything gives its last row to the overflow control;
+  a bar hidden on one of its days is hidden, and counted, on all of them.
+- **T2 — a timed event wholly outside `DayStart`–`DayEnd` on every day it
+  touches** (22:00–02:00 on an 08:00–18:00 grid) appears in neither column, as
+  `S2` "Placement" says, and so is invisible in the day and week views.
 
 ## Decisions carried from the spec
 
