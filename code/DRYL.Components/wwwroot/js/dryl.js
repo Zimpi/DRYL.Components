@@ -2616,3 +2616,23 @@ window.dryl.tooltip = (() => {
     return { hide };
 })();
 
+
+/* --------------------------------------------------------------
+ * dryl.calendar — the one thing DrylCalendar asks of the browser.
+ *   scrollToTime(el, fraction) puts a time of day at the top of
+ *   the scrolling time grid, once, when the grid is first shown.
+ *   `fraction` is the time's position on the grid (0…1); every
+ *   length comes from the rendered grid itself. Nothing is kept:
+ *   no listener, no timer, no reference.
+ * -------------------------------------------------------------- */
+window.dryl.calendar = {
+    scrollToTime(el, fraction) {
+        if (!el || el.nodeType !== 1) return;
+        const grid = el.querySelector('.cal-grid');
+        if (!grid) return;
+        const at = Math.min(Math.max(Number(fraction) || 0, 0), 1);
+        // The sticky head covers the top of the scroller, and the grid starts
+        // right below it — so the grid's own offset is the scroll offset.
+        el.scrollTop = Math.round(grid.offsetHeight * at);
+    }
+};

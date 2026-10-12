@@ -4,8 +4,9 @@ The JS interop surface this category uses, the DI services it registers, and the
 cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
-Four of the twenty-one components inject an `IJSRuntime`: `DrylCodeBlock`,
-`DrylStat`, `DrylTreeView` and `DrylTable`. The other seventeen are markup and
+Five of the twenty-two components inject an `IJSRuntime`: `DrylCodeBlock`,
+`DrylStat`, `DrylTreeView`, `DrylTable` and `DrylCalendar`. The other seventeen
+are markup and
 CSS end to end, which is why none of them needs a prerender guard — there is no
 `OnAfterRenderAsync` interop to guard.
 
@@ -28,6 +29,7 @@ renders, measure a table, suppress a browser default, and write a file.
 | `dryl.table.focusHeader` | `DrylTable` | Moves focus onto a header after a keyboard column move. |
 | `dryl.table.focusFirstEditor` | `DrylTable` | Moves focus into the first editor when an inline edit starts. |
 | `dryl.table.layoutPinned` | `DrylTable` | Re-measures the sticky offsets of pinned columns. |
+| `dryl.calendar.scrollToTime` | `DrylCalendar` | Puts `InitialScrollTime` at the top of the time grid's scroller, once per newly shown grid. |
 | `dryl.storage.get` / `dryl.storage.set` | `DrylTable` | Reads and writes the persisted table state. |
 | `dryl.download.csv` | `DrylTable` | Hands the built CSV to the browser as a download. |
 | `DrylMorphEngine` (wrapping `dryl.morph.capture / dryl.morph.play`) | `DrylTable` | Same-document morphs for row morphs. |
@@ -90,6 +92,19 @@ column-visibility menu are hand-built, rendered in place rather than portalled,
 and therefore clipped inside a scrolling table — and each answers `Escape` only
 if the user has focused it first, which nothing does when it opens.
 
+### `DrylCalendar` — one call, and a timer
+
+In stage one the calendar needs JS for exactly one thing the server cannot do:
+setting the time grid's scroll position so that `InitialScrollTime` is in view,
+once, after the render that first shows a time grid. The call is best-effort —
+a missing element, a prerender or a closed circuit is swallowed — and hands out
+no object reference; `dryl.calendar.scrollToTime` keeps no listener and no
+timer, which `tests/js/calendar.test.mjs` pins. Everything else — the
+layout of events, the narrow layouts, the motion — is markup and CSS.
+
+It also holds a timer, which advances the current-time line while `Now` is
+`null`. No timer exists while `Now` is set.
+
 ## Services
 
 **None.** No component in this category injects a DRYL service, registers one,
@@ -105,7 +120,7 @@ inline width, clears `tbl-resizing`, releases capture/window handlers and never
 reports or persists the preview. Pointer identity isolates concurrent input;
 stale events after disposal cannot change cells or call `OnColumnResized`.
 
-Eight components implement a disposal.
+Nine components implement a disposal.
 
 | Component | Disposes |
 |---|---|
@@ -116,6 +131,7 @@ Eight components implement a disposal.
 | `DrylStat` | The aura lifecycle's timer. |
 | `DrylTimelineItem` | The aura lifecycle's timer. |
 | `DrylTreeView` | Detaches the key-suppression listener. `IAsyncDisposable`. |
+| `DrylCalendar` | The timer that advances the current-time line while `Now` is `null`. Nothing on the JS side: its one call registers nothing. |
 | `DrylTable` | The aura lifecycle's timer, the search debounce, the in-flight data-provider request, the view-transition helper, the resize listener and the object reference behind it. `IAsyncDisposable`. |
 
 Three patterns are worth naming because getting them wrong has broken this

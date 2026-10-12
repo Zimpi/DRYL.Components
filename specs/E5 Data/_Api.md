@@ -8,8 +8,8 @@ of the data contract the 1.0 freeze binds.
 This file carries no `Meta` block: it is a reference for the specs around it,
 not a unit of implementation (`SPEC-03`).
 
-The category holds twenty-one components and is the library's most varied. It is
-better read as five unrelated groups than as one family:
+The category holds twenty-two components and is the library's most varied. It is
+better read as six unrelated groups than as one family:
 
 | Group | Components |
 |---|---|
@@ -19,6 +19,7 @@ better read as five unrelated groups than as one family:
 | Numbers | `DrylStat`, `DrylTableKpi`, `DrylSparkline` |
 | The table | `DrylTable`, and its `DrylColumn` plus the types under `Models/` |
 | Media | `DrylImage`, `DrylCodeBlock` |
+| Scheduling | `DrylCalendar`, and the types listed under "The calendar's types" |
 
 `DrylSparkline` sits in this category rather than in `E4 Charts` because it
 lives in `Components/Data/` and not in `Components/Data/Charts/`; `SPEC-02`
@@ -26,9 +27,10 @@ derives a component's category from its path.
 
 ## Where the enums live — and why it is not uniform
 
-The category declares nineteen public types. Eight are namespace-level enums in
-their own file; six are nested inside the component that uses them; and five are
-records or enums under `Models/` belonging to the table. A nested enum must be
+The category declares twenty-eight public types. Twelve are namespace-level
+enums in their own file; six are nested inside the component that uses them; and
+ten are records or enums under `Models/` — five belonging to the table, five to
+the calendar. A nested enum must be
 written qualified at the call site, and the 1.0 freeze binds that difference
 into every consumer's markup:
 
@@ -47,6 +49,10 @@ into every consumer's markup:
 | `DescriptionLayout` | `DescriptionLayout.cs` | `DescriptionLayout.Inline` |
 | `SparklineKind` | `SparklineKind.cs` | `SparklineKind.Area` |
 | `TimelineVariant` | `TimelineVariant.cs` | `TimelineVariant.Success` |
+| `CalendarView` | `CalendarView.cs` | `CalendarView.Month` |
+| `CalendarPersonLayout` | `CalendarPersonLayout.cs` | `CalendarPersonLayout.Columns` |
+| `CalendarColor` | `CalendarColor.cs` | `CalendarColor.Slot3` |
+| `CalendarAvailabilityKind` | `CalendarAvailabilityKind.cs` | `CalendarAvailabilityKind.Absent` |
 | `ColumnAlign` | `Models/ColumnAlign.cs` | `ColumnAlign.End` |
 | `ColumnFilterType` | `Models/ColumnFilterType.cs` | `ColumnFilterType.Select` |
 | `ColumnPin` | `Models/ColumnPin.cs` | `ColumnPin.Start` |
@@ -301,9 +307,113 @@ The server-mode contract, both `sealed record`s.
 | `RowEditEventArgs<TItem>` | `(TItem Item, TItem EditedItem)` | Raised on commit. `Item` is the original; `EditedItem` is the working copy, or the same instance when no `CloneRow` was supplied. |
 | `RowReorderEventArgs` | `(int OldIndex, int NewIndex)` | Raised after a row move. Indices into the displayed view. |
 
+## The calendar's types
+
+The types of `DrylCalendar`, specified in `F22 DrylCalendar/`.
+
+The enums are namespace-level, each in its own file beside the component; the
+records live under `Models/`, as the table's do.
+
+### `CalendarView`
+
+| Member | Notes |
+|---|---|
+| `Week` | Seven days as a time grid. The default. |
+| `Day` | One day as a time grid. |
+| `Month` | A grid of days, one row per week. |
+
+### `CalendarPersonLayout`
+
+| Member | Notes |
+|---|---|
+| `Overlay` | Every person's events share one grid, told apart by colour. The default. |
+| `Columns` | A column per person. Applies to the day view; the other views stay overlaid. |
+
+### `CalendarColor`
+
+| Member | Notes |
+|---|---|
+| `Auto` | Resolved by the calendar: an event takes its first person's colour, a person takes a slot by position. The default. |
+| `Slot1` … `Slot6` | The six categorical slots, drawn from `--chart-1` … `--chart-6`. |
+
+There is deliberately no member for a free colour value: a value the host picks
+guarantees no contrast in either colour mode and would not follow a theme.
+
+### `CalendarAvailabilityKind`
+
+| Member | Notes |
+|---|---|
+| `Working` | A span in which the person works. The default. |
+| `Absent` | A span in which the person is away. |
+
+### `CalendarEvent`
+
+A `sealed record` with `init` properties and no positional constructor, so a
+later stage can add a member without breaking a host that constructs one.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `Id` | `string` | required | Stable identity of the event. |
+| `Title` | `string` | `""` | The event's name. |
+| `Start` | `DateTime` | required | When it starts, as a wall-clock time. |
+| `End` | `DateTime` | required | When it ends, exclusive. |
+| `AllDay` | `bool` | `false` | It takes whole days; only the dates of `Start` and `End` count. |
+| `PersonIds` | `IReadOnlyList<string>` | `[]` | The ids of the people it is assigned to. |
+| `Color` | `CalendarColor` | `CalendarColor.Auto` | Its colour slot. |
+| `SeriesId` | `string?` | `null` | Set when the event is one occurrence of a recurring series. |
+| `Data` | `object?` | `null` | The host's own object behind the event; the calendar never reads it. |
+
+### `CalendarPerson`
+
+A `sealed record` with `init` properties.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `Id` | `string` | required | Stable identity of the person. |
+| `Name` | `string` | required | Shown in the legend, in column headers and in accessible names. |
+| `AvatarSrc` | `string?` | `null` | Image for the avatar; without one the avatar shows initials from `Name`. |
+| `Color` | `CalendarColor` | `CalendarColor.Auto` | Their colour slot. |
+
+### `CalendarAvailability`
+
+A `sealed record` with `init` properties.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `PersonId` | `string` | required | The person the span belongs to. |
+| `Start` | `DateTime` | required | When the span starts, as a wall-clock time. |
+| `End` | `DateTime` | required | When it ends, exclusive. |
+| `Kind` | `CalendarAvailabilityKind` | `CalendarAvailabilityKind.Working` | Working time or an absence. |
+| `Label` | `string?` | `null` | Names an absence, e.g. a holiday. |
+
+### `CalendarRange`
+
+A `readonly record struct` of a `Start` and an `End`, both `DateTime`, the end
+exclusive. Raised by `OnRangeChanged`; both values are midnights.
+
+### `CalendarLabels`
+
+A `sealed record` with `init` properties, each defaulting to an English text.
+
+| Member | Default | Used for |
+|---|---|---|
+| `Today` | `"Today"` | The today control. |
+| `Previous` | `"Previous"` | Tooltip and accessible name of the previous control. |
+| `Next` | `"Next"` | Tooltip and accessible name of the next control. |
+| `Day` | `"Day"` | The view switch. |
+| `Week` | `"Week"` | The view switch. |
+| `Month` | `"Month"` | The view switch. |
+| `AllDay` | `"All day"` | The all-day row, and an all-day event's accessible name. |
+| `More` | `"+{0} more"` | The month view's overflow control; `{0}` is the number hidden. |
+| `Unassigned` | `"Unassigned"` | Header of the column for events without a person. |
+| `Recurring` | `"Recurring"` | Accessible name of the recurring-event mark. |
+| `People` | `"People"` | Accessible label of the legend. |
+| `Loading` | `"Loading"` | The loading status. |
+| `NoEvents` | `"No events"` | The narrow month view's list for a day without events. |
+
 ## The AI parameters
 
-Five of the twenty-one components — `DrylCodeBlock`, `DrylImage`, `DrylStat`,
+Five of the twenty-two components — `DrylCodeBlock`, `DrylImage`, `DrylStat`,
 `DrylTable` and `DrylTimelineItem` — carry the same two parameters, with the
 same types and the same defaults:
 
@@ -315,9 +425,10 @@ same types and the same defaults:
 Both types belong to `E1 Foundation`; the aura vocabulary they drive is
 specified in `E3 AI`.
 
-The sixteen that do not carry them are not oversights: every one of their specs
-records the decision and its reason under "AI mode" (`AI-05`). Three reasons
-recur. A component that **paints no surface** has nothing to put an aura on —
+The seventeen that do not carry them are not oversights: every one of their
+specs records the decision and its reason under "AI mode" (`AI-05`). Three
+reasons recur among sixteen of them; the seventeenth, `DrylCalendar`, is a
+deferral — its AI story is per event and arrives with stage three (`F22`, `S4`). A component that **paints no surface** has nothing to put an aura on —
 `DrylIcon`, `DrylKbd`, `DrylDescriptionList`, `DrylTimeline`, `DrylTreeView`. A
 component that **states an identity or a classification** rather than an
 activity would contradict itself with one — `DrylAvatar`, `DrylBadge`, the whole
@@ -340,7 +451,7 @@ before changing any of them:
 
 ## `Class` and `AdditionalAttributes`
 
-Nineteen of the twenty-one components carry both:
+Twenty of the twenty-two components carry both:
 
 | Member | Type | Default | Purpose |
 |---|---|---|---|
@@ -362,7 +473,8 @@ rollout.
 set: the root is then a wrapper, and both land on the avatar inside it. See
 `F1`.
 
-Of the nineteen, three are guarded in
-`tests/DRYL.Components.Tests/ClassMergeTests.cs`: `DrylBadge`, `DrylStat` and
-`DrylTimeline`. The other sixteen — including `DrylTable`, where a clobbered
+Of the twenty, three are guarded in
+`tests/DRYL.Components.Tests/ClassMergeTests.cs` — `DrylBadge`, `DrylStat` and
+`DrylTimeline` — and `DrylCalendar` in its own `DrylCalendarTests.cs`. The
+other sixteen — including `DrylTable`, where a clobbered
 class would take the whole card surface with it — are unguarded.

@@ -1,0 +1,1236 @@
+@namespace DRYL.Components
+@using System.Globalization
+@using System.Text.RegularExpressions
+@using DRYL.Components.Internal
+@inject IJSRuntime JS
+@implements IDisposable
+
+@*  ─────────────────────────────────────────────────────────
+    DrylCalendar — a scheduling calendar: day, week and month
+    views of the events the host supplies.
+
+    The host owns the data. The calendar tells it which span of
+    time is showing through OnRangeChanged and renders what it is
+    given. Times are wall-clock times in one zone; every end is
+    exclusive.
+
+    Usage:
+      <DrylCalendar @bind-View="_view"
+                    @bind-Date="_date"
+                    OnRangeChanged="LoadAsync"
+                    DayStart="@TimeSpan.FromHours(7)"
+                    DayEnd="@TimeSpan.FromHours(20)"
+                    Height="640px"
+                    AriaLabel="Team calendar" />
+
+    All layout arithmetic is server-side (Internal/CalendarLayout);
+    positions reach the markup as percentages, lengths stay in the
+    stylesheet.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootClass"
+     style="@RootStyle"
+     role="group"
+     aria-label="@AriaLabel"
+     aria-busy="@(Loading ? "true" : null)"
+     @attributes="AdditionalAttributes">
+
+    @if (ShowToolbar)
+    {
+        <div class="cal-toolbar">
+            <div class="cal-nav">
+                <DrylTooltip Text="@Labels.Previous">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                LeadingIcon="ChevronLeft"
+                                AriaLabel="@Labels.Previous"
+                                OnClick="() => NavigateAsync(-1)" />
+                </DrylTooltip>
+                <DrylButton Variant="DrylButton.ButtonVariant.Secondary"
+                            Size="DrylButton.ButtonSize.Small"
+                            Class="cal-today"
+                            OnClick="GoToTodayAsync">@Labels.Today</DrylButton>
+                <DrylTooltip Text="@Labels.Next">
+                    <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                Size="DrylButton.ButtonSize.Small"
+                                LeadingIcon="ChevronRight"
+                                AriaLabel="@Labels.Next"
+                                OnClick="() => NavigateAsync(1)" />
+                </DrylTooltip>
+            </div>
+
+            <div class="cal-title" aria-live="polite" aria-atomic="true">@Title</div>
+
+            <DrylPresence Visible="Loading" Appear>
+                <DrylSpinner Size="DrylSpinner.SpinnerSize.Small" Label="@Labels.Loading" />
+            </DrylPresence>
+
+            <div class="cal-toolbar-end">
+                <DrylSegmentedControl TValue="CalendarView"
+                                      Value="_view"
+                                      ValueChanged="SelectViewAsync"
+                                      Size="SegmentedSize.Small">
+                    <DrylSegment TValue="CalendarView" Value="CalendarView.Day" Label="@Labels.Day" />
+                    <DrylSegment TValue="CalendarView" Value="CalendarView.Week" Label="@Labels.Week" />
+                    <DrylSegment TValue="CalendarView" Value="CalendarView.Month" Label="@Labels.Month" />
+                </DrylSegmentedControl>
+                @ToolbarContent
+            </div>
+        </div>
+    }
+
+    @if (ShowLegend && _people.Count > 0)
+    {
+        <div class="cal-legend" role="group" aria-label="@Labels.People">
+            @foreach (var person in _people)
+            {
+                var shown = !_hidden.Contains(person.Id);
+                <button type="button"
+                        class="@(shown ? "cal-legend-item" : "cal-legend-item is-hidden")"
+                        data-color="@PersonColor(person)"
+                        data-person-id="@person.Id"
+                        aria-pressed="@(shown ? "true" : "false")"
+                        @key="person.Id"
+                        @onclick="() => TogglePersonAsync(person)">
+                    <span class="cal-legend-swatch" aria-hidden="true"></span>
+                    @PersonContent(person)
+                </button>
+            }
+        </div>
+    }
+
+    @{ var plan = BuildLayout(); }
+
+    <div class="cal-body">
+        @if (_view == CalendarView.Month)
+        {
+            <div class="@("cal-month " + plan.EnterClass)" @key="plan.GridKey">
+                <div class="cal-month-head">
+                    @for (var d = 0; d < 7; d++)
+                    {
+                        <div class="cal-weekday">@_culture.DateTimeFormat.GetAbbreviatedDayName(plan.First.AddDays(d).DayOfWeek)</div>
+                    }
+                </div>
+                @foreach (var (weekStart, week) in plan.Weeks)
+                {
+                    <div class="cal-week" style="@WeekStyle" @key="weekStart">
+                        @for (var d = 0; d < 7; d++)
+                        {
+                            var day = weekStart.AddDays(d);
+                            var isToday = day == Today;
+                            var isSelected = day == _date;
+                            <div class="@MonthCellClass(day, isToday, isSelected)"
+                                 style="@Column(d + 1)"
+                                 data-date="@Iso(day)"
+                                 aria-current="@(isToday ? "date" : null)">
+                                <button type="button"
+                                        class="cal-cell-num"
+                                        aria-label="@LongDate(day)"
+                                        @onclick="() => ShowDayAsync(day)">@day.Day.ToString(_culture)</button>
+                                @* Narrow: the day selects itself and its events are listed below the grid. *@
+                                <button type="button"
+                                        class="cal-cell-pick"
+                                        aria-label="@LongDate(day)"
+                                        aria-pressed="@(isSelected ? "true" : "false")"
+                                        @onclick="() => SetDateAsync(day)">@day.Day.ToString(_culture)</button>
+                                @if (week.Total[d] > 0)
+                                {
+                                    <span class="cal-cell-mark" aria-hidden="true"></span>
+                                }
+                            </div>
+                        }
+                        @EventSlots(plan, "week|" + Iso(weekStart))
+                        @for (var d = 0; d < 7; d++)
+                        {
+                            if (week.Hidden[d] == 0) continue;
+                            var day = weekStart.AddDays(d);
+                            <button type="button"
+                                    class="cal-more"
+                                    style="@Placement(d + 1, 1, MonthCapacity + 1)"
+                                    data-date="@Iso(day)"
+                                    @key="@($"more|{Iso(day)}")"
+                                    @onclick="() => ShowDayAsync(day)">@string.Format(_culture, Labels.More, week.Hidden[d])</button>
+                        }
+                    </div>
+                }
+                <div class="cal-daylist" aria-label="@LongDate(_date)" role="group">
+                    @{ var listed = DayList(plan.Visible); }
+                    @if (listed.Count == 0)
+                    {
+                        <div class="cal-daylist-empty">@Labels.NoEvents</div>
+                    }
+                    @foreach (var e in listed)
+                    {
+                        <button type="button"
+                                class="cal-event cal-event--list"
+                                data-color="@Color(e)"
+                                data-event-id="@e.Id"
+                                aria-label="@EventName(e)"
+                                @key="e.Id"
+                                @onclick="() => OnEventClick.InvokeAsync(e)">
+                            @EventContent(e, CalendarLayout.IsMonthBar(e) ? EventShape.Bar : EventShape.Line)
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            var now = EffectiveNow;
+            var columns = plan.Columns;
+            <div class="cal-scroll" @ref="_scrollEl">
+                <div class="@TimeClass(plan)" style="@TimeStyle(plan)" @key="plan.GridKey">
+                    <div class="cal-head">
+                        @if (_view == CalendarView.Week)
+                        {
+                            @* Narrow: the headers become a strip of the week's days; one column shows. *@
+                            <div class="cal-strip">
+                                @foreach (var column in columns)
+                                {
+                                    var day = column.Day;
+                                    var isToday = day == Today;
+                                    var isSelected = day == _date;
+                                    <button type="button"
+                                            class="@StripClass(isToday, isSelected)"
+                                            data-date="@Iso(day)"
+                                            aria-current="@(isToday ? "date" : null)"
+                                            aria-pressed="@(isSelected ? "true" : "false")"
+                                            aria-label="@LongDate(day)"
+                                            @key="column.Key"
+                                            @onclick="() => SetDateAsync(day)">
+                                        <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
+                                        <span class="cal-day-num">@day.Day.ToString(_culture)</span>
+                                        @if (plan.Visible.Any(e => CalendarLayout.Touches(e, day, 1)))
+                                        {
+                                            <span class="cal-strip-mark" aria-hidden="true"></span>
+                                        }
+                                    </button>
+                                }
+                            </div>
+                        }
+                        <div class="cal-head-row">
+                            <div class="cal-corner" aria-hidden="true"></div>
+                            @foreach (var column in columns)
+                            {
+                                var day = column.Day;
+                                var isToday = day == Today;
+                                if (plan.ByPerson)
+                                {
+                                    <div class="@PersonHeadClass(isToday)"
+                                         data-person-id="@column.Person?.Id"
+                                         aria-current="@(isToday ? "date" : null)"
+                                         @key="column.Key">
+                                        @if (column.Person is { } person)
+                                        {
+                                            @PersonContent(person)
+                                        }
+                                        else
+                                        {
+                                            <span class="cal-person-name">@Labels.Unassigned</span>
+                                        }
+                                    </div>
+                                }
+                                else if (_view == CalendarView.Week)
+                                {
+                                    <button type="button"
+                                            class="@DayHeadClass(isToday)"
+                                            data-date="@Iso(day)"
+                                            aria-current="@(isToday ? "date" : null)"
+                                            aria-label="@LongDate(day)"
+                                            @key="column.Key"
+                                            @onclick="() => ShowDayAsync(day)">
+                                        <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
+                                        <span class="cal-day-num">@day.Day.ToString(_culture)</span>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="@DayHeadClass(isToday)"
+                                         data-date="@Iso(day)"
+                                         aria-current="@(isToday ? "date" : null)"
+                                         @key="column.Key">
+                                        <span class="cal-day-name">@_culture.DateTimeFormat.GetAbbreviatedDayName(day.DayOfWeek)</span>
+                                        <span class="cal-day-num">@day.Day.ToString(_culture)</span>
+                                    </div>
+                                }
+                            }
+                        </div>
+                        <div class="cal-allday" style="--cal-lanes:@plan.Lanes.ToString(CultureInfo.InvariantCulture)">
+                            <div class="cal-allday-label">@Labels.AllDay</div>
+                            @for (var c = 0; c < columns.Count; c++)
+                            {
+                                <div class="@(IsSelectedColumn(columns[c]) ? "cal-allday-cell is-selected" : "cal-allday-cell")"
+                                     style="@Column(c + 2)" aria-hidden="true" @key="columns[c].Key"></div>
+                            }
+                            @EventSlots(plan, "allday")
+                            @for (var c = 0; plan.ByPerson && c < columns.Count; c++)
+                            {
+                                var column = columns[c];
+                                for (var a = 0; a < column.WholeDayAbsences.Count; a++)
+                                {
+                                    <div class="cal-absence-chip"
+                                         style="@Placement(c + 2, 1, column.Bars.Count + a + 1)"
+                                         @key="@($"absence|{column.Key}|{a}")">@column.WholeDayAbsences[a].Source.Label</div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="cal-grid">
+                        <div class="cal-axis">
+                            @foreach (var hour in HourMarks())
+                            {
+                                <div class="cal-hour" style="top:@CalendarLayout.Pct(_grid.Fraction(hour))">@FormatTime(hour)</div>
+                            }
+                        </div>
+                        <div class="cal-lines" aria-hidden="true">
+                            @for (var s = 1; s < _grid.SlotCount; s++)
+                            {
+                                var time = _grid.DayStart + TimeSpan.FromMinutes(s * _grid.SlotMinutes);
+                                <div class="@(time.Minutes == 0 ? "cal-line cal-line--hour" : "cal-line")"
+                                     style="top:@CalendarLayout.Pct(_grid.Fraction(time))"></div>
+                            }
+                        </div>
+                        @foreach (var column in columns)
+                        {
+                            var day = column.Day;
+                            var isToday = day == Today;
+                            <div class="@ColumnClass(column, isToday)"
+                                 data-date="@Iso(day)"
+                                 data-person-id="@column.Person?.Id"
+                                 @key="column.Key">
+                                @foreach (var span in column.Muted)
+                                {
+                                    <div class="cal-muted" aria-hidden="true" style="@SpanStyle(span)"></div>
+                                }
+                                @foreach (var absence in column.Absences)
+                                {
+                                    if (string.IsNullOrWhiteSpace(absence.Source.Label)) continue;
+                                    <div class="cal-absence" style="@SpanStyle(absence.Span)">@absence.Source.Label</div>
+                                }
+                                @EventSlots(plan, "col|" + column.Key)
+                                @if (isToday && now.TimeOfDay >= _grid.DayStart && now.TimeOfDay < _grid.DayEnd)
+                                {
+                                    <div class="cal-now" aria-hidden="true"
+                                         style="top:@CalendarLayout.Pct(_grid.Fraction(now.TimeOfDay))"></div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // ── Data ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The events to show. The host supplies those of the visible range; the
+    /// calendar stores none of them and expands no recurrence of its own.
+    /// </summary>
+    [Parameter] public IEnumerable<CalendarEvent> Events { get; set; } = [];
+
+    /// <summary>The people events are assigned to, in display order.</summary>
+    [Parameter] public IEnumerable<CalendarPerson> People { get; set; } = [];
+
+    /// <summary>
+    /// Working hours and absences per person. Drawn as muted areas behind the
+    /// events — information only; the calendar repeats no span on other days.
+    /// </summary>
+    [Parameter] public IEnumerable<CalendarAvailability> Availability { get; set; } = [];
+
+    // ── View and date ───────────────────────────────────────────────────
+
+    /// <summary>The view shown. Supports two-way binding via <c>@bind-View</c>.</summary>
+    [Parameter] public CalendarView View { get; set; } = CalendarView.Week;
+
+    /// <summary>Raised when the user switches the view.</summary>
+    [Parameter] public EventCallback<CalendarView> ViewChanged { get; set; }
+
+    /// <summary>
+    /// The date the visible range is built around. Supports two-way binding via
+    /// <c>@bind-Date</c>. Left unset, the calendar starts on the date of
+    /// <see cref="Now"/>, or of the server's clock.
+    /// </summary>
+    [Parameter] public DateOnly Date { get; set; }
+
+    /// <summary>Raised when the user navigates.</summary>
+    [Parameter] public EventCallback<DateOnly> DateChanged { get; set; }
+
+    /// <summary>
+    /// Raised with the visible range — once after the first render, then whenever
+    /// the range changes. The host supplies the events of that range.
+    /// </summary>
+    [Parameter] public EventCallback<CalendarRange> OnRangeChanged { get; set; }
+
+    /// <summary>
+    /// The host's current time, for "today" and the current-time line.
+    /// <c>null</c> uses the server's clock, and the line then advances on its own.
+    /// </summary>
+    [Parameter] public DateTime? Now { get; set; }
+
+    /// <summary>The first column of a week. <c>null</c> follows <see cref="Culture"/>.</summary>
+    [Parameter] public DayOfWeek? FirstDayOfWeek { get; set; }
+
+    /// <summary>Formats dates, day names and times. <c>null</c> uses the current culture.</summary>
+    [Parameter] public CultureInfo? Culture { get; set; }
+
+    // ── The time grid ───────────────────────────────────────────────────
+
+    /// <summary>First time of day the grid shows. Defaults to midnight.</summary>
+    [Parameter] public TimeSpan DayStart { get; set; } = TimeSpan.Zero;
+
+    /// <summary>
+    /// Time of day the grid ends at. Defaults to the following midnight; a value
+    /// that is not later than <see cref="DayStart"/> is replaced by it.
+    /// </summary>
+    [Parameter] public TimeSpan DayEnd { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Length of one grid slot, in minutes. Must divide sixty evenly; any other
+    /// value is replaced by 30.
+    /// </summary>
+    [Parameter] public int SlotMinutes { get; set; } = 30;
+
+    /// <summary>
+    /// Time of day scrolled into view when the time grid is first shown. Defaults
+    /// to 07:00. Later renders leave the scroll position alone.
+    /// </summary>
+    [Parameter] public TimeSpan InitialScrollTime { get; set; } = TimeSpan.FromHours(7);
+
+    /// <summary>Height of the calendar, any CSS length; the grid scrolls inside it.</summary>
+    [Parameter] public string? Height { get; set; }
+
+    // ── People ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Overlaid in one grid, or a column per person in the day view. The week and
+    /// month views are always overlaid.
+    /// </summary>
+    [Parameter] public CalendarPersonLayout PersonLayout { get; set; } = CalendarPersonLayout.Overlay;
+
+    /// <summary>
+    /// The ids of hidden people. Supports two-way binding via
+    /// <c>@bind-HiddenPersonIds</c>; <c>null</c> shows everyone.
+    /// </summary>
+    [Parameter] public IReadOnlySet<string>? HiddenPersonIds { get; set; }
+
+    /// <summary>Raised with the complete new set when the user hides or shows a person.</summary>
+    [Parameter] public EventCallback<IReadOnlySet<string>> HiddenPersonIdsChanged { get; set; }
+
+    /// <summary>Renders the legend of people. Defaults to <c>true</c>.</summary>
+    [Parameter] public bool ShowLegend { get; set; } = true;
+
+    // ── Slots ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Replaces the content of every event — title, times, avatars and the
+    /// recurring mark. The event's box, position and colour stay the calendar's.
+    /// </summary>
+    [Parameter] public RenderFragment<CalendarEvent>? EventTemplate { get; set; }
+
+    /// <summary>
+    /// Replaces the avatar and the name of a person's column header and legend
+    /// entry.
+    /// </summary>
+    [Parameter] public RenderFragment<CalendarPerson>? PersonTemplate { get; set; }
+
+    /// <summary>Extra content at the end of the toolbar.</summary>
+    [Parameter] public RenderFragment? ToolbarContent { get; set; }
+
+    // ── Interaction ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Raised when an event is activated by pointer or keyboard. Every segment and
+    /// bar of one event raises it with the same <see cref="CalendarEvent"/>.
+    /// </summary>
+    [Parameter] public EventCallback<CalendarEvent> OnEventClick { get; set; }
+
+    // ── Presentation ────────────────────────────────────────────────────
+
+    /// <summary>Renders the toolbar. Defaults to <c>true</c>.</summary>
+    [Parameter] public bool ShowToolbar { get; set; } = true;
+
+    /// <summary>
+    /// Marks the calendar as waiting for the host's data. What is already rendered
+    /// stays in place.
+    /// </summary>
+    [Parameter] public bool Loading { get; set; }
+
+    /// <summary>
+    /// The calendar's own width below which the narrow layouts apply — whatever
+    /// the width of the viewport. <c>null</c> never collapses.
+    /// </summary>
+    [Parameter] public Breakpoint? CollapseBelow { get; set; } = Breakpoint.Md;
+
+    /// <summary>Every text the calendar renders that is not a formatted date or time.</summary>
+    [Parameter] public CalendarLabels Labels { get; set; } = new();
+
+    /// <summary>Accessible label of the calendar.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the calendar's own classes.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Pass-through HTML attributes on the root element.</summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // ── State ───────────────────────────────────────────────────────────
+
+    private CultureInfo _culture = CultureInfo.CurrentCulture;
+    private CalendarGrid _grid;
+
+    // View and Date are bound parameters with an internal fallback: the calendar
+    // keeps its own copy and adopts the parameter only when the parameter changes,
+    // so it works the same bound and unbound.
+    private CalendarView _view;
+    private CalendarView _lastView;
+    private DateOnly _date;
+    private DateOnly _lastDate;
+    private bool _dateSupplied;
+    private bool _initialised;
+
+    private bool _rangeRaised;
+    private CalendarRange _lastRange;
+
+    // Rows of events a month cell holds; the last gives way to the overflow control.
+    private const int MonthCapacity = 3;
+
+    private List<CalendarEvent> _events = [];
+    private List<CalendarPerson> _people = [];
+    private Dictionary<string, CalendarPerson> _peopleById = new(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, CalendarColor> _personColors = new Dictionary<string, CalendarColor>();
+
+    private HashSet<string> _knownPersonIds = new(StringComparer.Ordinal);
+    private Dictionary<string, List<CalendarAvailability>> _availability = new(StringComparer.Ordinal);
+
+    // Like View and Date: the calendar keeps its own set and adopts the parameter
+    // only when the host hands it a different one.
+    private IReadOnlySet<string> _hidden = new HashSet<string>(StringComparer.Ordinal);
+    private IReadOnlySet<string>? _lastHidden;
+
+    // What the last render placed, and what has since left and is still fading
+    // out. Both belong to one grid: a navigation or a view change starts afresh.
+    private Dictionary<string, Slot> _placed = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Slot> _ghosts = new(StringComparer.Ordinal);
+    private string? _gridKey;
+    private CalendarView _gridView;
+    private DateOnly _gridFirst;
+    private string _enterClass = "";
+
+    private ElementReference _scrollEl;
+    private bool _timeGridMounted;
+    private bool _scrollPending;
+
+    private bool _duplicateEventsReported;
+    private bool _duplicatePeopleReported;
+    private bool _dayEndReported;
+    private bool _slotMinutesReported;
+
+    private System.Threading.Timer? _clock;
+
+    private DateTime EffectiveNow => Now ?? DateTime.Now;
+    private DateOnly Today => DateOnly.FromDateTime(EffectiveNow);
+    private DayOfWeek FirstDay => FirstDayOfWeek ?? _culture.DateTimeFormat.FirstDayOfWeek;
+
+    /// <summary>Whether the timer that advances the current-time line is running.</summary>
+    internal bool ClockRunning => _clock is not null;
+
+    /// <inheritdoc />
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        // A DateOnly parameter cannot say "unset" by its value, so note whether the
+        // host supplied one at all. A bound field that was never assigned arrives
+        // as the default date; that is "unset" too, not the year one.
+        if (parameters.TryGetValue<DateOnly>(nameof(Date), out var date) && date != default) _dateSupplied = true;
+        return base.SetParametersAsync(parameters);
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        _culture = Culture ?? CultureInfo.CurrentCulture;
+
+        _grid = CalendarLayout.Grid(DayStart, DayEnd, SlotMinutes, out var dayEndReplaced, out var slotMinutesReplaced);
+        if (dayEndReplaced && !_dayEndReported)
+        {
+            _dayEndReported = true;
+            Console.WriteLine(
+                "DrylCalendar: DayEnd must be later than DayStart and no later than 24:00 — the grid ends at the following midnight.");
+        }
+        if (slotMinutesReplaced && !_slotMinutesReported)
+        {
+            _slotMinutesReported = true;
+            Console.WriteLine(
+                "DrylCalendar: SlotMinutes must divide 60 evenly — 30 is used instead.");
+        }
+
+        _people = CalendarLayout.DistinctById(People ?? [], p => p.Id, out var duplicatePeople);
+        if (duplicatePeople && !_duplicatePeopleReported)
+        {
+            _duplicatePeopleReported = true;
+            Console.WriteLine(
+                "DrylCalendar: two people share an Id — the later one is not rendered.");
+        }
+        _peopleById = _people.ToDictionary(p => p.Id, StringComparer.Ordinal);
+        _personColors = CalendarLayout.PersonColors(_people);
+        _knownPersonIds = new HashSet<string>(_peopleById.Keys, StringComparer.Ordinal);
+
+        _availability = new Dictionary<string, List<CalendarAvailability>>(StringComparer.Ordinal);
+        foreach (var span in Availability ?? [])
+        {
+            if (!_knownPersonIds.Contains(span.PersonId)) continue;
+            if (!_availability.TryGetValue(span.PersonId, out var spans)) _availability[span.PersonId] = spans = [];
+            spans.Add(span);
+        }
+
+        if (!ReferenceEquals(HiddenPersonIds, _lastHidden))
+        {
+            _lastHidden = HiddenPersonIds;
+            _hidden = HiddenPersonIds ?? new HashSet<string>(StringComparer.Ordinal);
+        }
+
+        _events = CalendarLayout.DistinctById(Events ?? [], e => e.Id, out var duplicateEvents);
+        if (duplicateEvents && !_duplicateEventsReported)
+        {
+            _duplicateEventsReported = true;
+            Console.WriteLine(
+                "DrylCalendar: two events share an Id — the later one is not rendered.");
+        }
+
+        if (!_initialised)
+        {
+            _initialised = true;
+            _view = _lastView = View;
+            _lastDate = Date;
+            _date = _dateSupplied && Date != default ? Date : Today;
+        }
+        else
+        {
+            if (View != _lastView) _view = _lastView = View;
+            if (_dateSupplied && Date != default && Date != _lastDate) _date = _lastDate = Date;
+        }
+
+        SyncClock();
+    }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollPending)
+        {
+            _scrollPending = false;
+            await ScrollToInitialTimeAsync();
+        }
+
+        var range = CalendarLayout.VisibleRange(_view, _date, FirstDay);
+        if (_rangeRaised && range == _lastRange) return;
+
+        _rangeRaised = true;
+        _lastRange = range;
+        await OnRangeChanged.InvokeAsync(range);
+    }
+
+    // Best-effort: a missing element, a prerender or a closed circuit is swallowed.
+    private async Task ScrollToInitialTimeAsync()
+    {
+        var fraction = Math.Clamp(_grid.Fraction(InitialScrollTime), 0, 1);
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.calendar.scrollToTime", _scrollEl, fraction);
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+        catch (InvalidOperationException) { }
+        catch (TaskCanceledException) { }
+    }
+
+    // The current-time line follows the server's clock only while the host gives
+    // no time of its own; with Now set, nothing moves by itself.
+    private void SyncClock()
+    {
+        if (Now is null)
+        {
+            if (_clock is not null) return;
+            var untilNextMinute = TimeSpan.FromSeconds(60 - DateTime.Now.Second);
+            _clock = new System.Threading.Timer(_ => _ = InvokeAsync(StateHasChanged), null, untilNextMinute, TimeSpan.FromMinutes(1));
+        }
+        else
+        {
+            _clock?.Dispose();
+            _clock = null;
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _clock?.Dispose();
+        _clock = null;
+    }
+
+    // ── Navigation ──────────────────────────────────────────────────────
+
+    private Task NavigateAsync(int direction) => SetDateAsync(CalendarLayout.Step(_view, _date, direction));
+
+    private Task GoToTodayAsync() => SetDateAsync(Today);
+
+    private async Task SetDateAsync(DateOnly date)
+    {
+        if (date == _date) return;
+        _date = date;
+        await DateChanged.InvokeAsync(date);
+    }
+
+    private async Task SelectViewAsync(CalendarView view)
+    {
+        if (view == _view) return;
+        _view = view;
+        await ViewChanged.InvokeAsync(view);
+    }
+
+    // Both change before either callback runs: a handler that yields must not
+    // let a render show the new date in the old view, and raise a range for it.
+    private async Task ShowDayAsync(DateOnly day)
+    {
+        var dateChanged = day != _date;
+        var viewChanged = _view != CalendarView.Day;
+        _date = day;
+        _view = CalendarView.Day;
+        if (dateChanged) await DateChanged.InvokeAsync(day);
+        if (viewChanged) await ViewChanged.InvokeAsync(CalendarView.Day);
+    }
+
+    // ── Formatting ──────────────────────────────────────────────────────
+
+    private string Title
+    {
+        get
+        {
+            switch (_view)
+            {
+                case CalendarView.Day:
+                    return LongDate(_date);
+                case CalendarView.Month:
+                    return _date.ToString("Y", _culture);
+                default:
+                    var first = CalendarLayout.StartOfWeek(_date, FirstDay);
+                    return $"{first.ToString("M", _culture)} – {first.AddDays(6).ToString(DateWithoutWeekday(_culture), _culture)}";
+            }
+        }
+    }
+
+    private string LongDate(DateOnly day) => day.ToString("D", _culture);
+
+    private string FormatTime(TimeSpan timeOfDay) => DateTime.MinValue.Add(timeOfDay).ToString("t", _culture);
+
+    // The culture's long date pattern with its weekday taken out: "October 18, 2026".
+    private static string DateWithoutWeekday(CultureInfo culture)
+    {
+        var pattern = Regex.Replace(culture.DateTimeFormat.LongDatePattern, @"dddd[,\s]*|[,\s]*dddd", "").Trim();
+        return pattern.Length > 0 ? pattern : "d";
+    }
+
+    private static string Iso(DateOnly day) => day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private IEnumerable<TimeSpan> HourMarks()
+    {
+        var hour = TimeSpan.FromHours(Math.Ceiling(_grid.DayStart.TotalHours));
+        for (; hour < _grid.DayEnd; hour += TimeSpan.FromHours(1))
+            yield return hour;
+    }
+
+    // ── Layout of one render ────────────────────────────────────────────
+
+    // One event box: where it sits, what it looks like. The key is the event's
+    // Id plus its container — never the record itself, whose equality is its
+    // content.
+    private sealed record Slot(
+        string Key,
+        string Container,
+        CalendarEvent Event,
+        EventShape Shape,
+        string SlotClass,
+        string ButtonClass,
+        string Style);
+
+    private sealed class ViewLayout
+    {
+        public DateOnly First;
+        public bool ByPerson;
+        public int Lanes = 1;
+        public List<CalendarEvent> Visible = [];
+        public List<TimeColumn> Columns = [];
+        public List<(DateOnly Start, CalendarMonthWeek Week)> Weeks = [];
+        public Dictionary<string, List<Slot>> Slots = new(StringComparer.Ordinal);
+        public string GridKey = "";
+        public string EnterClass = "";
+        public bool GridIsNew;
+    }
+
+    private ViewLayout BuildLayout()
+    {
+        var (first, days) = CalendarLayout.VisibleDays(_view, _date, FirstDay);
+        var layout = new ViewLayout { First = first, Visible = VisibleEvents() };
+
+        if (_view == CalendarView.Month)
+        {
+            for (var w = 0; w < days / 7; w++)
+            {
+                var weekStart = first.AddDays(w * 7);
+                var week = CalendarLayout.MonthWeek(layout.Visible, weekStart, MonthCapacity);
+                layout.Weeks.Add((weekStart, week));
+
+                var container = "week|" + Iso(weekStart);
+                var slots = layout.Slots[container] = [];
+                foreach (var (bar, line) in MonthItems(week))
+                {
+                    if (bar is not null)
+                    {
+                        slots.Add(new Slot($"{bar.Event.Id}|{container}", container, bar.Event, EventShape.Bar,
+                            "cal-slot cal-slot--bar" + Continuation(bar), "cal-event cal-event--bar" + Continuation(bar),
+                            Placement(bar.Column + 1, bar.Span, bar.Lane + 2)));
+                    }
+                    else if (line is not null)
+                    {
+                        slots.Add(new Slot($"{line.Event.Id}|{container}", container, line.Event, EventShape.Line,
+                            "cal-slot cal-slot--line", "cal-event cal-event--line",
+                            Placement(line.Column + 1, 1, line.Lane + 2)));
+                    }
+                }
+            }
+            _timeGridMounted = false;
+        }
+        else
+        {
+            layout.ByPerson = PersonColumns;
+            layout.Columns = TimeColumns(first, days, layout.Visible, layout.ByPerson);
+
+            var allDay = layout.Slots["allday"] = [];
+            if (layout.ByPerson)
+            {
+                // Every column stacks its own bars.
+                for (var c = 0; c < layout.Columns.Count; c++)
+                {
+                    var column = layout.Columns[c];
+                    foreach (var bar in column.Bars)
+                    {
+                        allDay.Add(new Slot($"{bar.Event.Id}|allday|{column.Key}", "allday", bar.Event, EventShape.Bar,
+                            "cal-slot cal-slot--bar" + Continuation(bar), "cal-event cal-event--bar" + Continuation(bar),
+                            Placement(c + 2, 1, bar.Lane + 1)));
+                    }
+                }
+                layout.Lanes = Math.Max(1, layout.Columns.Max(c => c.Bars.Count + c.WholeDayAbsences.Count));
+            }
+            else
+            {
+                // Overlaid, bars span the days.
+                var selected = _date.DayNumber - first.DayNumber;
+                var bars = CalendarLayout.Bars(layout.Visible.Where(CalendarLayout.IsAllDayRow), first, days);
+                foreach (var bar in bars.OrderBy(b => b.Column).ThenBy(b => b.Lane))
+                {
+                    var onSelected = bar.Column <= selected && selected < bar.Column + bar.Span;
+                    allDay.Add(new Slot($"{bar.Event.Id}|allday", "allday", bar.Event, EventShape.Bar,
+                        "cal-slot cal-slot--bar" + Continuation(bar) + (onSelected ? " is-on-selected" : ""),
+                        "cal-event cal-event--bar" + Continuation(bar),
+                        Placement(bar.Column + 2, bar.Span, bar.Lane + 1)));
+                }
+                layout.Lanes = Math.Max(1, bars.Count == 0 ? 0 : bars.Max(b => b.Lane) + 1);
+            }
+
+            foreach (var column in layout.Columns)
+            {
+                var container = "col|" + column.Key;
+                var slots = layout.Slots[container] = [];
+                foreach (var segment in CalendarLayout.Column(column.Events, column.Day, _grid))
+                {
+                    slots.Add(new Slot($"{segment.Event.Id}|{container}", container, segment.Event, EventShape.Timed,
+                        "cal-slot cal-slot--timed", SegmentClass(segment), SegmentStyle(segment)));
+                }
+            }
+
+            // A time grid that was not there in the last render starts at the top;
+            // it is scrolled once, after this render.
+            if (!_timeGridMounted) _scrollPending = true;
+            _timeGridMounted = true;
+        }
+
+        Track(layout, days);
+        return layout;
+    }
+
+    // Compares this render with the last one. A different grid — another view or
+    // another range — moves in as a whole; within the same grid, what joined is
+    // new and what left stays as a ghost until its exit has played.
+    private void Track(ViewLayout layout, int days)
+    {
+        layout.GridKey = $"{_view}|{Iso(layout.First)}|{days}|{(layout.ByPerson ? "people" : "overlay")}";
+        var current = layout.Slots.Values.SelectMany(slots => slots).ToDictionary(slot => slot.Key, StringComparer.Ordinal);
+
+        if (layout.GridKey != _gridKey)
+        {
+            _enterClass = _gridKey is null ? ""
+                : _view != _gridView || layout.First == _gridFirst ? "cal-enter cal-enter--fade"
+                : layout.First > _gridFirst ? "cal-enter cal-enter--next"
+                : "cal-enter cal-enter--prev";
+            _gridKey = layout.GridKey;
+            _gridView = _view;
+            _gridFirst = layout.First;
+            _ghosts.Clear();
+            layout.GridIsNew = true;
+        }
+        else
+        {
+            foreach (var (key, slot) in _placed)
+                if (!current.ContainsKey(key)) _ghosts[key] = slot;
+            foreach (var key in _ghosts.Keys.ToList())
+                if (current.ContainsKey(key) || !layout.Slots.ContainsKey(_ghosts[key].Container)) _ghosts.Remove(key);
+        }
+
+        _placed = current;
+        layout.EnterClass = _enterClass;
+    }
+
+    // The event boxes of one container, each wrapped in DrylPresence so it
+    // enters and exits with a transition (DESIGN-12). The slot carries the
+    // position, because the presence wrapper takes no style of its own.
+    private RenderFragment EventSlots(ViewLayout layout, string container) => __builder =>
+    {
+        var slots = layout.Slots.TryGetValue(container, out var placed) ? placed : [];
+        foreach (var slot in slots.Concat(_ghosts.Values.Where(g => g.Container == container)))
+        {
+            var e = slot.Event;
+            var key = slot.Key;
+            var exiting = _ghosts.ContainsKey(key);
+            <div class="@(exiting ? slot.SlotClass + " is-exiting" : slot.SlotClass)" style="@slot.Style" @key="key">
+                <DrylPresence Visible="@(!exiting)"
+                              Appear="@(!layout.GridIsNew)"
+                              Transition="PresenceTransition.Scale"
+                              OnExited="@(() => ExitFinished(key))">
+                    <button type="button"
+                            class="@slot.ButtonClass"
+                            data-color="@Color(e)"
+                            data-event-id="@e.Id"
+                            aria-label="@EventName(e)"
+                            aria-hidden="@(exiting ? "true" : null)"
+                            tabindex="@(exiting ? "-1" : null)"
+                            @onclick="() => OnEventClick.InvokeAsync(e)">
+                        @EventContent(e, slot.Shape)
+                    </button>
+                </DrylPresence>
+            </div>
+        }
+    };
+
+    private void ExitFinished(string key) => _ghosts.Remove(key);
+
+    // The narrow month view lists the events of Date: all-day first, then by start.
+    private List<CalendarEvent> DayList(List<CalendarEvent> visible)
+        => visible.Where(e => CalendarLayout.Touches(e, _date, 1))
+            .OrderBy(e => e.AllDay ? 0 : 1)
+            .ThenBy(e => e.Start)
+            .ThenBy(e => e.Id, StringComparer.Ordinal)
+            .ToList();
+
+    private static string Continuation(CalendarBar bar)
+        => (bar.ContinuesBefore ? " is-continued-before" : "") + (bar.ContinuesAfter ? " is-continued-after" : "");
+
+    // ── People and availability ─────────────────────────────────────────
+
+    // One column of the time grid: a day, or — in person columns — one person's
+    // share of the day.
+    private sealed record TimeColumn(
+        string Key,
+        DateOnly Day,
+        CalendarPerson? Person,
+        IReadOnlyList<CalendarEvent> Events,
+        IReadOnlyList<CalendarBar> Bars,
+        IReadOnlyList<CalendarSpan> Muted,
+        IReadOnlyList<CalendarAbsence> Absences,
+        IReadOnlyList<CalendarAbsence> WholeDayAbsences);
+
+    private static readonly IReadOnlyList<CalendarSpan> NoSpans = [];
+    private static readonly IReadOnlyList<CalendarAbsence> NoAbsences = [];
+    private static readonly IReadOnlyList<CalendarBar> NoBars = [];
+
+    // Person columns apply to the day view, and only when there is anyone to give
+    // a column to.
+    private bool PersonColumns
+        => _view == CalendarView.Day && PersonLayout == CalendarPersonLayout.Columns && _people.Count > 0;
+
+    private List<CalendarPerson> ShownPeople() => _people.Where(p => !_hidden.Contains(p.Id)).ToList();
+
+    private List<CalendarEvent> VisibleEvents()
+        => _people.Count == 0
+            ? _events
+            : _events.Where(e => CalendarLayout.IsVisible(e, _knownPersonIds, _hidden)).ToList();
+
+    private IReadOnlyList<CalendarAvailability> AvailabilityOf(CalendarPerson person)
+        => _availability.TryGetValue(person.Id, out var spans) ? spans : [];
+
+    private List<TimeColumn> TimeColumns(DateOnly first, int days, List<CalendarEvent> visible, bool byPerson)
+    {
+        var shown = ShownPeople();
+        var columns = new List<TimeColumn>();
+
+        if (!byPerson)
+        {
+            for (var d = 0; d < days; d++)
+            {
+                var day = first.AddDays(d);
+                // A time is muted only when every shown person is unavailable at it.
+                var muted = CalendarLayout.Intersect(
+                    shown.Select(p => CalendarLayout.Unavailable(AvailabilityOf(p), day, _grid)).ToList());
+                columns.Add(new TimeColumn(Iso(day), day, null, visible, NoBars, muted, NoAbsences, NoAbsences));
+            }
+            return columns;
+        }
+
+        var theDay = first;
+        var unassigned = visible
+            .Where(e => CalendarLayout.Touches(e, theDay, 1) && CalendarLayout.IsUnassigned(e, _knownPersonIds))
+            .ToList();
+        // With nobody shown, the unassigned column is all there is to draw.
+        if (unassigned.Count > 0 || shown.Count == 0)
+        {
+            columns.Add(new TimeColumn("unassigned", theDay, null, unassigned,
+                CalendarLayout.Bars(unassigned.Where(CalendarLayout.IsAllDayRow), theDay, 1),
+                NoSpans, NoAbsences, NoAbsences));
+        }
+
+        foreach (var person in shown)
+        {
+            var events = visible.Where(e => e.PersonIds?.Contains(person.Id) == true).ToList();
+            var spans = AvailabilityOf(person);
+            var absences = CalendarLayout.Absences(spans, theDay, _grid);
+            columns.Add(new TimeColumn("person|" + person.Id, theDay, person, events,
+                CalendarLayout.Bars(events.Where(CalendarLayout.IsAllDayRow), theDay, 1),
+                CalendarLayout.Unavailable(spans, theDay, _grid),
+                absences,
+                absences.Where(a => a.WholeDay && !string.IsNullOrWhiteSpace(a.Source.Label)).ToList()));
+        }
+        return columns;
+    }
+
+    // Avatar and name of a person, in the legend and in a column header.
+    private RenderFragment PersonContent(CalendarPerson person) => __builder =>
+    {
+        if (PersonTemplate is not null)
+        {
+            @PersonTemplate(person)
+            return;
+        }
+
+        <DrylAvatar Src="@person.AvatarSrc" Name="@person.Name" Alt="@person.Name" Size="AvatarSize.Small" />
+        <span class="cal-person-name">@person.Name</span>
+    };
+
+    private string PersonColor(CalendarPerson person)
+        => CalendarLayout.SlotNumber(_personColors[person.Id]).ToString(CultureInfo.InvariantCulture);
+
+    private async Task TogglePersonAsync(CalendarPerson person)
+    {
+        var hidden = new HashSet<string>(_hidden, StringComparer.Ordinal);
+        if (!hidden.Remove(person.Id)) hidden.Add(person.Id);
+        _hidden = hidden;
+        await HiddenPersonIdsChanged.InvokeAsync(hidden);
+    }
+
+    private string SpanStyle(CalendarSpan span)
+        => $"top:{CalendarLayout.Pct(_grid.Fraction(span.Start))};height:{CalendarLayout.Pct(_grid.Fraction(span.End) - _grid.Fraction(span.Start))}";
+
+    private static string PersonHeadClass(bool isToday) => isToday ? "cal-person-head is-today" : "cal-person-head";
+
+    // ── Events ──────────────────────────────────────────────────────────
+
+    private enum EventShape { Timed, Bar, Line }
+
+    // What an event shows inside its box. The box itself — a button, its position
+    // and its colour — is rendered where it is placed, so every box keeps a key
+    // among its siblings.
+    private RenderFragment EventContent(CalendarEvent e, EventShape shape) => __builder =>
+    {
+        if (EventTemplate is not null)
+        {
+            @EventTemplate(e)
+            return;
+        }
+
+        if (shape == EventShape.Line)
+        {
+            <span class="cal-event-time">@FormatTime(e.Start.TimeOfDay)</span>
+        }
+        <span class="cal-event-title">@e.Title</span>
+        if (shape == EventShape.Timed)
+        {
+            <span class="cal-event-time">@TimeRange(e)</span>
+        }
+        if (e.SeriesId is not null)
+        {
+            <span class="cal-event-recurring"><DrylIcon Name="Refresh" Size="12" AriaLabel="@Labels.Recurring" /></span>
+        }
+        var people = KnownPeople(e);
+        if (people.Count > 0)
+        {
+            <span class="cal-event-people">
+                @foreach (var person in people)
+                {
+                    <DrylAvatar @key="person.Id" Src="@person.AvatarSrc" Name="@person.Name" Alt="@person.Name" Size="AvatarSize.Small" />
+                }
+            </span>
+        }
+    };
+
+    private List<CalendarPerson> KnownPeople(CalendarEvent e)
+    {
+        var people = new List<CalendarPerson>();
+        foreach (var id in e.PersonIds ?? [])
+            if (_peopleById.TryGetValue(id, out var person) && !people.Contains(person)) people.Add(person);
+        return people;
+    }
+
+    private string TimeRange(CalendarEvent e) => $"{FormatTime(e.Start.TimeOfDay)} – {FormatTime(e.End.TimeOfDay)}";
+
+    // Title, day, times or "all day", people, and that it recurs. An event that
+    // touches several days names its whole span, so every one of its segments
+    // says where it continues from and into.
+    private string EventName(CalendarEvent e)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(e.Title)) parts.Add(e.Title);
+
+        var (first, end) = CalendarLayout.DaySpan(e);
+        var last = end.AddDays(-1);
+        if (e.AllDay)
+        {
+            parts.Add(last > first ? $"{LongDate(first)} – {LongDate(last)}" : LongDate(first));
+            parts.Add(Labels.AllDay);
+        }
+        else if (last > first)
+        {
+            parts.Add($"{LongDate(first)} {FormatTime(e.Start.TimeOfDay)} – {LongDate(DateOnly.FromDateTime(e.End))} {FormatTime(e.End.TimeOfDay)}");
+        }
+        else
+        {
+            parts.Add(LongDate(first));
+            parts.Add(TimeRange(e));
+        }
+
+        var people = KnownPeople(e);
+        if (people.Count > 0) parts.Add(string.Join(", ", people.Select(p => p.Name)));
+        if (e.SeriesId is not null) parts.Add(Labels.Recurring);
+        return string.Join(", ", parts);
+    }
+
+    private string Color(CalendarEvent e)
+        => CalendarLayout.SlotNumber(CalendarLayout.EventColor(e, _personColors)).ToString(CultureInfo.InvariantCulture);
+
+    // One week row's events in tab order: by day, bars before lines, then by start.
+    private static IEnumerable<(CalendarBar? Bar, CalendarMonthLine? Line)> MonthItems(CalendarMonthWeek week)
+        => week.Bars.Select(b => (Bar: (CalendarBar?)b, Line: (CalendarMonthLine?)null, b.Column, Order: 0, b.Lane))
+            .Concat(week.Lines.Select(l => (Bar: (CalendarBar?)null, Line: (CalendarMonthLine?)l, l.Column, Order: 1, l.Lane)))
+            .OrderBy(i => i.Column).ThenBy(i => i.Order).ThenBy(i => i.Lane)
+            .Select(i => (i.Bar, i.Line));
+
+    // A segment drawn shorter than this has room for one line of text only.
+    private const double CompactBelowMinutes = 45;
+
+    private string SegmentClass(CalendarSegment segment)
+    {
+        var css = "cal-event cal-event--timed";
+        if (segment.Height * _grid.Length.TotalMinutes < CompactBelowMinutes) css += " is-compact";
+        if (segment.ContinuesBefore) css += " is-continued-before";
+        if (segment.ContinuesAfter) css += " is-continued-after";
+        return css;
+    }
+
+    private static string SegmentStyle(CalendarSegment segment)
+        => $"top:{CalendarLayout.Pct(segment.Top)};height:{CalendarLayout.Pct(segment.Height)};" +
+           $"left:{CalendarLayout.Pct(segment.Left)};width:{CalendarLayout.Pct(segment.Width)}";
+
+    private static string Column(int column) => FormattableString.Invariant($"grid-column:{column}");
+
+    private static string Placement(int column, int span, int row)
+        => FormattableString.Invariant($"grid-column:{column} / span {span};grid-row:{row}");
+
+    private static readonly string WeekStyle = FormattableString.Invariant($"--cal-cap:{MonthCapacity}");
+
+    // ── Classes and styles ──────────────────────────────────────────────
+
+    private string RootClass
+    {
+        get
+        {
+            // The root is the container the narrow layouts query (.cq); the
+            // modifier names the width below which they apply.
+            var classes = new List<string> { "cal-root", "glass-card", "p-0", "cq" };
+            if (CollapseBelow is { } breakpoint)
+            {
+                classes.Add(breakpoint switch
+                {
+                    Breakpoint.Sm => "cal-collapse-sm",
+                    Breakpoint.Lg => "cal-collapse-lg",
+                    Breakpoint.Xl => "cal-collapse-xl",
+                    _ => "cal-collapse-md"
+                });
+            }
+            if (!string.IsNullOrEmpty(Height)) classes.Add("cal-root--fixed");
+            if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
+            return string.Join(' ', classes);
+        }
+    }
+
+    private string? RootStyle => string.IsNullOrEmpty(Height) ? null : $"height: {Height}";
+
+    private string TimeClass(ViewLayout layout)
+    {
+        var css = layout.ByPerson ? "cal-time cal-time--people"
+            : _view == CalendarView.Week ? "cal-time cal-time--week"
+            : "cal-time cal-time--day";
+        return layout.EnterClass.Length > 0 ? css + " " + layout.EnterClass : css;
+    }
+
+    private string TimeStyle(ViewLayout layout)
+    {
+        var style = $"--cal-cols:{layout.Columns.Count.ToString(CultureInfo.InvariantCulture)};" +
+                    $"--cal-hours:{CalendarLayout.F(_grid.Length.TotalHours)}";
+        if (_view != CalendarView.Week) return style;
+
+        // Narrow, the week shows the column of Date alone: every other track is
+        // given no width, so a bar that spans days still lands on the one shown.
+        var tracks = layout.Columns.Select(c => c.Day == _date ? "minmax(0,1fr)" : "0");
+        return style + ";--cal-narrow:var(--cal-axis) " + string.Join(' ', tracks);
+    }
+
+    private bool IsSelectedColumn(TimeColumn column) => column.Day == _date;
+
+    private string ColumnClass(TimeColumn column, bool isToday)
+    {
+        var css = "cal-col";
+        if (isToday) css += " is-today";
+        if (IsSelectedColumn(column)) css += " is-selected";
+        return css;
+    }
+
+    private static string StripClass(bool isToday, bool isSelected)
+    {
+        var css = "cal-strip-day";
+        if (isToday) css += " is-today";
+        if (isSelected) css += " is-selected";
+        return css;
+    }
+
+    private static string DayHeadClass(bool isToday) => isToday ? "cal-day-head is-today" : "cal-day-head";
+
+    private string MonthCellClass(DateOnly day, bool isToday, bool isSelected)
+    {
+        var css = "cal-cell";
+        if (day.Month != _date.Month || day.Year != _date.Year) css += " is-outside";
+        if (isToday) css += " is-today";
+        if (isSelected) css += " is-selected";
+        return css;
+    }
+}

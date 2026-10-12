@@ -1,0 +1,953 @@
+/* DrylCalendar — the surface is the shared .glass-card; everything here is the
+   calendar's own anatomy. Positions inside the time grid arrive as percentages
+   from CalendarLayout; every length below derives from a token. */
+
+.cal-root {
+    /* Component-local lengths, derived from the spacing scale. */
+    --cal-hour: var(--sp-7);   /* height of one hour */
+    --cal-axis: var(--sp-8);   /* width of the time axis */
+
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;          /* clip the grid to the card's radius; never widen the page */
+    color: var(--fg);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────── */
+
+.cal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+.cal-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+}
+
+.cal-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.cal-toolbar-end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-left: auto;
+}
+
+/* ── Legend ──────────────────────────────────────────────── */
+
+.cal-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+}
+
+/* A toggle: pressed while its person is shown. */
+.cal-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+    padding: var(--sp-1) var(--sp-3) var(--sp-1) var(--sp-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    background: var(--glass-1);
+    color: var(--fg);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out),
+                opacity var(--dur-fast) var(--ease-out);
+}
+
+.cal-legend-item:hover {
+    border-color: var(--line-hover);
+    background-color: var(--glass-2);
+}
+
+.cal-legend-item.is-hidden {
+    color: var(--fg-dim);
+    opacity: 0.6;
+}
+
+/* The person's colour — a small dot, hollow while they are hidden. */
+.cal-legend-swatch {
+    flex: none;
+    width: var(--sp-2);
+    height: var(--sp-2);
+    border: 1px solid var(--cal-c);
+    border-radius: var(--r-pill);
+    background: var(--cal-c);
+    transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.cal-legend-item.is-hidden .cal-legend-swatch {
+    background: none;
+}
+
+.cal-person-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-legend-item ::deep .avatar,
+.cal-person-head ::deep .avatar {
+    flex-basis: var(--sp-5);
+    width: var(--sp-5);
+    height: var(--sp-5);
+    box-shadow: none;
+    font-size: 10px;
+}
+
+/* ── Body ────────────────────────────────────────────────── */
+
+.cal-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.cal-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* ── Time grid (day and week) ────────────────────────────── */
+
+.cal-time {
+    min-width: 100%;
+}
+
+.cal-head-row,
+.cal-allday,
+.cal-grid {
+    display: grid;
+    grid-template-columns: var(--cal-axis) repeat(var(--cal-cols), minmax(0, 1fr));
+}
+
+/* Person columns keep a minimum width and scroll sideways when the calendar is
+   too narrow for them; the time axis stays in place while they do. */
+.cal-time--people {
+    --cal-person: calc(var(--sp-8) * 2);
+    min-width: max(100%, calc(var(--cal-axis) + var(--cal-cols) * var(--cal-person)));
+}
+
+.cal-time--people .cal-corner,
+.cal-time--people .cal-allday-label,
+.cal-time--people .cal-axis {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: var(--panel-sticky);
+}
+
+/* The grid of a new range or view moves in as a whole: a view change fades it
+   in, a navigation brings it in from the side the user moved towards. The
+   keyframes are the shared presence ones (DESIGN-13). */
+.cal-enter {
+    animation: presence-in-fade var(--dur-med) var(--ease-out);
+}
+
+.cal-enter--next { animation-name: presence-in-left; }
+.cal-enter--prev { animation-name: presence-in-right; }
+
+/* Stays put while the grid scrolls beneath it — opaque, so no frost. */
+.cal-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;                /* above the events and the sticky time axis */
+    background: var(--panel-sticky);
+    border-bottom: 1px solid var(--line);
+}
+
+.cal-day-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-1);
+    min-width: 0;
+    padding: var(--sp-2) var(--sp-1);
+    border: 0;
+    border-left: 1px solid var(--line);
+    background: none;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 12px;
+}
+
+button.cal-day-head {
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) * -1);
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+button.cal-day-head:hover {
+    color: var(--fg);
+}
+
+/* A person's column header in the day view. */
+.cal-person-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    min-width: 0;
+    padding: var(--sp-2);
+    border-left: 1px solid var(--line);
+    color: var(--fg-dim);
+    font-size: 12px;
+}
+
+.cal-day-num {
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.cal-day-head.is-today {
+    color: var(--fg);
+}
+
+/* Today's accent indicator — a small mark, never a fill (DESIGN-08). */
+.cal-day-head.is-today::after {
+    content: "";
+    width: var(--sp-4);
+    height: calc(var(--sp-1) / 2);
+    border-radius: var(--r-pill);
+    background: var(--accent-grad);
+}
+
+/* One row per lane; the row grows with its lanes and is there, empty, without any. */
+.cal-allday {
+    grid-auto-rows: minmax(var(--sp-5), auto);
+    border-top: 1px solid var(--line);
+}
+
+.cal-allday-label {
+    grid-row: 1 / span var(--cal-lanes);
+    grid-column: 1;
+    padding: var(--sp-1) var(--sp-2);
+    color: var(--fg-dim);
+    font-size: 11px;
+    text-align: right;
+}
+
+.cal-allday-cell {
+    grid-row: 1 / span var(--cal-lanes);
+    min-width: 0;
+    border-left: 1px solid var(--line);
+}
+
+.cal-grid {
+    position: relative;
+    height: calc(var(--cal-hours) * var(--cal-hour));
+}
+
+.cal-axis {
+    position: relative;
+}
+
+.cal-hour {
+    position: absolute;
+    right: 0;
+    left: 0;
+    padding: var(--sp-1) var(--sp-2) 0 0;
+    color: var(--fg-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.cal-lines {
+    position: absolute;
+    inset: 0 0 0 var(--cal-axis);
+    pointer-events: none;
+}
+
+.cal-line {
+    position: absolute;
+    right: 0;
+    left: 0;
+    border-top: 1px solid var(--line-soft);
+}
+
+.cal-line--hour {
+    border-top-color: var(--line);
+}
+
+.cal-col {
+    position: relative;
+    min-width: 0;
+    border-left: 1px solid var(--line);
+}
+
+.cal-now {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 1;
+    border-top: 1px solid var(--accent-line);
+    pointer-events: none;
+}
+
+/* ── Month ───────────────────────────────────────────────── */
+
+.cal-month {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+}
+
+.cal-month-head,
+.cal-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cal-weekday {
+    padding: var(--sp-2);
+    color: var(--fg-dim);
+    font-size: 12px;
+    text-align: center;
+}
+
+/* A row for the day numbers, one per event lane, and the rest of the height. */
+.cal-week {
+    flex: 1 1 auto;
+    grid-template-rows:
+        calc(var(--sp-5) + var(--sp-2))
+        repeat(var(--cal-cap), var(--sp-5))
+        minmax(var(--sp-1), 1fr);
+    border-top: 1px solid var(--line);
+}
+
+.cal-cell {
+    grid-row: 1 / -1;
+    min-width: 0;
+    padding: var(--sp-1);
+    border-left: 1px solid var(--line);
+}
+
+.cal-cell:first-child {
+    border-left: 0;
+}
+
+.cal-cell-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--sp-5);
+    height: var(--sp-5);
+    padding: 0 var(--sp-1);
+    border: 0;
+    border-radius: var(--r-pill);
+    background: none;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.cal-cell-num:hover {
+    background-color: var(--glass-2);
+    color: var(--fg);
+}
+
+.cal-cell.is-outside .cal-cell-num {
+    color: var(--fg-faint);
+}
+
+/* Today's accent indicator — a 1px ring around the number (DESIGN-08). */
+.cal-cell.is-today .cal-cell-num {
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+    color: var(--fg);
+}
+
+/* ── Events ──────────────────────────────────────────────── */
+
+/* The six categorical slots the charts use — for events and legend entries. */
+[data-color="1"] { --cal-c: var(--chart-1); }
+[data-color="2"] { --cal-c: var(--chart-2); }
+[data-color="3"] { --cal-c: var(--chart-3); }
+[data-color="4"] { --cal-c: var(--chart-4); }
+[data-color="5"] { --cal-c: var(--chart-5); }
+[data-color="6"] { --cal-c: var(--chart-6); }
+
+/* Colour is a tint and an edge, never a solid fill (DESIGN-08); the text stays
+   --fg so its contrast does not depend on the slot. The tint sits on the opaque
+   ground, so grid lines and muted areas do not show through the text. */
+.cal-event {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-width: 0;
+    padding: 0 var(--sp-2);
+    overflow: hidden;
+    border: 0;
+    border-left: calc(var(--sp-1) * 0.75) solid var(--cal-c);
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--cal-c) 18%, var(--bg-2));
+    color: var(--fg);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) / -2);
+    transition: background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.cal-event:hover,
+.cal-event:focus-visible {
+    background: color-mix(in srgb, var(--cal-c) 28%, var(--bg-2));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cal-c) 50%, transparent);
+}
+
+.cal-event:focus-visible {
+    z-index: 3;
+}
+
+.cal-event-title {
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-event-time {
+    flex: none;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Where a box is too narrow for everything, the avatars give way first, then
+   the recurring mark, and only then the title. */
+.cal-event-recurring {
+    display: inline-flex;
+    flex: 0 999 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--fg-muted);
+}
+
+.cal-event-people {
+    display: inline-flex;
+    flex: 0 9999 auto;
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    gap: calc(var(--sp-1) / 2);
+    margin-left: auto;
+}
+
+/* DrylAvatar renders the avatar; inside an event it is a mark, not a portrait,
+   so it is scaled to the text and loses its glow. */
+.cal-event-people ::deep .avatar {
+    flex-basis: var(--sp-4);
+    width: var(--sp-4);
+    height: var(--sp-4);
+    box-shadow: 0 0 0 1px var(--bg-2);
+    font-size: 8px;
+}
+
+/* A slot is the positioned box of one event. DrylPresence sits between it and
+   the event and plays the enter and exit, so the slot carries the position. */
+.cal-slot {
+    min-width: 0;
+    /* Named, so the queries below read the slot's width and nothing else does. */
+    container: cal-slot / inline-size;
+}
+
+/* A box too narrow for everything keeps its title: the avatars and the
+   recurring mark go first, then — on a single-line segment — the times. The
+   event's accessible name states all of it at any width. */
+@container cal-slot (max-width: 120px) {
+    .cal-event-people,
+    .cal-event-recurring {
+        display: none;
+    }
+}
+
+@container cal-slot (max-width: 150px) {
+    .cal-event--timed.is-compact .cal-event-time {
+        display: none;
+    }
+}
+
+.cal-slot ::deep .presence {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+}
+
+.cal-slot .cal-event {
+    flex: 1 1 auto;
+    width: 100%;
+}
+
+/* An event that has left stays for its exit, out of reach. */
+.cal-slot.is-exiting {
+    pointer-events: none;
+}
+
+/* A timed segment: placed by percentages inside its day column. */
+.cal-slot--timed {
+    position: absolute;
+    z-index: 2;
+}
+
+.cal-slot--timed:focus-within {
+    z-index: 3;
+}
+
+.cal-event--timed {
+    flex-flow: row wrap;
+    align-content: flex-start;
+    align-items: baseline;
+    column-gap: var(--sp-2);
+    row-gap: 0;
+    padding-block: calc(var(--sp-1) / 2);
+    /* Keep a hairline of the ground visible between neighbours. */
+    box-shadow: 0 0 0 1px var(--bg-2);
+}
+
+.cal-event--timed:hover,
+.cal-event--timed:focus-visible {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cal-c) 50%, transparent);
+}
+
+/* Title and times share a line while they fit and wrap when they do not; an
+   event too short for a second line simply shows its title. */
+.cal-event--timed .cal-event-title {
+    flex: 0 1 auto;
+}
+
+/* Too short for a second line: everything on one, and what does not fit is cut
+   at the box rather than through the middle of a line. */
+.cal-event--timed.is-compact {
+    flex-wrap: nowrap;
+    align-items: center;
+    padding-block: 0;
+}
+
+/* On that one line the title comes first; the times give way before it does. */
+.cal-event--timed.is-compact .cal-event-time {
+    flex: 0 99 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* A bar or line: placed on the lanes of the all-day row or a month's week row. */
+.cal-slot--bar,
+.cal-slot--line {
+    z-index: 1;
+    align-self: center;
+    height: calc(var(--sp-5) - var(--sp-1));
+    margin-inline: calc(var(--sp-1) / 2);
+}
+
+/* A line carries its colour as the edge alone and takes the tint on hover. */
+.cal-event--line {
+    background: none;
+}
+
+/* A box that continues into another day or row is squared off at that edge. */
+.cal-event--timed.is-continued-before { border-top-left-radius: 0; border-top-right-radius: 0; }
+.cal-event--timed.is-continued-after  { border-bottom-right-radius: 0; border-bottom-left-radius: 0; }
+.cal-event--bar.is-continued-before   { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cal-event--bar.is-continued-after    { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cal-slot--bar.is-continued-before    { margin-left: 0; }
+.cal-slot--bar.is-continued-after     { margin-right: 0; }
+
+.cal-more {
+    z-index: 1;
+    align-self: center;
+    min-width: 0;
+    height: calc(var(--sp-5) - var(--sp-1));
+    margin-inline: calc(var(--sp-1) / 2);
+    padding: 0 var(--sp-2);
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: none;
+    color: var(--fg-muted);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) / -2);
+    transition: color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out);
+}
+
+.cal-more:hover {
+    background-color: var(--glass-2);
+    color: var(--fg);
+}
+
+/* ── Availability ────────────────────────────────────────── */
+
+/* --line-soft darkens a light ground and lightens a dark one, so one rule
+   serves both colour modes (DESIGN-02). Behind the events, never interactive. */
+.cal-muted {
+    position: absolute;
+    right: 0;
+    left: 0;
+    background: var(--line-soft);
+    pointer-events: none;
+}
+
+.cal-absence {
+    position: absolute;
+    right: 0;
+    left: 0;
+    padding: var(--sp-1) var(--sp-2);
+    overflow: hidden;
+    color: var(--fg-dim);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* An absence that takes the whole day, named in the person's all-day row. */
+.cal-absence-chip {
+    z-index: 1;
+    align-self: center;
+    min-width: 0;
+    height: calc(var(--sp-5) - var(--sp-1));
+    margin-inline: calc(var(--sp-1) / 2);
+    padding: 0 var(--sp-2);
+    overflow: hidden;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-xs);
+    color: var(--fg-muted);
+    font-size: 12px;
+    line-height: calc(var(--sp-5) - var(--sp-1) - 2px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Narrow parts ────────────────────────────────────────── */
+
+/* These are in the markup at every width and switched on by the container
+   queries below: the week's day strip, the month's day picker, its marks and
+   its list of the selected day. */
+.cal-strip,
+.cal-cell-pick,
+.cal-cell-mark,
+.cal-daylist {
+    display: none;
+}
+
+.cal-strip {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cal-strip-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--sp-1) / 2);
+    min-width: 0;
+    padding: var(--sp-2) 0;
+    border: 0;
+    background: none;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) * -1);
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+.cal-strip-day .cal-day-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--sp-6);
+    height: var(--sp-6);
+    border-radius: var(--r-pill);
+    font-size: 14px;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.cal-strip-day.is-today {
+    color: var(--fg);
+}
+
+/* Selected is a neutral fill; today is the accent ring (DESIGN-08). */
+.cal-strip-day.is-selected {
+    color: var(--fg);
+}
+
+.cal-strip-day.is-selected .cal-day-num,
+.cal-cell.is-selected .cal-cell-pick {
+    background-color: var(--glass-3);
+}
+
+.cal-strip-day.is-today .cal-day-num {
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.cal-strip-mark,
+.cal-cell-mark {
+    width: var(--sp-1);
+    height: var(--sp-1);
+    border-radius: var(--r-pill);
+    background: var(--fg-dim);
+}
+
+.cal-cell-pick {
+    align-items: center;
+    justify-content: center;
+    min-width: var(--sp-6);
+    height: var(--sp-6);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: none;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.cal-cell.is-outside .cal-cell-pick { color: var(--fg-faint); }
+.cal-cell.is-selected .cal-cell-pick { color: var(--fg); }
+.cal-cell.is-today .cal-cell-pick {
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+    color: var(--fg);
+}
+
+.cal-daylist {
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line);
+}
+
+.cal-daylist-empty {
+    padding: var(--sp-2) 0;
+    color: var(--fg-dim);
+    font-size: 13px;
+}
+
+.cal-event--list {
+    min-height: var(--sp-6);
+    gap: var(--sp-2);
+    font-size: 13px;
+}
+
+/* ── Narrow layouts ──────────────────────────────────────── */
+/* One block per Breakpoint (px literals: a query condition cannot read a custom
+   property). The root is the container; the rules apply to its descendants. */
+
+@container (max-width: 480px) {
+    /* Week: the day strip replaces the headers, and one column shows. */
+    .cal-collapse-sm .cal-time--week .cal-head-row { display: none; }
+    .cal-collapse-sm .cal-time--week .cal-strip { display: grid; }
+    .cal-collapse-sm .cal-time--week .cal-allday,
+    .cal-collapse-sm .cal-time--week .cal-grid { grid-template-columns: var(--cal-narrow); }
+    .cal-collapse-sm .cal-time--week .cal-col:not(.is-selected),
+    .cal-collapse-sm .cal-time--week .cal-allday-cell:not(.is-selected),
+    .cal-collapse-sm .cal-time--week .cal-slot--bar:not(.is-on-selected) {
+        visibility: hidden;
+        overflow: hidden;
+        border: 0;
+    }
+
+    /* Month: a mark per day, the day picks itself, its events are listed below. */
+    .cal-collapse-sm .cal-week { flex: none; grid-template-rows: auto; }
+    .cal-collapse-sm .cal-month .cal-slot,
+    .cal-collapse-sm .cal-more,
+    .cal-collapse-sm .cal-cell-num { display: none; }
+    .cal-collapse-sm .cal-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: calc(var(--sp-1) / 2);
+        min-height: calc(var(--sp-7) + var(--sp-1));
+        padding: var(--sp-1) 0;
+        border-left: 0;
+    }
+    .cal-collapse-sm .cal-cell-pick { display: inline-flex; }
+    .cal-collapse-sm .cal-cell-mark { display: block; }
+    .cal-collapse-sm .cal-daylist { display: flex; }
+
+    /* Toolbar: the title takes a line of its own before anything overflows. */
+    .cal-collapse-sm .cal-toolbar { padding-inline: var(--sp-3); }
+    .cal-collapse-sm .cal-legend { padding-inline: var(--sp-3); }
+}
+
+@container (max-width: 768px) {
+    /* Week: the day strip replaces the headers, and one column shows. */
+    .cal-collapse-md .cal-time--week .cal-head-row { display: none; }
+    .cal-collapse-md .cal-time--week .cal-strip { display: grid; }
+    .cal-collapse-md .cal-time--week .cal-allday,
+    .cal-collapse-md .cal-time--week .cal-grid { grid-template-columns: var(--cal-narrow); }
+    .cal-collapse-md .cal-time--week .cal-col:not(.is-selected),
+    .cal-collapse-md .cal-time--week .cal-allday-cell:not(.is-selected),
+    .cal-collapse-md .cal-time--week .cal-slot--bar:not(.is-on-selected) {
+        visibility: hidden;
+        overflow: hidden;
+        border: 0;
+    }
+
+    /* Month: a mark per day, the day picks itself, its events are listed below. */
+    .cal-collapse-md .cal-week { flex: none; grid-template-rows: auto; }
+    .cal-collapse-md .cal-month .cal-slot,
+    .cal-collapse-md .cal-more,
+    .cal-collapse-md .cal-cell-num { display: none; }
+    .cal-collapse-md .cal-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: calc(var(--sp-1) / 2);
+        min-height: calc(var(--sp-7) + var(--sp-1));
+        padding: var(--sp-1) 0;
+        border-left: 0;
+    }
+    .cal-collapse-md .cal-cell-pick { display: inline-flex; }
+    .cal-collapse-md .cal-cell-mark { display: block; }
+    .cal-collapse-md .cal-daylist { display: flex; }
+
+    /* Toolbar: the title takes a line of its own before anything overflows. */
+    .cal-collapse-md .cal-toolbar { padding-inline: var(--sp-3); }
+    .cal-collapse-md .cal-legend { padding-inline: var(--sp-3); }
+}
+
+@container (max-width: 1024px) {
+    /* Week: the day strip replaces the headers, and one column shows. */
+    .cal-collapse-lg .cal-time--week .cal-head-row { display: none; }
+    .cal-collapse-lg .cal-time--week .cal-strip { display: grid; }
+    .cal-collapse-lg .cal-time--week .cal-allday,
+    .cal-collapse-lg .cal-time--week .cal-grid { grid-template-columns: var(--cal-narrow); }
+    .cal-collapse-lg .cal-time--week .cal-col:not(.is-selected),
+    .cal-collapse-lg .cal-time--week .cal-allday-cell:not(.is-selected),
+    .cal-collapse-lg .cal-time--week .cal-slot--bar:not(.is-on-selected) {
+        visibility: hidden;
+        overflow: hidden;
+        border: 0;
+    }
+
+    /* Month: a mark per day, the day picks itself, its events are listed below. */
+    .cal-collapse-lg .cal-week { flex: none; grid-template-rows: auto; }
+    .cal-collapse-lg .cal-month .cal-slot,
+    .cal-collapse-lg .cal-more,
+    .cal-collapse-lg .cal-cell-num { display: none; }
+    .cal-collapse-lg .cal-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: calc(var(--sp-1) / 2);
+        min-height: calc(var(--sp-7) + var(--sp-1));
+        padding: var(--sp-1) 0;
+        border-left: 0;
+    }
+    .cal-collapse-lg .cal-cell-pick { display: inline-flex; }
+    .cal-collapse-lg .cal-cell-mark { display: block; }
+    .cal-collapse-lg .cal-daylist { display: flex; }
+
+    /* Toolbar: the title takes a line of its own before anything overflows. */
+    .cal-collapse-lg .cal-toolbar { padding-inline: var(--sp-3); }
+    .cal-collapse-lg .cal-legend { padding-inline: var(--sp-3); }
+}
+
+@container (max-width: 1280px) {
+    /* Week: the day strip replaces the headers, and one column shows. */
+    .cal-collapse-xl .cal-time--week .cal-head-row { display: none; }
+    .cal-collapse-xl .cal-time--week .cal-strip { display: grid; }
+    .cal-collapse-xl .cal-time--week .cal-allday,
+    .cal-collapse-xl .cal-time--week .cal-grid { grid-template-columns: var(--cal-narrow); }
+    .cal-collapse-xl .cal-time--week .cal-col:not(.is-selected),
+    .cal-collapse-xl .cal-time--week .cal-allday-cell:not(.is-selected),
+    .cal-collapse-xl .cal-time--week .cal-slot--bar:not(.is-on-selected) {
+        visibility: hidden;
+        overflow: hidden;
+        border: 0;
+    }
+
+    /* Month: a mark per day, the day picks itself, its events are listed below. */
+    .cal-collapse-xl .cal-week { flex: none; grid-template-rows: auto; }
+    .cal-collapse-xl .cal-month .cal-slot,
+    .cal-collapse-xl .cal-more,
+    .cal-collapse-xl .cal-cell-num { display: none; }
+    .cal-collapse-xl .cal-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: calc(var(--sp-1) / 2);
+        min-height: calc(var(--sp-7) + var(--sp-1));
+        padding: var(--sp-1) 0;
+        border-left: 0;
+    }
+    .cal-collapse-xl .cal-cell-pick { display: inline-flex; }
+    .cal-collapse-xl .cal-cell-mark { display: block; }
+    .cal-collapse-xl .cal-daylist { display: flex; }
+
+    /* Toolbar: the title takes a line of its own before anything overflows. */
+    .cal-collapse-xl .cal-toolbar { padding-inline: var(--sp-3); }
+    .cal-collapse-xl .cal-legend { padding-inline: var(--sp-3); }
+}
+
+/* ── Reduced motion ──────────────────────────────────────── */
+/* Every change is applied at once (UX-06). DrylPresence and the view switch
+   switch their own motion off. */
+@media (prefers-reduced-motion: reduce) {
+    .cal-enter {
+        animation: none;
+    }
+
+    button.cal-day-head,
+    .cal-cell-num,
+    .cal-cell-pick,
+    .cal-strip-day,
+    .cal-strip-day .cal-day-num,
+    .cal-legend-item,
+    .cal-legend-swatch,
+    .cal-event,
+    .cal-more {
+        transition: none;
+    }
+}
