@@ -1914,4 +1914,60 @@ public class DrylCalendarTests : BunitContext
 
         Assert.Equal(7, cut.FindAll(".cal-col").Count);
     }
+
+    // ── Robustness (independent review, T8) ─────────────────────────────
+
+    [Fact]
+    public void An_event_whose_PersonIds_is_null_is_rendered_as_unassigned()
+    {
+        var cut = RenderEvents([new CalendarEvent { Id = "e", Title = "Imported", Start = At(Mon, 9), End = At(Mon, 10), PersonIds = null! }]);
+
+        var box = Assert.Single(Boxes(cut));
+        Assert.Equal("1", box.GetAttribute("data-color"));
+        Assert.Null(box.QuerySelector(".cal-event-people"));
+
+        cut.Render(p => p.Add(c => c.View, CalendarView.Day).Add(c => c.PersonLayout, CalendarPersonLayout.Columns));
+
+        Assert.Equal("Unassigned", cut.FindAll(".cal-person-head")[0].TextContent.Trim());
+    }
+
+    [Fact]
+    public void A_bound_Date_that_still_holds_the_default_starts_on_today()
+    {
+        var cut = RenderCalendar(p => p.Add(c => c.Date, default(DateOnly)), culture: EnUs, firstDay: null);
+
+        Assert.Equal("2026-10-11", cut.FindAll(".cal-col")[0].GetAttribute("data-date"));   // the week of Now, Sunday first
+        Assert.Single(cut.FindAll(".cal-col.is-today"));
+
+        cut.Render(p => p.Add(c => c.Date, Mon.AddDays(14)));
+        Assert.Equal("2026-10-25", cut.FindAll(".cal-col")[0].GetAttribute("data-date"));
+    }
+
+    [Fact]
+    public void An_open_ended_event_does_not_break_the_render()
+    {
+        var cut = RenderEvents([new CalendarEvent { Id = "forever", Title = "Forever", Start = At(Mon, 9), End = DateTime.MaxValue }]);
+
+        var bar = Assert.Single(Boxes(cut));
+        Assert.Contains("is-continued-after", bar.ClassList);
+    }
+
+    [Fact]
+    public void Opening_a_day_changes_date_and_view_before_either_callback_runs()
+    {
+        var ranges = new List<CalendarRange>();
+        IRenderedComponent<DrylCalendar>? cut = null;
+        var viewDuringDateChanged = new List<int>();
+        cut = RenderMonth([], p => p
+            .Add(c => c.OnRangeChanged, ranges.Add)
+            // What is on screen when the host hears about the date: already the day view.
+            .Add(c => c.DateChanged, _ => { cut!.Render(); viewDuringDateChanged.Add(cut!.FindAll(".cal-month").Count); }));
+
+        cut.Find(".cal-cell[data-date='2026-11-01'] .cal-cell-num").Click();
+
+        Assert.Equal([0], viewDuringDateChanged);
+        // The month's range, then the day's — never the neighbouring month's.
+        Assert.Equal(2, ranges.Count);
+        Assert.Equal(new CalendarRange(new DateTime(2026, 11, 1), new DateTime(2026, 11, 2)), ranges[1]);
+    }
 }

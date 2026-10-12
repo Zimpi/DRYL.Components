@@ -593,11 +593,13 @@ public class CalendarLayoutTests
         ], Mon, 3);
 
         Assert.Equal(["a", "b"], week.Bars.Select(b => b.Event.Id));
-        Assert.Equal("tue", Assert.Single(week.Lines).Event.Id);
         Assert.Equal(4, week.Total[0]);
         Assert.Equal(2, week.Hidden[0]);
+        // Tuesday's line sits below the bar's lane, so it does not fit either:
+        // both are counted there, neither is silently gone.
+        Assert.Empty(week.Lines);
         Assert.Equal(2, week.Total[1]);
-        Assert.Equal(1, week.Hidden[1]);
+        Assert.Equal(2, week.Hidden[1]);
     }
 
     [Fact]
@@ -870,5 +872,66 @@ public class CalendarLayoutTests
         Assert.Equal(0d, Office.Fraction(TimeSpan.FromHours(8)), 9);
         Assert.Equal(0.5, Office.Fraction(TimeSpan.FromHours(13)), 9);
         Assert.Equal(1d, Office.Fraction(TimeSpan.FromHours(18)), 9);
+    }
+
+    // ── Edges found in review ───────────────────────────────────────────
+
+    [Fact]
+    public void A_zero_length_event_just_before_midnight_stays_on_its_own_day()
+    {
+        var e = new CalendarEvent { Id = "e", Start = At(Mon, 23, 50), End = At(Mon, 23, 50) };
+
+        var segment = CalendarLayout.Segment(e, Mon, FullDay)!;
+
+        Assert.False(segment.ContinuesAfter);
+        Assert.Equal(0.5 / 24, segment.Height, 9);            // still one slot high
+        Assert.Equal(1d, segment.Top + segment.Height, 9);    // moved up to fit
+        Assert.Null(CalendarLayout.Segment(e, Mon.AddDays(1), FullDay));
+    }
+
+    [Fact]
+    public void A_line_is_placed_below_every_bar_of_its_day_even_where_the_bars_leave_a_lane_free()
+    {
+        // A (Mon–Tue) takes lane 0, B (Tue–Thu) lane 1. Wednesday has lane 0 free,
+        // but its line still goes below B.
+        var week = CalendarLayout.MonthWeek(
+        [
+            AllDay("a", Mon, Mon.AddDays(2)),
+            AllDay("b", Mon.AddDays(1), Mon.AddDays(4)),
+            Timed("line", Mon.AddDays(2), 9, 0, 10, 0)
+        ], Mon, 4);
+
+        Assert.Equal(1, week.Bars.Single(b => b.Event.Id == "b").Lane);
+        Assert.Equal(2, Assert.Single(week.Lines).Lane);
+    }
+
+    [Fact]
+    public void The_first_week_of_the_calendar_starts_on_its_first_date()
+    {
+        // 1 January of the year one is a Monday; a Sunday-first week has no Sunday before it.
+        Assert.Equal(DateOnly.MinValue, CalendarLayout.StartOfWeek(DateOnly.MinValue, DayOfWeek.Sunday));
+        Assert.Equal(DateOnly.MinValue, CalendarLayout.Step(CalendarView.Week, DateOnly.MinValue, -1));
+        Assert.Equal(DateOnly.MaxValue, CalendarLayout.Step(CalendarView.Month, DateOnly.MaxValue, 1));
+    }
+
+    [Fact]
+    public void An_event_ending_at_the_last_representable_moment_has_a_day_span()
+    {
+        var timed = new CalendarEvent { Id = "t", Start = At(Mon, 9), End = DateTime.MaxValue };
+        var allDay = new CalendarEvent { Id = "a", AllDay = true, Start = DateTime.MaxValue, End = DateTime.MaxValue };
+
+        Assert.Equal((Mon, DateOnly.MaxValue), CalendarLayout.DaySpan(timed));
+        Assert.Equal(DateOnly.MaxValue, CalendarLayout.DaySpan(allDay).First);
+        Assert.True(CalendarLayout.Touches(timed, Mon, 7));
+    }
+
+    [Fact]
+    public void An_event_with_null_PersonIds_is_unassigned_visible_and_takes_the_first_slot()
+    {
+        var e = new CalendarEvent { Id = "e", Start = At(Mon, 9), End = At(Mon, 10), PersonIds = null! };
+
+        Assert.True(CalendarLayout.IsUnassigned(e, Known));
+        Assert.True(CalendarLayout.IsVisible(e, Known, new HashSet<string> { "a", "b" }));
+        Assert.Equal(CalendarColor.Slot1, CalendarLayout.EventColor(e, new Dictionary<string, CalendarColor>()));
     }
 }

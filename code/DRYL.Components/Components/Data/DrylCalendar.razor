@@ -543,8 +543,9 @@
     public override Task SetParametersAsync(ParameterView parameters)
     {
         // A DateOnly parameter cannot say "unset" by its value, so note whether the
-        // host supplied one at all.
-        if (parameters.TryGetValue<DateOnly>(nameof(Date), out _)) _dateSupplied = true;
+        // host supplied one at all. A bound field that was never assigned arrives
+        // as the default date; that is "unset" too, not the year one.
+        if (parameters.TryGetValue<DateOnly>(nameof(Date), out var date) && date != default) _dateSupplied = true;
         return base.SetParametersAsync(parameters);
     }
 
@@ -605,12 +606,12 @@
             _initialised = true;
             _view = _lastView = View;
             _lastDate = Date;
-            _date = _dateSupplied ? Date : Today;
+            _date = _dateSupplied && Date != default ? Date : Today;
         }
         else
         {
             if (View != _lastView) _view = _lastView = View;
-            if (_dateSupplied && Date != _lastDate) _date = _lastDate = Date;
+            if (_dateSupplied && Date != default && Date != _lastDate) _date = _lastDate = Date;
         }
 
         SyncClock();
@@ -691,10 +692,16 @@
         await ViewChanged.InvokeAsync(view);
     }
 
+    // Both change before either callback runs: a handler that yields must not
+    // let a render show the new date in the old view, and raise a range for it.
     private async Task ShowDayAsync(DateOnly day)
     {
-        await SetDateAsync(day);
-        await SelectViewAsync(CalendarView.Day);
+        var dateChanged = day != _date;
+        var viewChanged = _view != CalendarView.Day;
+        _date = day;
+        _view = CalendarView.Day;
+        if (dateChanged) await DateChanged.InvokeAsync(day);
+        if (viewChanged) await ViewChanged.InvokeAsync(CalendarView.Day);
     }
 
     // ── Formatting ──────────────────────────────────────────────────────
@@ -996,7 +1003,7 @@
 
         foreach (var person in shown)
         {
-            var events = visible.Where(e => e.PersonIds.Contains(person.Id)).ToList();
+            var events = visible.Where(e => e.PersonIds?.Contains(person.Id) == true).ToList();
             var spans = AvailabilityOf(person);
             var absences = CalendarLayout.Absences(spans, theDay, _grid);
             columns.Add(new TimeColumn("person|" + person.Id, theDay, person, events,
@@ -1080,7 +1087,7 @@
     private List<CalendarPerson> KnownPeople(CalendarEvent e)
     {
         var people = new List<CalendarPerson>();
-        foreach (var id in e.PersonIds)
+        foreach (var id in e.PersonIds ?? [])
             if (_peopleById.TryGetValue(id, out var person) && !people.Contains(person)) people.Add(person);
         return people;
     }

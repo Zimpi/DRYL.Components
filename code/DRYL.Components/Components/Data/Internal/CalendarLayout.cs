@@ -98,7 +98,11 @@ internal static class CalendarLayout
 
     /// <summary>The first day of the week that contains <paramref name="date"/>.</summary>
     public static DateOnly StartOfWeek(DateOnly date, DayOfWeek firstDayOfWeek)
-        => date.AddDays(-(((int)date.DayOfWeek - (int)firstDayOfWeek + 7) % 7));
+    {
+        var back = ((int)date.DayOfWeek - (int)firstDayOfWeek + 7) % 7;
+        // The calendar's first week has no earlier days to start on.
+        return back > date.DayNumber ? date : date.AddDays(-back);
+    }
 
     /// <summary>
     /// The first visible day and the number of visible days. The month view shows
@@ -135,12 +139,20 @@ internal static class CalendarLayout
     public static DateOnly Step(CalendarView view, DateOnly date, int direction)
     {
         var sign = direction < 0 ? -1 : 1;
-        return view switch
+        try
         {
-            CalendarView.Day => date.AddDays(sign),
-            CalendarView.Month => date.AddMonths(sign),
-            _ => date.AddDays(7 * sign)
-        };
+            return view switch
+            {
+                CalendarView.Day => date.AddDays(sign),
+                CalendarView.Month => date.AddMonths(sign),
+                _ => date.AddDays(7 * sign)
+            };
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            // There is no range beyond the first or the last representable date.
+            return date;
+        }
     }
 
     // ── The time grid ───────────────────────────────────────────────────
@@ -187,15 +199,18 @@ internal static class CalendarLayout
         if (e.AllDay)
         {
             var allDayEnd = DateOnly.FromDateTime(e.End);
-            return (first, allDayEnd > first ? allDayEnd : first.AddDays(1));
+            return (first, allDayEnd > first ? allDayEnd : DayAfter(first));
         }
 
         var end = e.End > e.Start ? e.End : e.Start;
         var endDay = DateOnly.FromDateTime(end);
         // An end at midnight belongs to the day before it — the end is exclusive.
-        var exclusive = end.TimeOfDay == TimeSpan.Zero && endDay > first ? endDay : endDay.AddDays(1);
+        var exclusive = end.TimeOfDay == TimeSpan.Zero && endDay > first ? endDay : DayAfter(endDay);
         return (first, exclusive);
     }
+
+    // The last representable date has no day after it; an open-ended event stops there.
+    private static DateOnly DayAfter(DateOnly day) => day == DateOnly.MaxValue ? day : day.AddDays(1);
 
     /// <summary>The event touches at least one of the <paramref name="days"/> days from <paramref name="first"/>.</summary>
     public static bool Touches(CalendarEvent e, DateOnly first, int days)
@@ -229,7 +244,15 @@ internal static class CalendarLayout
     {
         var slot = TimeSpan.FromMinutes(grid.SlotMinutes);
         var start = e.Start;
-        var end = e.End > e.Start ? e.End : e.Start + slot;
+        var end = e.End;
+        if (end <= start)
+        {
+            // One slot long — but still an event of its own day: the slot it is
+            // given does not reach into the next one.
+            end = start + slot;
+            var startsNextDay = start.Date.AddDays(1);
+            if (end > startsNextDay) end = startsNextDay;
+        }
 
         var midnight = day.ToDateTime(TimeOnly.MinValue);
         var gridStart = midnight + grid.DayStart;
@@ -366,9 +389,13 @@ internal static class CalendarLayout
         var bars = Bars(inWeek.Where(IsMonthBar), first, days);
         var taken = new HashSet<int>[days];
         for (var d = 0; d < days; d++) taken[d] = [];
+        var lowestLineLane = new int[days];
         foreach (var bar in bars)
             for (var d = bar.Column; d < bar.Column + bar.Span; d++)
+            {
                 taken[d].Add(bar.Lane);
+                lowestLineLane[d] = Math.Max(lowestLineLane[d], bar.Lane + 1);
+            }
 
         var lines = new List<CalendarMonthLine>();
         foreach (var e in inWeek.Where(e => !IsMonthBar(e))
@@ -376,7 +403,9 @@ internal static class CalendarLayout
                      .ThenBy(e => e.Id, StringComparer.Ordinal))
         {
             var column = DateOnly.FromDateTime(e.Start).DayNumber - first.DayNumber;
-            var lane = 0;
+            // Below every bar of the day, even where the bars leave a lane free
+            // between them: within a cell, bars come first.
+            var lane = lowestLineLane[column];
             while (!taken[column].Add(lane)) lane++;
             lines.Add(new CalendarMonthLine(e, column, lane));
         }
@@ -456,7 +485,7 @@ internal static class CalendarLayout
     public static CalendarColor EventColor(CalendarEvent e, IReadOnlyDictionary<string, CalendarColor> personColors)
     {
         if (e.Color != CalendarColor.Auto) return e.Color;
-        foreach (var id in e.PersonIds)
+        foreach (var id in e.PersonIds ?? [])
             if (personColors.TryGetValue(id, out var color)) return color;
         return CalendarColor.Slot1;
     }
@@ -470,7 +499,7 @@ internal static class CalendarLayout
     /// <summary>None of the event's person ids matches a known person.</summary>
     public static bool IsUnassigned(CalendarEvent e, IReadOnlySet<string> knownPersonIds)
     {
-        foreach (var id in e.PersonIds)
+        foreach (var id in e.PersonIds ?? [])
             if (knownPersonIds.Contains(id)) return false;
         return true;
     }
@@ -482,7 +511,7 @@ internal static class CalendarLayout
     public static bool IsVisible(CalendarEvent e, IReadOnlySet<string> knownPersonIds, IReadOnlySet<string>? hiddenPersonIds)
     {
         var assigned = false;
-        foreach (var id in e.PersonIds)
+        foreach (var id in e.PersonIds ?? [])
         {
             if (!knownPersonIds.Contains(id)) continue;
             assigned = true;
