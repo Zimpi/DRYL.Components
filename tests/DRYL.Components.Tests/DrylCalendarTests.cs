@@ -450,7 +450,9 @@ public class DrylCalendarTests : BunitContext
         var today = Assert.Single(cut.FindAll(".cal-day-head.is-today"));
         Assert.Equal("2026-10-12", today.GetAttribute("data-date"));
         Assert.Equal("date", today.GetAttribute("aria-current"));
-        Assert.Single(cut.FindAll("[aria-current='date']"));
+        // The narrow layout's day strip marks it too.
+        Assert.Equal("date", Assert.Single(cut.FindAll(".cal-strip-day.is-today")).GetAttribute("aria-current"));
+        Assert.Equal(2, cut.FindAll("[aria-current='date']").Count);
         Assert.Single(cut.FindAll(".cal-col.is-today"));
     }
 
@@ -469,10 +471,10 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderCalendar();
 
-        var line = Assert.Single(cut.FindAll(".cal-now"));
-        Assert.Equal("top:43.75%", line.GetAttribute("style"));   // 10:30 of 24 hours
-        Assert.Equal("true", line.GetAttribute("aria-hidden"));
-        Assert.Contains("is-today", line.ParentElement!.ClassList);
+        var nowLine = Assert.Single(cut.FindAll(".cal-now"));
+        Assert.Equal("top:43.75%", nowLine.GetAttribute("style"));   // 10:30 of 24 hours
+        Assert.Equal("true", nowLine.GetAttribute("aria-hidden"));
+        Assert.Contains("is-today", nowLine.ParentElement!.ClassList);
     }
 
     [Fact]
@@ -482,6 +484,7 @@ public class DrylCalendarTests : BunitContext
 
         Assert.Empty(cut.FindAll(".cal-now"));
         Assert.Empty(cut.FindAll(".is-today"));
+        Assert.Empty(cut.FindAll("[aria-current]"));
     }
 
     [Fact]
@@ -657,14 +660,23 @@ public class DrylCalendarTests : BunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => element.TextContent.Trim().Replace(' ', ' ');
 
+    // An event is a button inside a slot; the slot carries its position. Events
+    // that have left and are still fading out are not counted.
+    private static IReadOnlyList<AngleSharp.Dom.IElement> Boxes(IRenderedComponent<DrylCalendar> cut)
+        => cut.FindAll(".cal-slot:not(.is-exiting) .cal-event");
+
+    private static AngleSharp.Dom.IElement Slot(AngleSharp.Dom.IElement box) => box.Closest(".cal-slot")!;
+
+    private static string? Place(AngleSharp.Dom.IElement box) => Slot(box).GetAttribute("style");
+
     [Fact]
     public void A_timed_event_is_drawn_in_the_column_of_its_day_from_its_Start_to_its_End()
     {
         var cut = RenderEvents([Timed("standup", Mon.AddDays(2), 9, 12)]);
 
-        var box = Assert.Single(cut.FindAll(".cal-event"));
-        Assert.Equal("2026-10-14", box.ParentElement!.GetAttribute("data-date"));
-        Assert.Equal("top:37.5%;height:12.5%;left:0%;width:100%", box.GetAttribute("style"));
+        var box = Assert.Single(Boxes(cut));
+        Assert.Equal("2026-10-14", Slot(box).ParentElement!.GetAttribute("data-date"));
+        Assert.Equal("top:37.5%;height:12.5%;left:0%;width:100%", Place(box));
         Assert.Contains("cal-event--timed", box.ClassList);
     }
 
@@ -673,7 +685,7 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderEvents([Timed("point", Mon, 12, 12)]);
 
-        Assert.Equal("top:50%;height:2.0833%;left:0%;width:100%", cut.Find(".cal-event").GetAttribute("style"));
+        Assert.Equal("top:50%;height:2.0833%;left:0%;width:100%", Place(cut.Find(".cal-event")));
     }
 
     [Fact]
@@ -681,7 +693,7 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderEvents([Timed("next-week", Mon.AddDays(7), 9, 10), AllDay("last-week", Mon.AddDays(-3), Mon.AddDays(-1))]);
 
-        Assert.Empty(cut.FindAll(".cal-event"));
+        Assert.Empty(Boxes(cut));
     }
 
     [Fact]
@@ -701,8 +713,8 @@ public class DrylCalendarTests : BunitContext
             Console.SetOut(original);
         }
 
-        var box = Assert.Single(cut.FindAll(".cal-event"));
-        Assert.StartsWith("top:37.5%", box.GetAttribute("style"));
+        var box = Assert.Single(Boxes(cut));
+        Assert.StartsWith("top:37.5%", Place(box));
         Assert.Equal(1, Occurrences(console.ToString(), "DrylCalendar: two events share an Id"));
     }
 
@@ -713,23 +725,23 @@ public class DrylCalendarTests : BunitContext
         var clicked = new List<CalendarEvent>();
         var cut = RenderEvents([late], p => p.Add(c => c.OnEventClick, clicked.Add));
 
-        var segments = cut.FindAll(".cal-event");
+        var segments = Boxes(cut);
         Assert.Equal(2, segments.Count);
-        Assert.Equal("2026-10-12", segments[0].ParentElement!.GetAttribute("data-date"));
+        Assert.Equal("2026-10-12", Slot(segments[0]).ParentElement!.GetAttribute("data-date"));
         Assert.Contains("is-continued-after", segments[0].ClassList);
         Assert.DoesNotContain("is-continued-before", segments[0].ClassList);
-        Assert.Equal("2026-10-13", segments[1].ParentElement!.GetAttribute("data-date"));
+        Assert.Equal("2026-10-13", Slot(segments[1]).ParentElement!.GetAttribute("data-date"));
         Assert.Contains("is-continued-before", segments[1].ClassList);
 
-        cut.FindAll(".cal-event")[0].Click();
-        cut.FindAll(".cal-event")[1].Click();
+        Boxes(cut)[0].Click();
+        Boxes(cut)[1].Click();
 
         Assert.Equal(2, clicked.Count);
         Assert.All(clicked, e => Assert.Same(late, e));
         // A segment's name states the whole span, so it says where it continues.
         Assert.Equal(
             "Late shift, Monday, October 12, 2026 10:00 PM – Tuesday, October 13, 2026 2:00 AM",
-            cut.FindAll(".cal-event")[1].GetAttribute("aria-label")!.Replace(' ', ' '));
+            Boxes(cut)[1].GetAttribute("aria-label")!.Replace(' ', ' '));
     }
 
     [Fact]
@@ -737,10 +749,10 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderEvents([new CalendarEvent { Id = "trip", Title = "Trip", Start = At(Mon, 9), End = At(Mon.AddDays(2), 9) }]);
 
-        var bar = Assert.Single(cut.FindAll(".cal-event"));
+        var bar = Assert.Single(Boxes(cut));
         Assert.Contains("cal-event--bar", bar.ClassList);
-        Assert.Contains("cal-allday", bar.ParentElement!.ClassList);
-        Assert.Equal("grid-column:2 / span 3;grid-row:1", bar.GetAttribute("style"));
+        Assert.Contains("cal-allday", Slot(bar).ParentElement!.ClassList);
+        Assert.Equal("grid-column:2 / span 3;grid-row:1", Place(bar));
     }
 
     [Fact]
@@ -748,9 +760,9 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderEvents([Timed("a", Mon, 9, 11), Timed("b", Mon, 10, 12), Timed("alone", Mon, 14, 15)]);
 
-        Assert.EndsWith("left:0%;width:50%", cut.Find("[data-event-id='a']").GetAttribute("style"));
-        Assert.EndsWith("left:50%;width:50%", cut.Find("[data-event-id='b']").GetAttribute("style"));
-        Assert.EndsWith("left:0%;width:100%", cut.Find("[data-event-id='alone']").GetAttribute("style"));
+        Assert.EndsWith("left:0%;width:50%", Place(cut.Find("[data-event-id='a']")));
+        Assert.EndsWith("left:50%;width:50%", Place(cut.Find("[data-event-id='b']")));
+        Assert.EndsWith("left:0%;width:100%", Place(cut.Find("[data-event-id='alone']")));
     }
 
     [Fact]
@@ -759,7 +771,7 @@ public class DrylCalendarTests : BunitContext
         var cut = RenderEvents([AllDay("fair", Mon.AddDays(1), Mon.AddDays(4))]);
 
         var bar = cut.Find(".cal-allday .cal-event--bar");
-        Assert.Equal("grid-column:3 / span 3;grid-row:1", bar.GetAttribute("style"));
+        Assert.Equal("grid-column:3 / span 3;grid-row:1", Place(bar));
         Assert.DoesNotContain("is-continued-before", bar.ClassList);
         Assert.DoesNotContain("is-continued-after", bar.ClassList);
         Assert.Equal("fair, Tuesday, October 13, 2026 – Thursday, October 15, 2026, All day", bar.GetAttribute("aria-label"));
@@ -780,8 +792,8 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderEvents([AllDay("a", Mon, Mon.AddDays(3)), AllDay("b", Mon.AddDays(2), Mon.AddDays(4))]);
 
-        Assert.EndsWith("grid-row:1", cut.Find("[data-event-id='a']").GetAttribute("style"));
-        Assert.EndsWith("grid-row:2", cut.Find("[data-event-id='b']").GetAttribute("style"));
+        Assert.EndsWith("grid-row:1", Place(cut.Find("[data-event-id='a']")));
+        Assert.EndsWith("grid-row:2", Place(cut.Find("[data-event-id='b']")));
         Assert.Equal("--cal-lanes:2", cut.Find(".cal-allday").GetAttribute("style"));
     }
 
@@ -810,10 +822,10 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderMonth([Timed("review", Mon, 9, 10)]);
 
-        var line = Assert.Single(cut.FindAll(".cal-event"));
+        var line = Assert.Single(Boxes(cut));
         Assert.Contains("cal-event--line", line.ClassList);
-        Assert.Equal("grid-column:1 / span 1;grid-row:2", line.GetAttribute("style"));
-        Assert.Equal("2026-10-12", line.ParentElement!.QuerySelector(".cal-cell")!.GetAttribute("data-date"));
+        Assert.Equal("grid-column:1 / span 1;grid-row:2", Place(line));
+        Assert.Equal("2026-10-12", Slot(line).ParentElement!.QuerySelector(".cal-cell")!.GetAttribute("data-date"));
         var children = line.Children;
         Assert.Contains("cal-event-time", children[0].ClassList);
         Assert.Equal("9:00 AM", Text(children[0]));
@@ -827,9 +839,9 @@ public class DrylCalendarTests : BunitContext
 
         var bars = cut.FindAll(".cal-event--bar");
         Assert.Equal(2, bars.Count);
-        Assert.Equal("grid-column:6 / span 2;grid-row:2", bars[0].GetAttribute("style"));
+        Assert.Equal("grid-column:6 / span 2;grid-row:2", Place(bars[0]));
         Assert.Contains("is-continued-after", bars[0].ClassList);
-        Assert.Equal("grid-column:1 / span 2;grid-row:2", bars[1].GetAttribute("style"));
+        Assert.Equal("grid-column:1 / span 2;grid-row:2", Place(bars[1]));
         Assert.Contains("is-continued-before", bars[1].ClassList);
     }
 
@@ -838,10 +850,10 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderMonth([Timed("late", Mon, 15, 16), Timed("early", Mon, 9, 10), AllDay("bar", Mon, Mon.AddDays(1))]);
 
-        Assert.EndsWith("grid-row:2", cut.Find("[data-event-id='bar']").GetAttribute("style"));
-        Assert.EndsWith("grid-row:3", cut.Find("[data-event-id='early']").GetAttribute("style"));
-        Assert.EndsWith("grid-row:4", cut.Find("[data-event-id='late']").GetAttribute("style"));
-        Assert.Equal(["bar", "early", "late"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.EndsWith("grid-row:2", Place(cut.Find("[data-event-id='bar']")));
+        Assert.EndsWith("grid-row:3", Place(cut.Find("[data-event-id='early']")));
+        Assert.EndsWith("grid-row:4", Place(cut.Find("[data-event-id='late']")));
+        Assert.Equal(["bar", "early", "late"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));
         Assert.Empty(cut.FindAll(".cal-more"));
     }
 
@@ -850,7 +862,7 @@ public class DrylCalendarTests : BunitContext
     {
         var cut = RenderMonth([Timed("a", Mon, 9, 10), Timed("b", Mon, 10, 11), Timed("c", Mon, 11, 12), Timed("d", Mon, 12, 13)]);
 
-        Assert.Equal(["a", "b"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.Equal(["a", "b"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));
         var more = Assert.Single(cut.FindAll(".cal-more"));
         Assert.Equal("+2 more", more.TextContent.Trim());
         Assert.Equal("grid-column:1 / span 1;grid-row:4", more.GetAttribute("style"));
@@ -928,7 +940,7 @@ public class DrylCalendarTests : BunitContext
         ], p => p.Add(c => c.Labels, new CalendarLabels { Recurring = "Wiederkehrend" }));
 
         // Two occurrences are two independent events; nothing is derived from the series but the mark.
-        Assert.Equal(3, cut.FindAll(".cal-event").Count);
+        Assert.Equal(3, Boxes(cut).Count);
         var marks = cut.FindAll(".cal-event-recurring svg");
         Assert.Equal(2, marks.Count);
         Assert.All(marks, m => Assert.Equal("Wiederkehrend", m.GetAttribute("aria-label")));
@@ -951,7 +963,7 @@ public class DrylCalendarTests : BunitContext
 
         var original = plain.Find(".cal-event");
         Assert.Equal("BUTTON", box.TagName);
-        Assert.Equal(original.GetAttribute("style"), box.GetAttribute("style"));
+        Assert.Equal(Place(original), Place(box));
         Assert.Equal(original.GetAttribute("data-color"), box.GetAttribute("data-color"));
         Assert.Equal(original.GetAttribute("class"), box.GetAttribute("class"));
         Assert.Equal(original.GetAttribute("aria-label"), box.GetAttribute("aria-label"));
@@ -988,7 +1000,7 @@ public class DrylCalendarTests : BunitContext
         Assert.Equal("2", cut.Find("[data-event-id='first-known']").GetAttribute("data-color"));
         Assert.Equal("5", cut.Find("[data-event-id='person-slot']").GetAttribute("data-color"));
         Assert.Equal("1", cut.Find("[data-event-id='nobody']").GetAttribute("data-color"));
-        Assert.All(cut.FindAll(".cal-event"), e => Assert.DoesNotContain("color", e.GetAttribute("style")));
+        Assert.All(Boxes(cut), e => Assert.DoesNotContain("color", Place(e)));
     }
 
     // ── S2 · Activating an event ────────────────────────────────────────
@@ -1001,7 +1013,7 @@ public class DrylCalendarTests : BunitContext
         var clicked = new List<CalendarEvent>();
         var cut = RenderEvents([review, fair], p => p.Add(c => c.OnEventClick, clicked.Add));
 
-        Assert.All(cut.FindAll(".cal-event"), e =>
+        Assert.All(Boxes(cut), e =>
         {
             Assert.Equal("BUTTON", e.TagName);
             Assert.Equal("button", e.GetAttribute("type"));
@@ -1050,7 +1062,7 @@ public class DrylCalendarTests : BunitContext
 
         var cut = RenderEvents([a, b]);
 
-        Assert.Equal(2, cut.FindAll(".cal-event").Count);
+        Assert.Equal(2, Boxes(cut).Count);
     }
 
     // ── S3 · People ─────────────────────────────────────────────────────
@@ -1087,7 +1099,7 @@ public class DrylCalendarTests : BunitContext
         // Columns without people renders the day as the overlaid layout does.
         Assert.Single(cut.FindAll(".cal-col"));
         Assert.Single(cut.FindAll(".cal-day-head"));
-        Assert.Single(cut.FindAll(".cal-event"));
+        Assert.Single(Boxes(cut));
     }
 
     [Fact]
@@ -1180,7 +1192,7 @@ public class DrylCalendarTests : BunitContext
 
         Assert.Equal(["ada"], sets[0]);
         Assert.Equal("false", cut.Find(".cal-legend-item[data-person-id='ada']").GetAttribute("aria-pressed"));
-        Assert.Equal(["b"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));   // applied unbound
+        Assert.Equal(["b"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));   // applied unbound
 
         cut.Find(".cal-legend-item[data-person-id='bob']").Click();
         cut.Find(".cal-legend-item[data-person-id='ada']").Click();
@@ -1189,7 +1201,7 @@ public class DrylCalendarTests : BunitContext
         Assert.Equal(["ada", "bob"], sets[1].Order());
         Assert.Equal(["bob"], sets[2]);
         Assert.Equal("true", cut.Find(".cal-legend-item[data-person-id='ada']").GetAttribute("aria-pressed"));
-        Assert.Equal(["a"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.Equal(["a"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));
     }
 
     [Fact]
@@ -1199,11 +1211,11 @@ public class DrylCalendarTests : BunitContext
             p => p.Add(c => c.HiddenPersonIds, Hidden("bob", "ghost")));
 
         Assert.Equal(["true", "false", "true"], cut.FindAll(".cal-legend-item").Select(i => i.GetAttribute("aria-pressed")));
-        Assert.Equal(["a"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.Equal(["a"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));
 
         cut.Render(p => p.Add(c => c.HiddenPersonIds, (IReadOnlySet<string>?)null));
 
-        Assert.Equal(2, cut.FindAll(".cal-event").Count);
+        Assert.Equal(2, Boxes(cut).Count);
     }
 
     // ── S3 · Hidden people ──────────────────────────────────────────────
@@ -1219,7 +1231,7 @@ public class DrylCalendarTests : BunitContext
             Timed("bobs", Mon, 14, 15, "bob")
         ], p => p.Add(c => c.HiddenPersonIds, Hidden("ada")));
 
-        Assert.Equal(["one-shown", "unassigned", "bobs"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.Equal(["one-shown", "unassigned", "bobs"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));
         // Bob keeps the slot of his position; hiding Ada recolours nobody.
         Assert.Equal("2", cut.Find("[data-event-id='bobs']").GetAttribute("data-color"));
         Assert.Equal("2", cut.Find(".cal-legend-item[data-person-id='bob']").GetAttribute("data-color"));
@@ -1234,7 +1246,7 @@ public class DrylCalendarTests : BunitContext
         var cut = RenderMonth([Timed("orphan", Mon, 9, 10), Timed("adas", Mon, 11, 12, "ada")],
             p => p.Add(c => c.HiddenPersonIds, Hidden("ada", "bob", "cy")));
 
-        Assert.Equal(["orphan"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.Equal(["orphan"], Boxes(cut).Select(e => e.GetAttribute("data-event-id")));
     }
 
     // ── S3 · The overlaid layout and person columns ─────────────────────
@@ -1260,7 +1272,7 @@ public class DrylCalendarTests : BunitContext
 
         Assert.Empty(cut.FindAll(".cal-person-head"));
         Assert.Equal(view == CalendarView.Week ? 7 : 0, cut.FindAll(".cal-col").Count);
-        Assert.Single(cut.FindAll(".cal-event"));
+        Assert.Single(Boxes(cut));
     }
 
     [Fact]
@@ -1301,7 +1313,7 @@ public class DrylCalendarTests : BunitContext
 
         // The all-day event sits in the all-day row of Bob's and Cy's columns.
         var bars = cut.FindAll(".cal-allday [data-event-id='fair']");
-        Assert.Equal(["grid-column:3 / span 1;grid-row:1", "grid-column:4 / span 1;grid-row:1"], bars.Select(b => b.GetAttribute("style")));
+        Assert.Equal(["grid-column:3 / span 1;grid-row:1", "grid-column:4 / span 1;grid-row:1"], bars.Select(Place));
 
         cut.FindAll("[data-event-id='shared']")[0].Click();
         cut.FindAll("[data-event-id='shared']")[1].Click();
@@ -1315,9 +1327,9 @@ public class DrylCalendarTests : BunitContext
         // The two events overlap in time but belong to different people.
         var cut = RenderColumns([Timed("a", Mon, 9, 11, "ada"), Timed("b", Mon, 10, 12, "bob"), Timed("c", Mon, 10, 12, "ada")]);
 
-        Assert.EndsWith("left:0%;width:100%", cut.Find(".cal-col[data-person-id='bob'] [data-event-id='b']").GetAttribute("style"));
-        Assert.EndsWith("left:0%;width:50%", cut.Find(".cal-col[data-person-id='ada'] [data-event-id='a']").GetAttribute("style"));
-        Assert.EndsWith("left:50%;width:50%", cut.Find(".cal-col[data-person-id='ada'] [data-event-id='c']").GetAttribute("style"));
+        Assert.EndsWith("left:0%;width:100%", Place(cut.Find(".cal-col[data-person-id='bob'] [data-event-id='b']")));
+        Assert.EndsWith("left:0%;width:50%", Place(cut.Find(".cal-col[data-person-id='ada'] [data-event-id='a']")));
+        Assert.EndsWith("left:50%;width:50%", Place(cut.Find(".cal-col[data-person-id='ada'] [data-event-id='c']")));
     }
 
     [Fact]
@@ -1345,7 +1357,7 @@ public class DrylCalendarTests : BunitContext
         var head = Assert.Single(cut.FindAll(".cal-person-head"));
         Assert.Equal("Unassigned", head.TextContent.Trim());
         Assert.Single(cut.FindAll(".cal-col"));
-        Assert.Empty(cut.FindAll(".cal-event"));
+        Assert.Empty(Boxes(cut));
     }
 
     // ── S3 · Availability ───────────────────────────────────────────────
@@ -1370,7 +1382,7 @@ public class DrylCalendarTests : BunitContext
         });
         // Behind the events: the muted areas come first in the column.
         Assert.Contains("cal-muted", column.Children[0].ClassList);
-        Assert.Contains("cal-event", column.Children[^2].ClassList);
+        Assert.Contains("cal-slot", column.Children[^2].ClassList);
         // No working span, no unavailable time; an unknown person's span is ignored.
         Assert.Empty(cut.FindAll(".cal-col[data-person-id='bob'] .cal-muted"));
     }
@@ -1455,5 +1467,451 @@ public class DrylCalendarTests : BunitContext
         Assert.Empty(cut.FindAll(".cal-muted"));
         Assert.Empty(cut.FindAll(".cal-absence"));
         Assert.Empty(cut.FindAll(".cal-absence-chip"));
+    }
+
+    // ── S4 · Motion ─────────────────────────────────────────────────────
+
+    // Plays every exit the browser has been asked to watch, as its animationend would.
+    private async Task FinishExitsAsync(IRenderedComponent<DrylCalendar> cut)
+    {
+        foreach (var invocation in JSInterop.Invocations["dryl.motion.onExit"].ToList())
+        {
+            var reference = invocation.Arguments[1]!;
+            var callback = reference.GetType().GetProperty("Value")!.GetValue(reference)!;
+            await cut.InvokeAsync(() => (Task)callback.GetType().GetMethod("OnExitFinished")!.Invoke(callback, null)!);
+        }
+    }
+
+    [Fact]
+    public void The_first_grid_and_its_events_appear_without_an_enter_animation()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10)]);
+
+        Assert.DoesNotContain("cal-enter", cut.Find(".cal-time").ClassList);
+        Assert.Empty(cut.FindAll(".cal-slot .presence-enter"));
+    }
+
+    [Fact]
+    public void Navigating_moves_the_incoming_grid_in_from_the_side_the_user_moved_towards()
+    {
+        var cut = RenderCalendar();
+
+        cut.Find("button[aria-label='Next']").Click();
+        Assert.Contains("cal-enter--next", cut.Find(".cal-time").ClassList);
+
+        cut.Find("button[aria-label='Previous']").Click();
+        Assert.Contains("cal-enter--prev", cut.Find(".cal-time").ClassList);
+
+        // A later render of the same range keeps the class, so the animation is not cut short.
+        cut.Render(p => p.Add(c => c.Loading, true));
+        Assert.Contains("cal-enter--prev", cut.Find(".cal-time").ClassList);
+    }
+
+    [Fact]
+    public void Switching_the_view_fades_the_incoming_grid_in()
+    {
+        var cut = RenderCalendar();
+
+        cut.Render(p => p.Add(c => c.View, CalendarView.Month));
+        Assert.Contains("cal-enter--fade", cut.Find(".cal-month").ClassList);
+
+        cut.Render(p => p.Add(c => c.View, CalendarView.Day));
+        Assert.Contains("cal-enter--fade", cut.Find(".cal-time").ClassList);
+    }
+
+    [Fact]
+    public void An_event_that_joins_Events_while_its_range_is_shown_enters_with_a_transition()
+    {
+        var cut = RenderEvents([Timed("old", Mon, 9, 10)]);
+
+        cut.Render(p => p.Add(c => c.Events, new[] { Timed("old", Mon, 9, 10), Timed("new", Mon, 11, 12) }));
+
+        Assert.Contains("presence-enter", Slot(cut.Find("[data-event-id='new']")).FirstElementChild!.ClassList);
+        Assert.DoesNotContain("presence-enter", Slot(cut.Find("[data-event-id='old']")).FirstElementChild!.ClassList);
+    }
+
+    [Fact]
+    public void The_events_of_a_range_that_is_navigated_to_arrive_with_their_grid_not_one_by_one()
+    {
+        var cut = RenderEvents([Timed("this-week", Mon, 9, 10), Timed("next-week", Mon.AddDays(7), 9, 10)]);
+
+        cut.Find("button[aria-label='Next']").Click();
+
+        Assert.Equal("next-week", Assert.Single(Boxes(cut)).GetAttribute("data-event-id"));
+        Assert.Empty(cut.FindAll(".cal-slot .presence-enter"));
+        Assert.Empty(cut.FindAll(".cal-slot.is-exiting"));
+    }
+
+    [Fact]
+    public async Task An_event_that_leaves_Events_exits_with_a_transition_before_it_is_removed()
+    {
+        var cut = RenderEvents([Timed("stays", Mon, 9, 10), Timed("leaves", Mon, 11, 12)]);
+
+        cut.Render(p => p.Add(c => c.Events, new[] { Timed("stays", Mon, 9, 10) }));
+
+        // Still there, in its place, playing its exit — and out of reach.
+        var ghost = cut.Find("[data-event-id='leaves']");
+        Assert.Contains("is-exiting", Slot(ghost).ClassList);
+        Assert.Equal("top:45.8333%;height:4.1667%;left:0%;width:100%", Place(ghost));
+        Assert.Contains("presence-exit", Slot(ghost).FirstElementChild!.ClassList);
+        Assert.Equal("true", ghost.GetAttribute("aria-hidden"));
+        Assert.Equal("-1", ghost.GetAttribute("tabindex"));
+        Assert.Equal("stays", Assert.Single(Boxes(cut)).GetAttribute("data-event-id"));
+
+        await FinishExitsAsync(cut);
+
+        Assert.Empty(cut.FindAll("[data-event-id='leaves']"));
+        Assert.Single(cut.FindAll(".cal-slot"));
+    }
+
+    [Fact]
+    public async Task Hiding_a_person_makes_their_events_exit_and_showing_them_makes_the_events_enter()
+    {
+        var cut = RenderEvents([Timed("adas", Mon, 9, 10, "ada"), Timed("bobs", Mon, 11, 12, "bob")]);
+
+        cut.Find(".cal-legend-item[data-person-id='ada']").Click();
+
+        Assert.Contains("is-exiting", Slot(cut.Find("[data-event-id='adas']")).ClassList);
+        Assert.DoesNotContain("is-exiting", Slot(cut.Find("[data-event-id='bobs']")).ClassList);
+
+        await FinishExitsAsync(cut);
+        Assert.Empty(cut.FindAll("[data-event-id='adas']"));
+
+        cut.Find(".cal-legend-item[data-person-id='ada']").Click();
+
+        var back = cut.Find("[data-event-id='adas']");
+        Assert.DoesNotContain("is-exiting", Slot(back).ClassList);
+        Assert.Contains("presence-enter", Slot(back).FirstElementChild!.ClassList);
+    }
+
+    [Fact]
+    public void An_event_that_returns_while_it_is_still_exiting_is_shown_again()
+    {
+        var events = new[] { Timed("a", Mon, 9, 10) };
+        var cut = RenderEvents(events);
+
+        cut.Render(p => p.Add(c => c.Events, Array.Empty<CalendarEvent>()));
+        Assert.Single(cut.FindAll(".cal-slot.is-exiting"));
+
+        cut.Render(p => p.Add(c => c.Events, events));
+
+        Assert.Empty(cut.FindAll(".cal-slot.is-exiting"));
+        var box = Assert.Single(Boxes(cut));
+        Assert.False(box.HasAttribute("aria-hidden"));
+        Assert.False(box.HasAttribute("tabindex"));
+    }
+
+    [Fact]
+    public void A_navigation_drops_what_was_still_exiting_in_the_old_range()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10)]);
+        cut.Render(p => p.Add(c => c.Events, Array.Empty<CalendarEvent>()));
+        Assert.Single(cut.FindAll(".cal-slot.is-exiting"));
+
+        cut.Find("button[aria-label='Next']").Click();
+
+        Assert.Empty(cut.FindAll(".cal-slot"));
+    }
+
+    // ── S4 · The narrow layouts ─────────────────────────────────────────
+
+    [Fact]
+    public void CollapseBelow_defaults_to_Md_and_the_root_is_the_container_the_narrow_layouts_query()
+    {
+        var cut = RenderCalendar();
+
+        var classes = cut.Find(".cal-root").ClassList;
+        Assert.Contains("cq", classes);
+        Assert.Contains("cal-collapse-md", classes);
+    }
+
+    [Theory]
+    [InlineData(Breakpoint.Sm, "cal-collapse-sm")]
+    [InlineData(Breakpoint.Md, "cal-collapse-md")]
+    [InlineData(Breakpoint.Lg, "cal-collapse-lg")]
+    [InlineData(Breakpoint.Xl, "cal-collapse-xl")]
+    public void CollapseBelow_names_the_width_below_which_the_narrow_layouts_apply(Breakpoint breakpoint, string expected)
+    {
+        var cut = RenderCalendar(p => p.Add(c => c.CollapseBelow, breakpoint));
+
+        Assert.Contains(expected, cut.Find(".cal-root").ClassList);
+        Assert.Single(cut.Find(".cal-root").ClassList, c => c.StartsWith("cal-collapse-"));
+    }
+
+    [Fact]
+    public void CollapseBelow_set_to_null_never_applies_the_narrow_layouts()
+    {
+        var cut = RenderCalendar(p => p.Add(c => c.CollapseBelow, (Breakpoint?)null));
+
+        Assert.DoesNotContain(cut.Find(".cal-root").ClassList, c => c.StartsWith("cal-collapse-"));
+    }
+
+    [Fact]
+    public void The_week_view_carries_a_strip_of_its_seven_days_with_the_day_of_Date_selected()
+    {
+        var cut = RenderEvents([Timed("a", Mon.AddDays(1), 9, 10), AllDay("fair", Mon.AddDays(3), Mon.AddDays(5))],
+            p => p.Add(c => c.Date, Mon.AddDays(2)));
+
+        var days = cut.FindAll(".cal-strip .cal-strip-day");
+        Assert.Equal(7, days.Count);
+        Assert.All(days, d => Assert.Equal("BUTTON", d.TagName));
+        Assert.Equal("2026-10-14", Assert.Single(days, d => d.ClassList.Contains("is-selected")).GetAttribute("data-date"));
+        Assert.Equal(["false", "false", "true", "false", "false", "false", "false"], days.Select(d => d.GetAttribute("aria-pressed")));
+        Assert.Equal("Wednesday, October 14, 2026", days[2].GetAttribute("aria-label"));
+
+        // A day with at least one event carries a mark saying so.
+        Assert.Equal(
+            [false, true, false, true, true, false, false],
+            days.Select(d => d.QuerySelector(".cal-strip-mark") is not null));
+        Assert.All(cut.FindAll(".cal-strip-mark"), m => Assert.Equal("true", m.GetAttribute("aria-hidden")));
+    }
+
+    [Fact]
+    public void Narrow_the_week_view_shows_the_column_of_Date_alone()
+    {
+        var cut = RenderEvents([AllDay("before", Mon, Mon.AddDays(2)), AllDay("over", Mon.AddDays(1), Mon.AddDays(4))],
+            p => p.Add(c => c.Date, Mon.AddDays(2)));
+
+        Assert.Contains("cal-time--week", cut.Find(".cal-time").ClassList);
+        Assert.Equal("2026-10-14", Assert.Single(cut.FindAll(".cal-col.is-selected")).GetAttribute("data-date"));
+        Assert.Single(cut.FindAll(".cal-allday-cell.is-selected"));
+        // Every track but the selected one is given no width.
+        Assert.EndsWith(
+            "--cal-narrow:var(--cal-axis) 0 0 minmax(0,1fr) 0 0 0 0",
+            cut.Find(".cal-time").GetAttribute("style"));
+        // A bar is shown narrow only when it covers the selected day.
+        Assert.DoesNotContain("is-on-selected", Slot(cut.Find("[data-event-id='before']")).ClassList);
+        Assert.Contains("is-on-selected", Slot(cut.Find("[data-event-id='over']")).ClassList);
+    }
+
+    [Fact]
+    public void Activating_a_day_in_the_strip_sets_Date_and_stays_in_the_week_view()
+    {
+        var dates = new List<DateOnly>();
+        var views = new List<CalendarView>();
+        var ranges = new List<CalendarRange>();
+        var cut = RenderCalendar(p => p
+            .Add(c => c.DateChanged, dates.Add)
+            .Add(c => c.ViewChanged, views.Add)
+            .Add(c => c.OnRangeChanged, ranges.Add));
+
+        cut.Find(".cal-strip-day[data-date='2026-10-16']").Click();
+
+        Assert.Equal(new DateOnly(2026, 10, 16), Assert.Single(dates));
+        Assert.Empty(views);
+        Assert.Equal(7, cut.FindAll(".cal-col").Count);
+        Assert.Equal("2026-10-16", cut.Find(".cal-col.is-selected").GetAttribute("data-date"));
+        Assert.Equal("true", cut.Find(".cal-strip-day[data-date='2026-10-16']").GetAttribute("aria-pressed"));
+        Assert.Single(ranges);   // the same week — the range did not change
+        // The same grid: nothing moves in.
+        Assert.DoesNotContain("cal-enter", cut.Find(".cal-time").ClassList);
+    }
+
+    [Fact]
+    public void The_day_view_has_no_strip()
+    {
+        var cut = RenderCalendar(p => p.Add(c => c.View, CalendarView.Day));
+
+        Assert.Empty(cut.FindAll(".cal-strip"));
+        Assert.Contains("cal-time--day", cut.Find(".cal-time").ClassList);
+    }
+
+    [Fact]
+    public void The_month_view_carries_one_mark_per_day_that_has_events()
+    {
+        var cut = RenderMonth([Timed("a", Mon, 9, 10), Timed("b", Mon, 11, 12), AllDay("fair", Mon.AddDays(2), Mon.AddDays(4))]);
+
+        var marked = cut.FindAll(".cal-cell").Where(c => c.QuerySelector(".cal-cell-mark") is not null).Select(c => c.GetAttribute("data-date"));
+        Assert.Equal(["2026-10-12", "2026-10-14", "2026-10-15"], marked);
+        Assert.All(cut.FindAll(".cal-cell-mark"), m => Assert.Equal("true", m.GetAttribute("aria-hidden")));
+    }
+
+    [Fact]
+    public void Narrow_activating_a_day_in_the_month_view_sets_Date_and_stays_in_the_month_view()
+    {
+        var dates = new List<DateOnly>();
+        var views = new List<CalendarView>();
+        var cut = RenderMonth([], p => p.Add(c => c.DateChanged, dates.Add).Add(c => c.ViewChanged, views.Add));
+
+        Assert.Equal("true", cut.Find(".cal-cell[data-date='2026-10-12'] .cal-cell-pick").GetAttribute("aria-pressed"));
+
+        cut.Find(".cal-cell[data-date='2026-10-20'] .cal-cell-pick").Click();
+
+        Assert.Equal(new DateOnly(2026, 10, 20), Assert.Single(dates));
+        Assert.Empty(views);
+        Assert.NotEmpty(cut.FindAll(".cal-month"));
+        Assert.Contains("is-selected", cut.Find(".cal-cell[data-date='2026-10-20']").ClassList);
+        Assert.Equal("true", cut.Find(".cal-cell[data-date='2026-10-20'] .cal-cell-pick").GetAttribute("aria-pressed"));
+        Assert.Equal("false", cut.Find(".cal-cell[data-date='2026-10-12'] .cal-cell-pick").GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public void Narrow_the_month_view_lists_the_events_of_Date_all_day_first_and_then_by_Start()
+    {
+        var late = Timed("late", Mon, 15, 16);
+        var clicked = new List<CalendarEvent>();
+        var cut = RenderMonth(
+            [late, Timed("early", Mon, 9, 10), AllDay("fair", Mon.AddDays(-1), Mon.AddDays(2)), Timed("tomorrow", Mon.AddDays(1), 9, 10)],
+            p => p.Add(c => c.OnEventClick, clicked.Add));
+
+        var listed = cut.FindAll(".cal-daylist .cal-event");
+        Assert.Equal(["fair", "early", "late"], listed.Select(e => e.GetAttribute("data-event-id")));
+        Assert.All(listed, e => Assert.Equal("BUTTON", e.TagName));
+        Assert.Empty(cut.FindAll(".cal-daylist-empty"));
+
+        listed[2].Click();
+        Assert.Same(late, Assert.Single(clicked));
+    }
+
+    [Fact]
+    public void Narrow_the_list_renders_the_NoEvents_text_when_Date_has_no_event()
+    {
+        var cut = RenderMonth([Timed("tomorrow", Mon.AddDays(1), 9, 10)],
+            p => p.Add(c => c.Labels, new CalendarLabels { NoEvents = "Keine Termine" }));
+
+        Assert.Equal("Keine Termine", cut.Find(".cal-daylist-empty").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".cal-daylist .cal-event"));
+    }
+
+    [Fact]
+    public void Person_columns_are_marked_so_they_keep_a_width_and_scroll_beside_the_axis()
+    {
+        var cut = RenderColumns([]);
+
+        Assert.Contains("cal-time--people", cut.Find(".cal-time").ClassList);
+        Assert.Contains("--cal-cols:3", cut.Find(".cal-time").GetAttribute("style"));
+        Assert.Empty(cut.FindAll(".cal-strip"));
+    }
+
+    // ── S4 · Keyboard and accessibility ─────────────────────────────────
+
+    [Fact]
+    public void The_tab_order_runs_toolbar_legend_then_the_grid()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10, "ada"), AllDay("fair", Mon, Mon.AddDays(1))]);
+
+        string Region(AngleSharp.Dom.IElement button)
+            => button.Closest(".cal-toolbar") is not null ? "toolbar"
+             : button.Closest(".cal-legend") is not null ? "legend"
+             : "grid";
+
+        var regions = cut.FindAll(".cal-root button").Select(Region).ToList();
+        var collapsed = regions.Where((r, i) => i == 0 || regions[i - 1] != r);
+
+        Assert.Equal(["toolbar", "legend", "grid"], collapsed);
+        Assert.DoesNotContain(cut.FindAll(".cal-root button"), b => b.GetAttribute("tabindex") is "-1" && b.Closest(".seg") is null);
+    }
+
+    [Fact]
+    public void Within_the_grid_an_all_day_event_is_reached_before_the_timed_events()
+    {
+        var cut = RenderEvents([Timed("late", Mon, 15, 16), Timed("early", Mon, 9, 10), AllDay("fair", Mon, Mon.AddDays(1))],
+            p => p.Add(c => c.View, CalendarView.Day));
+
+        Assert.Equal(["fair", "early", "late"], Boxes(cut).Select(b => b.GetAttribute("data-event-id")));
+    }
+
+    [Fact]
+    public void Decoration_is_hidden_from_assistive_technology()
+    {
+        var cut = RenderColumns([Timed("a", Mon, 9, 10, "ada")],
+            p => p.Add(c => c.Availability, new[] { Working("ada", Mon, 6, 18) }));
+
+        foreach (var selector in new[] { ".cal-lines", ".cal-muted", ".cal-now", ".cal-legend-swatch", ".cal-allday-cell", ".cal-corner" })
+            Assert.All(cut.FindAll(selector), e => Assert.Equal("true", e.GetAttribute("aria-hidden")));
+        Assert.NotEmpty(cut.FindAll(".cal-muted"));
+        Assert.NotEmpty(cut.FindAll(".cal-now"));
+    }
+
+    [Fact]
+    public void A_persons_name_is_in_the_legend_the_column_header_and_the_events_accessible_name()
+    {
+        var cut = RenderColumns([Timed("a", Mon, 9, 10, "bob")]);
+
+        Assert.Contains("Bob Ross", cut.Find(".cal-legend-item[data-person-id='bob']").TextContent);
+        Assert.Contains("Bob Ross", cut.Find(".cal-person-head[data-person-id='bob']").TextContent);
+        Assert.Contains("Bob Ross", cut.Find("[data-event-id='a']").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void The_view_switch_reports_which_view_is_selected()
+    {
+        var cut = RenderCalendar(p => p.Add(c => c.View, CalendarView.Day));
+
+        Assert.Equal(["true", "false", "false"], cut.FindAll("[role='radio']").Select(r => r.GetAttribute("aria-checked")));
+    }
+
+    // ── S4 · Interop and cleanup ────────────────────────────────────────
+
+    [Fact]
+    public void The_time_grid_is_scrolled_to_InitialScrollTime_once_after_the_first_render()
+    {
+        var cut = RenderCalendar();
+
+        var call = Assert.Single(JSInterop.Invocations["dryl.calendar.scrollToTime"]);
+        Assert.Equal(7d / 24, (double)call.Arguments[1]!, 9);   // 07:00 of a whole day
+
+        // A later render — new parameters, a navigation, another time view — does
+        // not move the scroll position on its own.
+        cut.Render(p => p.Add(c => c.Loading, true));
+        cut.Find("button[aria-label='Next']").Click();
+        cut.Render(p => p.Add(c => c.View, CalendarView.Day));
+
+        Assert.Single(JSInterop.Invocations["dryl.calendar.scrollToTime"]);
+    }
+
+    [Fact]
+    public void InitialScrollTime_is_a_fraction_of_the_grid_between_DayStart_and_DayEnd()
+    {
+        RenderCalendar(p => p
+            .Add(c => c.DayStart, TimeSpan.FromHours(6))
+            .Add(c => c.DayEnd, TimeSpan.FromHours(18))
+            .Add(c => c.InitialScrollTime, TimeSpan.FromHours(9)));
+
+        Assert.Equal(0.25, (double)JSInterop.Invocations["dryl.calendar.scrollToTime"].Single().Arguments[1]!, 9);
+    }
+
+    [Fact]
+    public void An_InitialScrollTime_outside_the_grid_is_clamped_to_it()
+    {
+        RenderCalendar(p => p.Add(c => c.DayStart, TimeSpan.FromHours(9)).Add(c => c.DayEnd, TimeSpan.FromHours(17)));
+
+        Assert.Equal(0d, (double)JSInterop.Invocations["dryl.calendar.scrollToTime"].Single().Arguments[1]!, 9);
+    }
+
+    [Fact]
+    public void The_month_view_scrolls_nothing_and_a_time_grid_shown_later_is_scrolled_once()
+    {
+        var cut = RenderCalendar(p => p.Add(c => c.View, CalendarView.Month));
+
+        Assert.Empty(JSInterop.Invocations["dryl.calendar.scrollToTime"]);
+
+        cut.Render(p => p.Add(c => c.View, CalendarView.Week));
+
+        Assert.Single(JSInterop.Invocations["dryl.calendar.scrollToTime"]);
+    }
+
+    [Fact]
+    public void A_failing_scroll_call_is_swallowed()
+    {
+        JSInterop.SetupVoid("dryl.calendar.scrollToTime", _ => true)
+            .SetException(new Microsoft.JSInterop.JSException("The element is gone."));
+        var ranges = new List<CalendarRange>();
+
+        var cut = RenderCalendar(p => p.Add(c => c.OnRangeChanged, ranges.Add));
+
+        Assert.Equal(7, cut.FindAll(".cal-col").Count);
+        Assert.Single(ranges);   // the render carried on
+    }
+
+    [Fact]
+    public void A_closed_circuit_during_the_scroll_call_is_swallowed()
+    {
+        JSInterop.SetupVoid("dryl.calendar.scrollToTime", _ => true)
+            .SetException(new Microsoft.JSInterop.JSDisconnectedException("The circuit is gone."));
+
+        var cut = RenderCalendar();
+
+        Assert.Equal(7, cut.FindAll(".cal-col").Count);
     }
 }

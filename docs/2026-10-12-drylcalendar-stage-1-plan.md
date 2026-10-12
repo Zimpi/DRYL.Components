@@ -19,8 +19,8 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 | T2 — layout engine | Complete | `8460167` `feat(calendar): the layout engine`; gate passes (1394 tests, 89 new in `CalendarLayoutTests`, every row of the T2 table and every named edge case covered). Written by the main agent, not a subagent. Limitations below. |
 | T3 — shell: views, toolbar, time grid | Complete | `02ee9dd` `feat(calendar): views, toolbar and the time grid`; gate passes (1445 tests, 51 new in `DrylCalendarTests`); coverage has no missing `Source` path left for `F22`. Looked at in the browser on a pulled-forward website demo (`DRYL.Website`, branch `feat/calendar`, uncommitted until T7): week view in light mode, month view in dark mode, no console warning, no horizontal page scroll at 1280px. The scroll to `InitialScrollTime` and `CollapseBelow` arrive with T6. |
 | T4 — events | Complete | `45aa9b3` `feat(calendar): events in all three views`; gate passes (1473 tests, 28 new). Looked at on the website demo with sample events: week view in both colour modes, month view in light mode — tints over `--chart-1`…`--chart-6` hold up by eye in both modes, text stays readable. `People` came in with this task (colour and avatars need it); legend, hiding, columns and availability remain T5. Enter/exit motion of events remains T6. |
-| T5 — people and availability | Complete | `feat(calendar): people, columns and availability`; gate passes (1499 tests, 26 new). Looked at on the website demo (new example "Person columns and availability"): the day view with three person columns, an unassigned column, working hours, a labelled absence and a whole-day absence, in both colour modes. **Muted areas over `--line-soft`: clear in light mode, visible but faint in dark mode** (computed `rgba(255,255,255,0.04)` on the dark ground) — judged to hold up, flagged for the maintainer's eye rather than changed (`DESIGN-03`). |
-| T6 — motion, narrow layouts, accessibility, interop | Open | |
+| T5 — people and availability | Complete | `1ad8662` `feat(calendar): people, columns and availability`; gate passes (1499 tests, 26 new). Looked at on the website demo (new example "Person columns and availability"): the day view with three person columns, an unassigned column, working hours, a labelled absence and a whole-day absence, in both colour modes. **Muted areas over `--line-soft`: clear in light mode, visible but faint in dark mode** (computed `rgba(255,255,255,0.04)` on the dark ground) — judged to hold up, flagged for the maintainer's eye rather than changed (`DESIGN-03`). |
+| T6 — motion, narrow layouts, accessibility, interop | Complete | `feat(calendar): motion, narrow layouts and accessibility`; gate passes (1534 tests, 35 new), `node --test tests/js/*.test.mjs` passes (149, 5 new in `calendar.test.mjs`). Browser pass on the website demo, recorded under "T6 — what was looked at" below. |
 | T7 — website demo and catalog | Open | |
 | T8 — review, full verification, close the loop | Open | |
 
@@ -101,6 +101,65 @@ Recorded here as they arise; T8 turns those that fall short of a criterion into
 - **T5 — a hidden legend entry is dimmed with `opacity: 0.6`** and a hollow
   colour dot; there is no opacity token, and existing components write the
   number the same way.
+
+- **T6 — a view change fades the incoming grid in; the outgoing grid is removed
+  at once.** `S4` asks for the outgoing grid to fade out as well. Keeping it
+  mounted for its exit would leave its controls in the tab order while it fades
+  (`UX-07`); `DrylPresence` has no way to make its child inert, and changing
+  that primitive is outside this delivery. **A gap against `S4` "Motion".**
+- **T6 — events sit in a slot.** `DrylPresence` renders a wrapper that takes a
+  class but no style, so each event is `slot (position) > presence > button`.
+  An event that has left stays as a ghost in its slot until `OnExited`, with
+  `aria-hidden` and `tabindex="-1"`. In person columns, hiding a person removes
+  their whole column at once; their events do not play an exit.
+- **T6 — events loaded after a navigation enter together, a beat after their
+  grid.** A host that answers `OnRangeChanged` asynchronously hands the events
+  over in a later render; they then enter with the event transition, all at
+  once, not staggered. Events already in `Events` when the range changes arrive
+  with the grid and play no enter of their own.
+- **T6 — the time grid is scrolled whenever it is newly shown**, i.e. on the
+  first render and again when the user comes back from the month view (the
+  scroller is new DOM and would otherwise sit at midnight). Navigation and
+  day/week switches keep the scroller and its position.
+- **T6 — narrow and wide controls exist side by side in the markup** and are
+  switched by CSS: the week's header buttons (open the day) and its strip
+  buttons (select the day), the month's day number (opens the day) and its
+  picker (selects the day). The server cannot know the width.
+- **T6 — the strip's and the month's "has events" mark is visual only**
+  (`aria-hidden`); `CalendarLabels` has no text for it.
+- **T6 — in a box narrower than 120px the avatars and the recurring mark are
+  not shown**, and a single-line segment narrower than 150px drops its times
+  (container queries on the slot). The accessible name states all of it at any
+  width.
+- **T6 — the default `CollapseBelow` of `Md` is 768px of the calendar's own
+  width**, so a calendar in a 650px card is narrow on any screen. The website's
+  week, month and German demos set `Breakpoint.Sm` to show the full layouts.
+
+## T6 — what was looked at
+
+On `http://localhost:5044/components/calendar` (website branch `feat/calendar`),
+Chromium through Playwright, 2026-10-12:
+
+- **Both colour modes** — week, month and person columns in light and dark.
+- **Narrow inside a wide viewport** — at 1280px the demo card is 656px wide, so
+  the default `Md` collapsed the week to strip + one column and the month to
+  marks + day list; with `Sm` the same card shows the full layouts.
+- **375px viewport** — no horizontal page scroll (`scrollWidth - clientWidth`
+  = 0), calendars 297px wide, toolbar wraps, week strip shown; person columns
+  scroll sideways (576px in 285px) with the axis `position: sticky`. This pass
+  found the sticky header painting under the events; fixed (`.cal-head`
+  `z-index`), not re-photographed.
+- **Tab pass** (person columns): Previous, Today, Next, view switch, the three
+  legend entries, then the events column by column; every stop showed the
+  focus ring (the view switch its own).
+- **Motion** — Next/Previous: `presence-in-left` / `presence-in-right` at
+  0.24s on the grid, sticky header intact afterwards. Hiding a person: two
+  slots `is-exiting` with `presence-out-scale`, gone after the exit; showing
+  them again restored all thirteen.
+- **Reduced motion** — grid animation `none`, event and legend transitions
+  `0s`, exits finished at once. This pass found the week's day-header button
+  still transitioning (selector specificity); fixed, not re-measured.
+- **Not looked at:** a real screen reader, forced-colors, Firefox and Safari.
 
 ## Decisions carried from the spec
 
