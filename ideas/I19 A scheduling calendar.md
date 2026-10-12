@@ -1,7 +1,7 @@
 # A scheduling calendar
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
 
 ## Problem
 
@@ -180,6 +180,21 @@ Second pass by the Tech Lead, 2026-10-12, against the scope decided so far.
 - 2026-10-12 (Product Owner): the final version — problem, the three stages,
   what is out of scope, and the impact above — is **confirmed**. The idea is
   `Ready`.
+
+## Resulting specs
+
+- [`../specs/E5 Data/F22 DrylCalendar/_Component.md`](../specs/E5%20Data/F22%20DrylCalendar/_Component.md) —
+  stage one, with its stories `S1` to `S4` beside it.
+- Stages two and three have not been specified yet; their stories are appended
+  to the same folder.
+
+One statement under Impact did not survive the spec: the event model does not
+have to carry the later stages' members from the start. `CalendarEvent` is a
+record without a positional constructor, so a member is added later without
+breaking a host. What stage one freezes is the model's shape — identity, the
+exclusive end, the list of people — and an `Ai` member is deliberately left to
+stage three, because a state nothing draws would be shipped in the assembly and
+absent from the screen (`SPEC-05`).
 
 ## Open Points
 

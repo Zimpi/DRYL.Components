@@ -301,6 +301,113 @@ The server-mode contract, both `sealed record`s.
 | `RowEditEventArgs<TItem>` | `(TItem Item, TItem EditedItem)` | Raised on commit. `Item` is the original; `EditedItem` is the working copy, or the same instance when no `CloneRow` was supplied. |
 | `RowReorderEventArgs` | `(int OldIndex, int NewIndex)` | Raised after a row move. Indices into the displayed view. |
 
+## The calendar's types
+
+The types of `DrylCalendar`, specified in `F22 DrylCalendar/`. Whether they are
+in the code yet is what that spec's `State` says; the counts and inventories
+elsewhere in this file describe the category as implemented and are brought up
+to date when the calendar is.
+
+The enums are namespace-level, each in its own file beside the component; the
+records live under `Models/`, as the table's do.
+
+### `CalendarView`
+
+| Member | Notes |
+|---|---|
+| `Week` | Seven days as a time grid. The default. |
+| `Day` | One day as a time grid. |
+| `Month` | A grid of days, one row per week. |
+
+### `CalendarPersonLayout`
+
+| Member | Notes |
+|---|---|
+| `Overlay` | Every person's events share one grid, told apart by colour. The default. |
+| `Columns` | A column per person. Applies to the day view; the other views stay overlaid. |
+
+### `CalendarColor`
+
+| Member | Notes |
+|---|---|
+| `Auto` | Resolved by the calendar: an event takes its first person's colour, a person takes a slot by position. The default. |
+| `Slot1` … `Slot6` | The six categorical slots, drawn from `--chart-1` … `--chart-6`. |
+
+There is deliberately no member for a free colour value: a value the host picks
+guarantees no contrast in either colour mode and would not follow a theme.
+
+### `CalendarAvailabilityKind`
+
+| Member | Notes |
+|---|---|
+| `Working` | A span in which the person works. The default. |
+| `Absent` | A span in which the person is away. |
+
+### `CalendarEvent`
+
+A `sealed record` with `init` properties and no positional constructor, so a
+later stage can add a member without breaking a host that constructs one.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `Id` | `string` | required | Stable identity of the event. |
+| `Title` | `string` | `""` | The event's name. |
+| `Start` | `DateTime` | required | When it starts, as a wall-clock time. |
+| `End` | `DateTime` | required | When it ends, exclusive. |
+| `AllDay` | `bool` | `false` | It takes whole days; only the dates of `Start` and `End` count. |
+| `PersonIds` | `IReadOnlyList<string>` | `[]` | The ids of the people it is assigned to. |
+| `Color` | `CalendarColor` | `CalendarColor.Auto` | Its colour slot. |
+| `SeriesId` | `string?` | `null` | Set when the event is one occurrence of a recurring series. |
+| `Data` | `object?` | `null` | The host's own object behind the event; the calendar never reads it. |
+
+### `CalendarPerson`
+
+A `sealed record` with `init` properties.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `Id` | `string` | required | Stable identity of the person. |
+| `Name` | `string` | required | Shown in the legend, in column headers and in accessible names. |
+| `AvatarSrc` | `string?` | `null` | Image for the avatar; without one the avatar shows initials from `Name`. |
+| `Color` | `CalendarColor` | `CalendarColor.Auto` | Their colour slot. |
+
+### `CalendarAvailability`
+
+A `sealed record` with `init` properties.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `PersonId` | `string` | required | The person the span belongs to. |
+| `Start` | `DateTime` | required | When the span starts, as a wall-clock time. |
+| `End` | `DateTime` | required | When it ends, exclusive. |
+| `Kind` | `CalendarAvailabilityKind` | `CalendarAvailabilityKind.Working` | Working time or an absence. |
+| `Label` | `string?` | `null` | Names an absence, e.g. a holiday. |
+
+### `CalendarRange`
+
+A `readonly record struct` of a `Start` and an `End`, both `DateTime`, the end
+exclusive. Raised by `OnRangeChanged`; both values are midnights.
+
+### `CalendarLabels`
+
+A `sealed record` with `init` properties, each defaulting to an English text.
+
+| Member | Default | Used for |
+|---|---|---|
+| `Today` | `"Today"` | The today control. |
+| `Previous` | `"Previous"` | Tooltip and accessible name of the previous control. |
+| `Next` | `"Next"` | Tooltip and accessible name of the next control. |
+| `Day` | `"Day"` | The view switch. |
+| `Week` | `"Week"` | The view switch. |
+| `Month` | `"Month"` | The view switch. |
+| `AllDay` | `"All day"` | The all-day row, and an all-day event's accessible name. |
+| `More` | `"+{0} more"` | The month view's overflow control; `{0}` is the number hidden. |
+| `Unassigned` | `"Unassigned"` | Header of the column for events without a person. |
+| `Recurring` | `"Recurring"` | Accessible name of the recurring-event mark. |
+| `People` | `"People"` | Accessible label of the legend. |
+| `Loading` | `"Loading"` | The loading status. |
+| `NoEvents` | `"No events"` | The narrow month view's list for a day without events. |
+
 ## The AI parameters
 
 Five of the twenty-one components — `DrylCodeBlock`, `DrylImage`, `DrylStat`,

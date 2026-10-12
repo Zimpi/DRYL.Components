@@ -90,6 +90,21 @@ column-visibility menu are hand-built, rendered in place rather than portalled,
 and therefore clipped inside a scrolling table — and each answers `Escape` only
 if the user has focused it first, which nothing does when it opens.
 
+### `DrylCalendar` — one call, and a timer
+
+Specified in `F22 DrylCalendar/`; whether it is in the code yet is what that
+spec's `State` says, and the table and the counts in this file are brought up to
+date when it is.
+
+In stage one the calendar needs JS for exactly one thing the server cannot do:
+setting the time grid's scroll position so that `InitialScrollTime` is in view,
+once, after the first interactive render. The call is best-effort, skipped
+during prerender, and hands out no object reference. Everything else — the
+layout of events, the narrow layouts, the motion — is markup and CSS.
+
+It also holds a timer, which advances the current-time line while `Now` is
+`null`. No timer exists while `Now` is set.
+
 ## Services
 
 **None.** No component in this category injects a DRYL service, registers one,
