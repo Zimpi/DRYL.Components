@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [Agents 0.21.0] — 2026-10-07
+## [Agents 0.21.0] — 2026-10-12
 
 Agents-only release; the core package stays at 3.4.0.
 
@@ -26,6 +26,7 @@ Agents-only release; the core package stays at 3.4.0.
 
 ### Changed
 - `DRYL.Components.Agents` (Agents 0.21.0) — The ElevenLabs transport loads the official `@elevenlabs/client` SDK (MIT) in the browser from a version-pinned jsDelivr URL, and only when `DrylVoiceOptions.ElevenLabs` is set. Point `DrylElevenLabsOptions.ClientScriptUrl` at a copy on your own origin to avoid the CDN. Hosts that do not use the transport load nothing new.
+- `DRYL.Components.Agents` (Agents 0.21.0) — Minimum `Microsoft.Agents.AI` raised from 1.23.0 to 1.24.0. No API of this package changes; consumers pinned to 1.23.x need to move up with it.
 
 ## [3.4.0] — 2026-10-06
 
