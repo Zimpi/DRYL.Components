@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.5.0] — 2026-10-12
+
+### Added
+- `DrylCalendar` — New scheduling calendar, stage one (show). This entry starts with its types: the enums `CalendarView` (`Week` / `Day` / `Month`), `CalendarPersonLayout` (`Overlay` / `Columns`), `CalendarColor` (`Auto`, `Slot1`–`Slot6`, the six chart colours) and `CalendarAvailabilityKind` (`Working` / `Absent`), and the records `CalendarEvent`, `CalendarPerson`, `CalendarAvailability`, `CalendarRange` and `CalendarLabels`. The records use `init` properties and no positional constructor, so later stages can add members without breaking a host.
+
 ## [Agents 0.21.0] — 2026-10-12
 
 Agents-only release; the core package stays at 3.4.0.

@@ -15,7 +15,7 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 | Task | State | Commit / evidence |
 |---|---|---|
 | T0 — spec | Complete | `f67f168`; harness links pass; coverage reports only the eleven not-yet-existing `Source` paths of `F22`. |
-| T1 — types and version | Open | |
+| T1 — types and version | Complete | `feat(calendar): the calendar's types (3.5.0)`; gate passes (1305 tests, 10 new in `CalendarTypesTests`); coverage's missing `Source` paths of `F22` fall from eleven to the two component files. Doc comments name `DrylCalendar` as `<c>` rather than `<see cref>` until T3 creates the type — a cref to it does not resolve yet (CS1574). No browser pass: nothing renders yet. |
 | T2 — layout engine | Open | |
 | T3 — shell: views, toolbar, time grid | Open | |
 | T4 — events | Open | |
