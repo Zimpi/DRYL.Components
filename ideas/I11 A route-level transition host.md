@@ -1,7 +1,7 @@
 # A route-level transition host
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
 
 ## Problem
 
@@ -160,6 +160,11 @@ a navigation.
 - 2026-08-22 (Product Owner): the new interface member ships as a **default
   interface implementation**, so nobody implementing `IDrylViewTransition`
   breaks and the release stays MINOR.
+
+## Resulting specs
+
+- [`../specs/E1 Foundation/F1 DrylRouteTransition.md`](../specs/E1%20Foundation/F1%20DrylRouteTransition.md) —
+  implemented in 2.26.0.
 
 ## Open Points
 

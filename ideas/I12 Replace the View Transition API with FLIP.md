@@ -1,7 +1,7 @@
 # Replace the View Transition API with FLIP
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
 
 ## Problem
 
@@ -141,6 +141,13 @@ Sixty call sites across 18 code files were counted before the decision.
   blur and opacity on the real element instead of a merge filter over snapshots.
 - 2026-08-22 (Product Owner): the engine is **`IDrylMorph`**, matching the
   `DrylMorph` component and the PowerPoint analogy that prompted all of this.
+
+## Resulting specs
+
+- [`../specs/E9 Layout/F17 DrylMorph.md`](../specs/E9%20Layout/F17%20DrylMorph.md) —
+  the morph on FLIP, implemented in 3.0.0.
+- [`../specs/E1 Foundation/F1 DrylRouteTransition.md`](../specs/E1%20Foundation/F1%20DrylRouteTransition.md) —
+  the route transition on the same engine, implemented in 3.0.0.
 
 ## Open Points
 
