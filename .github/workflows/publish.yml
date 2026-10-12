@@ -147,6 +147,12 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
 
+      # The package and its symbols are pushed in separate steps. One push
+      # command shares a single timeout across both files, and with
+      # --skip-duplicate it never attempts the .snupkg once the .nupkg already
+      # exists — so a re-run after a half-finished publish would leave the
+      # version without symbols. Separate steps give each file its own budget
+      # and let a re-run deliver whatever is still missing.
       - name: Push DRYL.Components to nuget.org
         if: env.CORE_PUBLISH == 'true'
         run: >
@@ -154,6 +160,17 @@ jobs:
           --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
+          --no-symbols
+          --timeout 900
+
+      - name: Push DRYL.Components symbols to nuget.org
+        if: env.CORE_PUBLISH == 'true'
+        run: >
+          dotnet nuget push "artifacts/core/*.snupkg"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+          --timeout 900
 
       - name: Push DRYL.Components.Agents to nuget.org
         if: env.AGENTS_PUBLISH == 'true'
@@ -162,6 +179,17 @@ jobs:
           --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
+          --no-symbols
+          --timeout 900
+
+      - name: Push DRYL.Components.Agents symbols to nuget.org
+        if: env.AGENTS_PUBLISH == 'true'
+        run: >
+          dotnet nuget push "artifacts/agents/*.snupkg"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+          --timeout 900
 
       - name: Tag the core release
         if: env.CORE_PUBLISH == 'true'
