@@ -17,8 +17,8 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 | T0 — spec | Complete | `f67f168`; harness links pass; coverage reports only the eleven not-yet-existing `Source` paths of `F22`. |
 | T1 — types and version | Complete | `bcd3420` `feat(calendar): the calendar's types (3.5.0)`; gate passes (1305 tests, 10 new in `CalendarTypesTests`); coverage's missing `Source` paths of `F22` fall from eleven to the two component files. Doc comments name `DrylCalendar` as `<c>` rather than `<see cref>` until T3 creates the type — a cref to it does not resolve yet (CS1574). No browser pass: nothing renders yet. |
 | T2 — layout engine | Complete | `8460167` `feat(calendar): the layout engine`; gate passes (1394 tests, 89 new in `CalendarLayoutTests`, every row of the T2 table and every named edge case covered). Written by the main agent, not a subagent. Limitations below. |
-| T3 — shell: views, toolbar, time grid | Complete | `feat(calendar): views, toolbar and the time grid`; gate passes (1445 tests, 51 new in `DrylCalendarTests`); coverage has no missing `Source` path left for `F22`. Looked at in the browser on a pulled-forward website demo (`DRYL.Website`, branch `feat/calendar`, uncommitted until T7): week view in light mode, month view in dark mode, no console warning, no horizontal page scroll at 1280px. The scroll to `InitialScrollTime` and `CollapseBelow` arrive with T6. |
-| T4 — events | Open | |
+| T3 — shell: views, toolbar, time grid | Complete | `02ee9dd` `feat(calendar): views, toolbar and the time grid`; gate passes (1445 tests, 51 new in `DrylCalendarTests`); coverage has no missing `Source` path left for `F22`. Looked at in the browser on a pulled-forward website demo (`DRYL.Website`, branch `feat/calendar`, uncommitted until T7): week view in light mode, month view in dark mode, no console warning, no horizontal page scroll at 1280px. The scroll to `InitialScrollTime` and `CollapseBelow` arrive with T6. |
+| T4 — events | Complete | `feat(calendar): events in all three views`; gate passes (1473 tests, 28 new). Looked at on the website demo with sample events: week view in both colour modes, month view in light mode — tints over `--chart-1`…`--chart-6` hold up by eye in both modes, text stays readable. `People` came in with this task (colour and avatars need it); legend, hiding, columns and availability remain T5. Enter/exit motion of events remains T6. |
 | T5 — people and availability | Open | |
 | T6 — motion, narrow layouts, accessibility, interop | Open | |
 | T7 — website demo and catalog | Open | |
@@ -71,6 +71,23 @@ Recorded here as they arise; T8 turns those that fall short of a criterion into
   by pattern surgery (`October 12 – October 18, 2026`,
   `12. Oktober – 18. Oktober 2026`); a culture whose pattern is nothing but a
   weekday falls back to the short date.
+
+- **T4 — a segment's accessible name states the event's whole span** rather
+  than a word for "continues": `CalendarLabels` has no such member. A segment of
+  an event from Monday 22:00 to Tuesday 02:00 reads both days and both times in
+  each of its two segments.
+- **T4 — tab order is not strictly day-major in the week view.** The all-day row
+  sits above the grid, so all all-day bars (in day order) are reached before the
+  timed events (day by day, by start). In the month view a week row's day
+  numbers come first, then its events by day, bars before lines. `S4` asks for
+  day, then all-day before timed, then `Start`; a bar that spans days has one
+  place in the DOM.
+- **T4 — event avatars are `DrylAvatar`, scaled down inside the event** through
+  `::deep` from the calendar's own wrapper, because the avatar's smallest size
+  is taller than a month line. Where a box is too narrow, avatars and then the
+  recurring mark are clipped before the title is.
+- **T4 — a segment drawn shorter than 45 minutes is single-line** (`is-compact`),
+  so its text is cut at the box and not through the middle of a second line.
 
 ## Decisions carried from the spec
 

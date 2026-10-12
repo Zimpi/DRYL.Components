@@ -127,12 +127,15 @@ button.cal-day-head:hover {
     background: var(--accent-grad);
 }
 
+/* One row per lane; the row grows with its lanes and is there, empty, without any. */
 .cal-allday {
-    min-height: var(--sp-5);
+    grid-auto-rows: minmax(var(--sp-5), auto);
     border-top: 1px solid var(--line);
 }
 
 .cal-allday-label {
+    grid-row: 1 / span var(--cal-lanes);
+    grid-column: 1;
     padding: var(--sp-1) var(--sp-2);
     color: var(--fg-dim);
     font-size: 11px;
@@ -140,6 +143,7 @@ button.cal-day-head:hover {
 }
 
 .cal-allday-cell {
+    grid-row: 1 / span var(--cal-lanes);
     min-width: 0;
     border-left: 1px solid var(--line);
 }
@@ -220,13 +224,18 @@ button.cal-day-head:hover {
     text-align: center;
 }
 
+/* A row for the day numbers, one per event lane, and the rest of the height. */
 .cal-week {
     flex: 1 1 auto;
-    min-height: calc(var(--sp-7) * 2);
+    grid-template-rows:
+        calc(var(--sp-5) + var(--sp-2))
+        repeat(var(--cal-cap), var(--sp-5))
+        minmax(var(--sp-1), 1fr);
     border-top: 1px solid var(--line);
 }
 
 .cal-cell {
+    grid-row: 1 / -1;
     min-width: 0;
     padding: var(--sp-1);
     border-left: 1px solid var(--line);
@@ -268,5 +277,176 @@ button.cal-day-head:hover {
 /* Today's accent indicator — a 1px ring around the number (DESIGN-08). */
 .cal-cell.is-today .cal-cell-num {
     box-shadow: inset 0 0 0 1px var(--accent-line);
+    color: var(--fg);
+}
+
+/* ── Events ──────────────────────────────────────────────── */
+
+/* The six categorical slots the charts use. */
+.cal-event[data-color="1"] { --cal-c: var(--chart-1); }
+.cal-event[data-color="2"] { --cal-c: var(--chart-2); }
+.cal-event[data-color="3"] { --cal-c: var(--chart-3); }
+.cal-event[data-color="4"] { --cal-c: var(--chart-4); }
+.cal-event[data-color="5"] { --cal-c: var(--chart-5); }
+.cal-event[data-color="6"] { --cal-c: var(--chart-6); }
+
+/* Colour is a tint and an edge, never a solid fill (DESIGN-08); the text stays
+   --fg so its contrast does not depend on the slot. The tint sits on the opaque
+   ground, so grid lines and muted areas do not show through the text. */
+.cal-event {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    min-width: 0;
+    padding: 0 var(--sp-2);
+    overflow: hidden;
+    border: 0;
+    border-left: calc(var(--sp-1) * 0.75) solid var(--cal-c);
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--cal-c) 18%, var(--bg-2));
+    color: var(--fg);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) / -2);
+    transition: background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.cal-event:hover,
+.cal-event:focus-visible {
+    background: color-mix(in srgb, var(--cal-c) 28%, var(--bg-2));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cal-c) 50%, transparent);
+}
+
+.cal-event:focus-visible {
+    z-index: 3;
+}
+
+.cal-event-title {
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-event-time {
+    flex: none;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Where a box is too narrow for everything, the avatars give way first, then
+   the recurring mark, and only then the title. */
+.cal-event-recurring {
+    display: inline-flex;
+    flex: 0 999 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--fg-muted);
+}
+
+.cal-event-people {
+    display: inline-flex;
+    flex: 0 9999 auto;
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    gap: calc(var(--sp-1) / 2);
+    margin-left: auto;
+}
+
+/* DrylAvatar renders the avatar; inside an event it is a mark, not a portrait,
+   so it is scaled to the text and loses its glow. */
+.cal-event-people ::deep .avatar {
+    flex-basis: var(--sp-4);
+    width: var(--sp-4);
+    height: var(--sp-4);
+    box-shadow: 0 0 0 1px var(--bg-2);
+    font-size: 8px;
+}
+
+/* A timed segment: placed by percentages inside its day column. */
+.cal-event--timed {
+    position: absolute;
+    z-index: 2;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    align-items: baseline;
+    column-gap: var(--sp-2);
+    row-gap: 0;
+    padding-block: calc(var(--sp-1) / 2);
+    /* Keep a hairline of the ground visible between neighbours. */
+    box-shadow: 0 0 0 1px var(--bg-2);
+}
+
+.cal-event--timed:hover,
+.cal-event--timed:focus-visible {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--cal-c) 50%, transparent);
+}
+
+/* Title and times share a line while they fit and wrap when they do not; an
+   event too short for a second line simply shows its title. */
+.cal-event--timed .cal-event-title {
+    flex: 0 1 auto;
+}
+
+/* Too short for a second line: everything on one, and what does not fit is cut
+   at the box rather than through the middle of a line. */
+.cal-event--timed.is-compact {
+    flex-wrap: nowrap;
+    align-items: center;
+    padding-block: 0;
+}
+
+/* A bar or line: placed on the lanes of the all-day row or a month's week row. */
+.cal-event--bar,
+.cal-event--line {
+    z-index: 1;
+    align-self: center;
+    height: calc(var(--sp-5) - var(--sp-1));
+    margin-inline: calc(var(--sp-1) / 2);
+}
+
+/* A line carries its colour as the edge alone and takes the tint on hover. */
+.cal-event--line {
+    background: none;
+}
+
+/* A box that continues into another day or row is squared off at that edge. */
+.cal-event--timed.is-continued-before { border-top-left-radius: 0; border-top-right-radius: 0; }
+.cal-event--timed.is-continued-after  { border-bottom-right-radius: 0; border-bottom-left-radius: 0; }
+.cal-event--bar.is-continued-before   { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cal-event--bar.is-continued-after    { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+.cal-more {
+    z-index: 1;
+    align-self: center;
+    min-width: 0;
+    height: calc(var(--sp-5) - var(--sp-1));
+    margin-inline: calc(var(--sp-1) / 2);
+    padding: 0 var(--sp-2);
+    overflow: hidden;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: none;
+    color: var(--fg-muted);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    outline-offset: calc(var(--sp-1) / -2);
+    transition: color var(--dur-fast) var(--ease-out),
+                background-color var(--dur-fast) var(--ease-out);
+}
+
+.cal-more:hover {
+    background-color: var(--glass-2);
     color: var(--fg);
 }

@@ -630,4 +630,426 @@ public class DrylCalendarTests : BunitContext
 
         Assert.Equal("polite", cut.Find(".cal-title").GetAttribute("aria-live"));
     }
+
+    // ── S2 · Events ─────────────────────────────────────────────────────
+
+    private static readonly CalendarPerson Ada = new() { Id = "ada", Name = "Ada Lovelace" };
+    private static readonly CalendarPerson Bob = new() { Id = "bob", Name = "Bob Ross" };
+    private static readonly CalendarPerson Cy = new() { Id = "cy", Name = "Cy Twombly", Color = CalendarColor.Slot5 };
+
+    private static DateTime At(DateOnly day, int hour, int minute = 0) => day.ToDateTime(new TimeOnly(hour, minute));
+
+    private static CalendarEvent Timed(string id, DateOnly day, int fromHour, int toHour, params string[] people)
+        => new() { Id = id, Title = id, Start = At(day, fromHour), End = At(day, toHour), PersonIds = people };
+
+    private static CalendarEvent AllDay(string id, DateOnly from, DateOnly endExclusive)
+        => new() { Id = id, Title = id, AllDay = true, Start = from.ToDateTime(TimeOnly.MinValue), End = endExclusive.ToDateTime(TimeOnly.MinValue) };
+
+    private IRenderedComponent<DrylCalendar> RenderEvents(
+        IEnumerable<CalendarEvent> events,
+        Action<ComponentParameterCollectionBuilder<DrylCalendar>>? configure = null)
+        => RenderCalendar(p =>
+        {
+            p.Add(c => c.Events, events);
+            p.Add(c => c.People, new[] { Ada, Bob, Cy });
+            configure?.Invoke(p);
+        });
+
+    private static string Text(AngleSharp.Dom.IElement element) => element.TextContent.Trim().Replace(' ', ' ');
+
+    [Fact]
+    public void A_timed_event_is_drawn_in_the_column_of_its_day_from_its_Start_to_its_End()
+    {
+        var cut = RenderEvents([Timed("standup", Mon.AddDays(2), 9, 12)]);
+
+        var box = Assert.Single(cut.FindAll(".cal-event"));
+        Assert.Equal("2026-10-14", box.ParentElement!.GetAttribute("data-date"));
+        Assert.Equal("top:37.5%;height:12.5%;left:0%;width:100%", box.GetAttribute("style"));
+        Assert.Contains("cal-event--timed", box.ClassList);
+    }
+
+    [Fact]
+    public void An_event_whose_End_is_not_later_than_its_Start_is_drawn_one_slot_long()
+    {
+        var cut = RenderEvents([Timed("point", Mon, 12, 12)]);
+
+        Assert.Equal("top:50%;height:2.0833%;left:0%;width:100%", cut.Find(".cal-event").GetAttribute("style"));
+    }
+
+    [Fact]
+    public void An_event_wholly_outside_the_visible_range_is_not_rendered()
+    {
+        var cut = RenderEvents([Timed("next-week", Mon.AddDays(7), 9, 10), AllDay("last-week", Mon.AddDays(-3), Mon.AddDays(-1))]);
+
+        Assert.Empty(cut.FindAll(".cal-event"));
+    }
+
+    [Fact]
+    public void Of_two_events_with_the_same_Id_the_later_one_is_not_rendered_and_it_is_reported_once()
+    {
+        var original = Console.Out;
+        var console = new StringWriter();
+        Console.SetOut(console);
+        IRenderedComponent<DrylCalendar> cut;
+        try
+        {
+            cut = RenderEvents([Timed("dup", Mon, 9, 10), Timed("dup", Mon, 14, 15)]);
+            cut.Render(p => p.Add(c => c.Loading, true));
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+
+        var box = Assert.Single(cut.FindAll(".cal-event"));
+        Assert.StartsWith("top:37.5%", box.GetAttribute("style"));
+        Assert.Equal(1, Occurrences(console.ToString(), "DrylCalendar: two events share an Id"));
+    }
+
+    [Fact]
+    public void An_event_crossing_midnight_is_one_segment_in_each_day_marked_as_continuing()
+    {
+        var late = new CalendarEvent { Id = "late", Title = "Late shift", Start = At(Mon, 22), End = At(Mon.AddDays(1), 2) };
+        var clicked = new List<CalendarEvent>();
+        var cut = RenderEvents([late], p => p.Add(c => c.OnEventClick, clicked.Add));
+
+        var segments = cut.FindAll(".cal-event");
+        Assert.Equal(2, segments.Count);
+        Assert.Equal("2026-10-12", segments[0].ParentElement!.GetAttribute("data-date"));
+        Assert.Contains("is-continued-after", segments[0].ClassList);
+        Assert.DoesNotContain("is-continued-before", segments[0].ClassList);
+        Assert.Equal("2026-10-13", segments[1].ParentElement!.GetAttribute("data-date"));
+        Assert.Contains("is-continued-before", segments[1].ClassList);
+
+        cut.FindAll(".cal-event")[0].Click();
+        cut.FindAll(".cal-event")[1].Click();
+
+        Assert.Equal(2, clicked.Count);
+        Assert.All(clicked, e => Assert.Same(late, e));
+        // A segment's name states the whole span, so it says where it continues.
+        Assert.Equal(
+            "Late shift, Monday, October 12, 2026 10:00 PM – Tuesday, October 13, 2026 2:00 AM",
+            cut.FindAll(".cal-event")[1].GetAttribute("aria-label")!.Replace(' ', ' '));
+    }
+
+    [Fact]
+    public void A_timed_event_of_a_day_or_longer_is_drawn_in_the_all_day_row_instead_of_the_grid()
+    {
+        var cut = RenderEvents([new CalendarEvent { Id = "trip", Title = "Trip", Start = At(Mon, 9), End = At(Mon.AddDays(2), 9) }]);
+
+        var bar = Assert.Single(cut.FindAll(".cal-event"));
+        Assert.Contains("cal-event--bar", bar.ClassList);
+        Assert.Contains("cal-allday", bar.ParentElement!.ClassList);
+        Assert.Equal("grid-column:2 / span 3;grid-row:1", bar.GetAttribute("style"));
+    }
+
+    [Fact]
+    public void Overlapping_events_of_one_column_are_drawn_side_by_side()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 11), Timed("b", Mon, 10, 12), Timed("alone", Mon, 14, 15)]);
+
+        Assert.EndsWith("left:0%;width:50%", cut.Find("[data-event-id='a']").GetAttribute("style"));
+        Assert.EndsWith("left:50%;width:50%", cut.Find("[data-event-id='b']").GetAttribute("style"));
+        Assert.EndsWith("left:0%;width:100%", cut.Find("[data-event-id='alone']").GetAttribute("style"));
+    }
+
+    [Fact]
+    public void An_all_day_event_is_a_bar_spanning_its_days_in_the_all_day_row()
+    {
+        var cut = RenderEvents([AllDay("fair", Mon.AddDays(1), Mon.AddDays(4))]);
+
+        var bar = cut.Find(".cal-allday .cal-event--bar");
+        Assert.Equal("grid-column:3 / span 3;grid-row:1", bar.GetAttribute("style"));
+        Assert.DoesNotContain("is-continued-before", bar.ClassList);
+        Assert.DoesNotContain("is-continued-after", bar.ClassList);
+        Assert.Equal("fair, Tuesday, October 13, 2026 – Thursday, October 15, 2026, All day", bar.GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void A_bar_that_leaves_the_visible_range_is_marked_as_continuing_at_that_edge()
+    {
+        var cut = RenderEvents([AllDay("before", Mon.AddDays(-2), Mon.AddDays(1)), AllDay("after", Mon.AddDays(6), Mon.AddDays(9))]);
+
+        Assert.Contains("is-continued-before", cut.Find("[data-event-id='before']").ClassList);
+        Assert.DoesNotContain("is-continued-after", cut.Find("[data-event-id='before']").ClassList);
+        Assert.Contains("is-continued-after", cut.Find("[data-event-id='after']").ClassList);
+    }
+
+    [Fact]
+    public void Bars_that_share_a_day_are_stacked_in_lanes_and_the_row_grows_to_fit_them()
+    {
+        var cut = RenderEvents([AllDay("a", Mon, Mon.AddDays(3)), AllDay("b", Mon.AddDays(2), Mon.AddDays(4))]);
+
+        Assert.EndsWith("grid-row:1", cut.Find("[data-event-id='a']").GetAttribute("style"));
+        Assert.EndsWith("grid-row:2", cut.Find("[data-event-id='b']").GetAttribute("style"));
+        Assert.Equal("--cal-lanes:2", cut.Find(".cal-allday").GetAttribute("style"));
+    }
+
+    [Fact]
+    public void The_all_day_row_is_rendered_empty_when_no_event_needs_it()
+    {
+        var cut = RenderEvents([Timed("a", Mon, 9, 10)]);
+
+        Assert.Equal("--cal-lanes:1", cut.Find(".cal-allday").GetAttribute("style"));
+        Assert.Empty(cut.FindAll(".cal-allday .cal-event"));
+    }
+
+    // ── S2 · The month view ─────────────────────────────────────────────
+
+    private IRenderedComponent<DrylCalendar> RenderMonth(
+        IEnumerable<CalendarEvent> events,
+        Action<ComponentParameterCollectionBuilder<DrylCalendar>>? configure = null)
+        => RenderEvents(events, p =>
+        {
+            p.Add(c => c.View, CalendarView.Month);
+            configure?.Invoke(p);
+        });
+
+    [Fact]
+    public void A_single_day_timed_event_is_a_line_with_its_start_time_before_its_title()
+    {
+        var cut = RenderMonth([Timed("review", Mon, 9, 10)]);
+
+        var line = Assert.Single(cut.FindAll(".cal-event"));
+        Assert.Contains("cal-event--line", line.ClassList);
+        Assert.Equal("grid-column:1 / span 1;grid-row:2", line.GetAttribute("style"));
+        Assert.Equal("2026-10-12", line.ParentElement!.QuerySelector(".cal-cell")!.GetAttribute("data-date"));
+        var children = line.Children;
+        Assert.Contains("cal-event-time", children[0].ClassList);
+        Assert.Equal("9:00 AM", Text(children[0]));
+        Assert.Equal("review", Text(children[1]));
+    }
+
+    [Fact]
+    public void An_all_day_or_multi_day_event_is_a_bar_that_continues_in_the_next_week_row()
+    {
+        var cut = RenderMonth([AllDay("fair", Mon.AddDays(5), Mon.AddDays(9))]);   // Saturday to Tuesday
+
+        var bars = cut.FindAll(".cal-event--bar");
+        Assert.Equal(2, bars.Count);
+        Assert.Equal("grid-column:6 / span 2;grid-row:2", bars[0].GetAttribute("style"));
+        Assert.Contains("is-continued-after", bars[0].ClassList);
+        Assert.Equal("grid-column:1 / span 2;grid-row:2", bars[1].GetAttribute("style"));
+        Assert.Contains("is-continued-before", bars[1].ClassList);
+    }
+
+    [Fact]
+    public void Within_a_cell_bars_are_placed_above_lines_and_lines_are_ordered_by_Start()
+    {
+        var cut = RenderMonth([Timed("late", Mon, 15, 16), Timed("early", Mon, 9, 10), AllDay("bar", Mon, Mon.AddDays(1))]);
+
+        Assert.EndsWith("grid-row:2", cut.Find("[data-event-id='bar']").GetAttribute("style"));
+        Assert.EndsWith("grid-row:3", cut.Find("[data-event-id='early']").GetAttribute("style"));
+        Assert.EndsWith("grid-row:4", cut.Find("[data-event-id='late']").GetAttribute("style"));
+        Assert.Equal(["bar", "early", "late"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        Assert.Empty(cut.FindAll(".cal-more"));
+    }
+
+    [Fact]
+    public void A_cell_with_more_events_than_fit_renders_an_overflow_control_naming_how_many_are_hidden()
+    {
+        var cut = RenderMonth([Timed("a", Mon, 9, 10), Timed("b", Mon, 10, 11), Timed("c", Mon, 11, 12), Timed("d", Mon, 12, 13)]);
+
+        Assert.Equal(["a", "b"], cut.FindAll(".cal-event").Select(e => e.GetAttribute("data-event-id")));
+        var more = Assert.Single(cut.FindAll(".cal-more"));
+        Assert.Equal("+2 more", more.TextContent.Trim());
+        Assert.Equal("grid-column:1 / span 1;grid-row:4", more.GetAttribute("style"));
+    }
+
+    [Fact]
+    public void The_overflow_control_uses_the_More_label()
+    {
+        var cut = RenderMonth(
+            [Timed("a", Mon, 9, 10), Timed("b", Mon, 10, 11), Timed("c", Mon, 11, 12), Timed("d", Mon, 12, 13)],
+            p => p.Add(c => c.Labels, new CalendarLabels { More = "{0} weitere" }));
+
+        Assert.Equal("2 weitere", cut.Find(".cal-more").TextContent.Trim());
+    }
+
+    [Fact]
+    public void Activating_the_overflow_control_switches_to_the_day_view_of_that_day()
+    {
+        var dates = new List<DateOnly>();
+        var views = new List<CalendarView>();
+        var cut = RenderMonth(
+            [Timed("a", Mon.AddDays(3), 9, 10), Timed("b", Mon.AddDays(3), 10, 11), Timed("c", Mon.AddDays(3), 11, 12), Timed("d", Mon.AddDays(3), 12, 13)],
+            p => p.Add(c => c.DateChanged, dates.Add).Add(c => c.ViewChanged, views.Add));
+
+        cut.Find(".cal-more").Click();
+
+        Assert.Equal(Mon.AddDays(3), Assert.Single(dates));
+        Assert.Equal(CalendarView.Day, Assert.Single(views));
+        Assert.Equal(4, cut.FindAll(".cal-event--timed").Count);
+    }
+
+    // ── S2 · What an event shows ────────────────────────────────────────
+
+    [Fact]
+    public void A_timed_event_renders_its_title_and_its_start_and_end_time()
+    {
+        var cut = RenderEvents([new CalendarEvent { Id = "e", Title = "Design review", Start = At(Mon, 9), End = At(Mon, 10, 30) }]);
+
+        var box = cut.Find(".cal-event");
+        Assert.Equal("Design review", Text(box.QuerySelector(".cal-event-title")!));
+        Assert.Equal("9:00 AM – 10:30 AM", Text(box.QuerySelector(".cal-event-time")!));
+        Assert.Null(box.QuerySelector(".cal-event-recurring"));
+        Assert.Null(box.QuerySelector(".cal-event-people"));
+    }
+
+    [Fact]
+    public void Times_are_formatted_with_Culture()
+    {
+        var cut = RenderCalendar(
+            p => p.Add(c => c.Events, new[] { Timed("e", Mon, 9, 17) }),
+            culture: DeDe);
+
+        Assert.Equal("09:00 – 17:00", Text(cut.Find(".cal-event-time")));
+    }
+
+    [Fact]
+    public void An_event_renders_its_people_as_avatars_in_the_order_of_PersonIds()
+    {
+        var cut = RenderEvents([Timed("e", Mon, 9, 10, "bob", "ghost", "ada")]);
+
+        var avatars = cut.FindAll(".cal-event-people .avatar");
+        Assert.Equal(2, avatars.Count);
+        Assert.Equal("BR", avatars[0].TextContent.Trim());
+        Assert.Equal("AL", avatars[1].TextContent.Trim());
+    }
+
+    [Fact]
+    public void An_event_with_a_SeriesId_renders_a_recurring_mark_with_its_accessible_name()
+    {
+        var cut = RenderEvents(
+        [
+            Timed("mon", Mon, 9, 10) with { SeriesId = "weekly" },
+            Timed("tue", Mon.AddDays(1), 9, 10) with { SeriesId = "weekly" },
+            Timed("single", Mon.AddDays(2), 9, 10)
+        ], p => p.Add(c => c.Labels, new CalendarLabels { Recurring = "Wiederkehrend" }));
+
+        // Two occurrences are two independent events; nothing is derived from the series but the mark.
+        Assert.Equal(3, cut.FindAll(".cal-event").Count);
+        var marks = cut.FindAll(".cal-event-recurring svg");
+        Assert.Equal(2, marks.Count);
+        Assert.All(marks, m => Assert.Equal("Wiederkehrend", m.GetAttribute("aria-label")));
+        Assert.EndsWith(", Wiederkehrend", cut.Find("[data-event-id='mon']").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void EventTemplate_replaces_the_content_but_not_the_box()
+    {
+        var events = new[] { Timed("e", Mon, 9, 10, "cy") with { SeriesId = "s" } };
+        var plain = RenderEvents(events);
+        var templated = RenderEvents(events, p => p.Add(c => c.EventTemplate, e => $"<em class=\"mine\">{e.Id}!</em>"));
+
+        var box = templated.Find(".cal-event");
+        Assert.Equal("e!", box.QuerySelector(".mine")!.TextContent);
+        Assert.Null(box.QuerySelector(".cal-event-title"));
+        Assert.Null(box.QuerySelector(".cal-event-time"));
+        Assert.Null(box.QuerySelector(".cal-event-people"));
+        Assert.Null(box.QuerySelector(".cal-event-recurring"));
+
+        var original = plain.Find(".cal-event");
+        Assert.Equal("BUTTON", box.TagName);
+        Assert.Equal(original.GetAttribute("style"), box.GetAttribute("style"));
+        Assert.Equal(original.GetAttribute("data-color"), box.GetAttribute("data-color"));
+        Assert.Equal(original.GetAttribute("class"), box.GetAttribute("class"));
+        Assert.Equal(original.GetAttribute("aria-label"), box.GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void An_events_accessible_name_states_title_day_times_people_and_that_it_recurs()
+    {
+        var cut = RenderEvents([new CalendarEvent
+        {
+            Id = "e", Title = "Design review", Start = At(Mon, 9), End = At(Mon, 10),
+            PersonIds = ["ada", "bob"], SeriesId = "weekly"
+        }]);
+
+        Assert.Equal(
+            "Design review, Monday, October 12, 2026, 9:00 AM – 10:00 AM, Ada Lovelace, Bob Ross, Recurring",
+            cut.Find(".cal-event").GetAttribute("aria-label")!.Replace(' ', ' '));
+    }
+
+    // ── S2 · Colour ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void An_event_carries_its_colour_as_a_slot_attribute_never_as_an_inline_colour()
+    {
+        var cut = RenderEvents(
+        [
+            Timed("explicit", Mon, 8, 9, "ada") with { Color = CalendarColor.Slot4 },
+            Timed("first-known", Mon, 10, 11, "ghost", "bob", "ada"),
+            Timed("person-slot", Mon, 12, 13, "cy"),
+            Timed("nobody", Mon, 14, 15)
+        ]);
+
+        Assert.Equal("4", cut.Find("[data-event-id='explicit']").GetAttribute("data-color"));
+        Assert.Equal("2", cut.Find("[data-event-id='first-known']").GetAttribute("data-color"));
+        Assert.Equal("5", cut.Find("[data-event-id='person-slot']").GetAttribute("data-color"));
+        Assert.Equal("1", cut.Find("[data-event-id='nobody']").GetAttribute("data-color"));
+        Assert.All(cut.FindAll(".cal-event"), e => Assert.DoesNotContain("color", e.GetAttribute("style")));
+    }
+
+    // ── S2 · Activating an event ────────────────────────────────────────
+
+    [Fact]
+    public void Every_rendered_event_is_a_button_and_activating_it_fires_OnEventClick_with_that_event()
+    {
+        var review = Timed("review", Mon, 9, 10);
+        var fair = AllDay("fair", Mon, Mon.AddDays(2));
+        var clicked = new List<CalendarEvent>();
+        var cut = RenderEvents([review, fair], p => p.Add(c => c.OnEventClick, clicked.Add));
+
+        Assert.All(cut.FindAll(".cal-event"), e =>
+        {
+            Assert.Equal("BUTTON", e.TagName);
+            Assert.Equal("button", e.GetAttribute("type"));
+        });
+
+        cut.Find("[data-event-id='review']").Click();
+        cut.Find("[data-event-id='fair']").Click();
+
+        Assert.Equal(2, clicked.Count);
+        Assert.Same(review, clicked[0]);
+        Assert.Same(fair, clicked[1]);
+    }
+
+    [Fact]
+    public void An_event_is_focusable_whether_or_not_OnEventClick_has_a_handler()
+    {
+        var cut = RenderEvents([Timed("review", Mon, 9, 10)]);
+
+        var box = cut.Find(".cal-event");
+        Assert.False(box.HasAttribute("disabled"));
+        Assert.False(box.HasAttribute("tabindex"));
+        box.Click();   // no handler — nothing to raise, nothing thrown
+    }
+
+    [Fact]
+    public void Every_bar_of_one_event_in_the_month_view_fires_OnEventClick_with_the_same_event()
+    {
+        var fair = AllDay("fair", Mon.AddDays(5), Mon.AddDays(9));
+        var clicked = new List<CalendarEvent>();
+        var cut = RenderMonth([fair], p => p.Add(c => c.OnEventClick, clicked.Add));
+
+        cut.FindAll(".cal-event--bar")[0].Click();
+        cut.FindAll(".cal-event--bar")[1].Click();
+
+        Assert.Equal(2, clicked.Count);
+        Assert.All(clicked, e => Assert.Same(fair, e));
+    }
+
+    [Fact]
+    public void Events_with_equal_content_and_different_ids_render_side_by_side_without_a_key_clash()
+    {
+        // Records compare by content; keying on the record itself would give two
+        // siblings the same key. The key is the Id plus the segment's day.
+        var a = new CalendarEvent { Id = "a", Title = "Same", Start = At(Mon, 9), End = At(Mon, 10) };
+        var b = a with { Id = "b" };
+
+        var cut = RenderEvents([a, b]);
+
+        Assert.Equal(2, cut.FindAll(".cal-event").Count);
+    }
 }

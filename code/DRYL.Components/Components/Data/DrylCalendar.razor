@@ -92,12 +92,14 @@
                 @for (var w = 0; w < count / 7; w++)
                 {
                     var weekStart = first.AddDays(w * 7);
-                    <div class="cal-week" @key="weekStart">
+                    var week = CalendarLayout.MonthWeek(_events, weekStart, MonthCapacity);
+                    <div class="cal-week" style="@WeekStyle" @key="weekStart">
                         @for (var d = 0; d < 7; d++)
                         {
                             var day = weekStart.AddDays(d);
                             var isToday = day == Today;
                             <div class="@MonthCellClass(day, isToday)"
+                                 style="@Column(d + 1)"
                                  data-date="@Iso(day)"
                                  aria-current="@(isToday ? "date" : null)">
                                 <button type="button"
@@ -105,6 +107,49 @@
                                         aria-label="@LongDate(day)"
                                         @onclick="() => ShowDayAsync(day)">@day.Day.ToString(_culture)</button>
                             </div>
+                        }
+                        @* Bars before lines within a day, days in order — the order they are tabbed in. *@
+                        @foreach (var item in MonthItems(week))
+                        {
+                            if (item.Bar is { } bar)
+                            {
+                                var e = bar.Event;
+                                <button type="button"
+                                        class="@BarClass(bar)"
+                                        style="@Placement(bar.Column + 1, bar.Span, bar.Lane + 2)"
+                                        data-color="@Color(e)"
+                                        data-event-id="@e.Id"
+                                        aria-label="@EventName(e)"
+                                        @key="@($"{e.Id}|{Iso(weekStart)}")"
+                                        @onclick="() => OnEventClick.InvokeAsync(e)">
+                                    @EventContent(e, EventShape.Bar)
+                                </button>
+                            }
+                            else if (item.Line is { } line)
+                            {
+                                var e = line.Event;
+                                <button type="button"
+                                        class="cal-event cal-event--line"
+                                        style="@Placement(line.Column + 1, 1, line.Lane + 2)"
+                                        data-color="@Color(e)"
+                                        data-event-id="@e.Id"
+                                        aria-label="@EventName(e)"
+                                        @key="@($"{e.Id}|{Iso(weekStart)}")"
+                                        @onclick="() => OnEventClick.InvokeAsync(e)">
+                                    @EventContent(e, EventShape.Line)
+                                </button>
+                            }
+                        }
+                        @for (var d = 0; d < 7; d++)
+                        {
+                            if (week.Hidden[d] == 0) continue;
+                            var day = weekStart.AddDays(d);
+                            <button type="button"
+                                    class="cal-more"
+                                    style="@Placement(d + 1, 1, MonthCapacity + 1)"
+                                    data-date="@Iso(day)"
+                                    @key="@($"more|{Iso(day)}")"
+                                    @onclick="() => ShowDayAsync(day)">@string.Format(_culture, Labels.More, week.Hidden[d])</button>
                         }
                     </div>
                 }
@@ -114,6 +159,8 @@
         {
             var (first, count) = CalendarLayout.VisibleDays(_view, _date, FirstDay);
             var now = EffectiveNow;
+            var bars = CalendarLayout.Bars(_events.Where(CalendarLayout.IsAllDayRow), first, count);
+            var lanes = Math.Max(1, bars.Count == 0 ? 0 : bars.Max(b => b.Lane) + 1);
             <div class="cal-scroll">
                 <div class="cal-time" style="@TimeStyle(count)">
                     <div class="cal-head">
@@ -148,11 +195,25 @@
                                 }
                             }
                         </div>
-                        <div class="cal-allday">
+                        <div class="cal-allday" style="--cal-lanes:@lanes.ToString(CultureInfo.InvariantCulture)">
                             <div class="cal-allday-label">@Labels.AllDay</div>
                             @for (var d = 0; d < count; d++)
                             {
-                                <div class="cal-allday-cell" @key="first.AddDays(d)"></div>
+                                <div class="cal-allday-cell" style="@Column(d + 2)" aria-hidden="true" @key="first.AddDays(d)"></div>
+                            }
+                            @foreach (var bar in bars.OrderBy(b => b.Column).ThenBy(b => b.Lane))
+                            {
+                                var e = bar.Event;
+                                <button type="button"
+                                        class="@BarClass(bar)"
+                                        style="@Placement(bar.Column + 2, bar.Span, bar.Lane + 1)"
+                                        data-color="@Color(e)"
+                                        data-event-id="@e.Id"
+                                        aria-label="@EventName(e)"
+                                        @key="@($"{e.Id}|allday")"
+                                        @onclick="() => OnEventClick.InvokeAsync(e)">
+                                    @EventContent(e, EventShape.Bar)
+                                </button>
                             }
                         </div>
                     </div>
@@ -177,6 +238,20 @@
                             var day = first.AddDays(d);
                             var isToday = day == Today;
                             <div class="@(isToday ? "cal-col is-today" : "cal-col")" data-date="@Iso(day)" @key="day">
+                                @foreach (var segment in CalendarLayout.Column(_events, day, _grid))
+                                {
+                                    var e = segment.Event;
+                                    <button type="button"
+                                            class="@SegmentClass(segment)"
+                                            style="@SegmentStyle(segment)"
+                                            data-color="@Color(e)"
+                                            data-event-id="@e.Id"
+                                            aria-label="@EventName(e)"
+                                            @key="@($"{e.Id}|{Iso(day)}")"
+                                            @onclick="() => OnEventClick.InvokeAsync(e)">
+                                        @EventContent(e, EventShape.Timed)
+                                    </button>
+                                }
                                 @if (isToday && now.TimeOfDay >= _grid.DayStart && now.TimeOfDay < _grid.DayEnd)
                                 {
                                     <div class="cal-now" aria-hidden="true"
@@ -192,6 +267,17 @@
 </div>
 
 @code {
+    // ── Data ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The events to show. The host supplies those of the visible range; the
+    /// calendar stores none of them and expands no recurrence of its own.
+    /// </summary>
+    [Parameter] public IEnumerable<CalendarEvent> Events { get; set; } = [];
+
+    /// <summary>The people events are assigned to, in display order.</summary>
+    [Parameter] public IEnumerable<CalendarPerson> People { get; set; } = [];
+
     // ── View and date ───────────────────────────────────────────────────
 
     /// <summary>The view shown. Supports two-way binding via <c>@bind-View</c>.</summary>
@@ -250,8 +336,22 @@
 
     // ── Slots ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Replaces the content of every event — title, times, avatars and the
+    /// recurring mark. The event's box, position and colour stay the calendar's.
+    /// </summary>
+    [Parameter] public RenderFragment<CalendarEvent>? EventTemplate { get; set; }
+
     /// <summary>Extra content at the end of the toolbar.</summary>
     [Parameter] public RenderFragment? ToolbarContent { get; set; }
+
+    // ── Interaction ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Raised when an event is activated by pointer or keyboard. Every segment and
+    /// bar of one event raises it with the same <see cref="CalendarEvent"/>.
+    /// </summary>
+    [Parameter] public EventCallback<CalendarEvent> OnEventClick { get; set; }
 
     // ── Presentation ────────────────────────────────────────────────────
 
@@ -295,6 +395,16 @@
     private bool _rangeRaised;
     private CalendarRange _lastRange;
 
+    // Rows of events a month cell holds; the last gives way to the overflow control.
+    private const int MonthCapacity = 3;
+
+    private List<CalendarEvent> _events = [];
+    private List<CalendarPerson> _people = [];
+    private Dictionary<string, CalendarPerson> _peopleById = new(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, CalendarColor> _personColors = new Dictionary<string, CalendarColor>();
+
+    private bool _duplicateEventsReported;
+    private bool _duplicatePeopleReported;
     private bool _dayEndReported;
     private bool _slotMinutesReported;
 
@@ -333,6 +443,24 @@
             _slotMinutesReported = true;
             Console.WriteLine(
                 "DrylCalendar: SlotMinutes must divide 60 evenly — 30 is used instead.");
+        }
+
+        _people = CalendarLayout.DistinctById(People ?? [], p => p.Id, out var duplicatePeople);
+        if (duplicatePeople && !_duplicatePeopleReported)
+        {
+            _duplicatePeopleReported = true;
+            Console.WriteLine(
+                "DrylCalendar: two people share an Id — the later one is not rendered.");
+        }
+        _peopleById = _people.ToDictionary(p => p.Id, StringComparer.Ordinal);
+        _personColors = CalendarLayout.PersonColors(_people);
+
+        _events = CalendarLayout.DistinctById(Events ?? [], e => e.Id, out var duplicateEvents);
+        if (duplicateEvents && !_duplicateEventsReported)
+        {
+            _duplicateEventsReported = true;
+            Console.WriteLine(
+                "DrylCalendar: two events share an Id — the later one is not rendered.");
         }
 
         if (!_initialised)
@@ -450,6 +578,128 @@
         for (; hour < _grid.DayEnd; hour += TimeSpan.FromHours(1))
             yield return hour;
     }
+
+    // ── Events ──────────────────────────────────────────────────────────
+
+    private enum EventShape { Timed, Bar, Line }
+
+    // What an event shows inside its box. The box itself — a button, its position
+    // and its colour — is rendered where it is placed, so every box keeps a key
+    // among its siblings.
+    private RenderFragment EventContent(CalendarEvent e, EventShape shape) => __builder =>
+    {
+        if (EventTemplate is not null)
+        {
+            @EventTemplate(e)
+            return;
+        }
+
+        if (shape == EventShape.Line)
+        {
+            <span class="cal-event-time">@FormatTime(e.Start.TimeOfDay)</span>
+        }
+        <span class="cal-event-title">@e.Title</span>
+        if (shape == EventShape.Timed)
+        {
+            <span class="cal-event-time">@TimeRange(e)</span>
+        }
+        if (e.SeriesId is not null)
+        {
+            <span class="cal-event-recurring"><DrylIcon Name="Refresh" Size="12" AriaLabel="@Labels.Recurring" /></span>
+        }
+        var people = KnownPeople(e);
+        if (people.Count > 0)
+        {
+            <span class="cal-event-people">
+                @foreach (var person in people)
+                {
+                    <DrylAvatar @key="person.Id" Src="@person.AvatarSrc" Name="@person.Name" Alt="@person.Name" Size="AvatarSize.Small" />
+                }
+            </span>
+        }
+    };
+
+    private List<CalendarPerson> KnownPeople(CalendarEvent e)
+    {
+        var people = new List<CalendarPerson>();
+        foreach (var id in e.PersonIds)
+            if (_peopleById.TryGetValue(id, out var person) && !people.Contains(person)) people.Add(person);
+        return people;
+    }
+
+    private string TimeRange(CalendarEvent e) => $"{FormatTime(e.Start.TimeOfDay)} – {FormatTime(e.End.TimeOfDay)}";
+
+    // Title, day, times or "all day", people, and that it recurs. An event that
+    // touches several days names its whole span, so every one of its segments
+    // says where it continues from and into.
+    private string EventName(CalendarEvent e)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(e.Title)) parts.Add(e.Title);
+
+        var (first, end) = CalendarLayout.DaySpan(e);
+        var last = end.AddDays(-1);
+        if (e.AllDay)
+        {
+            parts.Add(last > first ? $"{LongDate(first)} – {LongDate(last)}" : LongDate(first));
+            parts.Add(Labels.AllDay);
+        }
+        else if (last > first)
+        {
+            parts.Add($"{LongDate(first)} {FormatTime(e.Start.TimeOfDay)} – {LongDate(DateOnly.FromDateTime(e.End))} {FormatTime(e.End.TimeOfDay)}");
+        }
+        else
+        {
+            parts.Add(LongDate(first));
+            parts.Add(TimeRange(e));
+        }
+
+        var people = KnownPeople(e);
+        if (people.Count > 0) parts.Add(string.Join(", ", people.Select(p => p.Name)));
+        if (e.SeriesId is not null) parts.Add(Labels.Recurring);
+        return string.Join(", ", parts);
+    }
+
+    private string Color(CalendarEvent e)
+        => CalendarLayout.SlotNumber(CalendarLayout.EventColor(e, _personColors)).ToString(CultureInfo.InvariantCulture);
+
+    // One week row's events in tab order: by day, bars before lines, then by start.
+    private static IEnumerable<(CalendarBar? Bar, CalendarMonthLine? Line)> MonthItems(CalendarMonthWeek week)
+        => week.Bars.Select(b => (Bar: (CalendarBar?)b, Line: (CalendarMonthLine?)null, b.Column, Order: 0, b.Lane))
+            .Concat(week.Lines.Select(l => (Bar: (CalendarBar?)null, Line: (CalendarMonthLine?)l, l.Column, Order: 1, l.Lane)))
+            .OrderBy(i => i.Column).ThenBy(i => i.Order).ThenBy(i => i.Lane)
+            .Select(i => (i.Bar, i.Line));
+
+    // A segment drawn shorter than this has room for one line of text only.
+    private const double CompactBelowMinutes = 45;
+
+    private string SegmentClass(CalendarSegment segment)
+    {
+        var css = "cal-event cal-event--timed";
+        if (segment.Height * _grid.Length.TotalMinutes < CompactBelowMinutes) css += " is-compact";
+        if (segment.ContinuesBefore) css += " is-continued-before";
+        if (segment.ContinuesAfter) css += " is-continued-after";
+        return css;
+    }
+
+    private static string SegmentStyle(CalendarSegment segment)
+        => $"top:{CalendarLayout.Pct(segment.Top)};height:{CalendarLayout.Pct(segment.Height)};" +
+           $"left:{CalendarLayout.Pct(segment.Left)};width:{CalendarLayout.Pct(segment.Width)}";
+
+    private static string BarClass(CalendarBar bar)
+    {
+        var css = "cal-event cal-event--bar";
+        if (bar.ContinuesBefore) css += " is-continued-before";
+        if (bar.ContinuesAfter) css += " is-continued-after";
+        return css;
+    }
+
+    private static string Column(int column) => FormattableString.Invariant($"grid-column:{column}");
+
+    private static string Placement(int column, int span, int row)
+        => FormattableString.Invariant($"grid-column:{column} / span {span};grid-row:{row}");
+
+    private static readonly string WeekStyle = FormattableString.Invariant($"--cal-cap:{MonthCapacity}");
 
     // ── Classes and styles ──────────────────────────────────────────────
 
