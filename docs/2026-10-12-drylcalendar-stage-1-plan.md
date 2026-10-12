@@ -20,9 +20,9 @@ task adds its entry to the same unpublished `[3.5.0]` block and leaves
 | T3 — shell: views, toolbar, time grid | Complete | `02ee9dd` `feat(calendar): views, toolbar and the time grid`; gate passes (1445 tests, 51 new in `DrylCalendarTests`); coverage has no missing `Source` path left for `F22`. Looked at in the browser on a pulled-forward website demo (`DRYL.Website`, branch `feat/calendar`, uncommitted until T7): week view in light mode, month view in dark mode, no console warning, no horizontal page scroll at 1280px. The scroll to `InitialScrollTime` and `CollapseBelow` arrive with T6. |
 | T4 — events | Complete | `45aa9b3` `feat(calendar): events in all three views`; gate passes (1473 tests, 28 new). Looked at on the website demo with sample events: week view in both colour modes, month view in light mode — tints over `--chart-1`…`--chart-6` hold up by eye in both modes, text stays readable. `People` came in with this task (colour and avatars need it); legend, hiding, columns and availability remain T5. Enter/exit motion of events remains T6. |
 | T5 — people and availability | Complete | `1ad8662` `feat(calendar): people, columns and availability`; gate passes (1499 tests, 26 new). Looked at on the website demo (new example "Person columns and availability"): the day view with three person columns, an unassigned column, working hours, a labelled absence and a whole-day absence, in both colour modes. **Muted areas over `--line-soft`: clear in light mode, visible but faint in dark mode** (computed `rgba(255,255,255,0.04)` on the dark ground) — judged to hold up, flagged for the maintainer's eye rather than changed (`DESIGN-03`). |
-| T6 — motion, narrow layouts, accessibility, interop | Complete | `feat(calendar): motion, narrow layouts and accessibility`; gate passes (1534 tests, 35 new), `node --test tests/js/*.test.mjs` passes (149, 5 new in `calendar.test.mjs`). Browser pass on the website demo, recorded under "T6 — what was looked at" below. |
-| T7 — website demo and catalog | Open | |
-| T8 — review, full verification, close the loop | Open | |
+| T6 — motion, narrow layouts, accessibility, interop | Complete | `c07663c` `feat(calendar): motion, narrow layouts and accessibility`; gate passes (1534 tests, 35 new), `node --test tests/js/*.test.mjs` passes (149, 5 new in `calendar.test.mjs`). Browser pass on the website demo, recorded under "T6 — what was looked at" below. |
+| T7 — website demo and catalog | Complete | `DRYL.Website` branch `feat/calendar`, `84992ce` `feat: DrylCalendar demo page`: five examples, registered as `"Calendar"` / `calendar` under `Data`, not AI-capable. `dotnet build` and `dotnet test DRYL.Website.slnx` pass (36 tests). Not pushed; merges after the library release. |
+| T8 — review, full verification, close the loop | Complete, except the pull request | Independent review by a separate agent: six confirmed findings, three plausible; five fixed with tests in `cddf1bc` `fix(calendar): findings of the independent review`, the rest recorded as gaps (see below). Specs to `Implemented` with `## Recorded gaps` in all four stories. Full evidence run on 2026-10-12: build 0 errors, 1543 tests pass, light sync in sync, contrast 50 PASS / 0 FAIL, harness links OK, motion tokens clean, JS tests 149 pass, coverage `65/131` with no structural error (the script exits non-zero by design). **Not done: push and pull request** — outward-facing, left to the maintainer's word. |
 
 One verified commit per task. Only the named files are staged. Update this table
 as each task completes and keep evidence and known limitations in this file. The
@@ -134,6 +134,30 @@ Recorded here as they arise; T8 turns those that fall short of a criterion into
 - **T6 — the default `CollapseBelow` of `Md` is 768px of the calendar's own
   width**, so a calendar in a 650px card is narrow on any screen. The website's
   week, month and German demos set `Breakpoint.Sm` to show the full layouts.
+
+## T8 — the independent review
+
+Read-only review of the branch by a separate agent. What it found and what
+became of it:
+
+| Finding | Outcome |
+|---|---|
+| An event whose `PersonIds` is `null` throws during render. | Fixed — read as unassigned; tests in both suites. |
+| A bound `Date` still holding `default` renders the year one and throws with a Sunday-first culture. | Fixed — the default date is read as unset; `StartOfWeek` and `Step` no longer leave the calendar's ends. Recorded in `S1`. |
+| An event ending at `DateTime.MaxValue` throws in `DaySpan`. | Fixed, with tests. |
+| A zero-length event just before midnight is drawn on two days. | Fixed — its one slot stops at midnight. |
+| A month line can sit above a bar where bars leave a lane free. | Fixed — lines go below every bar of their day. |
+| Opening a day raised the date before the view, so an asynchronous handler saw a stray range. | Fixed — both change before either callback runs. |
+| The overflow control, muted areas, absence labels, the current-time line and the unassigned column mount without `DrylPresence`. | Recorded in `S4`. |
+| Narrow, the week's all-day row keeps the lanes of the whole week. | Recorded in `S4`. |
+| A slot key could collide for a person id containing `|col|person|`. | Left — not a realistic id. |
+
+No finding against the public API, the token rules, the motion vocabulary or
+the doc comments.
+
+A consequence of the month-line fix worth knowing: a line now sits below a
+bar's lane even when that bar is hidden by another day's overflow, so such a
+day can show `+2 more` with a row to spare. It is counted, never dropped.
 
 ## T6 — what was looked at
 

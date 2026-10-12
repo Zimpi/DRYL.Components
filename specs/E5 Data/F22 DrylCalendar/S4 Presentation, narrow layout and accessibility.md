@@ -1,7 +1,7 @@
 # Presentation, narrow layout and accessibility
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 ## Acceptance Criteria
 
@@ -130,9 +130,9 @@
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — token-only colours, to be verified by
-  `node scripts/check-light-sync.mjs` and
-  `node scripts/validate-light-contrast.mjs` and by eye in both modes. The event
+- **Both color modes** — token-only colours; `node scripts/check-light-sync.mjs`
+  and `node scripts/validate-light-contrast.mjs` pass, and week, month and
+  person columns were looked at in both modes on 2026-10-12. The event
   tints over `--chart-1` to `--chart-6`, the muted areas over `--line-soft` and
   the text over a tinted event are the mode-dependent parts; the component
   defines no mode-specific rule and adds no token.
@@ -150,11 +150,43 @@
   depends on the `Proposed` state of `ideas/I20 An AiState for work awaiting a
   human.md`. A surface-level aura shipped before that would light the calendar
   up without being able to say which event the AI is concerned with (`AI-05`).
-- **Demo page** — `DRYL.Website/Components/Pages/DemoCalendar.razor`, with the
-  examples under `DRYL.Website/Components/Examples/Calendar/`, written with the
-  implementation.
-- **`ComponentCatalog`** — to be registered as `"Calendar"` / `calendar` in
+- **Demo page** — `DRYL.Website/Components/Pages/DemoCalendar.razor`, with five
+  examples under `DRYL.Website/Components/Examples/Calendar/`.
+- **`ComponentCatalog`** — registered as `"Calendar"` / `calendar` in
   `DRYL.Website/Components/ComponentCatalog.cs`, in the `Data` section, not
   flagged AI-capable until stage three.
-- **Tests** — `tests/DRYL.Components.Tests/DrylCalendarTests.cs`, written with
-  the implementation.
+- **Tests** — `tests/DRYL.Components.Tests/DrylCalendarTests.cs` for the
+  component, `CalendarLayoutTests.cs` for the layout arithmetic,
+  `CalendarTypesTests.cs` for the types, and `tests/js/calendar.test.mjs` for
+  the one interop call.
+
+## Recorded gaps
+
+- **A view change fades the incoming grid in; the outgoing grid is removed at
+  once.** "Motion" asks for both. Keeping the outgoing grid mounted for its
+  exit would leave its controls in the tab order while it fades (`UX-07`), and
+  `DrylPresence` cannot make its child inert.
+- **The tab order within the grid is not strictly day, then all-day, then
+  `Start`.** In the week view every all-day bar is reached, in day order, before
+  the timed events, which follow day by day. In the month view a week row's day
+  numbers come first, then its events by day, bars before lines. A bar that
+  spans days has one place in the markup.
+- **A continuing segment says so through its span, not through a word.** Its
+  accessible name states the event's first day and time and its last, in every
+  segment; `CalendarLabels` has no text for "continues".
+- **The "has events" mark of the narrow strip and the narrow month is visual
+  only.** It is hidden from assistive technology, and nothing else says it.
+- **Only events enter and exit through `DrylPresence`.** The overflow control,
+  the muted areas, the absence labels, the current-time line and the unassigned
+  column mount and unmount at once (`DESIGN-12`); "Motion" names none of them.
+- **Narrow, the week's all-day row keeps the height of the whole week's lanes.**
+  Bars that do not cover the selected day are hidden, not removed, so a day
+  without all-day events can sit under empty rows.
+- **An exiting event is out of the tab order while its exit plays**
+  (`tabindex="-1"`, `aria-hidden`): it is no longer in `Events`.
+- **Font sizes are written as values**, as the type scale has no tokens
+  (`harness/tokens.md`, "Type scale"); two tint strengths in `color-mix()` and
+  one opacity are written as numbers, as elsewhere in the library.
+- **Not verified:** a real screen reader, forced colours, and browsers other
+  than Chromium. The browser pass is recorded in
+  `docs/2026-10-12-drylcalendar-stage-1-plan.md`.

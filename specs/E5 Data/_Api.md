@@ -8,8 +8,8 @@ of the data contract the 1.0 freeze binds.
 This file carries no `Meta` block: it is a reference for the specs around it,
 not a unit of implementation (`SPEC-03`).
 
-The category holds twenty-one components and is the library's most varied. It is
-better read as five unrelated groups than as one family:
+The category holds twenty-two components and is the library's most varied. It is
+better read as six unrelated groups than as one family:
 
 | Group | Components |
 |---|---|
@@ -19,6 +19,7 @@ better read as five unrelated groups than as one family:
 | Numbers | `DrylStat`, `DrylTableKpi`, `DrylSparkline` |
 | The table | `DrylTable`, and its `DrylColumn` plus the types under `Models/` |
 | Media | `DrylImage`, `DrylCodeBlock` |
+| Scheduling | `DrylCalendar`, and the types listed under "The calendar's types" |
 
 `DrylSparkline` sits in this category rather than in `E4 Charts` because it
 lives in `Components/Data/` and not in `Components/Data/Charts/`; `SPEC-02`
@@ -26,9 +27,10 @@ derives a component's category from its path.
 
 ## Where the enums live — and why it is not uniform
 
-The category declares nineteen public types. Eight are namespace-level enums in
-their own file; six are nested inside the component that uses them; and five are
-records or enums under `Models/` belonging to the table. A nested enum must be
+The category declares twenty-eight public types. Twelve are namespace-level
+enums in their own file; six are nested inside the component that uses them; and
+ten are records or enums under `Models/` — five belonging to the table, five to
+the calendar. A nested enum must be
 written qualified at the call site, and the 1.0 freeze binds that difference
 into every consumer's markup:
 
@@ -47,6 +49,10 @@ into every consumer's markup:
 | `DescriptionLayout` | `DescriptionLayout.cs` | `DescriptionLayout.Inline` |
 | `SparklineKind` | `SparklineKind.cs` | `SparklineKind.Area` |
 | `TimelineVariant` | `TimelineVariant.cs` | `TimelineVariant.Success` |
+| `CalendarView` | `CalendarView.cs` | `CalendarView.Month` |
+| `CalendarPersonLayout` | `CalendarPersonLayout.cs` | `CalendarPersonLayout.Columns` |
+| `CalendarColor` | `CalendarColor.cs` | `CalendarColor.Slot3` |
+| `CalendarAvailabilityKind` | `CalendarAvailabilityKind.cs` | `CalendarAvailabilityKind.Absent` |
 | `ColumnAlign` | `Models/ColumnAlign.cs` | `ColumnAlign.End` |
 | `ColumnFilterType` | `Models/ColumnFilterType.cs` | `ColumnFilterType.Select` |
 | `ColumnPin` | `Models/ColumnPin.cs` | `ColumnPin.Start` |
@@ -303,10 +309,7 @@ The server-mode contract, both `sealed record`s.
 
 ## The calendar's types
 
-The types of `DrylCalendar`, specified in `F22 DrylCalendar/`. Whether they are
-in the code yet is what that spec's `State` says; the counts and inventories
-elsewhere in this file describe the category as implemented and are brought up
-to date when the calendar is.
+The types of `DrylCalendar`, specified in `F22 DrylCalendar/`.
 
 The enums are namespace-level, each in its own file beside the component; the
 records live under `Models/`, as the table's do.
@@ -410,7 +413,7 @@ A `sealed record` with `init` properties, each defaulting to an English text.
 
 ## The AI parameters
 
-Five of the twenty-one components — `DrylCodeBlock`, `DrylImage`, `DrylStat`,
+Five of the twenty-two components — `DrylCodeBlock`, `DrylImage`, `DrylStat`,
 `DrylTable` and `DrylTimelineItem` — carry the same two parameters, with the
 same types and the same defaults:
 
@@ -422,9 +425,10 @@ same types and the same defaults:
 Both types belong to `E1 Foundation`; the aura vocabulary they drive is
 specified in `E3 AI`.
 
-The sixteen that do not carry them are not oversights: every one of their specs
-records the decision and its reason under "AI mode" (`AI-05`). Three reasons
-recur. A component that **paints no surface** has nothing to put an aura on —
+The seventeen that do not carry them are not oversights: every one of their
+specs records the decision and its reason under "AI mode" (`AI-05`). Three
+reasons recur among sixteen of them; the seventeenth, `DrylCalendar`, is a
+deferral — its AI story is per event and arrives with stage three (`F22`, `S4`). A component that **paints no surface** has nothing to put an aura on —
 `DrylIcon`, `DrylKbd`, `DrylDescriptionList`, `DrylTimeline`, `DrylTreeView`. A
 component that **states an identity or a classification** rather than an
 activity would contradict itself with one — `DrylAvatar`, `DrylBadge`, the whole
@@ -447,7 +451,7 @@ before changing any of them:
 
 ## `Class` and `AdditionalAttributes`
 
-Nineteen of the twenty-one components carry both:
+Twenty of the twenty-two components carry both:
 
 | Member | Type | Default | Purpose |
 |---|---|---|---|
@@ -469,7 +473,8 @@ rollout.
 set: the root is then a wrapper, and both land on the avatar inside it. See
 `F1`.
 
-Of the nineteen, three are guarded in
-`tests/DRYL.Components.Tests/ClassMergeTests.cs`: `DrylBadge`, `DrylStat` and
-`DrylTimeline`. The other sixteen — including `DrylTable`, where a clobbered
+Of the twenty, three are guarded in
+`tests/DRYL.Components.Tests/ClassMergeTests.cs` — `DrylBadge`, `DrylStat` and
+`DrylTimeline` — and `DrylCalendar` in its own `DrylCalendarTests.cs`. The
+other sixteen — including `DrylTable`, where a clobbered
 class would take the whole card surface with it — are unguarded.

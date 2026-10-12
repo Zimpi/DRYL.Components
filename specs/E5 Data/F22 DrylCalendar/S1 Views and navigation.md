@@ -1,7 +1,7 @@
 # Views and navigation
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 ## Acceptance Criteria
 
@@ -114,3 +114,27 @@
 - `Loading` set renders a progress indication in the toolbar.
 - `Loading` set keeps the events already rendered in place rather than emptying
   the grid.
+
+## Recorded gaps
+
+- **The time grid is scrolled again when it is shown again.** "A later render
+  does not move the scroll position on its own" holds for every render of a
+  time grid that is already there — new parameters, a navigation, a switch
+  between day and week. Coming back from the month view builds a new scroller,
+  which would sit at `DayStart`; it is scrolled to `InitialScrollTime` once,
+  like the first.
+- **`Date` cannot say "unset" by its value.** The default is today, but the
+  parameter is a `DateOnly` and reads `default` until the host supplies one;
+  the calendar notes whether it was supplied at all and reads the default date
+  as unset, so a bound field that was never assigned starts on today too. A
+  host that reads the property back without binding it does not see today, and
+  1 January of the year one cannot be shown.
+- **The ends of the calendar are not ranges.** At the first and the last
+  representable date a navigation step that would leave the calendar stays
+  where it is; a range that would reach past the last date is not supported.
+- **The view switch has no accessible group label.** Every text comes from
+  `Labels`, and `CalendarLabels` has no member for it. Its three options carry
+  `Day`, `Week` and `Month`.
+- **A `DayStart` outside the day becomes midnight without a report**, and a
+  `DayEnd` beyond the following midnight is replaced and reported like one that
+  is not later than `DayStart`. The criteria name neither case.

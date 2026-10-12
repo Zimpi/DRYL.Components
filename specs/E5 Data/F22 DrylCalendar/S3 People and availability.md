@@ -1,7 +1,7 @@
 # People and availability
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 ## Acceptance Criteria
 
@@ -111,3 +111,18 @@
 - A muted area is filled with `--line-soft`, which darkens a light ground and
   lightens a dark one, so one rule serves both colour modes (`DESIGN-02`).
 - Events drawn over a muted area keep their own tint and contrast.
+
+## Recorded gaps
+
+- **With every person hidden, the unassigned column is rendered whether or not
+  the day has an unassigned event** — the criterion asks for "the time axis and
+  the unassigned column only", and a grid of no columns would show nothing.
+- **An absence without a `Label` is named nowhere**: it mutes its time, and a
+  whole-day one adds nothing to the all-day row.
+- **Hiding a person in person columns removes their column at once.** Their
+  events do not play the exit that `S4` "Motion" describes; in the overlaid
+  layout they do.
+- **Muted areas are faint in dark mode.** `--line-soft` is 4% white on the dark
+  ground: visible beside an unmuted column, easy to miss alone. Looked at on
+  2026-10-12 and left as specified; a stronger area needs a token and the
+  maintainer (`DESIGN-03`).

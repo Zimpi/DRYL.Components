@@ -1,7 +1,7 @@
 # Events
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 ## Acceptance Criteria
 
@@ -123,3 +123,20 @@
   `CalendarEvent`.
 - An event is focusable whether or not `OnEventClick` has a handler, so its
   content can be read by keyboard.
+
+## Recorded gaps
+
+- **A month cell's capacity is a fixed three rows, not a measurement.** "A cell
+  shows as many events as fit its height" would need the rendered height, and
+  all layout arithmetic is server-side. A day with more gives its third row to
+  the overflow control; a bar hidden on one of its days is hidden, and counted,
+  on all of them.
+- **Avatars and the recurring mark are not shown in a box narrower than 120px**,
+  and a single-line segment narrower than 150px drops its times, so the title
+  stays readable. The event's accessible name states all of it at any width.
+- **A timed event wholly outside `DayStart`–`DayEnd` on every day it touches**
+  is drawn in no column, as "Placement" says — and is therefore not visible in
+  the day and week views at all. The month view shows it.
+- **Overlap is judged on the drawn box.** An event shorter than a slot is drawn
+  one slot high, and that height is what is packed, so two five-minute events
+  ten minutes apart sit side by side although their times do not overlap.

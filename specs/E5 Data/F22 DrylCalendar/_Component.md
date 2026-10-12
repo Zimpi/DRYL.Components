@@ -1,7 +1,7 @@
 # DrylCalendar
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylCalendar.razor
               code/DRYL.Components/Components/Data/DrylCalendar.razor.css
               code/DRYL.Components/Components/Data/CalendarView.cs
@@ -91,7 +91,7 @@ they also reach by keyboard.
 |---|---|---|---|
 | `View` | `CalendarView` | `CalendarView.Week` | The view shown, for two-way binding. |
 | `ViewChanged` | `EventCallback<CalendarView>` | — | Raised when the user switches the view. |
-| `Date` | `DateOnly` | today | The date the visible range is built around, for two-way binding. |
+| `Date` | `DateOnly` | today | The date the visible range is built around, for two-way binding. Left unset — or bound to a field that still holds the default date — the calendar starts on today; the property itself then reads `default`. |
 | `DateChanged` | `EventCallback<DateOnly>` | — | Raised when the user navigates. |
 | `OnRangeChanged` | `EventCallback<CalendarRange>` | — | Raised with the visible range, first and on every change of it. |
 | `Now` | `DateTime?` | `null` | The host's current time, for "today" and the current-time line. `null` uses the server's clock. |
@@ -105,7 +105,7 @@ they also reach by keyboard.
 | `DayStart` | `TimeSpan` | `00:00` | First time of day the grid shows. |
 | `DayEnd` | `TimeSpan` | `24:00` | Time of day the grid ends at. |
 | `SlotMinutes` | `int` | `30` | Length of one grid slot, in minutes. |
-| `InitialScrollTime` | `TimeSpan` | `07:00` | Time of day scrolled into view on the first render. |
+| `InitialScrollTime` | `TimeSpan` | `07:00` | Time of day scrolled into view when the time grid is first shown. |
 | `Height` | `string?` | `null` | Height of the calendar; the grid scrolls inside it. |
 
 ### People
