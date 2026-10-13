@@ -2733,6 +2733,9 @@ code, .code-inline {
     transform var(--dur-fast) var(--ease-out),
     background var(--dur-fast) var(--ease-out);
 }
+/* The chevron keeps its size: in a narrow expand column the flex button would
+   otherwise squeeze the SVG down to a dot. */
+.tbl-expand-btn > svg { flex: none; }
 .tbl-expand-btn:hover { color: var(--fg); background: var(--glass-2); }
 .tbl-expand-btn:focus-visible {
   outline: 1px solid var(--accent-line);
