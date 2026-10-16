@@ -2822,8 +2822,20 @@ window.dryl.calendar.edit = (() => {
             g.listen();
         };
 
+        // During a keyboard change the server marks the event data-key-editing;
+        // Enter then drops the change and Space does nothing — neither may click
+        // the button. Everything else, Tab included, keeps its default.
+        const onKey = e => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof Element
+                && e.target.closest('[data-key-editing]')) e.preventDefault();
+        };
+
         root.addEventListener('pointerdown', onDown);
-        state.off = () => root.removeEventListener('pointerdown', onDown);
+        root.addEventListener('keydown', onKey);
+        state.off = () => {
+            root.removeEventListener('pointerdown', onDown);
+            root.removeEventListener('keydown', onKey);
+        };
         states.set(root, state);
     }
 
@@ -2847,6 +2859,7 @@ window.dryl.calendar.edit = (() => {
     function clearPreview(state) {
         const root = state.root;
         clearTimeout(state.releaseTimer);
+        if (state.gesture && state.gesture.isActive()) return;
         state.held = false;
         root.querySelectorAll('[data-dragging]').forEach(el => el.removeAttribute('data-dragging'));
         root.querySelectorAll('[data-preview]').forEach(el => el.removeAttribute('data-preview'));
@@ -2997,6 +3010,11 @@ window.dryl.calendar.edit = (() => {
                 : ctx.edge === 'start' ? (c.fd - ev.fd) * DAY : (c.ld - ev.ld) * DAY;
             c.key = toKey;
             c.p = data.byPerson && ctx.surface === 'allday' ? reassign(ev.p, personOf(startCell.key), personOf(toKey)) : ev.p;
+            if (ctx.kind === 'resize' && !ev.ad) {
+                c.s = ctx.edge === 'start' ? ev.s + c.delta : ev.s;
+                c.e = ctx.edge === 'end' ? ev.e + c.delta : ev.e;
+                if (c.e - c.s < DAY) return null;
+            }
             return limits.days(c, ev, data) ? c : null;
         }
 
@@ -3071,6 +3089,8 @@ window.dryl.calendar.edit = (() => {
         function activate() {
             if (active) return;
             active = true;
+            clearTimeout(state.releaseTimer);
+            state.held = false;
             root.setAttribute('data-gesture', '');
             if (ctx.event) {
                 root.querySelectorAll(`.cal-event[data-event-id="${CSS.escape(ctx.event.id)}"]`)
@@ -3205,7 +3225,7 @@ window.dryl.calendar.edit = (() => {
             return [ctx.kind, ctx.surface, ev.id, ctx.edge, startCell.key, c.key, Math.round(c.delta), 0];
         }
 
-        return { listen, finish };
+        return { listen, finish, isActive: () => active && !finished };
     }
 
     return { attach, detach, release, limits, reassign, hasConflict };

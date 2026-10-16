@@ -1,7 +1,7 @@
 # Pointer and touch editing
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 Stage two — edit. Every criterion here assumes `Editable` is set and the event
 concerned is not `ReadOnly` (`S5`). What a finished gesture reports is `S5`;
@@ -165,4 +165,17 @@ the keyboard path to the same changes is `S7`.
 
 ## Recorded gaps
 
-*(none yet — filled when the story is implemented.)*
+- **The lift is the preview's.** The grabbed event stays in its place, faded,
+  and the preview above it carries `--shadow-md`; the event itself does not
+  lift.
+- **The preview of a timed event that crosses midnight shows one day's
+  segment** — that of the column under the pointer.
+- **A timed bar resizes by whole days but stays at least a day long**, so a
+  bar of a timed event shorter than a day can grow and not shrink.
+- **Touch was verified by emulation only** (Chromium, synthetic touch through
+  the DevTools protocol): a swipe before the hold scrolls, a hold grabs, a move
+  is requested once. Real devices, iOS Safari's callout and pointer
+  cancellation on other engines are not verified.
+- **Edge scrolling has its own pace**: the zone is `--sp-8` deep and the grid
+  scrolls by a quarter of the pointer's depth into it per frame; the spec names
+  no pace.

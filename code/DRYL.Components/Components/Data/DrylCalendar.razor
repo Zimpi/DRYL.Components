@@ -1039,7 +1039,7 @@
                             tabindex="@(exiting ? "-1" : null)"
                             @onclick="() => OnEventClick.InvokeAsync(e)"
                             @onkeydown="args => OnEventKeyAsync(args, slot)"
-                            @onkeydown:preventDefault="@(_keyEdit?.Original?.Id == e.Id)"
+                            data-key-editing="@(_keyEdit?.Original?.Id == e.Id ? "true" : null)"
                             @onfocusout="() => OnEventFocusOut(e)">
                         @ConflictMark(e)
                         @EventContent(e, slot.Shape)
@@ -1301,7 +1301,7 @@
     // exits — and is announced.
     private readonly Dictionary<string, CalendarChangeRequest> _pending = new(StringComparer.Ordinal);
     private readonly List<(CalendarChangeRequest Request, HashSet<string> IdsBefore)> _settling = [];
-    private readonly HashSet<string> _returning = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, CalendarEvent> _returning = new(StringComparer.Ordinal);
 
     private static readonly Dictionary<string, IReadOnlyList<CalendarConflict>> NoConflicts = new(StringComparer.Ordinal);
     private Dictionary<string, IReadOnlyList<CalendarConflict>> _conflicts = NoConflicts;
@@ -1358,7 +1358,7 @@
             Kind = kind,
             Original = original,
             Proposed = proposed,
-            Conflicts = CalendarEditing.Conflicts(proposed, _events, _availability, _knownPersonIds)
+            Conflicts = CalendarEditing.Conflicts(proposed, EffectiveEvents(), _availability, _knownPersonIds)
         };
 
         _returning.Clear();
@@ -1376,6 +1376,12 @@
         {
             failure = ex;
         }
+
+        // A host whose handler completes at once has only queued its render; a
+        // key arrives inside a render batch, where the calendar would render
+        // first and read the old Events. Yielding lets the host's render, and
+        // with it the new Events, come first.
+        await Task.Yield();
 
         _pending.Remove(proposed.Id);
         _settling.Add((request, idsBefore));
@@ -1398,7 +1404,8 @@
             if (applied) continue;
 
             Announce(Labels.NotApplied);
-            if (request.Kind != CalendarChangeKind.Create) _returning.Add(request.Proposed.Id);
+            if (request.Kind != CalendarChangeKind.Create && _eventsById.TryGetValue(request.Proposed.Id, out var back))
+                _returning[back.Id] = back;
         }
         _settling.Clear();
     }
@@ -1471,7 +1478,7 @@
     {
         var css = slot.SlotClass;
         if (exiting) css += " is-exiting";
-        if (_returning.Contains(slot.Event.Id)) css += " is-returning";
+        if (_returning.TryGetValue(slot.Event.Id, out var back) && ReferenceEquals(back, slot.Event)) css += " is-returning";
         return css;
     }
 
@@ -1943,12 +1950,14 @@
         var text = DescribeSpan(edit.Draft);
         if (PersonColumns && edit.ToKey != edit.FromKey && edit.Kind != CalendarChangeKind.Create)
             text += ", " + (PersonOfColumn(edit.ToKey) is { } id ? _peopleById[id].Name : Labels.Unassigned);
-        var conflicts = CalendarEditing.Conflicts(edit.Draft, _events, _availability, _knownPersonIds);
+        var conflicts = CalendarEditing.Conflicts(edit.Draft, EffectiveEvents(), _availability, _knownPersonIds);
         Announce(conflicts.Count == 0 ? text : text + ". " + ConflictText(conflicts));
     }
 
+    // The event's live box — never the ghost of its old place, which keeps the id
+    // while its exit plays and then goes, taking focus with it.
     private static string EventSelector(string id)
-        => "[data-event-id=\"" + id.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]";
+        => "[data-event-id=\"" + id.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]:not([aria-hidden])";
 
     // The conflicts drawn while a keyboard change is under way are those of the
     // draft in place of its original, so other events show what it would do.
@@ -2019,7 +2028,7 @@
                         $"top:{CalendarLayout.Pct(segment.Top)};height:{CalendarLayout.Pct(segment.Height)}";
                 title = string.IsNullOrEmpty(edit.Draft.Title) ? Labels.NewEvent : edit.Draft.Title;
                 time = TimeRange(edit.Draft);
-                conflict = CalendarEditing.Conflicts(edit.Draft, _events, _availability, _knownPersonIds).Count > 0 ? "1" : "0";
+                conflict = CalendarEditing.Conflicts(edit.Draft, EffectiveEvents(), _availability, _knownPersonIds).Count > 0 ? "1" : "0";
             }
         }
         <div class="@(style is null ? "cal-preview" : "cal-preview is-active")"

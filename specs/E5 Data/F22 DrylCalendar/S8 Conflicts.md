@@ -1,7 +1,7 @@
 # Conflicts
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 Stage two — edit. The calendar detects conflicts itself, from `Events` and
 `Availability`, and shows them. **A conflict warns; it never blocks**
@@ -99,4 +99,12 @@ dropped, and refusing it is the host's business logic.
 
 ## Recorded gaps
 
-*(none yet — filled when the story is implemented.)*
+- **The preview of a month-view move shows no conflict mark.** In the month
+  view a change is previewed on the day cells, which carry no mark; the request
+  and the event after the drop carry the conflicts as everywhere else.
+- **The mark's tooltip is reached by pointer only.** The mark is hidden from
+  assistive technology; a keyboard or screen-reader user gets the same phrases
+  in the event's accessible name.
+- **Phrases are not repeated**: two `Overlap` conflicts for one person read as
+  one phrase in the accessible name and the tooltip, while the request carries
+  both.

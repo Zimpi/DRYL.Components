@@ -1,7 +1,7 @@
 # DrylCalendar
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylCalendar.razor
               code/DRYL.Components/Components/Data/DrylCalendar.razor.css
               code/DRYL.Components/Components/Data/CalendarView.cs
@@ -28,8 +28,7 @@ while every `S{n}` beside it does.
 The component is split because it ships in three stages, each its own release
 (`ideas/I19 A scheduling calendar.md`), and a per-story state is what keeps
 "which stage is in the code" readable. `S1` to `S4` are **stage one — show**,
-shipped in 3.5.0. `S5` to `S8` are **stage two — edit**, specified and not yet
-implemented; until they are, the state above reads `Modified`. Stage three (the
+shipped in 3.5.0. `S5` to `S8` are **stage two — edit**, shipped in 3.6.0. Stage three (the
 event editor and AI) appends its stories and its API when it is specified.
 Nothing in an earlier stage is renamed by a later one.
 

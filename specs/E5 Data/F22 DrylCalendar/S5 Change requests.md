@@ -1,7 +1,7 @@
 # Change requests
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 Stage two — edit. This story is the contract between the calendar and its host
 for every change made on the grid; how a change is made is `S6` (pointer and
@@ -102,13 +102,14 @@ touch) and `S7` (keyboard), what makes it conflict is `S8`.
 ## Cross-cutting evidence for stage two (`SPEC-05`)
 
 Stage two adds behaviour to a component whose evidence is recorded in `S4`;
-this section records only what stage two adds, and is completed when the stage
-is implemented.
+this section records only what stage two adds.
 
 - **Both color modes** — the drag preview, the resize handles, the conflict mark
   and the busy state are drawn from existing tokens (`--accent-line`,
-  `--warning`, `--glass-*`, `--shadow-*`); no token is added and no mode is
-  branched on. To be looked at in both modes when implemented.
+  `--warning`, `--glass-*`, `--shadow-md`); no token is added and no mode is
+  branched on. Looked at in both modes on 2026-10-16 — the drag preview, the
+  conflict marks, the week and month previews; recorded in
+  `docs/2026-10-16-drylcalendar-stage-2-plan.md`.
 - **Enter/exit animation** — `S6` "Motion while editing": the lift, the settle,
   the return of a change the host did not apply, a created event entering and
   exiting.
@@ -116,7 +117,26 @@ is implemented.
   the month grid take the grid role that `S4` deferred to this stage.
 - **AI mode** — still no `Ai` parameter in stage two; the decision in `S4`
   stands and is taken up by stage three.
-- **Demo page** — an editing example on `DemoCalendar.razor`, the host applying
-  and refusing changes, and showing conflicts.
-- **`ComponentCatalog`** — the existing `calendar` entry; its description gains
-  editing.
+- **Demo page** — the example "Editing" (`DRYL.Website/Components/Examples/Calendar/Editing.razor`)
+  on `DemoCalendar.razor`: person columns, a locked event, conflicts, and a host
+  that can refuse changes with conflicts.
+- **`ComponentCatalog`** — the existing `calendar` entry; its description now
+  names editing. Still not flagged AI-capable.
+- **Tests** — `DrylCalendarEditingTests.cs` (with `.Keyboard.cs` and
+  `.Review.cs`) for the component, `CalendarEditingTests.cs` for the arithmetic
+  and the conflicts, `tests/js/calendar.test.mjs` for the bridge's mirror of
+  both.
+
+## Recorded gaps
+
+- **"Applied" is read from `Events` after the host's task.** A move or resize
+  counts as applied when the event with `Proposed.Id` sits where the proposal put
+  it. A create counts as applied when any id new since the request appears — so
+  a host that stores the event under its own id is not told "not applied", but
+  with two creates in flight one host-stored event satisfies both.
+- **Only a timed event glides back within its column.** A refused move that
+  changed the day or the person exits from the drop place and enters at its own
+  place through `DrylPresence`; a refused bar jumps back.
+- **A gesture the server refuses is not announced.** When a completed pointer
+  gesture breaks a limit the server checks — the bridge mirrors them, so only at
+  an edge case — the preview goes and nothing is said.

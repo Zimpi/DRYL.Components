@@ -208,7 +208,7 @@ Second pass by the Tech Lead, 2026-10-12, against the scope decided so far.
 - [`../specs/E5 Data/F22 DrylCalendar/_Component.md`](../specs/E5%20Data/F22%20DrylCalendar/_Component.md) —
   stage one, with its stories `S1` to `S4` beside it.
 - Stage two, specified on 2026-10-16 as `S5` to `S8` in the same folder
-  (`State: Modified` until implemented).
+  — implemented in 3.6.0.
 - Stage three has not been specified yet; its stories are appended to the same
   folder.
 

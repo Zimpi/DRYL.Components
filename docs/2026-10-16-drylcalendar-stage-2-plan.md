@@ -22,8 +22,8 @@ task adds its entry to the same unpublished `[3.6.0]` block and leaves
 | T3 — server editing core: request, pending, conflict marks | Complete | Gate passes (1606 tests, 28 new in `DrylCalendarEditingTests`). Browser look deferred to T5, where the grid can first be operated. |
 | T4 — keyboard editing and announcements | Complete | Gate passes (1627 tests, 21 new keyboard tests in `DrylCalendarEditingTests.Keyboard.cs`; JS 151, 2 new for `dryl.calendar.focus`). Browser pass with T5. |
 | T5 — the pointer and touch bridge | Complete | Gate passes (1627 tests; JS 156, 5 new for the bridge's limits, reassignment and conflicts). Browser pass on the website demo, both colour modes — see "T5 — what was looked at". |
-| T6 — website demo and catalog | Open | |
-| T7 — review, full verification, close the loop | Open | |
+| T6 — website demo and catalog | Complete | `DRYL.Website` branch `feat/calendar-stage-2`: example "Editing" (day view, person columns, `CollapseBelow="Breakpoint.Sm"` so week and month show wide on the docs page), catalog description. `dotnet test DRYL.Website.slnx` passes (36). Pulled forward before T5's browser pass. |
+| T7 — review, full verification, close the loop | Complete | Independent review by a separate agent, eight findings. Fixed with tests in `DrylCalendarEditingTests.Review.cs`: a synchronous host's applied keyboard change reported as refused (the settle now yields first), focus going to the exiting ghost after a keyboard move, Tab swallowed during a keyboard change (the bridge now prevents only Enter and Space), timed-bar resize limits differing between JS and C#, a late release clearing the next gesture, `is-returning` sticking, conflicts computed against different event sets. Recorded as a gap: two creates in flight. Fixes re-checked in the browser. Full evidence run on 2026-10-16: build 0 errors, 1631 tests, JS 156, light sync, contrast, harness links and motion tokens clean, coverage `65/131`. Specs to `Implemented` with `## Recorded gaps`. |
 
 One verified commit per task. T1–T5 all touch `DrylCalendar.razor` or its
 types and stay sequential on one working tree, with the main agent; T7's review

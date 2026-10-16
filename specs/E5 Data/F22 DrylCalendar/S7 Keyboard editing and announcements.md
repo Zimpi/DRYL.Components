@@ -1,7 +1,7 @@
 # Keyboard editing and announcements
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 Stage two — edit. Every change `S6` makes by pointer is reachable by keyboard
 (`UX-01`). Every criterion here assumes `Editable` is set; with it left `false`
@@ -114,4 +114,18 @@ the keyboard behaves as `S4` describes.
 
 ## Recorded gaps
 
-*(none yet — filled when the story is implemented.)*
+- **The slot grid is virtual.** The time grid's markup runs in columns, not
+  rows, so the grid carries `aria-rowcount` and `aria-colcount` and only the one
+  focusable cell is in the markup, inside a `role="row"` with its
+  `aria-rowindex` and `aria-colindex`. Events stay buttons in their columns,
+  outside any row.
+- **The cell's place in the tab order** is the first stop of the row it sits in:
+  in the time grid after the all-day bars, in the month view after the earlier
+  weeks' day numbers and events — not strictly "before the events".
+- **A keyboard move does not know the narrow week.** The server cannot see the
+  container query, so in the narrow week view `ArrowLeft` and `ArrowRight` move
+  the preview to a day that is not shown.
+- **The keyboard preview of a timed change that crosses midnight shows its first
+  day's segment only.**
+- **Not verified with a real screen reader**; the announcements were read from
+  the live region in Chromium.
