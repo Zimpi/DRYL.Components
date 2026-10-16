@@ -1,7 +1,7 @@
 # DrylStat
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Data/DrylStat.razor
               code/DRYL.Components/Components/Data/DrylStat.razor.css
               code/DRYL.Components/Components/Data/DeltaDirection.cs
@@ -144,6 +144,10 @@ most often produces.
 - Entering `AiState.Generated` replays the one-shot completion wash, every time
   it is entered.
 - The aura lifecycle's timer is disposed with the component.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 

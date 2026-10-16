@@ -1,7 +1,7 @@
 # DrylProgress
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Feedback/DrylProgress.razor
               code/DRYL.Components/Components/Feedback/ProgressVariant.cs
 
@@ -181,6 +181,9 @@ both, or neither.
   it is entered.
 - The AI state changes nothing about the bar's layout, so the label row does not
   move when an operation starts or ends.
+- `AiState.Proposed` renders exactly like `AiState.None`: a progress
+  bar reports how far work has come, and nothing on it waits for a human
+  decision.
 
 ## Recorded gaps
 

@@ -1,7 +1,7 @@
 # DrylAuraElements
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/AI/DrylAuraElements.razor
 
 ## User Story
@@ -13,8 +13,10 @@ vocabulary instead of each hand-rolling a ring and a glow.
 ## Description
 
 `DrylAuraElements` is the shared child markup of an AI aura: the gradient ring, the
-travelling comet, the breathing halo and the one-shot `Generated` wash. It is
-dropped as the first child of an AI-aware host and renders nothing else.
+travelling comet, the breathing halo, the one-shot `Generated` wash and — for
+`AiState.Proposed` — the resting proposal look, the accept wave and a short
+description for assistive technology. It is dropped as the first child of an
+AI-aware host and renders nothing else.
 
 It is a composition building block, not a component a consumer places. `AI-02`
 requires that a new AI-aware surface compose the existing `.ai-aura*` primitives
@@ -73,9 +75,12 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
 - The host root carries `ai-aura--out` exactly while the lifecycle is exiting.
 - The host root carries the variant class exactly when the resolved variant is
   `AiAura.Aurora`; `AiAura.Comet` is the unmodified look.
-- The host root carries a state class for `AiState.Thinking`, `AiState.Streaming`
-  and `AiState.Generated`; `AiState.Active` is the unmodified `ai-aura` look and
-  gets none.
+- The host root carries a state class for `AiState.Thinking`, `AiState.Streaming`,
+  `AiState.Generated` and `AiState.Proposed`; `AiState.Active` is the unmodified
+  `ai-aura` look and gets none.
+- The host root carries the from-proposal marker class exactly while the
+  lifecycle's render state is `AiState.Generated` and that state was entered
+  directly from `AiState.Proposed`.
 - The host drives the lifecycle by calling `AuraLifecycle.Sync` from
   `OnParametersSet` rather than managing the `Generated` one-shot by hand
   (`AI-07`).
@@ -96,8 +101,72 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
 - The exit window the lifecycle waits before unmounting is at least as long as that
   fade, so the dissolve completes before the elements leave the DOM.
 
+### `AiState.Proposed` — the resting look
+
+- `AuraLifecycle` keeps `AiState.Proposed` on the surface until the host changes
+  the state; it never retires it by itself (`AI-06`, resting-state exception).
+- Under `AiState.Proposed` the ring shows the aurora edge, frozen mid-drift.
+- The ring shows the same frozen aurora edge whether the resolved variant is
+  `AiAura.Comet` or `AiAura.Aurora`.
+- Under `AiState.Proposed` the comet is not visible.
+- Under `AiState.Proposed` the halo is not visible.
+- Under `AiState.Proposed` no layer runs a continuous animation.
+- Entering `AiState.Proposed` fades the edge in once over `--dur-slow` with
+  `--ease-out`.
+- Entering `AiState.Proposed` from a live state fades the comet and the halo out
+  over `--dur-slow` instead of cutting them.
+- Leaving `AiState.Proposed` for `AiState.None` dissolves the edge through the
+  existing exit over `--dur-slow` (`DESIGN-12`).
+- Leaving `AiState.Proposed` for a live state resumes that state's look.
+
+### The accept wave — `AiState.Proposed` → `AiState.Generated`
+
+- The component renders the wave layer only while the lifecycle's render state is
+  `AiState.Generated`, that state was entered directly from `AiState.Proposed`,
+  and the lifecycle is not exiting.
+- The wave layer is keyed by `GenTick`, so each accept plays its own wave.
+- The wave spreads AI light across the surface once over `--dur-choreo` with
+  `--ease-out`, and ends invisible.
+- The wave is clipped to the surface's rounded box.
+- The wave starts at the most recent pointer-down in the document when that
+  pointer-down lies inside the surface and no key press came after it.
+- The wave starts at the centre of the focused element when the previous rule
+  does not apply and focus is inside the surface.
+- The wave starts at the centre of the surface when neither rule applies.
+- The wave grows until it covers the corner of the surface farthest from its
+  start.
+- The wave does not begin before it has been aimed, so it never starts at one
+  point and jumps to another.
+- The edge flares once as the wave reaches it, and returns to its frozen look.
+- The completion wash blooms after the wave has landed, offset by a motion
+  token, not at the same moment.
+- `AiState.Generated` entered from `AiState.Proposed` does not replay the host's
+  entrance lift, because the surface is already on screen.
+- `AiState.Generated` entered from `AiState.Proposed` keeps the frozen aurora
+  edge, with no comet, until it retires.
+- `AiState.Generated` entered from `AiState.Proposed` retires itself exactly like
+  any other `AiState.Generated` (`AI-07`).
+- `AiState.Generated` entered from any state other than `AiState.Proposed` plays
+  no wave and looks exactly as before.
+
 ### Accessibility
 
+- Under reduced motion, entering `AiState.Proposed` shows the frozen edge without
+  the fade.
+- Under reduced motion, accepting a proposal plays no wave and no flare and goes
+  straight to the calm `AiState.Generated`.
+- While the render state is `AiState.Proposed` and the lifecycle is not exiting,
+  the component renders a visually hidden text reading
+  "AI suggestion, awaiting your decision".
+- That text is not hidden from assistive technology, so a screen reader reads it
+  when it reaches the surface.
+- That text sits in no live region, so entering `AiState.Proposed` announces
+  nothing by itself: seven proposals do not produce seven announcements. A host
+  that wants an announcement places a `DrylAiIndicator` (`UX-04`).
+- That text is not rendered under any other state, nor while the lifecycle is
+  exiting.
+- The wave layer holds no text, is not focusable, takes no pointer events and
+  carries `aria-hidden="true"`.
 - Reduced motion suppresses every decorative animation of both Comet and Aurora,
   including host state modifiers, generated wash/glow and pseudo-elements. A
   live aura keeps a static state cue; an exiting aura can still retire. Switching
@@ -113,12 +182,17 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
   indicators, `.tab-ink` in `DrylTabs` and `.ws-ink` in `DrylCanvasWorkspace`.
 - Hiding the layers removes nothing usable from the accessibility tree: they are
   empty, hold no text and are not focusable, and the component accepts no
-  `ChildContent`, so a host cannot place content inside them.
+  `ChildContent`, so a host cannot place content inside them. The proposal text
+  is the one exception, and it is deliberately not hidden.
 
 ### Appearance
 
 - Every color in the aura layers resolves to a token, including the AI hue pair and
   the accent core.
+- The frozen edge and the wave derive their colors from `--ai-a` and `--ai-b`,
+  scaled by `--ai-strength` so they read on a light ground.
+- The wave tints the surface only for the length of its one-shot and leaves no
+  fill behind (`DESIGN-08`).
 - The layers branch on no color mode and hold no mode-assuming value, so the same
   markup serves light and dark (`DESIGN-02`).
 - The aura is an accent as `DESIGN-08` defines one: a 1px gradient border, a glow

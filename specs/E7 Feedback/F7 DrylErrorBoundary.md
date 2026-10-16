@@ -1,7 +1,7 @@
 # DrylErrorBoundary
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Feedback/DrylErrorBoundary.razor
               code/DRYL.Components/Components/Feedback/DrylErrorBoundary.razor.css
 
@@ -166,6 +166,10 @@ retry — and the host needs a way to say so.
   fallback surface (`AI-02`).
 - The AI state has no effect while nothing has thrown, because the component
   renders nothing of its own then.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 

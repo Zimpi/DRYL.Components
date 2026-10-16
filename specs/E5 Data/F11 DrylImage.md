@@ -1,7 +1,7 @@
 # DrylImage
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Data/DrylImage.razor
               code/DRYL.Components/Components/Data/DrylImage.razor.css
 
@@ -200,6 +200,10 @@ The four enums are nested in `DrylImage` and are therefore written qualified —
 - The aura lifecycle's timer is disposed with the component.
 - `Progress` is clamped into 0–100 before it is used, so an out-of-range value
   cannot produce a negative blur.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 

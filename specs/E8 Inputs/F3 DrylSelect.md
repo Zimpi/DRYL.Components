@@ -1,7 +1,7 @@
 # DrylSelect
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Inputs/DrylSelect.razor
               code/DRYL.Components/Components/Inputs/DrylSelect.razor.css
 
@@ -189,6 +189,10 @@ combobox, not a native `select` element.
 - Disposal cancels pending aura lifecycle work.
 - Disposal detaches a successfully attached trigger navigation-key listener.
 - Navigation-key teardown tolerates a disconnected circuit or already-removed listener.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded debt and limits
 

@@ -1,7 +1,7 @@
 # DrylInputText
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Inputs/DrylInputText.razor
 
 ## User Story
@@ -130,6 +130,10 @@ browser; this component does not implement type-specific parsing.
 - Aura elements are hidden from assistive technology (`UX-07`).
 - Reduced motion leaves the field usable with the shared aura at a static end
   state (I13 H03, `UX-06`).
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded debt and limits
 

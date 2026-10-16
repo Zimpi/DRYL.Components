@@ -1,7 +1,7 @@
 # DrylNotifications
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Feedback/DrylNotifications.razor
               code/DRYL.Components/Components/Feedback/DrylNotifications.razor.css
               code/DRYL.Components/Notifications/DrylNotification.cs
@@ -217,6 +217,12 @@ no `Ai` of its own.
   rounded card.
 - The component itself takes no `Ai`: the state belongs to each entry, and the
   inbox around them is not doing the work.
+- A row whose notification carries `AiState.Proposed` renders the shared resting
+  proposal look of `DrylAuraElements`: the frozen aurora edge, with no comet and
+  no halo.
+- A row plays no accept wave on a change from `AiState.Proposed` to
+  `AiState.Generated`, for the same reason it plays no completion wash (see
+  "Recorded gaps").
 
 ## Recorded gaps
 

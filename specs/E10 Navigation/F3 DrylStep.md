@@ -1,7 +1,7 @@
 # DrylStep
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Navigation/DrylStep.razor
 
 ## User Story
@@ -105,6 +105,10 @@ in [`_Api.md`](_Api.md).
   restart its aura.
 - Re-entering `AiState.Generated` after another state can replay its reveal.
 - Decorative aura elements are hidden from assistive technology (`UX-07`).
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Cross-cutting evidence (`SPEC-05`)
 

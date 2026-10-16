@@ -1,7 +1,7 @@
 # DrylSpinner
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Feedback/DrylSpinner.razor
               code/DRYL.Components/Components/Feedback/DrylSpinner.razor.css
 
@@ -148,6 +148,8 @@ size value being written twice.
 - `AiState.Active` is signalled by an extra class the shared aura helper
   deliberately omits, because the generic aura treats `Active` as ring-only and
   the spinner needs the rate cue as well.
+- `AiState.Proposed` renders exactly like `AiState.None`: a spinner
+  reports work in progress, and nothing on it waits for a human decision.
 
 ## Recorded gaps
 

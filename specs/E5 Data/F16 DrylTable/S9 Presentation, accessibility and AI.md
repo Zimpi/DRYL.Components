@@ -1,7 +1,7 @@
 # Presentation, accessibility and AI
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 
 ## Acceptance Criteria
 
@@ -69,6 +69,10 @@
 - A row that arrives while streaming rises and flashes in, at `--dur-slow` and
   `--dur-choreo` with `--ease-out`.
 - Under `prefers-reduced-motion: reduce` that row animation does not run.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ### State persistence
 

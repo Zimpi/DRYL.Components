@@ -1,7 +1,7 @@
 # DrylAutocomplete
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Inputs/DrylAutocomplete.razor
               code/DRYL.Components/Components/Inputs/DrylAutocomplete.razor.css
 
@@ -215,6 +215,10 @@ native `input`.
 - The aura surrounds the input wrapper, not the list.
 - Entering `AiState.Generated` replays the one-shot wash.
 - Disposal cancels pending aura work and any running search.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded debt and limits
 

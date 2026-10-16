@@ -1,7 +1,7 @@
 # DrylFileUpload
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Inputs/DrylFileUpload.razor
               code/DRYL.Components/Components/Inputs/DrylFileUpload.razor.css
 
@@ -134,6 +134,10 @@ renders its own list from `FilesChanged` switches that list off with
 - With the aura absent, the wrapper around the zone carries no class and no
   styling.
 - Entering `AiState.Generated` replays the one-shot completion wash.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 

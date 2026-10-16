@@ -24,6 +24,32 @@ release.
 | `dryl.motion.stopAutoFlip` | `DrylCanvas` | Stops that observation. |
 | `dryl.topLayer.show` / `dryl.topLayer.hide` | `DrylCanvas` | Promotes the canvas root to the top layer while it is expanded to fullscreen, and takes it back down. |
 
+### The accept wave — `dryl.js` without an entry point
+
+`DrylAuraElements` stays pure markup: it makes no interop call. The accept wave
+of `AiState.Proposed` → `AiState.Generated` is positioned by the always-loaded
+`dryl.js` on its own, so the wave can start at the right spot before it is
+painted, with no round trip to the server in between.
+
+- `dryl.js` records the most recent pointer-down in the document and whether a
+  key press came after it. Both listeners are passive and are registered once
+  for the page, not per component.
+- `dryl.js` notices every wave layer as it enters the DOM, before the browser
+  paints it, and aims it: it writes the start point and the scale needed to
+  reach the surface's farthest corner as custom properties and marks the layer
+  with a `data-*` attribute (never a class, which the next Blazor render of the
+  `class` attribute would erase). The wave's animation starts only once that
+  mark is set, so it never begins at a wrong point and jumps.
+- Start point: the recorded pointer-down when it lies inside the surface and no
+  key press followed it; otherwise the centre of the focused element when focus
+  is inside the surface; otherwise the centre of the surface.
+- Without `dryl.js` the wave does not play; the completion wash of
+  `AiState.Generated` still does. Nothing else depends on it.
+- Under `prefers-reduced-motion: reduce` there is no wave to aim.
+
+Cleanup: none per component. The page-level listeners and the observer live as
+long as the page, like the rest of `window.dryl.motion`.
+
 ### The `dryl-canvas.js` module
 
 Imported by `DrylCanvas` from

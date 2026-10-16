@@ -27,7 +27,40 @@ the exact spelling used in code. Until then this file claims nothing.*
 
 ## AI state vocabulary
 
-*(phase C)*
+### `AiState`
+
+`code/DRYL.Components/AiState.cs` — the one AI vocabulary of the library
+(`AI-01`). Six members, in this order; the order is part of the contract, since
+the underlying values are what a stored or serialized state carries.
+
+| Member | Kind | Meaning |
+|---|---|---|
+| `None` | — | No AI styling; the component renders normally. |
+| `Active` | live | Persistent AI mode: the AI is present on this surface. |
+| `Thinking` | live | A tool call or reasoning step is in flight. |
+| `Streaming` | live | Output is arriving. |
+| `Generated` | one-shot | Generation has just completed. Plays its reveal and then removes itself through `AuraLifecycle` (`AI-07`). |
+| `Proposed` | resting | The AI is done, and a human now has to accept or dismiss what it produced. Stays until the host changes the state. Added by `ideas/I20 An AiState for work awaiting a human.md`. |
+
+The three live states may only show while the AI is actually working on the
+surface (`AI-06`). `Proposed` is the one resting state: it may stay for as long
+as a human has not decided, and nothing in it loops.
+
+The library never ends `Proposed` by itself. The host resolves it: accepting
+moves the surface to `Generated`, dismissing moves it to `None`. What dismissing
+means for the content — an element removed, a previous value restored — is the
+host's business; the library offers no accept or dismiss API of its own.
+
+`Proposed` is set only where an accept or dismiss action actually exists. A
+surface the AI merely touched once is not a proposal.
+
+`Proposed` was appended after `Generated`, so the underlying values of the five
+older members are unchanged. A consumer's exhaustive `switch` over `AiState`
+gains an unhandled case — a compiler warning, not a break (`REL-01`, MINOR).
+
+*(`AiAura`, `AiScope` and `AuraLifecycle`: phase C. The behaviour of
+`AuraLifecycle` under `Proposed` is specified with the aura it drives, in
+`specs/E3 AI/F7 DrylAuraElements.md`.)*
 
 ## Motion primitives
 

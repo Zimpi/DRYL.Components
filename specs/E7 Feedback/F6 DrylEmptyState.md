@@ -1,7 +1,7 @@
 # DrylEmptyState
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/Feedback/DrylEmptyState.razor
               code/DRYL.Components/Components/Feedback/DrylEmptyState.razor.css
               code/DRYL.Components/Components/Feedback/EmptyStateSize.cs
@@ -136,6 +136,10 @@ markup.
   it is entered.
 - The AI state changes the root's fill and border but not its size, so the block
   does not reflow when an operation starts or ends.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 
