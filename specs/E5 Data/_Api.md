@@ -53,8 +53,8 @@ into every consumer's markup:
 | `CalendarPersonLayout` | `CalendarPersonLayout.cs` | `CalendarPersonLayout.Columns` |
 | `CalendarColor` | `CalendarColor.cs` | `CalendarColor.Slot3` |
 | `CalendarAvailabilityKind` | `CalendarAvailabilityKind.cs` | `CalendarAvailabilityKind.Absent` |
-| `CalendarChangeKind` | `CalendarChangeKind.cs` (stage two) | `CalendarChangeKind.Move` |
-| `CalendarConflictKind` | `CalendarConflictKind.cs` (stage two) | `CalendarConflictKind.Overlap` |
+| `CalendarChangeKind` | `CalendarChangeKind.cs` | `CalendarChangeKind.Move` |
+| `CalendarConflictKind` | `CalendarConflictKind.cs` | `CalendarConflictKind.Overlap` |
 | `ColumnAlign` | `Models/ColumnAlign.cs` | `ColumnAlign.End` |
 | `ColumnFilterType` | `Models/ColumnFilterType.cs` | `ColumnFilterType.Select` |
 | `ColumnPin` | `Models/ColumnPin.cs` | `ColumnPin.Start` |

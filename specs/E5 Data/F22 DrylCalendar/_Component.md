@@ -8,11 +8,15 @@
               code/DRYL.Components/Components/Data/CalendarPersonLayout.cs
               code/DRYL.Components/Components/Data/CalendarColor.cs
               code/DRYL.Components/Components/Data/CalendarAvailabilityKind.cs
+              code/DRYL.Components/Components/Data/CalendarChangeKind.cs
+              code/DRYL.Components/Components/Data/CalendarConflictKind.cs
               code/DRYL.Components/Components/Data/Models/CalendarEvent.cs
               code/DRYL.Components/Components/Data/Models/CalendarPerson.cs
               code/DRYL.Components/Components/Data/Models/CalendarAvailability.cs
               code/DRYL.Components/Components/Data/Models/CalendarRange.cs
               code/DRYL.Components/Components/Data/Models/CalendarLabels.cs
+              code/DRYL.Components/Components/Data/Models/CalendarChangeRequest.cs
+              code/DRYL.Components/Components/Data/Models/CalendarConflict.cs
               code/DRYL.Components/Components/Data/Internal/CalendarLayout.cs
 
 This spec is split (`SPEC-02`). The acceptance criteria live in the `S{n}` files
@@ -28,9 +32,6 @@ implemented; until they are, the state above reads `Modified`. Stage three (the
 event editor and AI) appends its stories and its API when it is specified.
 Nothing in an earlier stage is renamed by a later one.
 
-The types stage two adds — `CalendarChangeKind`, `CalendarChangeRequest`,
-`CalendarConflict`, `CalendarConflictKind` — join `Source` when their files
-exist; `SPEC-03` lets `Source` name existing files only.
 
 | File | Subject |
 |---|---|

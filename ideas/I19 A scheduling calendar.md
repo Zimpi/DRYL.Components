@@ -197,7 +197,7 @@ Second pass by the Tech Lead, 2026-10-12, against the scope decided so far.
   `Absence`, `OutsideWorkingHours` — marked in `--warning` on every event
   concerned while `Editable` is set, already in the preview, and handed to the
   host with the request.
-- 2026-10-16 (Tech Lead, to be confirmed by the Product Owner with the spec):
+- 2026-10-16 (Tech Lead, confirmed by the Product Owner the same day):
   in stage two a timed event never becomes an all-day one by a move, nor the
   reverse; no gesture leaves the visible range; a click on an empty slot
   requests a one-slot create; only timed, assigned events take part in

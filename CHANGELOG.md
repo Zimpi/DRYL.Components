@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.6.0] — 2026-10-16
+
+### Added
+- `DrylCalendar` — Stage two, the types: the enums `CalendarChangeKind` (`Create` / `Move` / `Resize`) and `CalendarConflictKind` (`Overlap` / `Absence` / `OutsideWorkingHours`), the records `CalendarChangeRequest` (`Kind`, `Original`, `Proposed`, `Conflicts`) and `CalendarConflict` (`Kind`, `PersonId`, `EventId`), `CalendarEvent.ReadOnly`, and the `CalendarLabels` texts `NewEvent`, `EditHint`, `CreateHint`, `Requested`, `Cancelled`, `NotApplied`, `ConflictOverlap`, `ConflictAbsence` and `ConflictOutsideWorkingHours`.
+
 ## [3.5.1] — 2026-10-16
 
 ### Fixed

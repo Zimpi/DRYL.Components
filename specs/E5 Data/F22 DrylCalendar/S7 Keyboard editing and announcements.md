@@ -96,8 +96,10 @@ the keyboard behaves as `S4` describes.
 - A change the host did not apply is announced as `S5` says.
 - A pointer gesture announces its completion and its conflicts as a keyboard
   change does, and does not announce every slot it passes.
-- Announcements go through the one live region `S4` already uses for range
-  changes; the calendar renders no second one.
+- Announcements go through one visually hidden polite live region, rendered
+  only while `Editable` is set; the range title's live region of `S4` keeps
+  announcing ranges and nothing else, so the visible title never shows an
+  announcement.
 
 ### Focus after a change
 
