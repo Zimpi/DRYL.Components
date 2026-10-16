@@ -181,12 +181,36 @@ Second pass by the Tech Lead, 2026-10-12, against the scope decided so far.
   what is out of scope, and the impact above — is **confirmed**. The idea is
   `Ready`.
 
+- 2026-10-16 (Product Owner): stage two reports **every change through one
+  callback**, `OnEventChangeRequested`, carrying the kind, the original event
+  and the proposed one. While the host's handler runs the event **stays where it
+  was dropped**; afterwards `Events` alone decides, so a refused change glides
+  back.
+- 2026-10-16 (Product Owner): editing is **opt-in** through `Editable` (default
+  `false`, as on `DrylTable`), so a 3.5 host sees no change; a single event is
+  locked with `CalendarEvent.ReadOnly`.
+- 2026-10-16 (Product Owner): **arrow keys on a focused event start a move
+  directly**, `Shift` and arrows resize, `Enter` drops, `Escape` cancels;
+  `Enter` and `Space` without a change under way stay `OnEventClick`. Empty
+  slots become a grid with one roving cell; `Enter` there starts a create.
+- 2026-10-16 (Product Owner): **three kinds of conflict** — `Overlap`,
+  `Absence`, `OutsideWorkingHours` — marked in `--warning` on every event
+  concerned while `Editable` is set, already in the preview, and handed to the
+  host with the request.
+- 2026-10-16 (Tech Lead, confirmed by the Product Owner the same day):
+  in stage two a timed event never becomes an all-day one by a move, nor the
+  reverse; no gesture leaves the visible range; a click on an empty slot
+  requests a one-slot create; only timed, assigned events take part in
+  conflicts; the narrow month view's list stays display only.
+
 ## Resulting specs
 
 - [`../specs/E5 Data/F22 DrylCalendar/_Component.md`](../specs/E5%20Data/F22%20DrylCalendar/_Component.md) —
   stage one, with its stories `S1` to `S4` beside it.
-- Stages two and three have not been specified yet; their stories are appended
-  to the same folder.
+- Stage two, specified on 2026-10-16 as `S5` to `S8` in the same folder
+  — implemented in 3.6.0.
+- Stage three has not been specified yet; its stories are appended to the same
+  folder.
 
 One statement under Impact did not survive the spec: the event model does not
 have to carry the later stages' members from the start. `CalendarEvent` is a

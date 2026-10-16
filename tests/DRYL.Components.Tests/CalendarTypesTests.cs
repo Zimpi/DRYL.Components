@@ -65,6 +65,15 @@ public class CalendarTypesTests
         Assert.Equal("People", labels.People);
         Assert.Equal("Loading", labels.Loading);
         Assert.Equal("No events", labels.NoEvents);
+        Assert.Equal("New event", labels.NewEvent);
+        Assert.Equal("Arrow keys move, Shift and arrow keys resize, Enter drops, Escape cancels.", labels.EditHint);
+        Assert.Equal("Enter creates an event here.", labels.CreateHint);
+        Assert.Equal("Change requested: {0}", labels.Requested);
+        Assert.Equal("Change cancelled.", labels.Cancelled);
+        Assert.Equal("The change was not applied.", labels.NotApplied);
+        Assert.Equal("Overlaps another event of {0}", labels.ConflictOverlap);
+        Assert.Equal("{0} is absent", labels.ConflictAbsence);
+        Assert.Equal("Outside the working hours of {0}", labels.ConflictOutsideWorkingHours);
     }
 
     [Fact]
@@ -92,6 +101,7 @@ public class CalendarTypesTests
         Assert.Equal(CalendarColor.Auto, ev.Color);
         Assert.Null(ev.SeriesId);
         Assert.Null(ev.Data);
+        Assert.False(ev.ReadOnly);
     }
 
     [Fact]
@@ -143,5 +153,41 @@ public class CalendarTypesTests
 
         Assert.Equal(new CalendarRange(start, start.AddDays(7)), range);
         Assert.Equal(start.AddDays(7), range.End);
+    }
+
+    [Fact]
+    public void CalendarChangeKind_defaults_to_Create()
+    {
+        Assert.Equal(CalendarChangeKind.Create, default(CalendarChangeKind));
+        Assert.Equal(
+            new[] { CalendarChangeKind.Create, CalendarChangeKind.Move, CalendarChangeKind.Resize },
+            Enum.GetValues<CalendarChangeKind>());
+    }
+
+    [Fact]
+    public void CalendarConflictKind_has_exactly_three_members()
+    {
+        Assert.Equal(CalendarConflictKind.Overlap, default(CalendarConflictKind));
+        Assert.Equal(
+            new[] { CalendarConflictKind.Overlap, CalendarConflictKind.Absence, CalendarConflictKind.OutsideWorkingHours },
+            Enum.GetValues<CalendarConflictKind>());
+    }
+
+    [Fact]
+    public void CalendarChangeRequest_and_CalendarConflict_defaults_match_the_spec()
+    {
+        var proposed = new CalendarEvent
+        {
+            Id = "new",
+            Start = new DateTime(2026, 10, 12, 9, 0, 0),
+            End = new DateTime(2026, 10, 12, 10, 0, 0)
+        };
+        var request = new CalendarChangeRequest { Kind = CalendarChangeKind.Create, Proposed = proposed };
+        var conflict = new CalendarConflict { Kind = CalendarConflictKind.Absence, PersonId = "p1" };
+
+        Assert.Null(request.Original);
+        Assert.Same(proposed, request.Proposed);
+        Assert.Empty(request.Conflicts);
+        Assert.Null(conflict.EventId);
     }
 }

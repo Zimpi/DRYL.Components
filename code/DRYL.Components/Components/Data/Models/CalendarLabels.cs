@@ -47,4 +47,31 @@ public sealed record CalendarLabels
 
     /// <summary>The narrow month view's list for a day without events.</summary>
     public string NoEvents { get; init; } = "No events";
+
+    /// <summary>The title drawn on a created event while the host decides.</summary>
+    public string NewEvent { get; init; } = "New event";
+
+    /// <summary>The description of an editable event for assistive technology.</summary>
+    public string EditHint { get; init; } = "Arrow keys move, Shift and arrow keys resize, Enter drops, Escape cancels.";
+
+    /// <summary>The description of an editable grid cell for assistive technology.</summary>
+    public string CreateHint { get; init; } = "Enter creates an event here.";
+
+    /// <summary>Announced when a change is completed; <c>{0}</c> is the event's new day and times.</summary>
+    public string Requested { get; init; } = "Change requested: {0}";
+
+    /// <summary>Announced when a change is cancelled.</summary>
+    public string Cancelled { get; init; } = "Change cancelled.";
+
+    /// <summary>Announced when the host left the events unchanged after a request.</summary>
+    public string NotApplied { get; init; } = "The change was not applied.";
+
+    /// <summary>An overlap conflict; <c>{0}</c> is the person's name.</summary>
+    public string ConflictOverlap { get; init; } = "Overlaps another event of {0}";
+
+    /// <summary>An absence conflict; <c>{0}</c> is the person's name.</summary>
+    public string ConflictAbsence { get; init; } = "{0} is absent";
+
+    /// <summary>An outside-working-hours conflict; <c>{0}</c> is the person's name.</summary>
+    public string ConflictOutsideWorkingHours { get; init; } = "Outside the working hours of {0}";
 }
