@@ -514,6 +514,10 @@ runtime surprise.
   `z-index`, so both sit at `auto` and paint in document order — and the caret's
   anchor is the later sibling. That is the same mechanism `DrylButtonGroup`
   records for a middle segment's halo.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ### Motion
 

@@ -56,12 +56,13 @@ it does not produce one.
 ### AI state
 
 - `State` defaults to `AiState.Active`.
-- `State` accepts exactly the five values of `AiState`.
+- `State` accepts exactly the six values of `AiState`.
 - The state-derived label reads "AI" when `State` is `AiState.None`.
 - The state-derived label reads "AI" when `State` is `AiState.Active`.
 - The state-derived label reads "Thinking…" when `State` is `AiState.Thinking`.
 - The state-derived label reads "Streaming…" when `State` is `AiState.Streaming`.
 - The state-derived label reads "Generated" when `State` is `AiState.Generated`.
+- The state-derived label reads "Proposed" when `State` is `AiState.Proposed`.
 - `AiState.None` and `AiState.Active` render identically: the pill is not switched
   off by `AiState.None`, because `State` is the component's content rather than an
   opt-in.
@@ -69,6 +70,8 @@ it does not produce one.
   `AiState.Thinking`.
 - The root carries the `is-streaming` modifier exactly when `State` is
   `AiState.Streaming`.
+- The root carries the `is-proposed` modifier exactly when `State` is
+  `AiState.Proposed`.
 - The component renders no aura: it composes `.ai-indicator` from `AI-02`, never
   `.ai-aura` (`DESIGN-08` — a pill this small is an indicator, not a surface to
   ring).
@@ -85,6 +88,8 @@ it does not produce one.
   way, so speed alone communicates the state.
 - Both animations stop under `prefers-reduced-motion: reduce`, leaving the pill
   legible and still.
+- Neither animation runs when `State` is `AiState.Proposed`: the pill rests like
+  the state it reports, so a page full of proposals stays still.
 
   The periods of those two animations are written as literals. `DESIGN-10` governs
   one-shot motion; a continuous (`infinite`) segment may choose its own period, and
@@ -105,6 +110,10 @@ it does not produce one.
   interrupting the user (`UX-04` — this component is that rule's precedent).
 - A label change is announced through that region without the component being
   re-mounted.
+- This pill is the library's route for announcing proposals: the aura of a
+  surface in `AiState.Proposed` carries only a description and announces nothing,
+  so a host that wants "the AI made seven suggestions" said aloud places one pill
+  with that text as `ChildContent` (`UX-04`).
 - The pill holds no focusable element and takes no tab stop: it reports, it is not
   operated.
 - The sparkle icon is decorative: it is rendered without an accessible label and

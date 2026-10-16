@@ -26,6 +26,8 @@ public static class AiAuraCss
             case AiState.Thinking:  classes.Add("ai-thinking");  break;
             case AiState.Streaming: classes.Add("ai-streaming"); break;
             case AiState.Generated: classes.Add("ai-generated"); break;
+            case AiState.Proposed:  classes.Add("ai-proposed");  break;
         }
+        if (aura.RenderState == AiState.Generated && aura.FromProposed) classes.Add("ai-from-proposed");
     }
 }

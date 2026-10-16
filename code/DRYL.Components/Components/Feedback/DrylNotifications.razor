@@ -83,6 +83,10 @@
                                     <div class="ai-aura-comet" aria-hidden="true"></div>
                                     <div class="ai-aura-glow" aria-hidden="true"></div>
                                 }
+                                @if (item.Ai == AiState.Proposed)
+                                {
+                                    <span class="visually-hidden">AI suggestion, awaiting your decision</span>
+                                }
                                 <button type="button" class="notif-item-main" @onclick="@(() => ItemClickAsync(item))">
                                     <span class="notif-item-icon">
                                         <DrylIcon Name="@IconFor(item)" Size="15" />
@@ -258,6 +262,7 @@
             AiState.Thinking  => $"{variant} ai-thinking",
             AiState.Streaming => $"{variant} ai-streaming",
             AiState.Generated => $"{variant} ai-generated",
+            AiState.Proposed  => $"{variant} ai-proposed",
             _ => variant
         };
     }

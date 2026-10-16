@@ -125,6 +125,10 @@ the final visible size.
 - Aura elements are hidden from assistive technology (`UX-07`).
 - Reduced motion leaves the textarea usable with the shared aura at a static
   end state (I13 H03, `UX-06`).
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded debt and limits
 

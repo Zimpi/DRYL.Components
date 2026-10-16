@@ -24,6 +24,36 @@ release.
 | `dryl.motion.stopAutoFlip` | `DrylCanvas` | Stops that observation. |
 | `dryl.topLayer.show` / `dryl.topLayer.hide` | `DrylCanvas` | Promotes the canvas root to the top layer while it is expanded to fullscreen, and takes it back down. |
 
+### The accept wave — `dryl.proposal`, without an entry point
+
+`DrylAuraElements` stays pure markup: it makes no interop call. The accept wave
+of `AiState.Proposed` → `AiState.Generated` is aimed by `window.dryl.proposal`
+in the always-loaded `dryl.js`, at input time rather than at render time, so
+the wave starts at the right spot from its first frame with no round trip to
+the server in between.
+
+- `dryl.proposal` registers one capture-phase, passive `pointerdown` listener
+  and one `keydown` listener on the document as `dryl.js` loads — once for the
+  page, not per component.
+- A pointer-down inside a surface carrying `ai-aura` and `ai-proposed` writes
+  its point, relative to that surface, onto the surface as `--ai-wave-x` and
+  `--ai-wave-y`.
+- `Enter` or `Space` with focus inside such a surface writes the centre of the
+  focused element the same way.
+- Every pointer-down and every key press first clears the previous stamp, so a
+  click inside a card followed by an "accept all" elsewhere does not start the
+  card's wave at the old click.
+- A stamp whose wave is still playing (the surface carries `ai-from-proposed`)
+  survives a clear and goes at the next one, so a click elsewhere mid-wave does
+  not make the wave jump. A surface that left the DOM is released.
+- The wave layer reads the two properties from its host; without them it starts
+  at the centre. Its disc is sized in container units large enough to reach the
+  farthest corner from any start point, so nothing measures it.
+- Without `dryl.js` the wave starts at the centre; everything else is CSS.
+
+Cleanup: none per component. The two listeners live as long as the page, like
+the rest of `window.dryl.motion`. Tests: `tests/js/proposal.test.mjs`.
+
 ### The `dryl-canvas.js` module
 
 Imported by `DrylCanvas` from

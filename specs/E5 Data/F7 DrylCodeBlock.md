@@ -169,6 +169,10 @@ languages it understands are listed under "Highlighting" below.
 - Re-entering `AiState.Generated` from a different state replays the wash rather
   than being suppressed as a no-op.
 - The aura lifecycle's timer is disposed with the component.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 

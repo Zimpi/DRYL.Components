@@ -174,6 +174,9 @@ consumer's, not the library's.
 - `AiState.Active` is signalled by an extra class the shared aura helper
   deliberately omits, so the skeleton can respond to the idle-but-engaged state
   as well.
+- `AiState.Proposed` renders exactly like `AiState.None`: a skeleton
+  stands in for content that has not arrived yet, so there is nothing on it to
+  accept or dismiss.
 
 ## Recorded gaps
 

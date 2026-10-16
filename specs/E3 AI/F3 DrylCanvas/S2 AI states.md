@@ -11,7 +11,7 @@ not do.
 ### The opt-in
 
 - `Ai` defaults to `AiState.None`.
-- `Ai` accepts exactly the five values of `AiState`.
+- `Ai` accepts exactly the six values of `AiState`.
 - The artifact tree renders unchanged when `Ai` is `AiState.None`.
 - The header and the empty state render unchanged when `Ai` is `AiState.None` —
   the parameter is a switch, not a precondition, which is why `AI-03` requires it
@@ -25,6 +25,8 @@ not do.
 
 - The build line is visible exactly while the canvas is busy.
 - The canvas is busy when `Ai` is `AiState.Streaming` or `AiState.Thinking`.
+- `AiState.Proposed` does not make the canvas busy: the author has finished, and
+  a proposal is shown by the wrapper that owns the frame, not by a build line.
 - The canvas is also busy while the data binder is loading, independently of
   `Ai` — a data load is an author at work too (see `S3`).
 - The build line is rendered as an indeterminate `DrylProgress`, not as a

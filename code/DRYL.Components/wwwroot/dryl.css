@@ -3842,6 +3842,8 @@ td.tbl-td-editing select {
 .tab.ai-thinking .tab-comet::before  { animation-duration: 1.8s; }
 .tab.ai-streaming .tab-comet::before { animation-duration: 3s; }
 .tab.ai-generated .tab-comet::before { animation-duration: 4s; }
+/* Proposed rests (I20): the tab's gradient ring stands still. */
+.tab.ai-proposed .tab-comet::before { animation: none; }
 
 /* Tab panel — fades in on switch via @key on the panel element */
 .tab-panel {
@@ -4459,6 +4461,123 @@ body.dryl-scroll-locked { overflow: hidden; }
    costing a render pass per frame for the rest of the surface's life. */
 @keyframes ai-comet-retire { to { opacity: 0; visibility: hidden; } }
 
+/* ── Proposed ── the AI is done and a human has to decide (I20). The one resting
+   state: the aurora edge frozen mid-drift — soft, asymmetric, still — whatever the
+   variant, with comet and halo retired, so a screen of proposals does not flicker.
+   Nothing here loops: the drift strips sit at a fixed offset, the edge fades in once.
+   .ai-from-proposed is Generated entered straight from Proposed (an accept): it
+   keeps the frozen edge, skips the entrance lift (the surface is already on
+   screen), sends the accept wave from the click and blooms once the wave lands. */
+.ai-aura.ai-proposed .ai-aura-comet,
+.ai-aura.ai-from-proposed .ai-aura-comet {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-slow) var(--ease-out),
+              visibility 0s var(--ease-out) var(--dur-slow);
+}
+/* A resting state runs nothing: the head stops where it is and fades with its wrapper. */
+.ai-aura.ai-proposed .ai-aura-comet::before,
+.ai-aura.ai-from-proposed .ai-aura-comet::before { animation-play-state: paused; }
+.ai-aura.ai-proposed .ai-aura-glow,
+.ai-aura.ai-from-proposed .ai-aura-glow {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+.ai-aura.ai-proposed .ai-aura-ring,
+.ai-aura.ai-from-proposed .ai-aura-ring {
+  inset: -2px;
+  padding: 2.5px;
+  background: none;
+  overflow: hidden;
+  filter: blur(1.5px);
+}
+.ai-aura.ai-proposed .ai-aura-ring { animation: presence-in-fade var(--dur-slow) var(--ease-out) backwards; }
+.ai-aura.ai-proposed .ai-aura-ring::before,
+.ai-aura.ai-proposed .ai-aura-ring::after,
+.ai-aura.ai-from-proposed .ai-aura-ring::before,
+.ai-aura.ai-from-proposed .ai-aura-ring::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  /* The Aurora strips, frozen a quarter into their drift: a fixed offset rather than a
+     paused animation, which would keep wherever an already-running drift happened to be. */
+  animation: none;
+  translate: -25% 0;
+}
+.ai-aura.ai-proposed .ai-aura-ring::before,
+.ai-aura.ai-from-proposed .ai-aura-ring::before {
+  background:
+    radial-gradient(58% 130% at 18% 0%,  color-mix(in srgb, var(--ai-a) calc(62% * var(--ai-strength)), transparent), transparent 62%),
+    radial-gradient(90% 150% at 50% 50%, color-mix(in srgb, var(--ai-a) calc(22% * var(--ai-strength)), transparent), transparent 72%);
+}
+.ai-aura.ai-proposed .ai-aura-ring::after,
+.ai-aura.ai-from-proposed .ai-aura-ring::after {
+  background:
+    radial-gradient(58% 130% at 82% 100%, color-mix(in srgb, var(--ai-b) calc(62% * var(--ai-strength)), transparent), transparent 62%);
+}
+
+/* Accept: no lift, the edge flares as the wave lands, the bloom waits for it. */
+.ai-aura.ai-generated.ai-from-proposed { animation: none; }
+.ai-aura.ai-generated.ai-from-proposed .ai-aura-ring {
+  animation: ai-proposed-flare var(--dur-choreo) var(--ease-out);
+}
+.ai-aura.ai-generated.ai-from-proposed .ai-aura-wash { animation-delay: var(--delay-long); }
+@keyframes ai-proposed-flare {
+  0%, 35% { filter: blur(1.5px); }
+  65%     { filter: blur(2px) brightness(2); }
+  100%    { filter: blur(1.5px); }
+}
+
+/* The accept wave: a disc of AI light spreading from the click (dryl.js stamps
+   --ai-wave-x / --ai-wave-y on the host at pointer-down; the centre otherwise),
+   clipped to the host's rounded box. 300cqmax across reaches the farthest corner
+   from any start point inside the box, so nothing has to measure it. */
+.ai-aura-wave {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  container-type: size;
+  pointer-events: none;
+  z-index: 1;
+}
+.ai-aura-wave::before {
+  content: '';
+  position: absolute;
+  left: var(--ai-wave-x, 50%);
+  top: var(--ai-wave-y, 50%);
+  width: 300cqmax;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side,
+    color-mix(in srgb, var(--ai-b) calc(30% * var(--ai-strength)), transparent) 0%,
+    color-mix(in srgb, var(--ai-a) calc(22% * var(--ai-strength)), transparent) 55%,
+    transparent 100%);
+  animation: ai-proposed-wave var(--dur-choreo) var(--ease-out) both;
+}
+@keyframes ai-proposed-wave {
+  0%   { scale: 0; opacity: 1; }
+  70%  { opacity: 0.85; }
+  100% { scale: 1; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-aura.ai-proposed .ai-aura-ring,
+  .ai-aura.ai-generated.ai-from-proposed .ai-aura-ring { animation: none; }
+  .ai-aura.ai-proposed .ai-aura-comet,
+  .ai-aura.ai-proposed .ai-aura-glow,
+  .ai-aura.ai-from-proposed .ai-aura-comet,
+  .ai-aura.ai-from-proposed .ai-aura-glow { transition: none; }
+  .ai-aura.ai-generated.ai-from-proposed .ai-aura-wash { animation-delay: 0s; }
+  .ai-aura-wave { display: none; }
+  .ai-aura-wave::before { animation: none; }
+}
+
 /* Graceful exit — when a surface leaves AI mode the host keeps the aura mounted
    for one --dur-slow beat with .ai-aura--out, dissolving the border + halo instead
    of snapping the DOM away (rule 2.12: mounts AND unmounts animate). */
@@ -4666,6 +4785,11 @@ body.dryl-scroll-locked { overflow: hidden; }
 }
 .ai-indicator.is-thinking::after  { animation-duration: 1.4s; }
 .ai-indicator.is-streaming::after { animation-duration: 2.2s; }
+/* Proposed rests (I20): the pill reports a state in which nothing is working, so neither
+   the sparkle nor the sweep moves — a page full of proposals stays still. */
+.ai-indicator.is-proposed .ai-indicator-ico,
+.ai-indicator.is-proposed::after { animation: none; }
+.ai-indicator.is-proposed::after { opacity: 0; }
 
 @keyframes ai-indicator-pulse {
   0%, 100% { opacity: 0.7; transform: scale(1); }

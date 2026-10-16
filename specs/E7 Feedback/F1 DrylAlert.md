@@ -166,6 +166,10 @@ before behaves exactly as it did.
   it is entered, including on a second entry after leaving.
 - The AI state changes nothing about the alert's layout, so text does not reflow
   when an operation starts or ends.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded gaps
 

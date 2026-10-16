@@ -72,7 +72,7 @@ a failed tool is never swallowed by the summary.
 ### AI state
 
 - `Ai` defaults to `AiState.None`.
-- `Ai` accepts exactly the five values of `AiState`.
+- `Ai` accepts exactly the six values of `AiState`.
 - The group renders its count and its status unchanged when `Ai` is
   `AiState.None` — the parameter is a switch, not a precondition.
 - Setting the obsolete `State` alias sets `Ai` to the same value.
@@ -85,6 +85,10 @@ a failed tool is never swallowed by the summary.
   `DrylAiScope`'s variant, otherwise to `AiAura.Aurora` — not `AiAura.Comet`, and
   this is the one documented departure from the category default.
 - The AI state is never inherited from a surrounding `DrylAiScope`.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ### Disclosure and error handling
 

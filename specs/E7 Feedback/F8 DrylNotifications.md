@@ -217,8 +217,20 @@ no `Ai` of its own.
   rounded card.
 - The component itself takes no `Ai`: the state belongs to each entry, and the
   inbox around them is not doing the work.
+- A row whose notification carries `AiState.Proposed` renders the shared resting
+  proposal look of `DrylAuraElements`: the frozen aurora edge, with no comet and
+  no halo.
+- A row plays no accept wave on a change from `AiState.Proposed` to
+  `AiState.Generated`, for the same reason it plays no completion wash (see
+  "Recorded gaps").
 
 ## Recorded gaps
+
+- **An accepted proposal replays the row's entrance lift.** A row has no aura
+  lifecycle, so a change from `AiState.Proposed` to `AiState.Generated` cannot
+  tell it apart from a fresh `Generated`: the row lifts in again and the comet
+  spins up for the one-shot, although the row is already on screen. Closing it
+  means giving rows a lifecycle, the same step the gap below asks for.
 
 - **AI rows have no aura lifecycle.** Every other AI-capable component in the
   category keeps the aura mounted for one `--dur-slow` beat after the state

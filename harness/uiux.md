@@ -116,6 +116,13 @@ Status: **binding** | Enforced: **review**
 AI activity changes are announced via `aria-live="polite"`. The precedent is
 `DrylAiIndicator` — mirror it when building new AI-aware feedback.
 
+The resting state `AiState.Proposed` is described, not announced. Its aura
+carries a visually hidden "AI suggestion, awaiting your decision", read when a
+screen reader reaches the surface, and no live region of its own: a screen with
+seven proposals would otherwise make seven announcements in a row. A host that
+wants the proposals announced places one `DrylAiIndicator` with
+`State="AiState.Proposed"` and its own text ("7 suggestions").
+
 Check: in `code/DRYL.Components/Components/AI/DrylAiIndicator.razor`, the root
 `<span>` that carries `role="status"` also carries `aria-live="polite"`, and
 the component's header comment states the intent — `Sets aria-live="polite" so

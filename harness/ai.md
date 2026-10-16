@@ -29,7 +29,7 @@ for later rules without renumbering.
 Status: **binding** | Enforced: **grep**
 
 DRYL has **one** AI vocabulary. Every AI-aware component reuses the shared
-`AiState` enum (`None / Active / Thinking / Streaming / Generated`, defined in
+`AiState` enum (`None / Active / Thinking / Streaming / Generated / Proposed`, defined in
 `code/DRYL.Components/AiState.cs`). Do not invent a per-component state enum
 — named anti-examples are `Loading`, `Generating`, `AiBusy`, `ChatLoadingState`.
 No component invents its own AI vocabulary.
@@ -176,11 +176,21 @@ Status: **binding** | Enforced: **review**
 them animates forever for nothing. Never set an AI state decoratively, and
 never leave one behind when the work ends.
 
+**The one exception is `Proposed`**, the resting state: the AI is done and a
+human has to accept or dismiss what it produced. It may stay as long as no one
+has decided, because nothing in it loops — the aurora edge is frozen, comet and
+halo are retired. The host resolves it (accept → `Generated`, dismiss → `None`);
+the library never does. It is set only where an accept or dismiss action
+actually exists: a surface the AI merely touched once is not a proposal, and a
+`Proposed` used as decoration violates this rule like any other.
+
 Check: reviewer confirms every path that sets `Ai`/`State` to `Active`,
 `Thinking`, or `Streaming` has a corresponding path that drops it back to
 `None` (or hands off to `Generated`, see `AI-07`) once the underlying work
 finishes — no automated scan documented yet, since "is this AI actually still
-working" is a runtime/business-logic question a grep cannot answer.
+working" is a runtime/business-logic question a grep cannot answer. For
+`Proposed`, the reviewer confirms an accept or dismiss action exists on the
+surface and that both lead the state away from `Proposed`.
 
 ### AI-07 — `Generated` is a one-shot; `AuraLifecycle` removes it
 
@@ -199,5 +209,12 @@ Check: `code/DRYL.Components/Ai/AuraLifecycle.cs` special-cases
 one-shot by hand — no automated scan documented yet, since a hand-rolled
 "set `Generated`, then set `None` after a `Task.Delay`" is not reliably
 distinguishable from `AuraLifecycle` usage by grep.
+
+A `Generated` entered straight from `Proposed` — an accepted proposal — is the
+same one-shot: `AuraLifecycle.FromProposed` marks it, `AiAuraCss.Append` adds
+`ai-from-proposed`, and `DrylAuraElements` adds the accept wave; it retires
+exactly like any other `Generated`. A host that draws its own aura markup instead
+of composing `AiAuraCss` and `DrylAuraElements` misses that hand-over, which is
+one more reason to compose them.
 
 ---

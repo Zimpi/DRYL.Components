@@ -52,6 +52,10 @@
                 {
                     <span class="tab-comet" aria-hidden="true"></span>
                 }
+                @if (tab.Ai == AiState.Proposed)
+                {
+                    <span class="visually-hidden">AI suggestion, awaiting your decision</span>
+                }
                 @if (!string.IsNullOrEmpty(tab.Icon))
                 {
                     <DrylIcon Name="@tab.Icon" Size="14" Class="tab-icon" />
@@ -229,6 +233,7 @@
             case AiState.Thinking:  parts.Add("ai-thinking");  break;
             case AiState.Streaming: parts.Add("ai-streaming"); break;
             case AiState.Generated: parts.Add("ai-generated"); break;
+            case AiState.Proposed:  parts.Add("ai-proposed");  break;
         }
         return string.Join(' ', parts);
     }

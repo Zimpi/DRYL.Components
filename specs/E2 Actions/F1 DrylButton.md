@@ -235,6 +235,10 @@ icon-only mode is entered by omitting `ChildContent`.
   layers carry the higher stacking order.
 - That precedence is the intended one: while a button is in an AI state, its edge
   reports the AI state rather than the variant.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ### Keyboard and accessibility
 

@@ -171,6 +171,10 @@ data, it does not collect input.
   it is entered.
 - `AiState.Generated` retires itself to `AiState.None` without the host having to
   hand it back.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Cross-cutting evidence (`SPEC-05`)
 

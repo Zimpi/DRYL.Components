@@ -19,7 +19,7 @@ public sealed class MotionTests(BrowserFixture browser)
                 Assert.NotEqual("none", await page.Locator("[data-aura=Comet] .ai-aura-comet").EvaluateAsync<string>("el => getComputedStyle(el, '::before').animationName"));
                 await page.EmulateMediaAsync(new() { ReducedMotion = ReducedMotion.Reduce });
             }
-            foreach (var state in new[] { "Active", "Thinking", "Streaming", "Generated" })
+            foreach (var state in new[] { "Active", "Thinking", "Streaming", "Generated", "Proposed" })
             {
                 await page.Locator("#aura-state").SelectOptionAsync(state);
                 var modifier = state == "Active" ? ".ai-aura" : $".ai-{state.ToLowerInvariant()}";

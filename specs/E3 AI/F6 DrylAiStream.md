@@ -83,7 +83,7 @@ put them on.
 - The state becomes `AiState.Generated` when the source completes.
 - The state becomes the value of `SettleTo` after the `Generated` dwell elapses.
 - `SettleTo` defaults to `AiState.None`.
-- `SettleTo` accepts exactly the five values of `AiState`.
+- `SettleTo` accepts exactly the six values of `AiState`.
 - The dwell between `Generated` and `SettleTo` is a fixed pause the component owns,
   identical for every run and not read from a CSS token.
 - The dwell is cancellable: a run superseded or disposed during it never applies

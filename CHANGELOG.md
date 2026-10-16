@@ -14,6 +14,22 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.7.0] — 2026-10-17
+
+### Added
+- `AiState.Proposed` — a sixth AI state, and the first that rests: the AI is done and a human now has to accept or dismiss what it produced. The surface shows the aurora edge frozen mid-drift, with no comet, no halo and nothing looping, so a screen full of proposals stays still. It stays until the host changes the state — accept → `AiState.Generated`, dismiss → `AiState.None`; the library never ends it and offers no accept/dismiss API of its own. Set it only where such an action exists. Appended after `Generated`, so the underlying values of the older members are unchanged; an exhaustive `switch` over `AiState` now warns about the new case.
+- The accept wave — `AiState.Generated` entered straight from `AiState.Proposed` sends a wave of AI light across the surface from where the human clicked (or from the focused element after `Enter`/`Space`, otherwise from the centre), flares the edge as it lands, then plays the usual completion wash. The surface does not replay the entrance lift, since it is already on screen. Positioned by `dryl.js` at input time; no interop call. Under reduced motion it goes straight to the calm `Generated`.
+- `AuraLifecycle.FromProposed` — true while `Generated` was entered directly from `Proposed`; `AiAuraCss.Append` emits `ai-proposed` and `ai-from-proposed`.
+- A surface in `AiState.Proposed` carries the visually hidden description "AI suggestion, awaiting your decision", read when a screen reader reaches it and deliberately not a live region.
+- `DrylImage` — shows `AiState.Proposed` and the accept wave; an accepted image skips its scale-in reveal (it is already on screen), and the image is not a live region while it is a proposal.
+- `DrylNotifications` rows and `DrylTabs` tabs show `AiState.Proposed` (the row's frozen edge, the tab's still gradient ring) with the screen-reader description; they have no aura lifecycle, so no accept wave.
+- `DrylToolCall` — the status pill reads "Awaiting approval" under `AiState.Proposed`.
+- `DrylSpinner`, `DrylSkeleton`, `DrylProgress` — render `AiState.Proposed` exactly like `AiState.None`: they report work in progress or stand in for content that has not arrived, so nothing on them waits for a decision.
+- `DrylAiIndicator` — `State="AiState.Proposed"` reads "Proposed" and rests (no pulse, no shimmer). It is the route for announcing proposals: pass your own text, e.g. "7 suggestions", as `ChildContent`.
+
+### Changed
+- `DrylCard` and `DrylMarkdown` now compose the shared aura (`AiAuraCss` + `DrylAuraElements`) instead of writing its markup out by hand. The rendered markup for the existing states is unchanged; they gain `AiState.Proposed` and the accept wave with it.
+
 ## [Agents 0.21.1] — 2026-10-16
 
 Agents-only release; the core package stays at 3.6.0.

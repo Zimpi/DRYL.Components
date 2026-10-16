@@ -2151,6 +2151,78 @@ window.dryl.motion = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────
+ * dryl.proposal — aims the accept wave of AiState.Proposed (I20).
+ *
+ * When a human accepts a proposal, the host moves the surface from
+ * Proposed to Generated and DrylAuraElements renders .ai-aura-wave.
+ * The wave should start where the human acted. Rather than measure
+ * the wave after Blazor rendered it (a round trip late, so it would
+ * start somewhere and jump), the start point is written onto the
+ * surface at input time, as --ai-wave-x / --ai-wave-y; the wave reads
+ * them from its first frame. No interop call, nothing per component.
+ *
+ *   pointer-down inside a .ai-aura.ai-proposed surface → its point
+ *   Enter / Space with focus inside one          → the focused
+ *                                                   element's centre
+ *   anything else                                 → no stamp: centre
+ *
+ * Every pointer-down and key press first clears the previous stamp,
+ * so a click inside a card followed by an "accept all" elsewhere does
+ * not start the card's wave at the old click. A stamp whose wave is
+ * still in flight (.ai-from-proposed) is kept until the next clear,
+ * so clicking elsewhere mid-wave does not make the wave jump.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.proposal = (() => {
+    const stamped = new Set();
+
+    function clear() {
+        for (const host of stamped) {
+            if (host.isConnected && host.classList.contains('ai-from-proposed')) continue;
+            host.style.removeProperty('--ai-wave-x');
+            host.style.removeProperty('--ai-wave-y');
+            stamped.delete(host);
+        }
+    }
+
+    function stamp(host, x, y) {
+        const r = host.getBoundingClientRect();
+        // The wave is positioned against the padding box, so leave the border out.
+        host.style.setProperty('--ai-wave-x', `${x - r.left - (host.clientLeft || 0)}px`);
+        host.style.setProperty('--ai-wave-y', `${y - r.top - (host.clientTop || 0)}px`);
+        stamped.add(host);
+    }
+
+    const hostOf = node => (node && node.closest ? node.closest('.ai-aura.ai-proposed') : null);
+
+    function onPointerDown(e) {
+        clear();
+        const host = hostOf(e.target);
+        if (host) stamp(host, e.clientX, e.clientY);
+    }
+
+    function onKeyDown(e) {
+        clear();
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const focused = document.activeElement;
+        const host = hostOf(focused);
+        if (!host) return;
+        const r = focused.getBoundingClientRect();
+        stamp(host, r.left + r.width / 2, r.top + r.height / 2);
+    }
+
+    let installed = false;
+    function install(doc) {
+        if (installed || !doc) return;
+        installed = true;
+        doc.addEventListener('pointerdown', onPointerDown, { capture: true, passive: true });
+        doc.addEventListener('keydown', onKeyDown, { capture: true, passive: true });
+    }
+    if (typeof document !== 'undefined') install(document);
+
+    return { install, onPointerDown, onKeyDown, stamped };
+})();
+
+/* ──────────────────────────────────────────────────────────
  * dryl.morph — FLIP, the engine behind DrylMorph, DrylRouteTransition,
  *   the dialog handoff, table row reordering and the canvas.
  *

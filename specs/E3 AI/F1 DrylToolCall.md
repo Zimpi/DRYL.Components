@@ -66,12 +66,13 @@ call's lifecycle belongs to the host.
 ### AI state
 
 - `Ai` defaults to `AiState.None`.
-- `Ai` accepts exactly the five values of `AiState`.
+- `Ai` accepts exactly the six values of `AiState`.
 - The status pill reads "Idle" when `Ai` is `AiState.None`.
 - The status pill reads "Running" when `Ai` is `AiState.Thinking`.
 - The status pill reads "Streaming" when `Ai` is `AiState.Streaming`.
 - The status pill reads "Done" when `Ai` is `AiState.Generated`.
 - The status pill reads "Active" when `Ai` is `AiState.Active`.
+- The status pill reads "Awaiting approval" when `Ai` is `AiState.Proposed`.
 - The card renders its name unchanged when `Ai` is `AiState.None`.
 - The card renders its arguments and its result unchanged when `Ai` is
   `AiState.None` — the parameter is a switch, not a precondition.
@@ -85,6 +86,10 @@ call's lifecycle belongs to the host.
   `DrylAiScope`'s variant, otherwise to `AiAura.Comet`.
 - The AI state is never inherited from a surrounding `DrylAiScope` — a tool
   call's status is a fact about that call.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ### Disclosure
 

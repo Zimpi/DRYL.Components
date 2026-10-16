@@ -177,6 +177,10 @@ through a callback the host would have to wire.
   it is entered.
 - The AI state changes nothing about the dialog's layout, so content does not
   reflow when an operation starts or ends.
+- `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
+  the frozen aurora edge, with no comet and no halo.
+- A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
+  accept wave of `DrylAuraElements` before the completion wash.
 
 ## Recorded debt
 

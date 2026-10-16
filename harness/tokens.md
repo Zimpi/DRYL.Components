@@ -397,6 +397,7 @@ AI is a first-class state of the UI in DRYL. The system has **one** ambient voca
 | `AiState.Thinking`   | Violet-dominant, fast comet + tight fast halo pulse.     | A tool call is in flight.                                  |
 | `AiState.Streaming`  | Cyan-dominant comet + a directional sheen sweeping in reading direction. | Tokens are arriving from the model.       |
 | `AiState.Generated`  | One-shot bloom + soft lift, then the comet retires to a calm afterglow. | Reveal moment right after generation completes.  |
+| `AiState.Proposed`   | The aurora edge, frozen mid-drift — no comet, no halo, nothing looping. Accepting it (→ `Generated`) sends a wave of AI light from the click. | The AI is done; a human has to accept or dismiss. Rests until the host changes it (I20). |
 
 The **variant** is orthogonal to the state — the `Aura` parameter (`AiAura`):
 `Comet` (default, an even saum + a luminous travelling comet) or `Aurora` (a
@@ -415,6 +416,9 @@ states, colour weighting and Generated reveal.
 | `.ai-aura-glow`     | Breathing box-shadow halo behind the host; its `::before` carries the Streaming sheen sweep (an oversized strip sliding via transform). |
 | `.ai-aura-wash`     | One-shot Generated bloom; rendered only while `.ai-generated`.                                         |
 | `.ai-thinking` / `.ai-streaming` / `.ai-generated` | State modifiers on `.ai-aura`: reset a handful of CSS vars (colour weighting, comet/halo speed, sheen). |
+| `.ai-proposed`      | State modifier for `AiState.Proposed`: the ring becomes the frozen aurora edge (whatever the variant), comet and halo fade out over `--dur-slow`, the edge fades in once via `presence-in-fade`. |
+| `.ai-from-proposed` | Beside `.ai-generated` when it was entered straight from `.ai-proposed`: keeps the frozen edge, skips the entrance lift, flares the edge (`ai-proposed-flare`) and delays the bloom by `--delay-long`. |
+| `.ai-aura-wave`     | The accept wave, rendered only with `.ai-from-proposed`: a disc of AI light (`ai-proposed-wave`) from `--ai-wave-x` / `--ai-wave-y`, which `dryl.proposal` in `dryl.js` stamps on the host at pointer-down (centre otherwise); clipped to the host's radius. |
 | `.ai-indicator`     | Standalone status pill (`DrylAiIndicator`) — pulsing sparkle + shimmer sweep, adapts speed to state.   |
 
 The ring/comet/glow/wash markup is emitted by the shared `<DrylAuraElements/>` component,
@@ -438,6 +442,12 @@ AI mode is the one place where ambient (looping) animations exceed the standard 
 | Halo breathe (Active / Thinking / Streaming / Generated) | 6s / 1.6s / 2.6s / 5s | `--ease-in-out` |
 | Streaming sheen sweep     | 2.4s  | `--ease-in-out`  |
 | Generated bloom + lift    | `--dur-choreo` (both) | `--ease-out` |
+| Proposed edge fade-in (`presence-in-fade`) | `--dur-slow`, once | `--ease-out` |
+| Accept wave (`ai-proposed-wave`) + edge flare (`ai-proposed-flare`) | `--dur-choreo` (both), once; bloom after `--delay-long` | `--ease-out` |
+
+`ai-proposed-wave` and `ai-proposed-flare` were signed off by the maintainer on
+2026-10-16 (`AI-04`, I20). The frozen edge itself adds no keyframe: it is the
+Aurora variant's drift strips held at a fixed quarter offset, with no animation.
 | Comet afterglow retire    | `--dur-choreo`, `--delay-long` | `--ease-out` |
 | Graceful exit dissolve    | `--dur-slow` (420ms) | `--ease-out` |
 | Indicator pulse / shimmer | 2.4s / 3.6s (Active), 1s / 1.4s (Thinking), 1.6s / 2.2s (Streaming) | `--ease-in-out` |
