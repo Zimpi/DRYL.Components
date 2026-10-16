@@ -123,7 +123,7 @@ public class AiProposedSweepTests : BunitContext
         if (type == typeof(DrylCodeBlock)) b.AddAttribute(2, "Code", "var x = 1;");
         if (type == typeof(DrylStat)) { b.AddAttribute(2, "Label", "Revenue"); b.AddAttribute(3, "Value", "42"); }
         if (type == typeof(DrylMarkdown)) b.AddAttribute(2, "Content", "Draft");
-        if (type == typeof(DrylToolCall)) b.AddAttribute(2, "Name", "send_email");
+        if (type == typeof(DrylToolCall)) b.AddAttribute(2, "ToolName", "send_email");
         if (type == typeof(DrylTimelineItem)) b.AddAttribute(2, "Title", "Step");
         if (type == typeof(DrylExpansion)) b.AddAttribute(2, "Title", "Details");
         if (type == typeof(DrylEmptyState)) b.AddAttribute(2, "Title", "Nothing yet");

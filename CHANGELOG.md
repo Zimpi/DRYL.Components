@@ -23,6 +23,7 @@ Version bump guide:
 - A surface in `AiState.Proposed` carries the visually hidden description "AI suggestion, awaiting your decision", read when a screen reader reaches it and deliberately not a live region.
 - `DrylImage` — shows `AiState.Proposed` and the accept wave; an accepted image skips its scale-in reveal (it is already on screen), and the image is not a live region while it is a proposal.
 - `DrylNotifications` rows and `DrylTabs` tabs show `AiState.Proposed` (the row's frozen edge, the tab's still gradient ring) with the screen-reader description; they have no aura lifecycle, so no accept wave.
+- `DrylToolCall` — the status pill reads "Awaiting approval" under `AiState.Proposed`.
 - `DrylSpinner`, `DrylSkeleton`, `DrylProgress` — render `AiState.Proposed` exactly like `AiState.None`: they report work in progress or stand in for content that has not arrived, so nothing on them waits for a decision.
 - `DrylAiIndicator` — `State="AiState.Proposed"` reads "Proposed" and rests (no pulse, no shimmer). It is the route for announcing proposals: pass your own text, e.g. "7 suggestions", as `ChildContent`.
 

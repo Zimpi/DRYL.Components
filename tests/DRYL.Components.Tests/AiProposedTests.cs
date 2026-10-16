@@ -91,6 +91,28 @@ public class AiProposedTests : BunitContext
     }
 
     [Fact]
+    public async Task The_accept_mark_goes_when_the_accepted_Generated_retires()
+    {
+        var aura = new AuraLifecycle(exitMs: 10, generatedHoldMs: 10);
+        aura.Sync(AiState.Proposed, NoRender);
+        aura.Sync(AiState.Generated, NoRender);
+
+        for (var i = 0; i < 100 && aura.RenderState != AiState.None; i++) await Task.Delay(10);
+
+        Assert.Equal(AiState.None, aura.RenderState);
+        Assert.False(aura.FromProposed);
+    }
+
+    [Fact]
+    public void A_tool_call_awaiting_a_decision_reads_awaiting_approval()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var cut = Render<DrylToolCall>(ps => ps.Add(p => p.ToolName, "send_email").Add(p => p.Ai, AiState.Proposed));
+
+        Assert.Contains("Awaiting approval", cut.Find(".ai-indicator").TextContent);
+    }
+
+    [Fact]
     public void Proposed_dismissed_to_None_dissolves_through_the_exit()
     {
         var aura = Walk(AiState.Proposed, AiState.None);

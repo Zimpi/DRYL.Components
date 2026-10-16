@@ -4478,7 +4478,8 @@ body.dryl-scroll-locked { overflow: hidden; }
 /* A resting state runs nothing: the head stops where it is and fades with its wrapper. */
 .ai-aura.ai-proposed .ai-aura-comet::before,
 .ai-aura.ai-from-proposed .ai-aura-comet::before { animation-play-state: paused; }
-.ai-aura.ai-proposed .ai-aura-glow {
+.ai-aura.ai-proposed .ai-aura-glow,
+.ai-aura.ai-from-proposed .ai-aura-glow {
   animation: none;
   opacity: 0;
   transition: opacity var(--dur-slow) var(--ease-out);
@@ -4568,6 +4569,10 @@ body.dryl-scroll-locked { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .ai-aura.ai-proposed .ai-aura-ring,
   .ai-aura.ai-generated.ai-from-proposed .ai-aura-ring { animation: none; }
+  .ai-aura.ai-proposed .ai-aura-comet,
+  .ai-aura.ai-proposed .ai-aura-glow,
+  .ai-aura.ai-from-proposed .ai-aura-comet,
+  .ai-aura.ai-from-proposed .ai-aura-glow { transition: none; }
   .ai-aura.ai-generated.ai-from-proposed .ai-aura-wash { animation-delay: 0s; }
   .ai-aura-wave { display: none; }
   .ai-aura-wave::before { animation: none; }

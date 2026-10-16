@@ -2186,8 +2186,9 @@ window.dryl.proposal = (() => {
 
     function stamp(host, x, y) {
         const r = host.getBoundingClientRect();
-        host.style.setProperty('--ai-wave-x', `${x - r.left}px`);
-        host.style.setProperty('--ai-wave-y', `${y - r.top}px`);
+        // The wave is positioned against the padding box, so leave the border out.
+        host.style.setProperty('--ai-wave-x', `${x - r.left - (host.clientLeft || 0)}px`);
+        host.style.setProperty('--ai-wave-y', `${y - r.top - (host.clientTop || 0)}px`);
         stamped.add(host);
     }
 

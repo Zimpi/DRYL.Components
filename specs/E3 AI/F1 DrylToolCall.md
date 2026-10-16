@@ -72,6 +72,7 @@ call's lifecycle belongs to the host.
 - The status pill reads "Streaming" when `Ai` is `AiState.Streaming`.
 - The status pill reads "Done" when `Ai` is `AiState.Generated`.
 - The status pill reads "Active" when `Ai` is `AiState.Active`.
+- The status pill reads "Awaiting approval" when `Ai` is `AiState.Proposed`.
 - The card renders its name unchanged when `Ai` is `AiState.None`.
 - The card renders its arguments and its result unchanged when `Ai` is
   `AiState.None` — the parameter is a switch, not a precondition.

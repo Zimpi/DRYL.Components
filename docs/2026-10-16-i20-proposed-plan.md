@@ -25,7 +25,14 @@ Agents package is not touched: its AI-aware surfaces that compose
 | T4 — hosts that draw their own aura | Complete | Gate passes (1670 tests, 7 new). `DrylCard`, `DrylMarkdown` compose the shared aura; `DrylImage` (wave, no scale-in after an accept, no live region while proposed), `DrylNotifications` rows and `DrylTabs` (still ring) gain `Proposed`. `DrylCommandPalette` needed nothing: its own ring only marks resolving, the aura itself is shared. Browser look of these hosts moved to T6, where the website demo shows them. |
 | T5 — sweep over every shared host, specs to `Implemented` | Complete | Gate passes (1700 tests; `AiProposedSweepTests` 30: a source scan that makes every `Ai`-carrying file compose the shared aura or be accounted for by name — 12 are, each with its reason — plus render probes of 14 hosts across the families, proposal and accept). The 26 specs set to `Modified` in T0 are `Implemented` again. |
 | T6 — website demo | Complete | `DRYL.Website` branch `feat/ai-proposed`, `79b49bf`: new example `Ai/Proposals` (three proposal cards with Accept/Dismiss in `DrylPresence`, an AI-filled `DrylInputText`, one `DrylAiIndicator` counting what is open), `States` and `Indicator` show the sixth state. `dotnet test DRYL.Website.slnx` passes (36). Browser, both modes: resting edges, no running animation on 5 proposed hosts, wave from the click on accept, dismiss removes the card. One browser session stalled every new animation (even a bare `element.animate`) after many paused captures; a fresh session showed the wave running — a tooling artefact, recorded here so it is not mistaken for a bug. |
-| T7 — review, full verification, close the loop | Open | |
+| T7 — review, full verification, close the loop | Complete | Independent review agent: nothing serious, three real low-severity defects, all fixed with tests — `DrylToolCall` read "Idle" for a proposal (now "Awaiting approval"); the halo snapped back to 0.55 on accept (now hidden through the accepted `Generated` too); `AuraLifecycle.FromProposed` stayed true after the aura retired (now cleared with it). Nits taken: no comet/halo fades under reduced motion, the wave measured from the padding box, F7 names the `Enter`/`Space` keyboard path, F8 records the row's lift replay as a gap. Not taken: nested proposals stamp only the inner surface (no such host exists), `DrylImage`'s live region on accept (pre-existing pattern). Follow-up for the Agents step: `DrylHandoffTrace`, `DrylAiCanvas` and `DrylCanvasDock` label `Proposed` with their idle/stopped text. Full evidence run — see below. |
+
+## Follow-ups (not in this delivery)
+
+- **Agents package.** `DrylHandoffTrace`, `DrylAiCanvas` and `DrylCanvasDock` show the shared resting look under `Proposed` already (they compose the core aura), but their own status labels fall back to idle/"Stopped" text. They are mapped in the Agents step that adopts `Proposed` for tool approval and canvas operations.
+- **`DrylToolCallGroup`'s summary** derives its label from the children's activity, so a group set to `Proposed` reads "Done". Revisit with the Agents step, where tool approval lives.
+- **`DrylNotifications` rows** replay the entrance lift on accept (recorded gap in F8) until rows get an aura lifecycle.
+- **Calendar stage three (I19)** can now be specified on top of `AiState.Proposed`.
 
 One verified commit per task, main agent; T7's review goes to an independent
 agent.
@@ -122,3 +129,17 @@ modes.
 evidence run (`CLAUDE.md` stage 5), both modes by eye. Close the loop
 (`harness/releasing.md`): specs `Implemented`, changelog complete, version
 3.7.0.
+
+## Evidence — full run on 2026-10-17
+
+`dotnet build DRYL.slnx -c Release` 0 errors · `dotnet test DRYL.slnx -c Release`
+1702 passed (run twice; one earlier failure of
+`DrylAiFieldTests.Escape_during_run_cancels_and_restores` ran against a stale
+build after a compile error and did not recur) · `node --test tests/js/*.test.mjs`
+165 · browser `MotionTests` 12 (both modes, normal and reduced motion, now with
+`Proposed`) · light sync in sync · light contrast passes · harness links OK ·
+motion tokens clean · coverage `65/131` (unchanged — no new component; the
+check still exits non-zero for phase C, as expected) · `git diff --check` clean.
+Both colour modes looked at by eye on `DRYL.BrowserHost` and the website demo.
+Not done: pushing either branch and opening the PRs — that is the maintainer's
+call.

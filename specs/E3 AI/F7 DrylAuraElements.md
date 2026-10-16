@@ -131,7 +131,8 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
 - The wave starts at the most recent pointer-down in the document when that
   pointer-down lies inside the surface and no key press came after it.
 - The wave starts at the centre of the focused element when the previous rule
-  does not apply and focus is inside the surface.
+  does not apply, the accept was given with `Enter` or `Space`, and focus is
+  inside the surface.
 - The wave starts at the centre of the surface when neither rule applies.
 - The wave grows until it covers the corner of the surface farthest from its
   start.
@@ -143,7 +144,7 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
 - `AiState.Generated` entered from `AiState.Proposed` does not replay the host's
   entrance lift, because the surface is already on screen.
 - `AiState.Generated` entered from `AiState.Proposed` keeps the frozen aurora
-  edge, with no comet, until it retires.
+  edge, with no comet and no halo, until it retires.
 - `AiState.Generated` entered from `AiState.Proposed` retires itself exactly like
   any other `AiState.Generated` (`AI-07`).
 - `AiState.Generated` entered from any state other than `AiState.Proposed` plays

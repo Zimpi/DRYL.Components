@@ -126,6 +126,7 @@ public sealed class AuraLifecycle : IDisposable
 
         Exiting = false;
         RenderState = AiState.None;
+        FromProposed = false;
         await requestRender();
     }
 
@@ -137,6 +138,7 @@ public sealed class AuraLifecycle : IDisposable
 
         Exiting = false;
         RenderState = AiState.None;
+        FromProposed = false;
         await requestRender();
     }
 
