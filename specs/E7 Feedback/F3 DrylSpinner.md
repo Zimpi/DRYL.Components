@@ -1,7 +1,7 @@
 # DrylSpinner
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylSpinner.razor
               code/DRYL.Components/Components/Feedback/DrylSpinner.razor.css
 

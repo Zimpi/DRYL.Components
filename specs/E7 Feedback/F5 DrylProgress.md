@@ -1,7 +1,7 @@
 # DrylProgress
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylProgress.razor
               code/DRYL.Components/Components/Feedback/ProgressVariant.cs
 

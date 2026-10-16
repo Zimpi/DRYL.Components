@@ -96,15 +96,19 @@
     /// <summary>Extra CSS class(es) merged onto the progress field's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
+    // AiState.Proposed is rendered like None: a progress bar reports how far work has come,
+    // so nothing on it waits for a human decision (I20).
+    private AiState Shown => Ai == AiState.Proposed ? AiState.None : Ai;
+
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
-        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+        if (Shown == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = Shown;
+        _aura.Sync(Shown, () => InvokeAsync(StateHasChanged));
     }
 
     public void Dispose() => _aura.Dispose();

@@ -240,6 +240,34 @@ public class AiProposedTests : BunitContext
         Assert.Contains("7 suggestions", pill.TextContent);
     }
 
+    // ── The three that ignore it ─────────────────────────────────────────
+
+    public static TheoryData<Type> Ignorers => new() { typeof(DrylSpinner), typeof(DrylSkeleton), typeof(DrylProgress) };
+
+    [Theory]
+    [MemberData(nameof(Ignorers))]
+    public void Ignoring_components_render_Proposed_exactly_like_None(Type type)
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var proposed = RenderMarkup(type, AiState.Proposed);
+        var none = RenderMarkup(type, AiState.None);
+
+        Assert.Equal(none, proposed);
+        Assert.DoesNotContain("ai-aura", proposed);
+        Assert.DoesNotContain("awaiting your decision", proposed);
+    }
+
+    private string RenderMarkup(Type type, AiState state)
+    {
+        var builder = new Microsoft.AspNetCore.Components.RenderFragment(b =>
+        {
+            b.OpenComponent(0, type);
+            b.AddAttribute(1, "Ai", state);
+            b.CloseComponent();
+        });
+        return Render(builder).Markup;
+    }
+
     // ── A host end to end ────────────────────────────────────────────────
 
     [Fact]

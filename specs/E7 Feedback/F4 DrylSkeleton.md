@@ -1,7 +1,7 @@
 # DrylSkeleton
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylSkeleton.razor
               code/DRYL.Components/Components/Feedback/DrylSkeleton.razor.css
 
