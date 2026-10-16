@@ -84,7 +84,10 @@ public partial class DrylCalendarEditingTests : BunitContext
         => cut.InvokeAsync(() => cut.Instance.CompleteGesture(kind, surface, id, edge, from, to, a, b));
 
     private static string Announced(IRenderedComponent<DrylCalendar> cut)
-        => cut.Find(".visually-hidden[aria-live]").TextContent.Trim();
+        => Plain(cut.Find(".visually-hidden[aria-live]").TextContent.Trim());
+
+    // ICU on Linux puts a narrow no-break space before AM/PM, Windows a plain one.
+    private static string Plain(string? text) => (text ?? "").Replace('\u202F', ' ').Replace('\u00A0', ' ');
 
     // ── S5 · Switching editing on ───────────────────────────────────────
 

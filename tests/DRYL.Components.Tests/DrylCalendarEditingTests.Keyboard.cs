@@ -11,7 +11,7 @@ public partial class DrylCalendarEditingTests
 {
     private static KeyboardEventArgs Key(string key, bool shift = false) => new() { Key = key, ShiftKey = shift };
 
-    private static string CursorName(IRenderedComponent<DrylCalendar> cut) => cut.Find(".cal-cursor").GetAttribute("aria-label")!;
+    private static string CursorName(IRenderedComponent<DrylCalendar> cut) => Plain(cut.Find(".cal-cursor").GetAttribute("aria-label"));
 
     // ── S7 · The slot grid ──────────────────────────────────────────────
 
@@ -180,7 +180,7 @@ public partial class DrylCalendarEditingTests
 
         cut.Find("[data-event-id='a']").KeyDown(Key("ArrowDown"));
         Assert.Contains("is-source", cut.Find("[data-event-id='a']").ClassList);
-        Assert.Equal("9:30 AM – 10:30 AM", cut.Find(".cal-preview").GetAttribute("data-time"));
+        Assert.Equal("9:30 AM – 10:30 AM", Plain(cut.Find(".cal-preview").GetAttribute("data-time")));
         cut.Find("[data-event-id='a']").KeyDown(Key("ArrowDown"));
         cut.Find("[data-event-id='a']").KeyDown(Key("ArrowRight"));
         Assert.Empty(host.Requests);
