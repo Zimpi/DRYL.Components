@@ -18,7 +18,7 @@ task adds its entry to the same unpublished `[3.6.0]` block and leaves
 |---|---|---|
 | T0 — spec | Complete | `S5`–`S8`, PO-confirmed 2026-10-16 (I19 decisions). |
 | T1 — types and version | Complete | Gate passes (1546 tests, 3 new in `CalendarTypesTests`; JS 149); coverage reports no missing `Source` path. S7 corrected: announcements get their own visually hidden live region, as the range title is visible. |
-| T2 — conflict engine and edit arithmetic | Open | |
+| T2 — conflict engine and edit arithmetic | Complete | Gate passes (1578 tests, 32 new in `CalendarEditingTests`). The arithmetic lives in a new `Internal/CalendarEditing.cs` beside `CalendarLayout.cs`, in the spec's `Source`. |
 | T3 — server editing core: request, pending, conflict marks | Open | |
 | T4 — keyboard editing and announcements | Open | |
 | T5 — the pointer and touch bridge | Open | |
@@ -87,3 +87,13 @@ evidence run; pull request.
 
 Recorded here as they arise; T7 turns those that fall short of a criterion into
 `## Recorded gaps` in the story concerned.
+
+- **T2 — "never further out" instead of "never out".** `S6` says a move never
+  leaves the range, `DayStart` or `DayEnd`. An event the host already placed
+  outside one of them (starting 07:00 on an 08:00 grid, a bar continuing from
+  last week) could then not be moved at all. `CalendarEditing.Fits` lets a limit
+  the original already broke stay broken, but never grow.
+- **T2 — a change keeps the event's shape.** A timed event resized past
+  twenty-four hours would jump into the all-day row; `Fits` refuses any change
+  that alters the row an event is drawn in, which is also what keeps "a timed
+  event never becomes an all-day event" true for resizes.

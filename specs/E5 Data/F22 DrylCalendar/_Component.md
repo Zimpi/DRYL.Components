@@ -18,6 +18,7 @@
               code/DRYL.Components/Components/Data/Models/CalendarChangeRequest.cs
               code/DRYL.Components/Components/Data/Models/CalendarConflict.cs
               code/DRYL.Components/Components/Data/Internal/CalendarLayout.cs
+              code/DRYL.Components/Components/Data/Internal/CalendarEditing.cs
 
 This spec is split (`SPEC-02`). The acceptance criteria live in the `S{n}` files
 beside this one; this file carries the `Meta` block, the description and the
