@@ -1,5 +1,6 @@
 @namespace DRYL.Components
 @using System.Globalization
+@using System.Runtime.ExceptionServices
 @using System.Text.RegularExpressions
 @using DRYL.Components.Internal
 @inject IJSRuntime JS
@@ -162,12 +163,13 @@
                     @foreach (var e in listed)
                     {
                         <button type="button"
-                                class="cal-event cal-event--list"
+                                class="@EventClass("cal-event cal-event--list", e)"
                                 data-color="@Color(e)"
                                 data-event-id="@e.Id"
                                 aria-label="@EventName(e)"
                                 @key="e.Id"
                                 @onclick="() => OnEventClick.InvokeAsync(e)">
+                            @ConflictMark(e)
                             @EventContent(e, CalendarLayout.IsMonthBar(e) ? EventShape.Bar : EventShape.Line)
                         </button>
                     }
@@ -260,7 +262,10 @@
                             @for (var c = 0; c < columns.Count; c++)
                             {
                                 <div class="@(IsSelectedColumn(columns[c]) ? "cal-allday-cell is-selected" : "cal-allday-cell")"
-                                     style="@Column(c + 2)" aria-hidden="true" @key="columns[c].Key"></div>
+                                     style="@Column(c + 2)" aria-hidden="true"
+                                     data-date="@Iso(columns[c].Day)"
+                                     data-col-key="@columns[c].Key"
+                                     @key="columns[c].Key"></div>
                             }
                             @EventSlots(plan, "allday")
                             @for (var c = 0; plan.ByPerson && c < columns.Count; c++)
@@ -298,6 +303,7 @@
                             <div class="@ColumnClass(column, isToday)"
                                  data-date="@Iso(day)"
                                  data-person-id="@column.Person?.Id"
+                                 data-col-key="@column.Key"
                                  @key="column.Key">
                                 @foreach (var span in column.Muted)
                                 {
@@ -321,6 +327,20 @@
             </div>
         }
     </div>
+
+    @if (Editable)
+    {
+        @* What editing can do, for assistive technology; and what it did. The range
+           title keeps its own live region, so the visible title never announces. *@
+        <span id="@EditHintId" hidden>@Labels.EditHint</span>
+        <span id="@CreateHintId" hidden>@Labels.CreateHint</span>
+        <div class="visually-hidden" aria-live="polite" aria-atomic="true">
+            @if (_announcement is not null)
+            {
+                <span @key="_announceSeq">@_announcement</span>
+            }
+        </div>
+    }
 </div>
 
 @code {
@@ -448,6 +468,21 @@
     /// </summary>
     [Parameter] public EventCallback<CalendarEvent> OnEventClick { get; set; }
 
+    /// <summary>
+    /// Lets the user create, move and resize events on the grid, by pointer, touch or
+    /// keyboard, and shows conflicts. Defaults to <c>false</c>. The calendar still
+    /// changes no data: every completed change raises <see cref="OnEventChangeRequested"/>.
+    /// </summary>
+    [Parameter] public bool Editable { get; set; }
+
+    /// <summary>
+    /// Raised once per completed create, move or resize while <see cref="Editable"/> is
+    /// set. The host applies <see cref="CalendarChangeRequest.Proposed"/> to
+    /// <see cref="Events"/> within the handler, or leaves them as they are; while the
+    /// handler's task runs, the event stays where the change put it.
+    /// </summary>
+    [Parameter] public EventCallback<CalendarChangeRequest> OnEventChangeRequested { get; set; }
+
     // ── Presentation ────────────────────────────────────────────────────
 
     /// <summary>Renders the toolbar. Defaults to <c>true</c>.</summary>
@@ -500,6 +535,7 @@
     private const int MonthCapacity = 3;
 
     private List<CalendarEvent> _events = [];
+    private Dictionary<string, CalendarEvent> _eventsById = new(StringComparer.Ordinal);
     private List<CalendarPerson> _people = [];
     private Dictionary<string, CalendarPerson> _peopleById = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, CalendarColor> _personColors = new Dictionary<string, CalendarColor>();
@@ -594,6 +630,7 @@
         }
 
         _events = CalendarLayout.DistinctById(Events ?? [], e => e.Id, out var duplicateEvents);
+        _eventsById = _events.ToDictionary(e => e.Id, StringComparer.Ordinal);
         if (duplicateEvents && !_duplicateEventsReported)
         {
             _duplicateEventsReported = true;
@@ -755,7 +792,14 @@
         EventShape Shape,
         string SlotClass,
         string ButtonClass,
-        string Style);
+        string Style)
+    {
+        /// <summary>The leading edge (top, or first day) can be dragged to resize.</summary>
+        public bool StartHandle { get; init; }
+
+        /// <summary>The trailing edge (bottom, or last day) can be dragged to resize.</summary>
+        public bool EndHandle { get; init; }
+    }
 
     private sealed class ViewLayout
     {
@@ -773,8 +817,14 @@
 
     private ViewLayout BuildLayout()
     {
+        Settle();
+        var effective = EffectiveEvents();
+        _conflicts = Editable
+            ? CalendarEditing.AllConflicts(effective, _availability, _knownPersonIds)
+            : NoConflicts;
+
         var (first, days) = CalendarLayout.VisibleDays(_view, _date, FirstDay);
-        var layout = new ViewLayout { First = first, Visible = VisibleEvents() };
+        var layout = new ViewLayout { First = first, Visible = VisibleEvents(effective) };
 
         if (_view == CalendarView.Month)
         {
@@ -792,7 +842,8 @@
                     {
                         slots.Add(new Slot($"{bar.Event.Id}|{container}", container, bar.Event, EventShape.Bar,
                             "cal-slot cal-slot--bar" + Continuation(bar), "cal-event cal-event--bar" + Continuation(bar),
-                            Placement(bar.Column + 1, bar.Span, bar.Lane + 2)));
+                            Placement(bar.Column + 1, bar.Span, bar.Lane + 2))
+                        { StartHandle = !bar.ContinuesBefore, EndHandle = !bar.ContinuesAfter });
                     }
                     else if (line is not null)
                     {
@@ -820,7 +871,8 @@
                     {
                         allDay.Add(new Slot($"{bar.Event.Id}|allday|{column.Key}", "allday", bar.Event, EventShape.Bar,
                             "cal-slot cal-slot--bar" + Continuation(bar), "cal-event cal-event--bar" + Continuation(bar),
-                            Placement(c + 2, 1, bar.Lane + 1)));
+                            Placement(c + 2, 1, bar.Lane + 1))
+                        { StartHandle = !bar.ContinuesBefore, EndHandle = !bar.ContinuesAfter });
                     }
                 }
                 layout.Lanes = Math.Max(1, layout.Columns.Max(c => c.Bars.Count + c.WholeDayAbsences.Count));
@@ -836,7 +888,8 @@
                     allDay.Add(new Slot($"{bar.Event.Id}|allday", "allday", bar.Event, EventShape.Bar,
                         "cal-slot cal-slot--bar" + Continuation(bar) + (onSelected ? " is-on-selected" : ""),
                         "cal-event cal-event--bar" + Continuation(bar),
-                        Placement(bar.Column + 2, bar.Span, bar.Lane + 1)));
+                        Placement(bar.Column + 2, bar.Span, bar.Lane + 1))
+                    { StartHandle = !bar.ContinuesBefore, EndHandle = !bar.ContinuesAfter });
                 }
                 layout.Lanes = Math.Max(1, bars.Count == 0 ? 0 : bars.Max(b => b.Lane) + 1);
             }
@@ -848,7 +901,8 @@
                 foreach (var segment in CalendarLayout.Column(column.Events, column.Day, _grid))
                 {
                     slots.Add(new Slot($"{segment.Event.Id}|{container}", container, segment.Event, EventShape.Timed,
-                        "cal-slot cal-slot--timed", SegmentClass(segment), SegmentStyle(segment)));
+                        "cal-slot cal-slot--timed", SegmentClass(segment), SegmentStyle(segment))
+                    { StartHandle = !segment.ContinuesBefore, EndHandle = !segment.ContinuesAfter });
                 }
             }
 
@@ -880,6 +934,7 @@
             _gridView = _view;
             _gridFirst = layout.First;
             _ghosts.Clear();
+            _returning.Clear();
             layout.GridIsNew = true;
         }
         else
@@ -905,20 +960,33 @@
             var e = slot.Event;
             var key = slot.Key;
             var exiting = _ghosts.ContainsKey(key);
-            <div class="@(exiting ? slot.SlotClass + " is-exiting" : slot.SlotClass)" style="@slot.Style" @key="key">
+            var editable = !exiting && IsEditable(e);
+            <div class="@SlotClass(slot, exiting)" style="@slot.Style" @key="key">
                 <DrylPresence Visible="@(!exiting)"
                               Appear="@(!layout.GridIsNew)"
                               Transition="PresenceTransition.Scale"
                               OnExited="@(() => ExitFinished(key))">
                     <button type="button"
-                            class="@slot.ButtonClass"
+                            class="@EventClass(slot.ButtonClass, e)"
                             data-color="@Color(e)"
                             data-event-id="@e.Id"
+                            data-editable="@(editable ? "true" : null)"
                             aria-label="@EventName(e)"
+                            aria-describedby="@(editable ? EditHintId : null)"
+                            aria-busy="@(_pending.ContainsKey(e.Id) ? "true" : null)"
                             aria-hidden="@(exiting ? "true" : null)"
                             tabindex="@(exiting ? "-1" : null)"
                             @onclick="() => OnEventClick.InvokeAsync(e)">
+                        @ConflictMark(e)
                         @EventContent(e, slot.Shape)
+                        @if (editable && slot.StartHandle)
+                        {
+                            <span class="cal-resize cal-resize--start" data-edge="start" aria-hidden="true"></span>
+                        }
+                        @if (editable && slot.EndHandle)
+                        {
+                            <span class="cal-resize cal-resize--end" data-edge="end" aria-hidden="true"></span>
+                        }
                     </button>
                 </DrylPresence>
             </div>
@@ -963,10 +1031,10 @@
 
     private List<CalendarPerson> ShownPeople() => _people.Where(p => !_hidden.Contains(p.Id)).ToList();
 
-    private List<CalendarEvent> VisibleEvents()
+    private List<CalendarEvent> VisibleEvents(List<CalendarEvent> events)
         => _people.Count == 0
-            ? _events
-            : _events.Where(e => CalendarLayout.IsVisible(e, _knownPersonIds, _hidden)).ToList();
+            ? events
+            : events.Where(e => CalendarLayout.IsVisible(e, _knownPersonIds, _hidden)).ToList();
 
     private IReadOnlyList<CalendarAvailability> AvailabilityOf(CalendarPerson person)
         => _availability.TryGetValue(person.Id, out var spans) ? spans : [];
@@ -1122,7 +1190,10 @@
         var people = KnownPeople(e);
         if (people.Count > 0) parts.Add(string.Join(", ", people.Select(p => p.Name)));
         if (e.SeriesId is not null) parts.Add(Labels.Recurring);
-        return string.Join(", ", parts);
+        var name = string.Join(", ", parts);
+
+        var conflicts = ConflictsOf(e);
+        return conflicts.Count == 0 ? name : name + ". " + ConflictText(conflicts);
     }
 
     private string Color(CalendarEvent e)
@@ -1158,6 +1229,285 @@
 
     private static readonly string WeekStyle = FormattableString.Invariant($"--cal-cap:{MonthCapacity}");
 
+    // ── Editing: the request ────────────────────────────────────────────
+
+    // The host owns the data. A completed change becomes one request; while the
+    // host's task runs, the event is drawn as the request proposes it; afterwards
+    // Events alone decides. What the host did not apply returns — or, created,
+    // exits — and is announced.
+    private readonly Dictionary<string, CalendarChangeRequest> _pending = new(StringComparer.Ordinal);
+    private readonly List<(CalendarChangeRequest Request, HashSet<string> IdsBefore)> _settling = [];
+    private readonly HashSet<string> _returning = new(StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, IReadOnlyList<CalendarConflict>> NoConflicts = new(StringComparer.Ordinal);
+    private Dictionary<string, IReadOnlyList<CalendarConflict>> _conflicts = NoConflicts;
+
+    private string? _announcement;
+    private int _announceSeq;
+
+    private readonly string _uid = "cal-" + Guid.NewGuid().ToString("N")[..8];
+    private string EditHintId => _uid + "-edit-hint";
+    private string CreateHintId => _uid + "-create-hint";
+
+    private TimeSpan SlotLength => TimeSpan.FromMinutes(_grid.SlotMinutes);
+
+    private CalendarBounds Bounds()
+    {
+        var range = CalendarLayout.VisibleRange(_view, _date, FirstDay);
+        return new CalendarBounds(range.Start, range.End, _grid);
+    }
+
+    // An event the user may change right now: editing is on, the host did not lock
+    // it, and no request for it is still being decided.
+    private bool IsEditable(CalendarEvent e) => Editable && !e.ReadOnly && !_pending.ContainsKey(e.Id);
+
+    // Pending changes drawn where they put the event; a created event carries the
+    // NewEvent title until the host names it.
+    private List<CalendarEvent> EffectiveEvents()
+    {
+        if (_pending.Count == 0) return _events;
+        var effective = new List<CalendarEvent>(_events.Count + _pending.Count);
+        foreach (var e in _events)
+            effective.Add(_pending.TryGetValue(e.Id, out var request) && request.Kind != CalendarChangeKind.Create ? request.Proposed : e);
+        foreach (var request in _pending.Values)
+        {
+            if (request.Kind != CalendarChangeKind.Create || _eventsById.ContainsKey(request.Proposed.Id)) continue;
+            effective.Add(string.IsNullOrEmpty(request.Proposed.Title)
+                ? request.Proposed with { Title = Labels.NewEvent }
+                : request.Proposed);
+        }
+        return effective;
+    }
+
+    private static bool SamePlace(CalendarEvent a, CalendarEvent b)
+        => a.Start == b.Start && a.End == b.End && a.AllDay == b.AllDay
+           && (a.PersonIds ?? []).SequenceEqual(b.PersonIds ?? [], StringComparer.Ordinal);
+
+    /// <summary>Raises one request for a completed change, and holds the event while the host decides.</summary>
+    private async Task RequestChangeAsync(CalendarChangeKind kind, CalendarEvent? original, CalendarEvent proposed)
+    {
+        if (!Editable) return;
+        if (original is not null && (SamePlace(original, proposed) || _pending.ContainsKey(original.Id))) return;
+
+        var request = new CalendarChangeRequest
+        {
+            Kind = kind,
+            Original = original,
+            Proposed = proposed,
+            Conflicts = CalendarEditing.Conflicts(proposed, _events, _availability, _knownPersonIds)
+        };
+
+        _returning.Clear();
+        Announce(string.Format(_culture, Labels.Requested, DescribeChange(proposed, request.Conflicts)));
+        var idsBefore = new HashSet<string>(_eventsById.Keys, StringComparer.Ordinal);
+        _pending[proposed.Id] = request;
+        StateHasChanged();
+
+        Exception? failure = null;
+        try
+        {
+            await OnEventChangeRequested.InvokeAsync(request);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+
+        _pending.Remove(proposed.Id);
+        _settling.Add((request, idsBefore));
+        StateHasChanged();
+
+        // A faulted task is a change the host did not apply — and still a fault.
+        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    // Runs at the start of every render: by then the host's new Events, if any,
+    // have arrived, so whether a request was applied can be read from them.
+    private void Settle()
+    {
+        if (_settling.Count == 0) return;
+        foreach (var (request, idsBefore) in _settling)
+        {
+            var applied = request.Kind == CalendarChangeKind.Create
+                ? _events.Any(e => !idsBefore.Contains(e.Id))
+                : _eventsById.TryGetValue(request.Proposed.Id, out var now) && SamePlace(now, request.Proposed);
+            if (applied) continue;
+
+            Announce(Labels.NotApplied);
+            if (request.Kind != CalendarChangeKind.Create) _returning.Add(request.Proposed.Id);
+        }
+        _settling.Clear();
+    }
+
+    private void Announce(string text)
+    {
+        _announcement = text;
+        _announceSeq++;
+    }
+
+    // The new day and times of a change, then its conflicts.
+    private string DescribeChange(CalendarEvent e, IReadOnlyList<CalendarConflict> conflicts)
+    {
+        var where = DescribeSpan(e);
+        return conflicts.Count == 0 ? where : where + ". " + ConflictText(conflicts);
+    }
+
+    private string DescribeSpan(CalendarEvent e)
+    {
+        var (first, end) = CalendarLayout.DaySpan(e);
+        var last = end.AddDays(-1);
+        if (e.AllDay)
+            return (last > first ? $"{LongDate(first)} – {LongDate(last)}" : LongDate(first)) + ", " + Labels.AllDay;
+        if (last > first)
+            return $"{LongDate(first)} {FormatTime(e.Start.TimeOfDay)} – {LongDate(DateOnly.FromDateTime(e.End))} {FormatTime(e.End.TimeOfDay)}";
+        return $"{LongDate(first)}, {TimeRange(e)}";
+    }
+
+    // ── Editing: conflicts ──────────────────────────────────────────────
+
+    private IReadOnlyList<CalendarConflict> ConflictsOf(CalendarEvent e)
+        => _conflicts.TryGetValue(e.Id, out var conflicts) ? conflicts : [];
+
+    private string ConflictText(IReadOnlyList<CalendarConflict> conflicts)
+        => string.Join(". ", conflicts.Select(c =>
+        {
+            var name = _peopleById.TryGetValue(c.PersonId, out var person) ? person.Name : c.PersonId;
+            var format = c.Kind switch
+            {
+                CalendarConflictKind.Overlap => Labels.ConflictOverlap,
+                CalendarConflictKind.Absence => Labels.ConflictAbsence,
+                _ => Labels.ConflictOutsideWorkingHours
+            };
+            return string.Format(_culture, format, name);
+        }).Distinct(StringComparer.Ordinal));
+
+    // Every event that can have a conflict carries the mark while editing is on, so
+    // the preview of a gesture can switch it on and off in the browser; it shows
+    // only when the event has a conflict. The words are in the accessible name.
+    private RenderFragment ConflictMark(CalendarEvent e) => __builder =>
+    {
+        if (!Editable || !CalendarEditing.TakesPart(e)) return;
+        var conflicts = ConflictsOf(e);
+        <span class="cal-conflict" aria-hidden="true">
+            <DrylTooltip Text="@(conflicts.Count == 0 ? " " : ConflictText(conflicts))">
+                <DrylIcon Name="Alert" Size="12" />
+            </DrylTooltip>
+        </span>
+    };
+
+    private string EventClass(string css, CalendarEvent e)
+    {
+        if (_conflicts.ContainsKey(e.Id)) css += " has-conflict";
+        if (_pending.ContainsKey(e.Id)) css += " is-pending";
+        return css;
+    }
+
+    private string SlotClass(Slot slot, bool exiting)
+    {
+        var css = slot.SlotClass;
+        if (exiting) css += " is-exiting";
+        if (_returning.Contains(slot.Event.Id)) css += " is-returning";
+        return css;
+    }
+
+    // ── Editing: what the browser reports ───────────────────────────────
+
+    /// <summary>
+    /// Called by the pointer and touch bridge once a gesture is completed. Not for
+    /// application code: the arguments are the bridge's own coordinates, checked
+    /// again here against the same limits the bridge keeps to.
+    /// </summary>
+    /// <param name="kind"><c>move</c>, <c>resize</c> or <c>create</c>.</param>
+    /// <param name="surface"><c>time</c>, <c>allday</c> or <c>month</c>.</param>
+    /// <param name="eventId">The event moved or resized; <c>null</c> for a create.</param>
+    /// <param name="edge"><c>start</c> or <c>end</c> for a resize.</param>
+    /// <param name="fromKey">The column a move started in, in person columns.</param>
+    /// <param name="toKey">The column a move or create ended in, in person columns.</param>
+    /// <param name="a">Move and resize: minutes moved. Create: first minute, or first day, from the range start.</param>
+    /// <param name="b">Create: last minute (exclusive), or last day (inclusive), from the range start.</param>
+    [JSInvokable]
+    public async Task CompleteGesture(string kind, string surface, string? eventId, string? edge,
+        string? fromKey, string? toKey, int a, int b)
+    {
+        try
+        {
+            await ApplyGestureAsync(kind, surface, eventId, edge, fromKey, toKey, a, b);
+        }
+        catch (Exception ex)
+        {
+            await DispatchExceptionAsync(ex);
+        }
+    }
+
+    private Task ApplyGestureAsync(string kind, string surface, string? eventId, string? edge,
+        string? fromKey, string? toKey, int a, int b)
+    {
+        if (!Editable) return Task.CompletedTask;
+        var on = surface switch
+        {
+            "allday" => CalendarSurface.AllDay,
+            "month" => CalendarSurface.Month,
+            _ => CalendarSurface.Time
+        };
+        var bounds = Bounds();
+
+        if (kind == "create")
+        {
+            var people = PersonOfColumn(toKey) is { } person ? new[] { person } : [];
+            DateTime start, end;
+            if (on == CalendarSurface.Time)
+            {
+                start = bounds.RangeStart.AddMinutes(a);
+                end = bounds.RangeStart.AddMinutes(b);
+            }
+            else
+            {
+                var first = DateOnly.FromDateTime(bounds.RangeStart);
+                (start, end) = CalendarEditing.AllDaySpan(first.AddDays(a), first.AddDays(b));
+            }
+            if (end <= start || start < bounds.RangeStart || end > bounds.RangeEnd) return Task.CompletedTask;
+            return RequestChangeAsync(CalendarChangeKind.Create, null, NewEvent(start, end, on != CalendarSurface.Time, people));
+        }
+
+        if (eventId is null || !_eventsById.TryGetValue(eventId, out var original) || !IsEditable(original))
+            return Task.CompletedTask;
+
+        CalendarEvent? proposed;
+        CalendarChangeKind change;
+        if (kind == "resize")
+        {
+            change = CalendarChangeKind.Resize;
+            var end = edge == "end";
+            proposed = on == CalendarSurface.Time
+                ? CalendarEditing.Resize(original, end, TimeSpan.FromMinutes(a), SlotLength)
+                : CalendarEditing.ResizeDays(original, end, (int)Math.Round(a / 1440d));
+        }
+        else
+        {
+            change = CalendarChangeKind.Move;
+            proposed = CalendarEditing.Move(original, TimeSpan.FromMinutes(a));
+            if (PersonColumns && fromKey != toKey)
+                proposed = proposed with { PersonIds = CalendarEditing.Reassign(original.PersonIds ?? [], PersonOfColumn(fromKey), PersonOfColumn(toKey)) };
+        }
+
+        if (proposed is null || !CalendarEditing.Fits(proposed, original, on, bounds)) return Task.CompletedTask;
+        return RequestChangeAsync(change, original, proposed);
+    }
+
+    // "person|{id}" is a person's column; anything else is the unassigned column.
+    private string? PersonOfColumn(string? key)
+        => PersonColumns && key is not null && key.StartsWith("person|", StringComparison.Ordinal) && _peopleById.ContainsKey(key[7..])
+            ? key[7..]
+            : null;
+
+    private CalendarEvent NewEvent(DateTime start, DateTime end, bool allDay, IReadOnlyList<string> people)
+    {
+        string id;
+        do id = Guid.NewGuid().ToString("N");
+        while (_eventsById.ContainsKey(id) || _pending.ContainsKey(id));
+        return new CalendarEvent { Id = id, Start = start, End = end, AllDay = allDay, PersonIds = people };
+    }
+
     // ── Classes and styles ──────────────────────────────────────────────
 
     private string RootClass
@@ -1178,6 +1528,7 @@
                 });
             }
             if (!string.IsNullOrEmpty(Height)) classes.Add("cal-root--fixed");
+            if (Editable) classes.Add("is-editable");
             if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
             return string.Join(' ', classes);
         }

@@ -620,6 +620,135 @@ button.cal-day-head:hover {
     color: var(--fg);
 }
 
+/* ── Editing ─────────────────────────────────────────────── */
+
+/* An editable event is grabbed, not selected as text; the press-and-hold of a
+   touch must not open the system's callout. */
+.is-editable .cal-event[data-editable] {
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+
+/* The conflict mark: a small --warning indicator in the corner, never a fill
+   (DESIGN-08). It is in every event that can conflict while editing is on, so the
+   preview of a gesture can switch it in the browser (data-pv-conflict). */
+.cal-conflict {
+    position: absolute;
+    top: calc(var(--sp-1) / 2);
+    right: calc(var(--sp-1) / 2);
+    z-index: 1;
+    display: inline-flex;
+    color: var(--warning);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.6);
+    transition: opacity var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+}
+
+.cal-event { position: relative; }
+
+.cal-event.has-conflict .cal-conflict,
+.cal-event[data-pv-conflict="1"] .cal-conflict {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+}
+
+.cal-event[data-pv-conflict="0"] .cal-conflict {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.6);
+}
+
+/* On a single line of the month view, and in the narrow list, the mark comes
+   before the title instead of sitting in the corner. */
+.cal-event--line .cal-conflict,
+.cal-event--list .cal-conflict {
+    position: static;
+    order: -1;
+}
+
+.cal-event--line:not(.has-conflict):not([data-pv-conflict="1"]) .cal-conflict,
+.cal-event--list:not(.has-conflict) .cal-conflict {
+    display: none;
+}
+
+/* Resize handles: an --accent-line indicator at the edge, on hover and focus only. */
+.cal-resize {
+    position: absolute;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.cal-resize::after {
+    content: "";
+    position: absolute;
+    border-radius: var(--r-pill);
+    background: var(--accent-line);
+}
+
+.cal-event--timed .cal-resize {
+    right: 0;
+    left: 0;
+    height: var(--sp-2);
+    cursor: ns-resize;
+}
+
+.cal-event--timed .cal-resize--start { top: 0; }
+.cal-event--timed .cal-resize--end { bottom: 0; }
+
+.cal-event--timed .cal-resize::after {
+    left: 50%;
+    width: var(--sp-4);
+    height: calc(var(--sp-1) / 2);
+    transform: translateX(-50%);
+}
+
+.cal-event--timed .cal-resize--start::after { top: calc(var(--sp-1) / 2); }
+.cal-event--timed .cal-resize--end::after { bottom: calc(var(--sp-1) / 2); }
+
+.cal-event--bar .cal-resize {
+    top: 0;
+    bottom: 0;
+    width: var(--sp-2);
+    cursor: ew-resize;
+}
+
+.cal-event--bar .cal-resize--start { left: 0; }
+.cal-event--bar .cal-resize--end { right: 0; }
+
+.cal-event--bar .cal-resize::after {
+    top: 50%;
+    width: calc(var(--sp-1) / 2);
+    height: calc(var(--sp-4) / 2);
+    transform: translateY(-50%);
+}
+
+.cal-event--bar .cal-resize--start::after { left: calc(var(--sp-1) / 2); }
+.cal-event--bar .cal-resize--end::after { right: calc(var(--sp-1) / 2); }
+
+.cal-event[data-editable]:hover .cal-resize,
+.cal-event[data-editable]:focus .cal-resize {
+    opacity: 1;
+}
+
+/* While the host decides, the changed event is busy: drawn where it was dropped,
+   quieter, and out of reach of a second change. */
+.cal-event.is-pending {
+    cursor: progress;
+    opacity: 0.7;
+}
+
+/* A change the host did not apply glides back to its place. */
+.cal-slot--timed.is-returning {
+    transition: top var(--dur-med) var(--ease-out),
+                height var(--dur-med) var(--ease-out),
+                left var(--dur-med) var(--ease-out),
+                width var(--dur-med) var(--ease-out);
+}
+
 /* ── Availability ────────────────────────────────────────── */
 
 /* --line-soft darkens a light ground and lightens a dark one, so one rule
@@ -947,7 +1076,10 @@ button.cal-day-head:hover {
     .cal-legend-item,
     .cal-legend-swatch,
     .cal-event,
-    .cal-more {
+    .cal-more,
+    .cal-conflict,
+    .cal-resize,
+    .cal-slot--timed.is-returning {
         transition: none;
     }
 }

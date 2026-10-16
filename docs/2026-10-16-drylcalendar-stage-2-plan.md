@@ -19,7 +19,7 @@ task adds its entry to the same unpublished `[3.6.0]` block and leaves
 | T0 — spec | Complete | `S5`–`S8`, PO-confirmed 2026-10-16 (I19 decisions). |
 | T1 — types and version | Complete | Gate passes (1546 tests, 3 new in `CalendarTypesTests`; JS 149); coverage reports no missing `Source` path. S7 corrected: announcements get their own visually hidden live region, as the range title is visible. |
 | T2 — conflict engine and edit arithmetic | Complete | Gate passes (1578 tests, 32 new in `CalendarEditingTests`). The arithmetic lives in a new `Internal/CalendarEditing.cs` beside `CalendarLayout.cs`, in the spec's `Source`. |
-| T3 — server editing core: request, pending, conflict marks | Open | |
+| T3 — server editing core: request, pending, conflict marks | Complete | Gate passes (1606 tests, 28 new in `DrylCalendarEditingTests`). Browser look deferred to T5, where the grid can first be operated. |
 | T4 — keyboard editing and announcements | Open | |
 | T5 — the pointer and touch bridge | Open | |
 | T6 — website demo and catalog | Open | |
@@ -97,3 +97,21 @@ Recorded here as they arise; T7 turns those that fall short of a criterion into
   twenty-four hours would jump into the all-day row; `Fits` refuses any change
   that alters the row an event is drawn in, which is also what keeps "a timed
   event never becomes an all-day event" true for resizes.
+
+- **T3 — "applied" is read from the next render.** After the host's task, the
+  calendar compares `Events` with the proposal at the start of the following
+  render: a move or resize counts as applied when the event with `Proposed.Id`
+  sits where the proposal put it; a create counts as applied when any new id has
+  appeared, so a host that stores the event under its own id is not told "not
+  applied".
+- **T3 — only a timed event glides back within its column.** A refused move
+  that changed the day or the person changes the event's container; it then
+  exits from the drop place and enters at its own, through `DrylPresence`. A bar
+  changes its grid placement and jumps back.
+- **T3 — the conflict mark sits in every event that can conflict**, hidden
+  unless the event has a conflict, so the browser can switch it during a
+  gesture without a render. Its tooltip is a `DrylTooltip`; its words are in
+  the event's accessible name, the mark itself is `aria-hidden`.
+- **T3 — a fault in the host's handler reaches the renderer** through
+  `DispatchExceptionAsync`, as the bridge's call returns to the browser, where
+  it would otherwise be swallowed.
