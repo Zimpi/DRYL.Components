@@ -105,6 +105,19 @@ layout of events, the narrow layouts, the motion — is markup and CSS.
 It also holds a timer, which advances the current-time line while `Now` is
 `null`. No timer exists while `Now` is set.
 
+**Stage two adds an editing bridge** (`F22 DrylCalendar/S6` and `S8`;
+specified, not yet implemented). Only while `Editable` is set, the calendar
+attaches one delegated `pointerdown` listener to its root — the shape of
+`dryl.table.initColumnResize` — that runs every move, resize and create in the
+browser: pointer capture, the preview, snapping, edge scrolling, the touch hold
+and the conflict check against the intervals the server rendered into the
+markup. It reports to .NET once, on completion, through a `DotNetObjectReference`;
+nothing is sent per pointer move. Keyboard editing (`S7`) needs no bridge: it
+runs on the server, one round trip per key press, with `dryl.keynav` keeping the
+arrow keys from scrolling the page. The bridge is detached, and the object
+reference disposed, when `Editable` is switched off and when the calendar is
+disposed; both are guarded against prerender and a closed circuit.
+
 ## Services
 
 **None.** No component in this category injects a DRYL service, registers one,
