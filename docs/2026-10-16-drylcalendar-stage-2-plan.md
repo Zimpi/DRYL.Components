@@ -21,7 +21,7 @@ task adds its entry to the same unpublished `[3.6.0]` block and leaves
 | T2 — conflict engine and edit arithmetic | Complete | Gate passes (1578 tests, 32 new in `CalendarEditingTests`). The arithmetic lives in a new `Internal/CalendarEditing.cs` beside `CalendarLayout.cs`, in the spec's `Source`. |
 | T3 — server editing core: request, pending, conflict marks | Complete | Gate passes (1606 tests, 28 new in `DrylCalendarEditingTests`). Browser look deferred to T5, where the grid can first be operated. |
 | T4 — keyboard editing and announcements | Complete | Gate passes (1627 tests, 21 new keyboard tests in `DrylCalendarEditingTests.Keyboard.cs`; JS 151, 2 new for `dryl.calendar.focus`). Browser pass with T5. |
-| T5 — the pointer and touch bridge | Open | |
+| T5 — the pointer and touch bridge | Complete | Gate passes (1627 tests; JS 156, 5 new for the bridge's limits, reassignment and conflicts). Browser pass on the website demo, both colour modes — see "T5 — what was looked at". |
 | T6 — website demo and catalog | Open | |
 | T7 — review, full verification, close the loop | Open | |
 
@@ -131,3 +131,34 @@ Recorded here as they arise; T7 turns those that fall short of a criterion into
   for the pointer, where the bridge can see it.
 - **T4 — the preview of a timed change that crosses midnight shows its first
   day's segment only.**
+
+### T5 — what was looked at (Chromium, website demo "Editing", 2026-10-16)
+
+- Day view, person columns, dark and light: drag "Workshop" one hour down — the
+  preview follows slot by slot in Ada's column, the conflict mark appears on it
+  (lunch gap), one request, the host applies it, the event carries the mark and
+  its accessible name ends with "Outside the working hours of Ada Lovelace".
+- Drag across to Bob's column: the preview sits exactly in his column
+  (measured: same x and width), the request reassigns the event to Bob.
+- Resize "Design review" by its end handle; click an empty slot to create one
+  slot; click an event without moving — no request.
+- Keyboard: arrows on "Customer call", `Enter` — one request, focus stays on the
+  event, the page does not scroll; `Escape` announces "Change cancelled."; the
+  cursor names its day, time and person; `Enter`, `Shift`+`ArrowDown`, `Enter`
+  creates two slots and focus moves to the new event.
+- "Refuse changes with conflicts" on, drag "Retro": `aria-busy` while the host
+  decides, then `is-returning` and "The change was not applied."
+- Emulated touch (CDP): a swipe before the hold scrolls the grid and changes
+  nothing; a hold grabs the event and a move of one hour is requested as one.
+- Week view (wide): a drag one column to the right moves the event a day. Month
+  view: a line dragged one row down marks the 22nd and moves it a week.
+- At 400px: no horizontal page scroll.
+
+Found and fixed during the pass: the preview spanned to the grid's last column
+(an absolutely placed grid item with no named end line spans to the edge — now
+`N / span 1` for the preview and the cursor), and the conflict mark sat on the
+avatars (an event with a conflict now keeps room for it).
+
+Observed, not changed: in the light mode the sticky header lets events show
+faintly through it when the grid is scrolled; `--panel-sticky` is 92% opaque.
+This is stage one's surface and a token value (`DESIGN-03`).

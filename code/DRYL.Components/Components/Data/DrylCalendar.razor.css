@@ -655,6 +655,13 @@ button.cal-day-head:hover {
     transform: none;
 }
 
+/* Room for the mark, so it never sits on the avatars. */
+.cal-event--timed.has-conflict,
+.cal-event--bar.has-conflict,
+.cal-event--timed[data-pv-conflict="1"] {
+    padding-right: var(--sp-5);
+}
+
 .cal-event[data-pv-conflict="0"] .cal-conflict {
     opacity: 0;
     pointer-events: none;
@@ -739,6 +746,21 @@ button.cal-day-head:hover {
 .cal-event.is-pending {
     cursor: progress;
     opacity: 0.7;
+}
+
+/* While a gesture runs, the pointer shows it and no text is selected. */
+.cal-root[data-gesture] {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.cal-root[data-gesture] .cal-event {
+    cursor: grabbing;
+}
+
+.is-editable .cal-col,
+.is-editable .cal-allday-cell {
+    cursor: cell;
 }
 
 /* The slot grid's one focusable cell: placed in a column of the time grid, the

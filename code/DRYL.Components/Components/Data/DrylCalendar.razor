@@ -1,10 +1,12 @@
 @namespace DRYL.Components
 @using System.Globalization
 @using System.Runtime.ExceptionServices
+@using System.Text.Json
 @using System.Text.RegularExpressions
 @using DRYL.Components.Internal
 @inject IJSRuntime JS
 @implements IDisposable
+@implements IAsyncDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylCalendar — a scheduling calendar: day, week and month
@@ -32,6 +34,7 @@
 <div class="@RootClass"
      style="@RootStyle"
      @ref="_rootEl"
+     data-cal-edit="@(Editable ? EditData() : null)"
      role="group"
      aria-label="@AriaLabel"
      aria-busy="@(Loading ? "true" : null)"
@@ -733,6 +736,28 @@
     {
         _clock?.Dispose();
         _clock = null;
+        _dotNetRef?.Dispose();
+        _dotNetRef = null;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        // The bridge is detached only where it was attached: never during
+        // prerender, and best-effort on a closed circuit.
+        if (_bridgeAttached)
+        {
+            _bridgeAttached = false;
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.calendar.edit.detach", _rootEl);
+            }
+            catch (JSDisconnectedException) { }
+            catch (JSException) { }
+            catch (InvalidOperationException) { }
+            catch (TaskCanceledException) { }
+        }
+        Dispose();
     }
 
     // ── Navigation ──────────────────────────────────────────────────────
@@ -1450,6 +1475,60 @@
         return css;
     }
 
+    // ── Editing: what the browser is told ───────────────────────────────
+
+    // Everything the pointer bridge needs to run a gesture without asking: the
+    // range and the grid, and every event and availability span as minutes from
+    // the range's first midnight. Rendered on the root while editing is on.
+    private string EditData()
+    {
+        var bounds = Bounds();
+        var rangeFirst = DateOnly.FromDateTime(bounds.RangeStart);
+        int Minutes(DateTime t) => (int)Math.Clamp((t - bounds.RangeStart).TotalMinutes, int.MinValue, int.MaxValue);
+        var pattern = _culture.DateTimeFormat.ShortTimePattern;
+
+        var events = EffectiveEvents().Select(e =>
+        {
+            var (first, end) = CalendarLayout.DaySpan(e);
+            return new Dictionary<string, object?>
+            {
+                ["id"] = e.Id,
+                ["title"] = e.Title,
+                ["s"] = Minutes(e.Start),
+                ["e"] = Minutes(e.End),
+                ["fd"] = first.DayNumber - rangeFirst.DayNumber,
+                ["ld"] = end.DayNumber - rangeFirst.DayNumber,
+                ["ad"] = e.AllDay,
+                ["tp"] = CalendarEditing.TakesPart(e),
+                ["p"] = (e.PersonIds ?? []).Where(_knownPersonIds.Contains).Distinct(StringComparer.Ordinal).ToArray()
+            };
+        });
+
+        var availability = _availability.ToDictionary(
+            pair => pair.Key,
+            pair => new Dictionary<string, int[][]>
+            {
+                ["abs"] = pair.Value.Where(x => x.Kind == CalendarAvailabilityKind.Absent).Select(x => new[] { Minutes(x.Start), Minutes(x.End) }).ToArray(),
+                ["work"] = pair.Value.Where(x => x.Kind == CalendarAvailabilityKind.Working).Select(x => new[] { Minutes(x.Start), Minutes(x.End) }).ToArray()
+            });
+
+        return JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["first"] = Iso(rangeFirst),
+            ["days"] = (int)(bounds.RangeEnd - bounds.RangeStart).TotalDays,
+            ["ds"] = (int)_grid.DayStart.TotalMinutes,
+            ["de"] = (int)_grid.DayEnd.TotalMinutes,
+            ["slot"] = _grid.SlotMinutes,
+            ["byPerson"] = PersonColumns,
+            ["culture"] = _culture.Name,
+            ["h12"] = pattern.Contains('t'),
+            ["h2"] = pattern.Contains("HH") || pattern.Contains("hh"),
+            ["newEvent"] = Labels.NewEvent,
+            ["ev"] = events,
+            ["av"] = availability
+        });
+    }
+
     // ── Editing: what the browser reports ───────────────────────────────
 
     /// <summary>
@@ -1469,6 +1548,10 @@
     public async Task CompleteGesture(string kind, string surface, string? eventId, string? edge,
         string? fromKey, string? toKey, int a, int b)
     {
+        // The render that draws the request's event where the gesture dropped it
+        // releases the bridge's preview; a gesture that asks for nothing releases
+        // it with the render below.
+        _releaseGesture = true;
         try
         {
             await ApplyGestureAsync(kind, surface, eventId, edge, fromKey, toKey, a, b);
@@ -1477,6 +1560,7 @@
         {
             await DispatchExceptionAsync(ex);
         }
+        StateHasChanged();
     }
 
     private Task ApplyGestureAsync(string kind, string surface, string? eventId, string? edge,
@@ -1564,6 +1648,9 @@
     }
 
     private KeyEdit? _keyEdit;
+    private DotNetObjectReference<DrylCalendar>? _dotNetRef;
+    private bool _bridgeAttached;
+    private bool _releaseGesture;
     private ViewLayout? _layout;
     private ElementReference _rootEl;
     private bool _keysAttached;
@@ -1882,8 +1969,8 @@
         if (CursorColumn is not { } column) return;
         var allDay = _cursorRow < 0;
         var place = allDay
-            ? FormattableString.Invariant($"grid-column:{_cursorCol + 2};grid-row:1 / span {layout.Lanes}")
-            : FormattableString.Invariant($"grid-column:{_cursorCol + 2};grid-row:1;") + SlotSpanStyle(_cursorRow, _cursorRow);
+            ? FormattableString.Invariant($"grid-column:{_cursorCol + 2} / span 1;grid-row:1 / span {layout.Lanes}")
+            : FormattableString.Invariant($"grid-column:{_cursorCol + 2} / span 1;grid-row:1 / span 1;") + SlotSpanStyle(_cursorRow, _cursorRow);
         var time = _grid.DayStart + SlotLength * Math.Max(_cursorRow, 0);
         var name = LongDate(column.Day) + ", " + (allDay ? Labels.AllDay : FormatTime(time));
         if (layout.ByPerson) name += ", " + (column.Person?.Name ?? Labels.Unassigned);
@@ -1903,7 +1990,7 @@
     {
         var day = CursorDay;
         <div class="cal-cursor-row" role="row" aria-rowindex="@(week + 1)"
-             style="@FormattableString.Invariant($"grid-column:{_cursorDay % 7 + 1};grid-row:1 / -1")" @key="@("cursor-row")">
+             style="@FormattableString.Invariant($"grid-column:{_cursorDay % 7 + 1} / span 1;grid-row:1 / -1")" @key="@("cursor-row")">
             <div class="cal-cursor"
                  role="gridcell"
                  tabindex="0"
@@ -1928,7 +2015,7 @@
                 : layout.Columns.FindIndex(c => c.Day == DateOnly.FromDateTime(edit.Draft.Start));
             if (index >= 0 && CalendarLayout.Segment(edit.Draft, layout.Columns[index].Day, _grid) is { } segment)
             {
-                style = FormattableString.Invariant($"grid-column:{index + 2};grid-row:1;") +
+                style = FormattableString.Invariant($"grid-column:{index + 2} / span 1;grid-row:1 / span 1;") +
                         $"top:{CalendarLayout.Pct(segment.Top)};height:{CalendarLayout.Pct(segment.Height)}";
                 title = string.IsNullOrEmpty(edit.Draft.Title) ? Labels.NewEvent : edit.Draft.Title;
                 time = TimeRange(edit.Draft);
@@ -1983,6 +2070,26 @@
                 // The arrows, Home and End move the cursor and the preview; the page
                 // must not scroll underneath.
                 await JS.InvokeVoidAsync(Editable ? "dryl.keynav.attach" : "dryl.keynav.detach", _rootEl);
+            }
+            if (Editable != _bridgeAttached)
+            {
+                _bridgeAttached = Editable;
+                if (Editable)
+                {
+                    _dotNetRef ??= DotNetObjectReference.Create(this);
+                    await JS.InvokeVoidAsync("dryl.calendar.edit.attach", _rootEl, _dotNetRef);
+                }
+                else
+                {
+                    await JS.InvokeVoidAsync("dryl.calendar.edit.detach", _rootEl);
+                }
+            }
+            if (_releaseGesture)
+            {
+                // The event is now drawn where the gesture dropped it, or the gesture
+                // asked for nothing: the bridge's preview gives way.
+                _releaseGesture = false;
+                await JS.InvokeVoidAsync("dryl.calendar.edit.release", _rootEl);
             }
             if (_focusSelector is { } selector)
             {
