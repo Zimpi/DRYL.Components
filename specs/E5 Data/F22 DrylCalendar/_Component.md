@@ -8,12 +8,17 @@
               code/DRYL.Components/Components/Data/CalendarPersonLayout.cs
               code/DRYL.Components/Components/Data/CalendarColor.cs
               code/DRYL.Components/Components/Data/CalendarAvailabilityKind.cs
+              code/DRYL.Components/Components/Data/CalendarChangeKind.cs
+              code/DRYL.Components/Components/Data/CalendarConflictKind.cs
               code/DRYL.Components/Components/Data/Models/CalendarEvent.cs
               code/DRYL.Components/Components/Data/Models/CalendarPerson.cs
               code/DRYL.Components/Components/Data/Models/CalendarAvailability.cs
               code/DRYL.Components/Components/Data/Models/CalendarRange.cs
               code/DRYL.Components/Components/Data/Models/CalendarLabels.cs
+              code/DRYL.Components/Components/Data/Models/CalendarChangeRequest.cs
+              code/DRYL.Components/Components/Data/Models/CalendarConflict.cs
               code/DRYL.Components/Components/Data/Internal/CalendarLayout.cs
+              code/DRYL.Components/Components/Data/Internal/CalendarEditing.cs
 
 This spec is split (`SPEC-02`). The acceptance criteria live in the `S{n}` files
 beside this one; this file carries the `Meta` block, the description and the
@@ -22,10 +27,11 @@ while every `S{n}` beside it does.
 
 The component is split because it ships in three stages, each its own release
 (`ideas/I19 A scheduling calendar.md`), and a per-story state is what keeps
-"which stage is in the code" readable. This file and the four stories below are
-**stage one — show**. Stage two (editing on the grid) and stage three (the
-event editor and AI) append their stories and their API when they are specified;
-nothing in stage one is renamed by them.
+"which stage is in the code" readable. `S1` to `S4` are **stage one — show**,
+shipped in 3.5.0. `S5` to `S8` are **stage two — edit**, shipped in 3.6.0. Stage three (the
+event editor and AI) appends its stories and its API when it is specified.
+Nothing in an earlier stage is renamed by a later one.
+
 
 | File | Subject |
 |---|---|
@@ -33,6 +39,10 @@ nothing in stage one is renamed by them.
 | `S2 Events.md` | What an event's times mean, placement, overlaps, all-day and multi-day events, series, colour, the event template, the click |
 | `S3 People and availability.md` | Overlaid people and person columns, the legend and hiding, working hours and absences |
 | `S4 Presentation, narrow layout and accessibility.md` | The surface, tokens, motion, the narrow layouts, labels, keyboard, announcements, cleanup |
+| `S5 Change requests.md` | Switching editing on, the request a change raises, what is drawn while the host decides, series |
+| `S6 Pointer and touch editing.md` | Moving, resizing, reassigning and creating by pointer and touch, snapping, handles, motion while editing |
+| `S7 Keyboard editing and announcements.md` | The slot grid, creating, moving and resizing by keyboard, hints, announcements, focus after a change |
+| `S8 Conflicts.md` | The three kinds of conflict, how they are detected, how they are shown on events and while editing |
 
 ## User Story
 
@@ -74,6 +84,17 @@ muted areas behind the events. In stage one they are information only.
 In stage one the calendar is a display with one interaction: an event can be
 activated, which raises `OnEventClick`. Everything a user reaches by pointer
 they also reach by keyboard.
+
+**Editing is opt-in and stays the host's decision.** With `Editable` set — stage
+two — the user creates, moves and resizes events on the grid, and moves them
+across person columns to reassign them, by pointer, touch or keyboard. The
+calendar still changes no data: a finished change raises
+`OnEventChangeRequested` once, with the event as it was and as it would be.
+While the host's handler runs, the event stays where it was dropped; afterwards
+`Events` alone decides, so a change the host applied stays and one it did not
+glides back. The calendar detects **conflicts** itself — two events of one
+person overlapping, an event in an absence, an event outside working hours —
+and marks them, already while dragging. A conflict warns and never blocks.
 
 ## Public API
 
@@ -130,6 +151,8 @@ they also reach by keyboard.
 | Member | Type | Default | Purpose |
 |---|---|---|---|
 | `OnEventClick` | `EventCallback<CalendarEvent>` | — | Raised when an event is activated by pointer or keyboard. |
+| `Editable` | `bool` | `false` | Lets the user create, move and resize events and shows conflicts. Stage two. |
+| `OnEventChangeRequested` | `EventCallback<CalendarChangeRequest>` | — | Raised once per completed create, move or resize; the host applies it to `Events` or not. Stage two. |
 
 ### Presentation
 
@@ -144,7 +167,8 @@ they also reach by keyboard.
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
 `CalendarEvent`, `CalendarPerson`, `CalendarAvailability`, `CalendarRange`,
-`CalendarLabels` and the four enums are set out in [`../_Api.md`](../_Api.md).
+`CalendarLabels`, `CalendarChangeRequest`, `CalendarConflict` and the six enums
+are set out in [`../_Api.md`](../_Api.md).
 
-The component takes no `Ai` and no `Aura` parameter in stage one; the decision
-and its reason are recorded in `S4` (`AI-05`).
+The component takes no `Ai` and no `Aura` parameter in stages one and two; the
+decision and its reason are recorded in `S4` (`AI-05`).

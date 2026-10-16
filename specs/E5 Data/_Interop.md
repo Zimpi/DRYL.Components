@@ -105,6 +105,33 @@ layout of events, the narrow layouts, the motion — is markup and CSS.
 It also holds a timer, which advances the current-time line while `Now` is
 `null`. No timer exists while `Now` is set.
 
+**Stage two adds an editing bridge** (`F22 DrylCalendar/S6`, `S7`, `S8`).
+Only while `Editable` is set, `dryl.calendar.edit.attach` puts one delegated
+`pointerdown` listener on the calendar's root — the shape of
+`dryl.table.initColumnResize` — that runs every move, resize and create in the
+browser: the preview, snapping, click-versus-drag, the touch hold of
+`--dur-slow`, edge scrolling and the conflict check. It reads what it needs from
+`data-cal-edit`, which the server renders on the root: the visible range, the
+grid, and every event and availability span as minutes from the range's first
+midnight. Its limits and conflict rules mirror `Internal/CalendarEditing.cs`,
+and `tests/js/calendar.test.mjs` pins the mirror. It reports to .NET once, on
+completion, through `CompleteGesture` on a `DotNetObjectReference`; nothing is
+sent per pointer move. The preview it drew stays until the component has drawn
+the event at its drop place and calls `dryl.calendar.edit.release`. Everything
+the bridge writes is a `data-*` attribute or the preview's own style, never a
+class or a text node the renderer owns.
+
+Keyboard editing needs no bridge: it runs on the server, one round trip per key
+press. `dryl.keynav` keeps the arrow keys, `Home` and `End` from scrolling the
+page while editing is on, and `dryl.calendar.focus` hands focus to the element
+that took over from a re-rendered one — the cursor in another row, an event on
+another day.
+
+The bridge and `dryl.keynav` are detached when `Editable` is switched off, and
+the bridge again when the calendar is disposed; the object reference is
+disposed with the calendar. None of it runs during prerender, and every call is
+best-effort on a closed circuit.
+
 ## Services
 
 **None.** No component in this category injects a DRYL service, registers one,
@@ -131,7 +158,7 @@ Nine components implement a disposal.
 | `DrylStat` | The aura lifecycle's timer. |
 | `DrylTimelineItem` | The aura lifecycle's timer. |
 | `DrylTreeView` | Detaches the key-suppression listener. `IAsyncDisposable`. |
-| `DrylCalendar` | The timer that advances the current-time line while `Now` is `null`. Nothing on the JS side: its one call registers nothing. |
+| `DrylCalendar` | The timer that advances the current-time line while `Now` is `null`. While editable: the editing bridge's root listener and the `DotNetObjectReference` behind it, and `dryl.keynav` on the root. `IAsyncDisposable`. |
 | `DrylTable` | The aura lifecycle's timer, the search debounce, the in-flight data-provider request, the view-transition helper, the resize listener and the object reference behind it. `IAsyncDisposable`. |
 
 Three patterns are worth naming because getting them wrong has broken this

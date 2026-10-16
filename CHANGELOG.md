@@ -16,10 +16,19 @@ Version bump guide:
 
 ## [Agents 0.21.1] — 2026-10-16
 
-Agents-only release; the core package stays at 3.5.1.
+Agents-only release; the core package stays at 3.6.0.
 
 ### Changed
 - `DRYL.Components.Agents` (Agents 0.21.1) — Minimum `Microsoft.Agents.AI` raised from 1.24.0 to 1.25.0. No API of this package changes; consumers pinned to 1.24.x need to move up with it.
+
+## [3.6.0] — 2026-10-16
+
+### Added
+- `DrylCalendar` — Stage two, the types: the enums `CalendarChangeKind` (`Create` / `Move` / `Resize`) and `CalendarConflictKind` (`Overlap` / `Absence` / `OutsideWorkingHours`), the records `CalendarChangeRequest` (`Kind`, `Original`, `Proposed`, `Conflicts`) and `CalendarConflict` (`Kind`, `PersonId`, `EventId`), `CalendarEvent.ReadOnly`, and the `CalendarLabels` texts `NewEvent`, `EditHint`, `CreateHint`, `Requested`, `Cancelled`, `NotApplied`, `ConflictOverlap`, `ConflictAbsence` and `ConflictOutsideWorkingHours`.
+- `DrylCalendar` — Stage two, editing (`Editable`, default `false`): every completed create, move or resize raises `OnEventChangeRequested` once with a `CalendarChangeRequest`; the calendar changes no data. While the handler's task runs, the event is drawn where the change put it and marked busy; afterwards `Events` alone decides — a change the host applied stays, one it did not glides back (a created one exits) and is announced. A change that ends where it started, or leaves the visible range or the time grid, raises nothing. `CalendarEvent.ReadOnly` locks one event. Resize handles show on hover and focus. A faulted handler counts as not applied and its exception reaches the renderer.
+- `DrylCalendar` — Conflicts, while `Editable` is set: two timed events of one person overlapping, an event in an absence, an event outside the person's working spans. Every event concerned carries a small `--warning` mark with a tooltip, its accessible name ends with the conflicts, and a request carries those of its proposal. A conflict warns and never blocks.
+- `DrylCalendar` — Keyboard editing: with `Editable` set, the time grid and the month view take the grid role with one focusable cell — arrows move it by slot, day and week, `ArrowUp` from the first slot enters the all-day row, `Home` and `End` cross the row. `Enter` on a cell starts a create, `Shift` and arrows size it, `Enter` requests it. An arrow key on a focused event starts a move — by slot, by day, by week in the month view, or to the next person column — and `Shift` and arrows resize its end; a preview shows the change while the event stays focused in its place, `Enter` requests it once, `Escape` or leaving cancels. Every step, the request, a cancel and a refusal are announced through a visually hidden live region, conflicts included; `EditHint` and `CreateHint` describe what can be done.
+- `DrylCalendar` — Pointer and touch editing: drag an event to move it — across days in the week, by day in the month view, across person columns to reassign it — pull its edge to resize it, and press or drag on an empty part of the grid to create one. The gesture runs in the browser and is reported once: a preview follows the pointer slot by slot and day by day, lifted with `--shadow-md`, while the event stays faded in its place; the conflict mark follows the preview, on it and on every event it would collide with; the grid scrolls at its edges; `Escape` cancels. A press released inside its slot is a click. On touch an event is grabbed by holding it for `--dur-slow`, so a swipe keeps scrolling. The narrow week view does not change the day, and the narrow month view stays a picker.
 
 ## [3.5.1] — 2026-10-16
 

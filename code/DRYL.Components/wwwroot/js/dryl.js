@@ -2634,5 +2634,599 @@ window.dryl.calendar = {
         // The sticky head covers the top of the scroller, and the grid starts
         // right below it — so the grid's own offset is the scroll offset.
         el.scrollTop = Math.round(grid.offsetHeight * at);
+    },
+
+    // focus(root, selector): after a keyboard change re-rendered the element that
+    // had focus — the cursor moved to another row, an event moved to another day —
+    // focus goes to its successor and it is scrolled into view. Best-effort.
+    focus(root, selector) {
+        if (!root || root.nodeType !== 1 || typeof selector !== 'string') return;
+        let el = null;
+        try { el = root.querySelector(selector); } catch (_) { return; }
+        if (!el || typeof el.focus !== 'function') return;
+        if (el.ownerDocument && el.ownerDocument.activeElement !== el) el.focus({ preventScroll: true });
+        if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 };
+
+
+/* --------------------------------------------------------------
+ * dryl.calendar.edit — the pointer and touch bridge of an editable
+ * DrylCalendar (stage two).
+ *
+ * One delegated pointerdown on the calendar's root runs every move,
+ * resize and create in the browser: the preview, snapping to slots
+ * and days, click-versus-drag, the touch hold, edge scrolling and the
+ * conflict check. Nothing is sent per pointer move; a completed
+ * gesture is reported once, through CompleteGesture on the component,
+ * which checks it again against the same limits.
+ *
+ * The server renders what the bridge needs into data-cal-edit on the
+ * root: the visible range, the grid, and every event and availability
+ * span as minutes from the range's first midnight. `limits` and
+ * `conflicts` below mirror CalendarEditing in C#.
+ *
+ * State the bridge writes lives in data-* attributes and in the
+ * preview's own style, never in classes or text the renderer owns.
+ * -------------------------------------------------------------- */
+window.dryl.calendar.edit = (() => {
+    const DAY = 1440;
+    const states = new WeakMap();
+
+    // ── Pure: the limits of a change and its conflicts ──────────────
+
+    const mod = (a, n) => ((a % n) + n) % n;
+    // An end at midnight is the end of the day before it: 24:00, not 00:00.
+    const endOfDay = m => (mod(m, DAY) === 0 ? DAY : mod(m, DAY));
+
+    const limits = {
+        // A timed candidate {s, e} for an original {s, e}: within the range and
+        // the day's grid, and still shorter than a day — or no further out than
+        // the original already was.
+        time(c, o, g) {
+            if (c.e < c.s) return false;
+            if ((c.e - c.s >= DAY) !== (o.e - o.s >= DAY)) return false;
+            if (c.s < 0 && c.s < o.s) return false;
+            if (c.e > g.days * DAY && c.e > o.e) return false;
+            const sod = mod(c.s, DAY);
+            if (sod < g.ds && sod < mod(o.s, DAY)) return false;
+            const eod = endOfDay(c.e);
+            if (eod > g.de && eod > endOfDay(o.e)) return false;
+            return true;
+        },
+        // A bar's days {fd, ld} (ld exclusive) for an original's.
+        days(c, o, g) {
+            if (c.ld <= c.fd) return false;
+            if (c.fd < 0 && c.fd < o.fd) return false;
+            if (c.ld > g.days && c.ld > o.ld) return false;
+            return true;
+        }
+    };
+
+    function reassign(ids, from, to) {
+        if (from === to) return ids.slice();
+        const result = [];
+        let placed = false;
+        for (const id of ids) {
+            if (from !== null && id === from) {
+                if (to !== null && !ids.includes(to) && !placed) { result.push(to); placed = true; }
+                continue;
+            }
+            result.push(id);
+        }
+        if (from === null && to !== null && !result.includes(to)) result.push(to);
+        return result;
+    }
+
+    const overlaps = (s, e, os, oe) => s < oe && os < e;
+
+    function outsideWorkingHours(t, work) {
+        if (!work || work.length === 0) return false;
+        for (let day = Math.floor(t.s / DAY); day * DAY < t.e; day++) {
+            const mid = day * DAY, next = mid + DAY;
+            const onDay = work.filter(w => w[0] < next && w[1] > mid).sort((a, b) => a[0] - b[0]);
+            if (onDay.length === 0) continue;
+            let cursor = Math.max(t.s, mid);
+            const stop = Math.min(t.e, next);
+            for (const w of onDay) {
+                if (w[0] > cursor) return true;
+                if (w[1] > cursor) cursor = w[1];
+                if (cursor >= stop) break;
+            }
+            if (cursor < stop) return true;
+        }
+        return false;
+    }
+
+    // Whether event t ({id, s, e, p, tp}) has any conflict among `events` and the
+    // availability `av` ({personId: {abs: [[s,e]], work: [[s,e]]}}).
+    function hasConflict(t, events, av) {
+        if (!t.tp) return false;
+        for (const person of t.p) {
+            for (const o of events) {
+                if (o.id === t.id || !o.tp || !o.p.includes(person)) continue;
+                if (overlaps(t.s, t.e, o.s, o.e)) return true;
+            }
+            const spans = av[person];
+            if (!spans) continue;
+            if ((spans.abs || []).some(a => a[1] > a[0] && overlaps(t.s, t.e, a[0], a[1]))) return true;
+            if (outsideWorkingHours(t, spans.work)) return true;
+        }
+        return false;
+    }
+
+    // ── Reading the rendered grid ───────────────────────────────────
+
+    function readData(root) {
+        try { return JSON.parse(root.getAttribute('data-cal-edit') || 'null'); } catch (_) { return null; }
+    }
+
+    function dayIndex(data, iso) {
+        const p = (iso || '').split('-').map(Number);
+        const q = data.first.split('-').map(Number);
+        if (p.length !== 3 || q.length !== 3) return 0;
+        return Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(q[0], q[1] - 1, q[2])) / 86400000);
+    }
+
+    function cssMs(root, name, fallback) {
+        const v = getComputedStyle(root).getPropertyValue(name).trim();
+        if (v.endsWith('ms')) return parseFloat(v) || fallback;
+        if (v.endsWith('s')) return (parseFloat(v) * 1000) || fallback;
+        return fallback;
+    }
+
+    function cssPx(root, name, fallback) {
+        const v = parseFloat(getComputedStyle(root).getPropertyValue(name));
+        return Number.isFinite(v) && v > 0 ? v : fallback;
+    }
+
+    const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+
+    function nearest(items, x, y, axis) {
+        let best = null, bestDistance = Infinity;
+        for (const item of items) {
+            const r = item.rect;
+            const dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+            const dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+            const d = axis === 'x' ? dx : dx + dy;
+            if (d < bestDistance) { best = item; bestDistance = d; }
+        }
+        return best;
+    }
+
+    function formatter(data) {
+        try {
+            return new Intl.DateTimeFormat(data.culture || undefined, {
+                hour: data.h2 ? '2-digit' : 'numeric', minute: '2-digit', hour12: !!data.h12, timeZone: 'UTC'
+            });
+        } catch (_) {
+            return { format: d => `${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')}` };
+        }
+    }
+
+    // ── The gesture ─────────────────────────────────────────────────
+
+    function attach(root, dotnet) {
+        if (!root || root.nodeType !== 1) return;
+        detach(root);
+        const state = { root, dotnet, gesture: null, held: false, disposed: false, releaseTimer: 0 };
+
+        const onDown = e => {
+            if (state.disposed || state.gesture || !root.isConnected) return;
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            const data = readData(root);
+            if (!data) return;
+            const g = begin(state, data, e);
+            if (!g) return;
+            state.gesture = g;
+            g.listen();
+        };
+
+        // During a keyboard change the server marks the event data-key-editing;
+        // Enter then drops the change and Space does nothing — neither may click
+        // the button. Everything else, Tab included, keeps its default.
+        const onKey = e => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target instanceof Element
+                && e.target.closest('[data-key-editing]')) e.preventDefault();
+        };
+
+        root.addEventListener('pointerdown', onDown);
+        root.addEventListener('keydown', onKey);
+        state.off = () => {
+            root.removeEventListener('pointerdown', onDown);
+            root.removeEventListener('keydown', onKey);
+        };
+        states.set(root, state);
+    }
+
+    function detach(root) {
+        const state = root && states.get(root);
+        if (!state) return;
+        state.disposed = true;
+        state.gesture?.finish(false);
+        state.off?.();
+        clearPreview(state);
+        states.delete(root);
+    }
+
+    // Called by the component after it rendered the event where the gesture put
+    // it: the preview, kept up until then, gives way to the real box.
+    function release(root) {
+        const state = root && states.get(root);
+        if (state) clearPreview(state);
+    }
+
+    function clearPreview(state) {
+        const root = state.root;
+        clearTimeout(state.releaseTimer);
+        if (state.gesture && state.gesture.isActive()) return;
+        state.held = false;
+        root.querySelectorAll('[data-dragging]').forEach(el => el.removeAttribute('data-dragging'));
+        root.querySelectorAll('[data-preview]').forEach(el => el.removeAttribute('data-preview'));
+        root.querySelectorAll('[data-pv-conflict]').forEach(el => {
+            if (!el.classList.contains('cal-preview')) el.removeAttribute('data-pv-conflict');
+        });
+        const preview = root.querySelector('.cal-preview');
+        if (preview && !preview.classList.contains('is-active')) {
+            preview.removeAttribute('data-active');
+            preview.removeAttribute('style');
+            for (const a of ['data-title', 'data-time', 'data-color', 'data-pv-conflict']) preview.removeAttribute(a);
+        }
+        root.removeAttribute('data-gesture');
+    }
+
+    // Works out what the press is on and returns a gesture for it, or null.
+    function begin(state, data, e) {
+        const root = state.root;
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target || !root.contains(target)) return null;
+
+        const handle = target.closest('.cal-resize');
+        const button = target.closest('.cal-event');
+        const editable = button && button.hasAttribute('data-editable') ? button : null;
+        if (button && !editable) return null;                 // a ReadOnly or pending event: a click only
+        if (!editable && target.closest('button, a, input, select, textarea, .cal-more, .cal-axis, .cal-allday-label')) return null;
+
+        const time = target.closest('.cal-grid');
+        const allday = target.closest('.cal-allday');
+        const month = target.closest('.cal-month');
+        if (!time && !allday && !month) return null;
+        // The narrow month view selects a day on press and is not editable.
+        if (month) {
+            const pick = root.querySelector('.cal-cell-pick');
+            if (pick && getComputedStyle(pick).display !== 'none') return null;
+        }
+
+        const surface = time ? 'time' : allday ? 'allday' : 'month';
+        const ctx = {
+            state, data, surface, pointerId: e.pointerId,
+            touch: e.pointerType === 'touch',
+            x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY,
+            grid: time || allday || month,
+            fmt: formatter(data)
+        };
+
+        if (editable) {
+            const ev = data.ev.find(x => x.id === editable.getAttribute('data-event-id'));
+            if (!ev) return null;
+            ctx.event = ev;
+            ctx.button = editable;
+            ctx.kind = handle && editable.contains(handle) ? 'resize' : 'move';
+            ctx.edge = ctx.kind === 'resize' ? handle.getAttribute('data-edge') : null;
+        } else {
+            ctx.kind = 'create';
+        }
+        return gesture(ctx);
+    }
+
+    function gesture(ctx) {
+        const { state, data } = ctx;
+        const root = state.root;
+        const slot = data.slot, ds = data.ds, de = data.de, len = de - ds;
+        const holdMs = cssMs(root, '--dur-slow', 420);
+        const zone = cssPx(root, '--sp-8', 48);
+        const slop = cssPx(root, '--sp-2', 8);
+        const scroller = root.querySelector('.cal-scroll');
+
+        let active = false, finished = false, holdTimer = 0, frame = 0;
+        let anchor = null, current = null, last = null, startCell = null;
+
+        // Cells of the surface the gesture runs on, with their rects, in order.
+        const cells = () => {
+            const sel = ctx.surface === 'time' ? '.cal-grid > .cal-col'
+                : ctx.surface === 'allday' ? '.cal-allday > .cal-allday-cell'
+                : '.cal-week > .cal-cell';
+            const all = Array.from(root.querySelectorAll(sel));
+            return all.map((el, index) => ({
+                el, index, rect: el.getBoundingClientRect(),
+                day: dayIndex(data, el.getAttribute('data-date')),
+                key: el.getAttribute('data-col-key')
+            })).filter(c => c.rect.width > 0);
+        };
+
+        const cellAt = (x, y) => nearest(cells(), x, y, ctx.surface === 'month' ? 'xy' : 'x');
+
+        // Minutes from the range start at a pointer position in a time column.
+        const minuteAt = (cell, y) => {
+            const r = cell.rect;
+            const frac = Math.min(Math.max((y - r.top) / r.height, 0), 1);
+            return cell.day * DAY + ds + frac * len;
+        };
+        const slotOf = (cell, y) => Math.min(Math.floor((minuteAt(cell, y) - cell.day * DAY - ds) / slot), Math.ceil(len / slot) - 1);
+
+        startCell = cellAt(ctx.x, ctx.y);
+        if (!startCell) return null;
+        const startSlot = ctx.surface === 'time' ? slotOf(startCell, ctx.y) : 0;
+        const pressMinute = ctx.surface === 'time' ? minuteAt(startCell, ctx.y) : 0;
+
+        // ── What the pointer position means ──
+
+        function evaluate() {
+            const cell = cellAt(ctx.x, ctx.y);
+            if (!cell) return last;
+            const ev = ctx.event;
+
+            if (ctx.kind === 'create') {
+                if (ctx.surface === 'time') {
+                    const a = startSlot;
+                    const b = cell.key === startCell.key && cell.day === startCell.day ? slotOf(startCell, ctx.y) : a;
+                    const lo = Math.min(a, b), hi = Math.max(a, b);
+                    const mid = startCell.day * DAY;
+                    return { s: mid + ds + lo * slot, e: Math.min(mid + ds + (hi + 1) * slot, mid + de), cell: startCell, key: startCell.key };
+                }
+                const sameRow = ctx.surface === 'month' || cell.key === startCell.key || !data.byPerson;
+                const d = sameRow ? cell.day : startCell.day;
+                return { fd: Math.min(startCell.day, d), ld: Math.max(startCell.day, d) + 1, key: startCell.key };
+            }
+
+            if (ctx.surface === 'time') {
+                if (ctx.kind === 'move') {
+                    const minutes = Math.round((minuteAt(cell, ctx.y) - cell.day * DAY - (pressMinute - startCell.day * DAY)) / slot) * slot;
+                    const dayDelta = data.byPerson ? 0 : cell.day - startCell.day;
+                    const delta = dayDelta * DAY + minutes;
+                    const p = data.byPerson ? reassign(ev.p, personOf(startCell.key), personOf(cell.key)) : ev.p;
+                    const c = { s: ev.s + delta, e: ev.e + delta, delta, p, key: data.byPerson ? cell.key : startCell.key, cell: data.byPerson ? cell : null };
+                    return limits.time(c, ev, data) ? c : null;
+                }
+                // Resize: the dragged edge snaps to a slot boundary of the column it started in.
+                const mid = startCell.day * DAY;
+                const at = mid + ds + Math.round((minuteAt(startCell, ctx.y) - mid - ds) / slot) * slot;
+                const c = ctx.edge === 'start'
+                    ? { s: Math.min(at, ev.e - slot), e: ev.e }
+                    : { s: ev.s, e: Math.max(at, ev.s + slot) };
+                c.delta = ctx.edge === 'start' ? c.s - ev.s : c.e - ev.e;
+                c.p = ev.p; c.key = startCell.key;
+                return limits.time(c, ev, data) ? c : null;
+            }
+
+            // Bars and month lines move and resize by whole days.
+            const toKey = data.byPerson && ctx.surface === 'allday' ? cell.key : startCell.key;
+            const dayDelta = data.byPerson && ctx.surface === 'allday' ? 0 : cell.day - startCell.day;
+            let c;
+            if (ctx.kind === 'move') c = { fd: ev.fd + dayDelta, ld: ev.ld + dayDelta, s: ev.s + dayDelta * DAY, e: ev.e + dayDelta * DAY };
+            else if (ctx.edge === 'start') c = { fd: Math.min(ev.fd + dayDelta, ev.ld - 1), ld: ev.ld, s: ev.s, e: ev.e };
+            else c = { fd: ev.fd, ld: Math.max(ev.ld + dayDelta, ev.fd + 1), s: ev.s, e: ev.e };
+            c.delta = ctx.kind === 'move' ? dayDelta * DAY
+                : ctx.edge === 'start' ? (c.fd - ev.fd) * DAY : (c.ld - ev.ld) * DAY;
+            c.key = toKey;
+            c.p = data.byPerson && ctx.surface === 'allday' ? reassign(ev.p, personOf(startCell.key), personOf(toKey)) : ev.p;
+            if (ctx.kind === 'resize' && !ev.ad) {
+                c.s = ctx.edge === 'start' ? ev.s + c.delta : ev.s;
+                c.e = ctx.edge === 'end' ? ev.e + c.delta : ev.e;
+                if (c.e - c.s < DAY) return null;
+            }
+            return limits.days(c, ev, data) ? c : null;
+        }
+
+        const personOf = key => (key && key.startsWith('person|') ? key.slice(7) : null);
+
+        // ── Drawing ──
+
+        function draw() {
+            const next = evaluate();
+            if (next) current = next;
+            if (!current) return;
+            last = current;
+            if (ctx.surface === 'time') drawTime(current);
+            else drawDays(current);
+            drawConflicts(current);
+        }
+
+        function drawTime(c) {
+            const preview = root.querySelector('.cal-preview');
+            if (!preview) return;
+            const all = cells();
+            // The column the preview sits in: the person's, or the day of its start.
+            let cell = c.cell || all.find(x => x.key === c.key && x.day === Math.floor(c.s / DAY))
+                || all.find(x => x.day === Math.floor(c.s / DAY)) || startCell;
+            const mid = cell.day * DAY;
+            const from = Math.max(c.s, mid + ds), to = Math.min(Math.max(c.e, c.s + slot), mid + de);
+            const top = (from - mid - ds) / len;
+            const height = Math.max(to - from, slot) / len;
+            // An absolutely placed grid item spans to the grid's edge unless its end
+            // line is named: one column, one row.
+            preview.style.setProperty('grid-column', `${cell.index + 2} / span 1`);
+            preview.style.setProperty('grid-row', '1 / span 1');
+            preview.style.setProperty('top', (top * 100).toFixed(4) + '%');
+            preview.style.setProperty('height', (Math.min(height, 1 - top) * 100).toFixed(4) + '%');
+            const ev = ctx.event;
+            preview.setAttribute('data-title', ev ? (ev.title || data.newEvent) : data.newEvent);
+            preview.setAttribute('data-time', `${ctx.fmt.format(new Date(mod(c.s, DAY) * 60000))} – ${ctx.fmt.format(new Date(mod(c.e, DAY) * 60000))}`);
+            const color = ctx.button?.getAttribute('data-color');
+            if (color) preview.setAttribute('data-color', color);
+            preview.setAttribute('data-active', '');
+        }
+
+        function drawDays(c) {
+            root.querySelectorAll('[data-preview]').forEach(el => el.removeAttribute('data-preview'));
+            for (const cell of cells()) {
+                if (cell.day < c.fd || cell.day >= c.ld) continue;
+                if (data.byPerson && ctx.surface === 'allday' && cell.key !== c.key) continue;
+                cell.el.setAttribute('data-preview', '');
+            }
+        }
+
+        // The conflict mark follows the preview, on the preview and on every other
+        // event the change would put into, or take out of, conflict.
+        function drawConflicts(c) {
+            if (ctx.surface !== 'time') return;
+            const self = ctx.event
+                ? { id: ctx.event.id, s: c.s, e: c.e, p: c.p, tp: !ctx.event.ad && c.e > c.s && c.e - c.s < DAY }
+                : { id: '\u0000new', s: c.s, e: c.e, p: c.key && personOf(c.key) ? [personOf(c.key)] : [], tp: c.e > c.s && c.e - c.s < DAY };
+            const events = data.ev.filter(x => x.id !== self.id).concat([self]);
+            root.querySelector('.cal-preview')?.setAttribute('data-pv-conflict', hasConflict(self, events, data.av) ? '1' : '0');
+            for (const button of root.querySelectorAll('.cal-event[data-event-id]')) {
+                const id = button.getAttribute('data-event-id');
+                if (id === self.id) continue;
+                const ev = data.ev.find(x => x.id === id);
+                if (!ev || !ev.tp) continue;
+                button.setAttribute('data-pv-conflict', hasConflict(ev, events, data.av) ? '1' : '0');
+            }
+        }
+
+        // ── Lifecycle ──
+
+        function activate() {
+            if (active) return;
+            active = true;
+            clearTimeout(state.releaseTimer);
+            state.held = false;
+            root.setAttribute('data-gesture', '');
+            if (ctx.event) {
+                root.querySelectorAll(`.cal-event[data-event-id="${CSS.escape(ctx.event.id)}"]`)
+                    .forEach(b => b.closest('.cal-slot')?.setAttribute('data-dragging', ''));
+            }
+            draw();
+            tick();
+        }
+
+        // Near the scroller's edge, the grid scrolls towards it.
+        function tick() {
+            cancelAnimationFrame(frame);
+            if (!active || finished || !scroller) return;
+            const r = scroller.getBoundingClientRect();
+            let dy = 0, dx = 0;
+            if (ctx.y < r.top + zone) dy = -(r.top + zone - ctx.y);
+            else if (ctx.y > r.bottom - zone) dy = ctx.y - (r.bottom - zone);
+            if (data.byPerson) {
+                if (ctx.x < r.left + zone) dx = -(r.left + zone - ctx.x);
+                else if (ctx.x > r.right - zone) dx = ctx.x - (r.right - zone);
+            }
+            if (dy || dx) {
+                scroller.scrollTop += Math.round(dy / 4);
+                scroller.scrollLeft += Math.round(dx / 4);
+                draw();
+            }
+            frame = requestAnimationFrame(tick);
+        }
+
+        function onMove(ev) {
+            if (finished || ev.pointerId !== ctx.pointerId) return;
+            if (!root.isConnected || !ctx.grid.isConnected) { finish(false); return; }
+            ctx.x = ev.clientX; ctx.y = ev.clientY;
+            if (!active) {
+                if (ctx.touch) {
+                    // Moving before the hold is complete is a scroll, not a grab.
+                    if (Math.hypot(ctx.x - ctx.startX, ctx.y - ctx.startY) > slop) finish(false);
+                    return;
+                }
+                if (ctx.kind === 'create' || ctx.kind === 'resize') { activate(); return; }
+                // A press on an event becomes a move once it leaves its slot or day.
+                const cell = cellAt(ctx.x, ctx.y);
+                if (!cell) return;
+                const moved = cell.index !== startCell.index
+                    || (ctx.surface === 'time' && slotOf(cell, ctx.y) !== startSlot);
+                if (moved) activate();
+                return;
+            }
+            draw();
+        }
+
+        function onUp(ev) {
+            if (ev.pointerId !== ctx.pointerId) return;
+            ctx.x = ev.clientX; ctx.y = ev.clientY;
+            // A mouse press on an empty slot released in place creates that slot.
+            if (!active && !ctx.touch && ctx.kind === 'create') activate();
+            finish(active);
+        }
+        const onCancel = ev => { if (ev.pointerId === ctx.pointerId) finish(false); };
+        const onKey = ev => { if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } };
+        // While held on touch, the page must not scroll and no callout may open.
+        const onTouchMove = ev => { if (active) ev.preventDefault(); };
+        const onContext = ev => { if (active || holdTimer) ev.preventDefault(); };
+
+        function listen() {
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+            window.addEventListener('pointercancel', onCancel);
+            window.addEventListener('keydown', onKey);
+            root.addEventListener('touchmove', onTouchMove, { passive: false });
+            root.addEventListener('contextmenu', onContext);
+            if (ctx.touch) {
+                // A tap on a resize handle of the focused event resizes at once.
+                if (ctx.kind === 'resize') activate();
+                else holdTimer = setTimeout(() => { holdTimer = 0; if (!finished) activate(); }, holdMs);
+            } else if (ctx.kind === 'create') {
+                activate();
+            }
+        }
+
+        function finish(commit) {
+            if (finished) return;
+            finished = true;
+            clearTimeout(holdTimer);
+            holdTimer = 0;
+            cancelAnimationFrame(frame);
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onCancel);
+            window.removeEventListener('keydown', onKey);
+            root.removeEventListener('touchmove', onTouchMove);
+            root.removeEventListener('contextmenu', onContext);
+            state.gesture = null;
+            if (!active) return;
+
+            // A drag is not a click: the click the release produces is dropped.
+            const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
+            window.addEventListener('click', swallow, { capture: true, once: true });
+            setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0);
+
+            const c = last;
+            const report = commit && c && !state.disposed && root.isConnected && ctx.grid.isConnected
+                ? payload(c) : null;
+            if (!report) {
+                // Cancelled: the preview returns to the event's place, then goes.
+                if (ctx.event && ctx.surface === 'time' && c) drawTime({ s: ctx.event.s, e: ctx.event.e, key: startCell.key, cell: null });
+                state.releaseTimer = setTimeout(() => clearPreview(state), cssMs(root, '--dur-fast', 160));
+                return;
+            }
+            // The preview stays where it was dropped until the component has drawn
+            // the event there and calls release — or the call settles.
+            state.held = true;
+            const settle = () => { if (state.held) clearPreview(state); };
+            try {
+                const call = state.dotnet?.invokeMethodAsync('CompleteGesture', ...report);
+                if (call && typeof call.then === 'function') call.then(settle, settle);
+                else settle();
+            } catch (_) {
+                settle();
+            }
+        }
+
+        // The arguments of CompleteGesture: kind, surface, eventId, edge, fromKey, toKey, a, b.
+        function payload(c) {
+            const ev = ctx.event;
+            if (ctx.kind === 'create') {
+                return ctx.surface === 'time'
+                    ? ['create', 'time', null, null, null, c.key, Math.round(c.s), Math.round(c.e)]
+                    : ['create', ctx.surface, null, null, null, c.key, c.fd, c.ld - 1];
+            }
+            if (c.delta === 0 && (c.key === startCell.key || !data.byPerson)) return null;
+            return [ctx.kind, ctx.surface, ev.id, ctx.edge, startCell.key, c.key, Math.round(c.delta), 0];
+        }
+
+        return { listen, finish, isActive: () => active && !finished };
+    }
+
+    return { attach, detach, release, limits, reassign, hasConflict };
+})();

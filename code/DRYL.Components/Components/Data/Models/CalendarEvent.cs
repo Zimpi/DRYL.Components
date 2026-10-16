@@ -36,4 +36,10 @@ public sealed record CalendarEvent
 
     /// <summary>The host's own object behind the event; the calendar never reads it.</summary>
     public object? Data { get; init; }
+
+    /// <summary>
+    /// The event cannot be moved or resized, even when the calendar is editable. It
+    /// can still be activated, and still counts when conflicts are detected.
+    /// </summary>
+    public bool ReadOnly { get; init; }
 }

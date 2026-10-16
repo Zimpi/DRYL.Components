@@ -53,6 +53,8 @@ into every consumer's markup:
 | `CalendarPersonLayout` | `CalendarPersonLayout.cs` | `CalendarPersonLayout.Columns` |
 | `CalendarColor` | `CalendarColor.cs` | `CalendarColor.Slot3` |
 | `CalendarAvailabilityKind` | `CalendarAvailabilityKind.cs` | `CalendarAvailabilityKind.Absent` |
+| `CalendarChangeKind` | `CalendarChangeKind.cs` | `CalendarChangeKind.Move` |
+| `CalendarConflictKind` | `CalendarConflictKind.cs` | `CalendarConflictKind.Overlap` |
 | `ColumnAlign` | `Models/ColumnAlign.cs` | `ColumnAlign.End` |
 | `ColumnFilterType` | `Models/ColumnFilterType.cs` | `ColumnFilterType.Select` |
 | `ColumnPin` | `Models/ColumnPin.cs` | `ColumnPin.Start` |
@@ -362,6 +364,49 @@ later stage can add a member without breaking a host that constructs one.
 | `Color` | `CalendarColor` | `CalendarColor.Auto` | Its colour slot. |
 | `SeriesId` | `string?` | `null` | Set when the event is one occurrence of a recurring series. |
 | `Data` | `object?` | `null` | The host's own object behind the event; the calendar never reads it. |
+| `ReadOnly` | `bool` | `false` | Stage two: the event cannot be moved or resized, even with `Editable` set. |
+
+### `CalendarChangeKind`
+
+Stage two.
+
+| Member | Notes |
+|---|---|
+| `Create` | A new event, made on an empty part of the grid. |
+| `Move` | An event's start changed and its duration kept; may change its people. |
+| `Resize` | An event's start or end changed so that its duration changed. |
+
+### `CalendarChangeRequest`
+
+Stage two. A `sealed record` with `init` properties. Raised by
+`OnEventChangeRequested` once per completed change.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `Kind` | `CalendarChangeKind` | required | What kind of change it is. |
+| `Original` | `CalendarEvent?` | `null` | The event from `Events` the change was made to; `null` for a create. |
+| `Proposed` | `CalendarEvent` | required | The event as it would be after the change. |
+| `Conflicts` | `IReadOnlyList<CalendarConflict>` | `[]` | The conflicts `Proposed` would have. |
+
+### `CalendarConflictKind`
+
+Stage two.
+
+| Member | Notes |
+|---|---|
+| `Overlap` | Another timed event of the same person overlaps it. |
+| `Absence` | It overlaps an absence of the person. |
+| `OutsideWorkingHours` | Part of it lies outside the person's working spans on a day that has any. |
+
+### `CalendarConflict`
+
+Stage two. A `sealed record` with `init` properties.
+
+| Member | Type | Default | Purpose |
+|---|---|---|---|
+| `Kind` | `CalendarConflictKind` | required | The kind of conflict. |
+| `PersonId` | `string` | required | The person the conflict is for. |
+| `EventId` | `string?` | `null` | The other event of an `Overlap`; `null` otherwise. |
 
 ### `CalendarPerson`
 
@@ -410,6 +455,15 @@ A `sealed record` with `init` properties, each defaulting to an English text.
 | `People` | `"People"` | Accessible label of the legend. |
 | `Loading` | `"Loading"` | The loading status. |
 | `NoEvents` | `"No events"` | The narrow month view's list for a day without events. |
+| `NewEvent` | `"New event"` | Stage two: the title drawn on a created event while the host decides. |
+| `EditHint` | `"Arrow keys move, Shift and arrow keys resize, Enter drops, Escape cancels."` | Stage two: the description of an editable event. |
+| `CreateHint` | `"Enter creates an event here."` | Stage two: the description of an editable grid cell. |
+| `Requested` | `"Change requested: {0}"` | Stage two: announced when a change is completed; `{0}` is the event's new day and times. |
+| `Cancelled` | `"Change cancelled."` | Stage two: announced when a change is cancelled. |
+| `NotApplied` | `"The change was not applied."` | Stage two: announced when the host left `Events` unchanged. |
+| `ConflictOverlap` | `"Overlaps another event of {0}"` | Stage two: an `Overlap` conflict; `{0}` is the person's name. |
+| `ConflictAbsence` | `"{0} is absent"` | Stage two: an `Absence` conflict. |
+| `ConflictOutsideWorkingHours` | `"Outside the working hours of {0}"` | Stage two: an `OutsideWorkingHours` conflict. |
 
 ## The AI parameters
 
