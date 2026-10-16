@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.5.1] — 2026-10-16
+
+### Fixed
+- `DrylTable` — The chevron of a detail row's expand control keeps its size. It is an SVG inside a flex button, and in a narrow expand column the button squeezed it down to a dot; the SVG is now `flex: none`.
+
 ## [3.5.0] — 2026-10-12
 
 ### Added
