@@ -1,7 +1,7 @@
 # DrylNotifications
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylNotifications.razor
               code/DRYL.Components/Components/Feedback/DrylNotifications.razor.css
               code/DRYL.Components/Notifications/DrylNotification.cs

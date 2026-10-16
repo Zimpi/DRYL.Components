@@ -3842,6 +3842,8 @@ td.tbl-td-editing select {
 .tab.ai-thinking .tab-comet::before  { animation-duration: 1.8s; }
 .tab.ai-streaming .tab-comet::before { animation-duration: 3s; }
 .tab.ai-generated .tab-comet::before { animation-duration: 4s; }
+/* Proposed rests (I20): the tab's gradient ring stands still. */
+.tab.ai-proposed .tab-comet::before { animation: none; }
 
 /* Tab panel — fades in on switch via @key on the panel element */
 .tab-panel {

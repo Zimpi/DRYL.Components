@@ -25,7 +25,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@WrapClass" style="@WrapStyle"
-     aria-live="@(Ai == AiState.None ? null : "polite")"
+     aria-live="@(Ai is AiState.None or AiState.Proposed ? null : "polite")"
      aria-label="@StateLabel"
      @attributes="AdditionalAttributes">
 
@@ -40,6 +40,16 @@
         @if (!_aura.Exiting && _aura.RenderState is AiState.Active or AiState.Generated)
         {
             <div class="ai-aura-wash" aria-hidden="true" @key="_genKey"></div>
+        }
+        @* Proposed (I20): the accept wave and the description, as DrylAuraElements renders
+           them. A proposal is described, not announced — the root is no live region then. *@
+        @if (!_aura.Exiting && _aura.RenderState == AiState.Generated && _aura.FromProposed)
+        {
+            <div class="ai-aura-wave" aria-hidden="true" @key="_waveKey"></div>
+        }
+        @if (!_aura.Exiting && _aura.RenderState == AiState.Proposed)
+        {
+            <span class="visually-hidden">AI suggestion, awaiting your decision</span>
         }
     }
 
@@ -153,6 +163,7 @@
     private string? _trackedSrc;
     private bool _usedFallbackSrc;
     private object _genKey = new();
+    private object _waveKey = new();
     private AiState _prevAi;
     private readonly AuraLifecycle _aura = new();
 
@@ -168,7 +179,10 @@
         }
 
         if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+        {
             _genKey = new();
+            _waveKey = new();
+        }
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
@@ -222,9 +236,12 @@
                     AiState.Active    => "ai-active img--ai-active",
                     AiState.Thinking  => "ai-thinking img--thinking",
                     AiState.Streaming => "ai-streaming img--streaming",
-                    AiState.Generated => "ai-generated img--generated",
+                    // An accepted proposal is already on screen: no scale-in reveal.
+                    AiState.Generated => _aura.FromProposed ? "ai-generated" : "ai-generated img--generated",
+                    AiState.Proposed  => "ai-proposed",
                     _                 => string.Empty
                 });
+                if (_aura.RenderState == AiState.Generated && _aura.FromProposed) parts.Add("ai-from-proposed");
             }
 
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);

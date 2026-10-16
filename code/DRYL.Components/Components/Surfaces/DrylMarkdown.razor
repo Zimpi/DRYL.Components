@@ -20,16 +20,7 @@
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCssClass" @attributes="AdditionalAttributes">
-    @if (_aura.Present)
-    {
-        <div class="ai-aura-ring" aria-hidden="true"></div>
-        <div class="ai-aura-comet" aria-hidden="true"></div>
-        <div class="ai-aura-glow" aria-hidden="true"></div>
-        @if (_aura.RenderState == AiState.Generated && !_aura.Exiting)
-        {
-            <div class="ai-aura-wash" aria-hidden="true" @key="_genTick"></div>
-        }
-    }
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     <div class="md-content">
         @foreach (var seg in _segments)
@@ -183,18 +174,7 @@
         get
         {
             var parts = new List<string> { "md" };
-            if (_aura.Present)
-            {
-                parts.Add("ai-aura");
-                if (EffectiveAura == AiAura.Aurora) parts.Add("ai-aura--aurora");
-                if (_aura.Exiting) parts.Add("ai-aura--out");
-                switch (_aura.RenderState)
-                {
-                    case AiState.Thinking:  parts.Add("ai-thinking");  break;
-                    case AiState.Streaming: parts.Add("ai-streaming"); break;
-                    case AiState.Generated: parts.Add("ai-generated"); break;
-                }
-            }
+            DRYL.Components.Ai.AiAuraCss.Append(parts, _aura, EffectiveAura);
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);
             return string.Join(' ', parts);
         }

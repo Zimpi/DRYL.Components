@@ -1,7 +1,7 @@
 # DrylImage
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylImage.razor
               code/DRYL.Components/Components/Data/DrylImage.razor.css
 

@@ -22,7 +22,7 @@ Agents package is not touched: its AI-aware surfaces that compose
 | T1 — the core: enum, lifecycle, aura, CSS, JS, rules | Complete | Gate passes (1657 tests, 26 new in `AiProposedTests`; JS 165, 9 new in `proposal.test.mjs`; browser `MotionTests` 12, now with `Proposed`). Browser pass on `DRYL.BrowserHost`, both modes: resting edge identical for Comet and Aurora, no running animation under `Proposed`, wave from the click (Comet field) and from the centre (Aurora field, no stamp), none under reduced motion. Found and fixed in the browser: the hidden comet kept spinning (now paused), and a paused drift froze Aurora wherever it had been (now a fixed offset). |
 | T2 — `DrylAiIndicator` | Complete | Gate passes (1660 tests, 3 new). Spec `Implemented`. |
 | T3 — the three components that ignore `Proposed` | Complete | Gate passes (1663 tests, 3 new: Proposed renders the same markup as None). Specs `Implemented`. |
-| T4 — hosts that draw their own aura | Open | |
+| T4 — hosts that draw their own aura | Complete | Gate passes (1670 tests, 7 new). `DrylCard`, `DrylMarkdown` compose the shared aura; `DrylImage` (wave, no scale-in after an accept, no live region while proposed), `DrylNotifications` rows and `DrylTabs` (still ring) gain `Proposed`. `DrylCommandPalette` needed nothing: its own ring only marks resolving, the aura itself is shared. Browser look of these hosts moved to T6, where the website demo shows them. |
 | T5 — sweep over every shared host, specs to `Implemented` | Open | |
 | T6 — website demo | Open | |
 | T7 — review, full verification, close the loop | Open | |

@@ -268,6 +268,105 @@ public class AiProposedTests : BunitContext
         return Render(builder).Markup;
     }
 
+    // ── Hosts that used to draw their own aura (T4) ──────────────────────
+
+    private const string Description = "AI suggestion, awaiting your decision";
+
+    [Fact]
+    public void A_card_shows_the_proposal_and_hands_over_with_the_wave()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var cut = Render<DrylCard>(ps => ps.Add(p => p.Ai, AiState.Proposed).AddChildContent("Plan"));
+
+        Assert.Contains("ai-proposed", cut.Find(".glass-card").ClassList);
+        Assert.Equal(Description, cut.Find(".visually-hidden").TextContent);
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+
+        Assert.Contains("ai-from-proposed", cut.Find(".glass-card").ClassList);
+        Assert.NotNull(cut.Find(".ai-aura-wave"));
+    }
+
+    [Fact]
+    public void Markdown_shows_the_proposal_and_hands_over_with_the_wave()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var cut = Render<DrylMarkdown>(ps => ps.Add(p => p.Content, "Draft").Add(p => p.Ai, AiState.Proposed));
+
+        Assert.Contains("ai-proposed", cut.Find(".ai-aura").ClassList);
+        Assert.Equal(Description, cut.Find(".visually-hidden").TextContent);
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+
+        Assert.Contains("ai-from-proposed", cut.Find(".ai-aura").ClassList);
+        Assert.NotNull(cut.Find(".ai-aura-wave"));
+    }
+
+    [Fact]
+    public void An_image_proposal_is_described_and_is_no_live_region()
+    {
+        var cut = Render<DrylImage>(ps => ps.Add(p => p.Src, "a.png").Add(p => p.Ai, AiState.Proposed));
+
+        var root = cut.Find(".img-wrap");
+        Assert.Contains("ai-proposed", root.ClassList);
+        Assert.Null(root.GetAttribute("aria-live"));
+        Assert.Equal(Description, cut.Find(".visually-hidden").TextContent);
+    }
+
+    [Fact]
+    public void An_accepted_image_gets_the_wave_but_not_the_scale_in_reveal()
+    {
+        var cut = Render<DrylImage>(ps => ps.Add(p => p.Src, "a.png").Add(p => p.Ai, AiState.Proposed));
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+
+        var root = cut.Find(".img-wrap");
+        Assert.Contains("ai-from-proposed", root.ClassList);
+        Assert.DoesNotContain("img--generated", root.ClassList);
+        Assert.NotNull(cut.Find(".ai-aura-wave"));
+    }
+
+    [Fact]
+    public void A_plain_generated_image_keeps_its_scale_in_reveal()
+    {
+        var cut = Render<DrylImage>(ps => ps.Add(p => p.Src, "a.png").Add(p => p.Ai, AiState.Streaming));
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+
+        Assert.Contains("img--generated", cut.Find(".img-wrap").ClassList);
+        Assert.Empty(cut.FindAll(".ai-aura-wave"));
+    }
+
+    [Fact]
+    public void A_notification_row_shows_the_proposal_without_a_wave()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var item = new DrylNotification { Title = "Merge 2 contacts?", Timestamp = DateTimeOffset.Now, Ai = AiState.Proposed };
+        var cut = Render<DrylNotifications>(ps => ps.Add(p => p.Items, new[] { item }));
+        cut.Find(".notif-bell").Click();
+
+        var row = cut.Find(".notif-item");
+        Assert.Contains("ai-proposed", row.ClassList);
+        Assert.Equal(Description, row.QuerySelector(".visually-hidden")!.TextContent);
+        Assert.Empty(cut.FindAll(".ai-aura-wave"));
+    }
+
+    [Fact]
+    public void A_tab_shows_the_proposal_and_names_it_for_assistive_technology()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var cut = Render<DrylTabs>(ps =>
+        {
+            ps.AddChildContent<DrylTab>(tp => tp.Add(t => t.Id, "a").Add(t => t.Label, "A"));
+            ps.AddChildContent<DrylTab>(tp => tp.Add(t => t.Id, "b").Add(t => t.Label, "B").Add(t => t.Ai, AiState.Proposed));
+        });
+
+        var tab = cut.FindAll(".tab")[1];
+        Assert.Contains("ai-proposed", tab.ClassList);
+        Assert.Contains(Description, tab.TextContent);
+        Assert.DoesNotContain(Description, cut.FindAll(".tab")[0].TextContent);
+    }
+
     // ── A host end to end ────────────────────────────────────────────────
 
     [Fact]
