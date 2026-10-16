@@ -159,6 +159,6 @@ Found and fixed during the pass: the preview spanned to the grid's last column
 `N / span 1` for the preview and the cursor), and the conflict mark sat on the
 avatars (an event with a conflict now keeps room for it).
 
-Observed, not changed: in the light mode the sticky header lets events show
-faintly through it when the grid is scrolled; `--panel-sticky` is 92% opaque.
-This is stage one's surface and a token value (`DESIGN-03`).
+Observed: events show faintly through the sticky header when the grid is
+scrolled (`--panel-sticky` is 92% opaque, in both modes). Confirmed by the
+maintainer on 2026-10-16 as the intended glass effect — not a defect.
