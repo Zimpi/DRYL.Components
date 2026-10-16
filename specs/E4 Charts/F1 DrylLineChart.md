@@ -1,7 +1,7 @@
 # DrylLineChart
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/Charts/DrylLineChart.razor
 
 ## User Story

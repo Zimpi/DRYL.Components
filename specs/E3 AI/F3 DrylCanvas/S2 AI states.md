@@ -1,7 +1,7 @@
 # AI states
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 What `Ai` does on this component — and, just as much a decision, what it does
 not do.

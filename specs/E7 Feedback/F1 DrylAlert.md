@@ -1,7 +1,7 @@
 # DrylAlert
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylAlert.razor
 
 ## User Story

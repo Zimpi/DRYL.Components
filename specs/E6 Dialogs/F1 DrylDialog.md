@@ -1,7 +1,7 @@
 # DrylDialog
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Dialogs/DrylDialog.razor
               code/DRYL.Components/Dialogs/DialogSize.cs
 

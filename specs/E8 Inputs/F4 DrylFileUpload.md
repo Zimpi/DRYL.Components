@@ -1,7 +1,7 @@
 # DrylFileUpload
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylFileUpload.razor
               code/DRYL.Components/Components/Inputs/DrylFileUpload.razor.css
 

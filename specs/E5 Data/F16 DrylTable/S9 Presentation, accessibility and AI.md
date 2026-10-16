@@ -1,7 +1,7 @@
 # Presentation, accessibility and AI
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 
 ## Acceptance Criteria
 

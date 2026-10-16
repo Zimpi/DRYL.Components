@@ -23,7 +23,7 @@ Agents package is not touched: its AI-aware surfaces that compose
 | T2 — `DrylAiIndicator` | Complete | Gate passes (1660 tests, 3 new). Spec `Implemented`. |
 | T3 — the three components that ignore `Proposed` | Complete | Gate passes (1663 tests, 3 new: Proposed renders the same markup as None). Specs `Implemented`. |
 | T4 — hosts that draw their own aura | Complete | Gate passes (1670 tests, 7 new). `DrylCard`, `DrylMarkdown` compose the shared aura; `DrylImage` (wave, no scale-in after an accept, no live region while proposed), `DrylNotifications` rows and `DrylTabs` (still ring) gain `Proposed`. `DrylCommandPalette` needed nothing: its own ring only marks resolving, the aura itself is shared. Browser look of these hosts moved to T6, where the website demo shows them. |
-| T5 — sweep over every shared host, specs to `Implemented` | Open | |
+| T5 — sweep over every shared host, specs to `Implemented` | Complete | Gate passes (1700 tests; `AiProposedSweepTests` 30: a source scan that makes every `Ai`-carrying file compose the shared aura or be accounted for by name — 12 are, each with its reason — plus render probes of 14 hosts across the families, proposal and accept). The 26 specs set to `Modified` in T0 are `Implemented` again. |
 | T6 — website demo | Open | |
 | T7 — review, full verification, close the loop | Open | |
 

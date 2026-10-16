@@ -1,7 +1,7 @@
 # DrylButton
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Actions/DrylButton.razor
 
 ## User Story

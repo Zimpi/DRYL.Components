@@ -1,7 +1,7 @@
 # DrylDonutChart
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/Charts/DrylDonutChart.razor
               code/DRYL.Components/Components/Data/Charts/ChartSegment.cs
 

@@ -1,7 +1,7 @@
 # DrylToolCallGroup
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/AI/DrylToolCallGroup.razor
               code/DRYL.Components/Components/AI/DrylToolCallGroup.razor.css
 

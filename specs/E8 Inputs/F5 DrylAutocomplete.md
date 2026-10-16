@@ -1,7 +1,7 @@
 # DrylAutocomplete
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylAutocomplete.razor
               code/DRYL.Components/Components/Inputs/DrylAutocomplete.razor.css
 

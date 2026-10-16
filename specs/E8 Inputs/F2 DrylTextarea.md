@@ -1,7 +1,7 @@
 # DrylTextarea
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylTextarea.razor
 
 ## User Story

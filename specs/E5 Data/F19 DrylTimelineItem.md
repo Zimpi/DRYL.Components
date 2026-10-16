@@ -1,7 +1,7 @@
 # DrylTimelineItem
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylTimelineItem.razor
               code/DRYL.Components/Components/Data/DrylTimelineItem.razor.css
               code/DRYL.Components/Components/Data/TimelineVariant.cs

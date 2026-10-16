@@ -1,7 +1,7 @@
 # DrylCodeBlock
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylCodeBlock.razor
               code/DRYL.Components/Components/Data/DrylCodeBlock.razor.css
 

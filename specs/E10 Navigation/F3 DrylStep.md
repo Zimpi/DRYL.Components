@@ -1,7 +1,7 @@
 # DrylStep
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Navigation/DrylStep.razor
 
 ## User Story

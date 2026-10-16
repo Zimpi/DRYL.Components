@@ -1,7 +1,7 @@
 # DrylSplitButton
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Actions/DrylSplitButton.razor
 
 ## User Story

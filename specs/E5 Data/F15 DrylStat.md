@@ -1,7 +1,7 @@
 # DrylStat
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Data/DrylStat.razor
               code/DRYL.Components/Components/Data/DrylStat.razor.css
               code/DRYL.Components/Components/Data/DeltaDirection.cs

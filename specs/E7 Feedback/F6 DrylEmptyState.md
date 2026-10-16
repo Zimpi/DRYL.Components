@@ -1,7 +1,7 @@
 # DrylEmptyState
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylEmptyState.razor
               code/DRYL.Components/Components/Feedback/DrylEmptyState.razor.css
               code/DRYL.Components/Components/Feedback/EmptyStateSize.cs
