@@ -210,6 +210,36 @@ public class AiProposedTests : BunitContext
         Assert.NotSame(first, cut.Find(".ai-aura-wave"));
     }
 
+    // ── DrylAiIndicator ──────────────────────────────────────────────────
+
+    [Fact]
+    public void The_indicator_reads_Proposed_for_a_proposal()
+    {
+        var cut = Render<DrylAiIndicator>(ps => ps.Add(p => p.State, AiState.Proposed));
+
+        Assert.Equal("Proposed", cut.Find(".ai-indicator > span").TextContent);
+    }
+
+    [Fact]
+    public void The_indicator_carries_the_resting_modifier_for_a_proposal_only()
+    {
+        var proposed = Render<DrylAiIndicator>(ps => ps.Add(p => p.State, AiState.Proposed));
+        var generated = Render<DrylAiIndicator>(ps => ps.Add(p => p.State, AiState.Generated));
+
+        Assert.Contains("is-proposed", proposed.Find(".ai-indicator").ClassList);
+        Assert.DoesNotContain("is-proposed", generated.Find(".ai-indicator").ClassList);
+    }
+
+    [Fact]
+    public void The_indicator_announces_a_host_text_for_proposals()
+    {
+        var cut = Render<DrylAiIndicator>(ps => ps.Add(p => p.State, AiState.Proposed).AddChildContent("7 suggestions"));
+
+        var pill = cut.Find(".ai-indicator");
+        Assert.Equal("polite", pill.GetAttribute("aria-live"));
+        Assert.Contains("7 suggestions", pill.TextContent);
+    }
+
     // ── A host end to end ────────────────────────────────────────────────
 
     [Fact]

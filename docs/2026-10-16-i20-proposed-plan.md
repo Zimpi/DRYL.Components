@@ -20,7 +20,7 @@ Agents package is not touched: its AI-aware surfaces that compose
 |---|---|---|
 | T0 — idea and spec | Complete | `357c191` — I20 adopted, specs written, PO-confirmed 2026-10-16. |
 | T1 — the core: enum, lifecycle, aura, CSS, JS, rules | Complete | Gate passes (1657 tests, 26 new in `AiProposedTests`; JS 165, 9 new in `proposal.test.mjs`; browser `MotionTests` 12, now with `Proposed`). Browser pass on `DRYL.BrowserHost`, both modes: resting edge identical for Comet and Aurora, no running animation under `Proposed`, wave from the click (Comet field) and from the centre (Aurora field, no stamp), none under reduced motion. Found and fixed in the browser: the hidden comet kept spinning (now paused), and a paused drift froze Aurora wherever it had been (now a fixed offset). |
-| T2 — `DrylAiIndicator` | Open | |
+| T2 — `DrylAiIndicator` | Complete | Gate passes (1660 tests, 3 new). Spec `Implemented`. |
 | T3 — the three components that ignore `Proposed` | Open | |
 | T4 — hosts that draw their own aura | Open | |
 | T5 — sweep over every shared host, specs to `Implemented` | Open | |

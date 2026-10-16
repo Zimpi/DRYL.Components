@@ -1,7 +1,7 @@
 # DrylAiIndicator
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/AI/DrylAiIndicator.razor
 
 ## User Story

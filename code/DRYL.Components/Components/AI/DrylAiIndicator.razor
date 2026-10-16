@@ -8,6 +8,7 @@
       <DrylAiIndicator State="AiState.Thinking" />              // "Thinking…"
       <DrylAiIndicator State="AiState.Streaming" />             // "Streaming…"
       <DrylAiIndicator State="AiState.Generated">Done</DrylAiIndicator>
+      <DrylAiIndicator State="AiState.Proposed">3 suggestions</DrylAiIndicator>   // still pill
 
     The default label adapts to the state. Pass ChildContent to override.
     Sets aria-live="polite" so state changes are announced to assistive tech.
@@ -49,6 +50,7 @@
             {
                 AiState.Thinking  => "ai-indicator is-thinking",
                 AiState.Streaming => "ai-indicator is-streaming",
+                AiState.Proposed  => "ai-indicator is-proposed",
                 _ => "ai-indicator"
             },
             Class
@@ -59,6 +61,7 @@
         AiState.Thinking  => "Thinking…",
         AiState.Streaming => "Streaming…",
         AiState.Generated => "Generated",
+        AiState.Proposed  => "Proposed",
         _ => "AI"
     };
 }
