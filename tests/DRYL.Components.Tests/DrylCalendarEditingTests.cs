@@ -12,7 +12,7 @@ namespace DRYL.Components.Tests;
 /// driven here through the bridge's entry point, <see cref="DrylCalendar.CompleteGesture"/>,
 /// with the coordinates the bridge reports.
 /// </summary>
-public class DrylCalendarEditingTests : BunitContext
+public partial class DrylCalendarEditingTests : BunitContext
 {
     // Monday 12 October 2026; the visible week runs from Monday midnight.
     private static readonly DateOnly Mon = new(2026, 10, 12);

@@ -2634,5 +2634,17 @@ window.dryl.calendar = {
         // The sticky head covers the top of the scroller, and the grid starts
         // right below it — so the grid's own offset is the scroll offset.
         el.scrollTop = Math.round(grid.offsetHeight * at);
+    },
+
+    // focus(root, selector): after a keyboard change re-rendered the element that
+    // had focus — the cursor moved to another row, an event moved to another day —
+    // focus goes to its successor and it is scrolled into view. Best-effort.
+    focus(root, selector) {
+        if (!root || root.nodeType !== 1 || typeof selector !== 'string') return;
+        let el = null;
+        try { el = root.querySelector(selector); } catch (_) { return; }
+        if (!el || typeof el.focus !== 'function') return;
+        if (el.ownerDocument && el.ownerDocument.activeElement !== el) el.focus({ preventScroll: true });
+        if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 };

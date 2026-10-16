@@ -20,7 +20,7 @@ task adds its entry to the same unpublished `[3.6.0]` block and leaves
 | T1 — types and version | Complete | Gate passes (1546 tests, 3 new in `CalendarTypesTests`; JS 149); coverage reports no missing `Source` path. S7 corrected: announcements get their own visually hidden live region, as the range title is visible. |
 | T2 — conflict engine and edit arithmetic | Complete | Gate passes (1578 tests, 32 new in `CalendarEditingTests`). The arithmetic lives in a new `Internal/CalendarEditing.cs` beside `CalendarLayout.cs`, in the spec's `Source`. |
 | T3 — server editing core: request, pending, conflict marks | Complete | Gate passes (1606 tests, 28 new in `DrylCalendarEditingTests`). Browser look deferred to T5, where the grid can first be operated. |
-| T4 — keyboard editing and announcements | Open | |
+| T4 — keyboard editing and announcements | Complete | Gate passes (1627 tests, 21 new keyboard tests in `DrylCalendarEditingTests.Keyboard.cs`; JS 151, 2 new for `dryl.calendar.focus`). Browser pass with T5. |
 | T5 — the pointer and touch bridge | Open | |
 | T6 — website demo and catalog | Open | |
 | T7 — review, full verification, close the loop | Open | |
@@ -115,3 +115,19 @@ Recorded here as they arise; T7 turns those that fall short of a criterion into
 - **T3 — a fault in the host's handler reaches the renderer** through
   `DispatchExceptionAsync`, as the bridge's call returns to the browser, where
   it would otherwise be swallowed.
+
+- **T4 — the slot grid is virtual.** `S7` asks for a row per slot and a cell
+  per day; the time grid's markup runs in columns, not rows. The grid carries
+  `aria-rowcount` and `aria-colcount`, and only the one focusable cell is in the
+  markup, inside a `role="row"` with its `aria-rowindex` and `aria-colindex`.
+  Events stay buttons inside the columns, outside any row.
+- **T4 — the cursor's place in the tab order.** It is the first stop of the
+  row it sits in: in the time grid that is after the all-day bars, in the month
+  view after the earlier weeks' day numbers and events. `S7` asks for "after the
+  legend and before the events".
+- **T4 — a keyboard move does not know the narrow week.** The server cannot see
+  the container query, so in the narrow week view `ArrowLeft` and `ArrowRight`
+  move the preview to a day that is not shown. `S6` forbids the day change only
+  for the pointer, where the bridge can see it.
+- **T4 — the preview of a timed change that crosses midnight shows its first
+  day's segment only.**

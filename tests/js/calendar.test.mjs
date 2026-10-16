@@ -68,3 +68,30 @@ test('scrollToTime keeps nothing: no listener, no timer, no reference', () => {
 
     assert.doesNotMatch(body, /addEventListener|setTimeout|setInterval|requestAnimationFrame|WeakMap|invokeMethodAsync/);
 });
+
+test('focus moves focus to the matching element and scrolls it into view', () => {
+    const calendar = load();
+    const calls = [];
+    const doc = { activeElement: null };
+    const target = {
+        ownerDocument: doc,
+        focus(options) { calls.push(['focus', options]); doc.activeElement = target; },
+        scrollIntoView(options) { calls.push(['scroll', options]); }
+    };
+    const root = { nodeType: 1, querySelector: selector => (selector === '.cal-cursor' ? target : null) };
+
+    calendar.focus(root, '.cal-cursor');
+    calendar.focus(root, '.cal-cursor');
+
+    assert.deepEqual(calls.map(c => c[0]), ['focus', 'scroll', 'scroll']);
+    assert.equal(calls[0][1].preventScroll, true);
+});
+
+test('focus is best-effort: no root, no match or a bad selector does nothing', () => {
+    const calendar = load();
+    const root = { nodeType: 1, querySelector: () => { throw new Error('bad selector'); } };
+
+    calendar.focus(null, '.cal-cursor');
+    calendar.focus({ nodeType: 1, querySelector: () => null }, '.missing');
+    calendar.focus(root, '[[');
+});

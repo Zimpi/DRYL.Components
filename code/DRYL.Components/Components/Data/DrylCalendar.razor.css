@@ -741,6 +741,115 @@ button.cal-day-head:hover {
     opacity: 0.7;
 }
 
+/* The slot grid's one focusable cell: placed in a column of the time grid, the
+   all-day row or a week row, invisible until it has focus. */
+.is-editable .cal-allday,
+.is-editable .cal-week {
+    position: relative;
+}
+
+.cal-cursor-row {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.cal-allday > .cal-cursor-row,
+.cal-week > .cal-cursor-row {
+    top: 0;
+    bottom: 0;
+}
+
+.cal-cursor {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--r-xs);
+    outline-offset: calc(var(--sp-1) / -2);
+    transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.cal-cursor:focus-visible {
+    background: var(--glass-1);
+}
+
+/* The preview of a change in the time grid: lifted above the grid with
+   --shadow-md, tinted like an event, following the change slot by slot. Its
+   texts come from data attributes, so the pointer bridge can write them without
+   touching nodes the renderer owns. */
+.cal-preview {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 4;
+    display: none;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    column-gap: var(--sp-2);
+    min-width: 0;
+    padding: calc(var(--sp-1) / 2) var(--sp-2);
+    overflow: hidden;
+    border-left: calc(var(--sp-1) * 0.75) solid var(--cal-c, var(--accent-line));
+    border-radius: var(--r-xs);
+    background: color-mix(in srgb, var(--cal-c, var(--accent-line)) 28%, var(--bg-2));
+    box-shadow: var(--shadow-md);
+    color: var(--fg);
+    font-size: 12px;
+    line-height: 1.3;
+    pointer-events: none;
+    transition: top var(--dur-fast) var(--ease-out),
+                height var(--dur-fast) var(--ease-out);
+}
+
+.cal-preview.is-active,
+.cal-preview[data-active] {
+    display: flex;
+    animation: presence-in-fade var(--dur-fast) var(--ease-out);
+}
+
+.cal-preview::before {
+    content: attr(data-title);
+    min-width: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-preview::after {
+    content: attr(data-time);
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.cal-preview[data-pv-conflict="1"] .cal-conflict {
+    opacity: 1;
+    transform: none;
+}
+
+/* The days a change of a bar would cover. */
+.cal-allday-cell.is-preview,
+.cal-allday-cell[data-preview],
+.cal-cell.is-preview,
+.cal-cell[data-preview] {
+    background-color: var(--glass-2);
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.is-editable .cal-allday-cell,
+.is-editable .cal-cell {
+    transition: background-color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+}
+
+/* While a change is under way, the event stays in its place, faded. */
+.cal-event.is-source,
+.cal-slot[data-dragging] .cal-event {
+    opacity: 0.4;
+}
+
 /* A change the host did not apply glides back to its place. */
 .cal-slot--timed.is-returning {
     transition: top var(--dur-med) var(--ease-out),
@@ -1079,7 +1188,16 @@ button.cal-day-head:hover {
     .cal-more,
     .cal-conflict,
     .cal-resize,
+    .cal-cursor,
+    .cal-preview,
+    .is-editable .cal-allday-cell,
+    .is-editable .cal-cell,
     .cal-slot--timed.is-returning {
         transition: none;
+    }
+
+    .cal-preview.is-active,
+    .cal-preview[data-active] {
+        animation: none;
     }
 }

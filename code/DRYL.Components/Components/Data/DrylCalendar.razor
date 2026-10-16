@@ -31,6 +31,7 @@
 
 <div class="@RootClass"
      style="@RootStyle"
+     @ref="_rootEl"
      role="group"
      aria-label="@AriaLabel"
      aria-busy="@(Loading ? "true" : null)"
@@ -105,22 +106,30 @@
     <div class="cal-body">
         @if (_view == CalendarView.Month)
         {
-            <div class="@("cal-month " + plan.EnterClass)" @key="plan.GridKey">
+            <div class="@("cal-month " + plan.EnterClass)" @key="plan.GridKey"
+                 role="@(Editable ? "grid" : null)"
+                 aria-rowcount="@(Editable ? plan.Weeks.Count : null)"
+                 aria-colcount="@(Editable ? 7 : null)">
                 <div class="cal-month-head">
                     @for (var d = 0; d < 7; d++)
                     {
                         <div class="cal-weekday">@_culture.DateTimeFormat.GetAbbreviatedDayName(plan.First.AddDays(d).DayOfWeek)</div>
                     }
                 </div>
-                @foreach (var (weekStart, week) in plan.Weeks)
+                @for (var w = 0; w < plan.Weeks.Count; w++)
                 {
+                    var (weekStart, week) = plan.Weeks[w];
                     <div class="cal-week" style="@WeekStyle" @key="weekStart">
+                        @if (Editable && _cursorDay / 7 == w)
+                        {
+                            @MonthCursor(plan, w)
+                        }
                         @for (var d = 0; d < 7; d++)
                         {
                             var day = weekStart.AddDays(d);
                             var isToday = day == Today;
                             var isSelected = day == _date;
-                            <div class="@MonthCellClass(day, isToday, isSelected)"
+                            <div class="@(MonthCellClass(day, isToday, isSelected) + (IsPreviewDay(day, null) ? " is-preview" : ""))"
                                  style="@Column(d + 1)"
                                  data-date="@Iso(day)"
                                  aria-current="@(isToday ? "date" : null)">
@@ -181,7 +190,10 @@
             var now = EffectiveNow;
             var columns = plan.Columns;
             <div class="cal-scroll" @ref="_scrollEl">
-                <div class="@TimeClass(plan)" style="@TimeStyle(plan)" @key="plan.GridKey">
+                <div class="@TimeClass(plan)" style="@TimeStyle(plan)" @key="plan.GridKey"
+                     role="@(Editable ? "grid" : null)"
+                     aria-rowcount="@(Editable ? _grid.SlotCount + 1 : null)"
+                     aria-colcount="@(Editable ? columns.Count : null)">
                     <div class="cal-head">
                         @if (_view == CalendarView.Week)
                         {
@@ -259,9 +271,13 @@
                         </div>
                         <div class="cal-allday" style="--cal-lanes:@plan.Lanes.ToString(CultureInfo.InvariantCulture)">
                             <div class="cal-allday-label">@Labels.AllDay</div>
+                            @if (Editable && _cursorRow < 0)
+                            {
+                                @TimeCursor(plan)
+                            }
                             @for (var c = 0; c < columns.Count; c++)
                             {
-                                <div class="@(IsSelectedColumn(columns[c]) ? "cal-allday-cell is-selected" : "cal-allday-cell")"
+                                <div class="@AllDayCellClass(columns[c])"
                                      style="@Column(c + 2)" aria-hidden="true"
                                      data-date="@Iso(columns[c].Day)"
                                      data-col-key="@columns[c].Key"
@@ -296,6 +312,10 @@
                                      style="top:@CalendarLayout.Pct(_grid.Fraction(time))"></div>
                             }
                         </div>
+                        @if (Editable && _cursorRow >= 0)
+                        {
+                            @TimeCursor(plan)
+                        }
                         @foreach (var column in columns)
                         {
                             var day = column.Day;
@@ -321,6 +341,10 @@
                                          style="top:@CalendarLayout.Pct(_grid.Fraction(now.TimeOfDay))"></div>
                                 }
                             </div>
+                        }
+                        @if (Editable)
+                        {
+                            @TimePreview(plan)
                         }
                     </div>
                 </div>
@@ -663,6 +687,8 @@
             await ScrollToInitialTimeAsync();
         }
 
+        await SyncKeyboardInteropAsync();
+
         var range = CalendarLayout.VisibleRange(_view, _date, FirstDay);
         if (_rangeRaised && range == _lastRange) return;
 
@@ -799,6 +825,14 @@
 
         /// <summary>The trailing edge (bottom, or last day) can be dragged to resize.</summary>
         public bool EndHandle { get; init; }
+
+        /// <summary>The column the box sits in, in the time grid and in person columns.</summary>
+        public string? ColumnKey { get; init; }
+
+        /// <summary>Where a change of this box is made.</summary>
+        public CalendarSurface Surface => Shape == EventShape.Timed ? CalendarSurface.Time
+            : Container == "allday" ? CalendarSurface.AllDay
+            : CalendarSurface.Month;
     }
 
     private sealed class ViewLayout
@@ -820,7 +854,7 @@
         Settle();
         var effective = EffectiveEvents();
         _conflicts = Editable
-            ? CalendarEditing.AllConflicts(effective, _availability, _knownPersonIds)
+            ? CalendarEditing.AllConflicts(ConflictBase(effective), _availability, _knownPersonIds)
             : NoConflicts;
 
         var (first, days) = CalendarLayout.VisibleDays(_view, _date, FirstDay);
@@ -872,7 +906,7 @@
                         allDay.Add(new Slot($"{bar.Event.Id}|allday|{column.Key}", "allday", bar.Event, EventShape.Bar,
                             "cal-slot cal-slot--bar" + Continuation(bar), "cal-event cal-event--bar" + Continuation(bar),
                             Placement(c + 2, 1, bar.Lane + 1))
-                        { StartHandle = !bar.ContinuesBefore, EndHandle = !bar.ContinuesAfter });
+                        { StartHandle = !bar.ContinuesBefore, EndHandle = !bar.ContinuesAfter, ColumnKey = column.Key });
                     }
                 }
                 layout.Lanes = Math.Max(1, layout.Columns.Max(c => c.Bars.Count + c.WholeDayAbsences.Count));
@@ -902,7 +936,7 @@
                 {
                     slots.Add(new Slot($"{segment.Event.Id}|{container}", container, segment.Event, EventShape.Timed,
                         "cal-slot cal-slot--timed", SegmentClass(segment), SegmentStyle(segment))
-                    { StartHandle = !segment.ContinuesBefore, EndHandle = !segment.ContinuesAfter });
+                    { StartHandle = !segment.ContinuesBefore, EndHandle = !segment.ContinuesAfter, ColumnKey = column.Key });
                 }
             }
 
@@ -913,6 +947,8 @@
         }
 
         Track(layout, days);
+        _layout = layout;
+        SyncCursor(layout, days);
         return layout;
     }
 
@@ -976,7 +1012,10 @@
                             aria-busy="@(_pending.ContainsKey(e.Id) ? "true" : null)"
                             aria-hidden="@(exiting ? "true" : null)"
                             tabindex="@(exiting ? "-1" : null)"
-                            @onclick="() => OnEventClick.InvokeAsync(e)">
+                            @onclick="() => OnEventClick.InvokeAsync(e)"
+                            @onkeydown="args => OnEventKeyAsync(args, slot)"
+                            @onkeydown:preventDefault="@(_keyEdit?.Original?.Id == e.Id)"
+                            @onfocusout="() => OnEventFocusOut(e)">
                         @ConflictMark(e)
                         @EventContent(e, slot.Shape)
                         @if (editable && slot.StartHandle)
@@ -1397,6 +1436,7 @@
 
     private string EventClass(string css, CalendarEvent e)
     {
+        if (IsSource(e)) return css + " is-source";
         if (_conflicts.ContainsKey(e.Id)) css += " has-conflict";
         if (_pending.ContainsKey(e.Id)) css += " is-pending";
         return css;
@@ -1506,6 +1546,454 @@
         do id = Guid.NewGuid().ToString("N");
         while (_eventsById.ContainsKey(id) || _pending.ContainsKey(id));
         return new CalendarEvent { Id = id, Start = start, End = end, AllDay = allDay, PersonIds = people };
+    }
+
+    // ── Editing: the keyboard ───────────────────────────────────────────
+
+    // A change made by keyboard runs on the server, one round trip per key: the
+    // event stays where it is, focused and faded, and a preview shows where the
+    // change would put it. Nothing is requested until Enter.
+    private sealed class KeyEdit
+    {
+        public required CalendarChangeKind Kind { get; init; }
+        public CalendarEvent? Original { get; init; }
+        public required CalendarEvent Draft { get; set; }
+        public required CalendarSurface Surface { get; init; }
+        public string? FromKey { get; init; }
+        public string? ToKey { get; set; }
+    }
+
+    private KeyEdit? _keyEdit;
+    private ViewLayout? _layout;
+    private ElementReference _rootEl;
+    private bool _keysAttached;
+
+    // The one focusable cell of the slot grid. Time grid: a column and a slot,
+    // -1 being the all-day row. Month: a day, counted from the first shown.
+    private int _cursorCol;
+    private int _cursorRow;
+    private int _cursorDay;
+    private string? _cursorGridKey;
+    private string? _focusSelector;
+
+    // A new grid puts the cursor on the cell of Date at InitialScrollTime, or on
+    // Date in the month view; within one grid it stays where the user left it.
+    private void SyncCursor(ViewLayout layout, int days)
+    {
+        if (layout.GridKey == _cursorGridKey)
+        {
+            _cursorDay = Math.Clamp(_cursorDay, 0, days - 1);
+            _cursorCol = Math.Clamp(_cursorCol, 0, Math.Max(layout.Columns.Count - 1, 0));
+            _cursorRow = Math.Clamp(_cursorRow, -1, _grid.SlotCount - 1);
+            return;
+        }
+        _cursorGridKey = layout.GridKey;
+        _keyEdit = null;
+        _cursorDay = Math.Clamp(_date.DayNumber - layout.First.DayNumber, 0, days - 1);
+        var dateColumn = layout.Columns.FindIndex(c => c.Day == _date);
+        _cursorCol = layout.ByPerson ? 0 : Math.Max(dateColumn, 0);
+        var slot = (int)Math.Floor((InitialScrollTime - _grid.DayStart).TotalMinutes / _grid.SlotMinutes);
+        _cursorRow = Math.Clamp(slot, 0, _grid.SlotCount - 1);
+    }
+
+    private static bool IsArrow(string key) => key is "ArrowUp" or "ArrowDown" or "ArrowLeft" or "ArrowRight";
+
+    // ── The cursor ──
+
+    private async Task OnCursorKeyAsync(KeyboardEventArgs args)
+    {
+        if (!Editable || _layout is null) return;
+        var month = _view == CalendarView.Month;
+
+        if (_keyEdit is { Kind: CalendarChangeKind.Create } create)
+        {
+            switch (args.Key)
+            {
+                case "Escape":
+                    CancelKeyEdit();
+                    return;
+                case "Enter":
+                    _keyEdit = null;
+                    _focusSelector = null;
+                    await RequestChangeAsync(CalendarChangeKind.Create, null, create.Draft);
+                    _focusSelector = _eventsById.ContainsKey(create.Draft.Id) ? EventSelector(create.Draft.Id) : ".cal-cursor";
+                    StateHasChanged();
+                    return;
+            }
+            if (args.ShiftKey && IsArrow(args.Key)) ExtendCreate(create, args.Key);
+            return;
+        }
+
+        switch (args.Key)
+        {
+            case "Enter":
+                StartCreate();
+                return;
+            case "Home":
+                if (month) _cursorDay -= _cursorDay % 7; else _cursorCol = 0;
+                break;
+            case "End":
+                if (month) _cursorDay += 6 - _cursorDay % 7; else _cursorCol = _layout.Columns.Count - 1;
+                break;
+            case "ArrowUp":
+                if (month) _cursorDay -= 7; else _cursorRow--;
+                break;
+            case "ArrowDown":
+                if (month) _cursorDay += 7; else _cursorRow++;
+                break;
+            case "ArrowLeft":
+                if (month) _cursorDay--; else _cursorCol--;
+                break;
+            case "ArrowRight":
+                if (month) _cursorDay++; else _cursorCol++;
+                break;
+            default:
+                return;
+        }
+
+        // The cursor never leaves the visible range.
+        var days = _layout.Weeks.Count * 7;
+        _cursorDay = Math.Clamp(_cursorDay, 0, Math.Max(days - 1, 0));
+        _cursorCol = Math.Clamp(_cursorCol, 0, Math.Max(_layout.Columns.Count - 1, 0));
+        _cursorRow = Math.Clamp(_cursorRow, -1, _grid.SlotCount - 1);
+        _focusSelector = ".cal-cursor";
+    }
+
+    private void OnCursorFocusOut()
+    {
+        if (_keyEdit is { Kind: CalendarChangeKind.Create }) CancelKeyEdit();
+    }
+
+    private TimeColumn? CursorColumn
+        => _layout is { } layout && _cursorCol < layout.Columns.Count ? layout.Columns[_cursorCol] : null;
+
+    private DateOnly CursorDay => _layout is { } layout ? layout.First.AddDays(_cursorDay) : _date;
+
+    private void StartCreate()
+    {
+        DateTime start, end;
+        CalendarSurface surface;
+        string? key = null;
+        if (_view == CalendarView.Month)
+        {
+            surface = CalendarSurface.Month;
+            (start, end) = CalendarEditing.AllDaySpan(CursorDay, CursorDay);
+        }
+        else if (CursorColumn is { } column)
+        {
+            key = column.Key;
+            if (_cursorRow < 0)
+            {
+                surface = CalendarSurface.AllDay;
+                (start, end) = CalendarEditing.AllDaySpan(column.Day, column.Day);
+            }
+            else
+            {
+                surface = CalendarSurface.Time;
+                (start, end) = CalendarEditing.TimedSpan(column.Day, _cursorRow, _cursorRow, _grid);
+            }
+        }
+        else return;
+
+        var people = PersonOfColumn(key) is { } person ? new[] { person } : [];
+        var draft = NewEvent(start, end, surface != CalendarSurface.Time, people);
+        _keyEdit = new KeyEdit { Kind = CalendarChangeKind.Create, Draft = draft, Surface = surface, ToKey = key };
+        AnnounceStep();
+    }
+
+    private void ExtendCreate(KeyEdit create, string key)
+    {
+        var draft = create.Draft;
+        CalendarEvent? next = null;
+        if (create.Surface == CalendarSurface.Time && key is "ArrowDown" or "ArrowUp")
+        {
+            var step = key == "ArrowDown" ? SlotLength : -SlotLength;
+            var limit = draft.Start.Date + _grid.DayEnd;
+            var end = draft.End + step;
+            if (end > limit) end = limit;
+            if (end - draft.Start >= SlotLength && end != draft.End) next = draft with { End = end };
+        }
+        else if (create.Surface != CalendarSurface.Time && key is "ArrowRight" or "ArrowLeft")
+        {
+            next = CalendarEditing.ResizeDays(draft, end: true, key == "ArrowRight" ? 1 : -1);
+            if (next is not null && !CalendarEditing.Fits(next, draft, create.Surface, Bounds())) next = null;
+        }
+        if (next is null) return;
+        create.Draft = next;
+        AnnounceStep();
+    }
+
+    // ── An event ──
+
+    private async Task OnEventKeyAsync(KeyboardEventArgs args, Slot slot)
+    {
+        var e = slot.Event;
+        if (!Editable || !_eventsById.TryGetValue(e.Id, out var original) || !IsEditable(original)) return;
+
+        if (_keyEdit is { } edit && edit.Original?.Id == e.Id)
+        {
+            switch (args.Key)
+            {
+                case "Escape":
+                    CancelKeyEdit();
+                    return;
+                case "Enter":
+                    _keyEdit = null;
+                    await RequestChangeAsync(edit.Kind, original, edit.Draft);
+                    // The event keeps focus wherever it now sits.
+                    _focusSelector = EventSelector(e.Id);
+                    StateHasChanged();
+                    return;
+            }
+            if (!IsArrow(args.Key)) return;
+            if (args.ShiftKey == (edit.Kind == CalendarChangeKind.Resize)) StepKeyEdit(edit, args.Key);
+            return;
+        }
+
+        if (!IsArrow(args.Key)) return;
+        if (args.ShiftKey)
+        {
+            var horizontal = args.Key is "ArrowLeft" or "ArrowRight";
+            // Shift with Up/Down resizes a timed event's end; with Left/Right, a bar's last day.
+            if (horizontal == (slot.Surface == CalendarSurface.Time) || slot.Shape == EventShape.Line) return;
+        }
+
+        var started = new KeyEdit
+        {
+            Kind = args.ShiftKey ? CalendarChangeKind.Resize : CalendarChangeKind.Move,
+            Original = original,
+            Draft = original,
+            Surface = slot.Surface,
+            FromKey = slot.ColumnKey,
+            ToKey = slot.ColumnKey
+        };
+        _keyEdit = started;
+        if (!StepKeyEdit(started, args.Key)) AnnounceStep();
+    }
+
+    private void OnEventFocusOut(CalendarEvent e)
+    {
+        if (_keyEdit?.Original?.Id == e.Id) CancelKeyEdit();
+    }
+
+    // One key's step of a move or a resize; a step that would break a limit is
+    // not taken, so the preview stops at the edge.
+    private bool StepKeyEdit(KeyEdit edit, string key)
+    {
+        var original = edit.Original!;
+        var draft = edit.Draft;
+        CalendarEvent? next = null;
+        var toKey = edit.ToKey;
+
+        if (edit.Kind == CalendarChangeKind.Resize)
+        {
+            next = edit.Surface == CalendarSurface.Time
+                ? key switch
+                {
+                    "ArrowDown" => CalendarEditing.Resize(draft, end: true, SlotLength, SlotLength),
+                    "ArrowUp" => CalendarEditing.Resize(draft, end: true, -SlotLength, SlotLength),
+                    _ => null
+                }
+                : key switch
+                {
+                    "ArrowRight" => CalendarEditing.ResizeDays(draft, end: true, 1),
+                    "ArrowLeft" => CalendarEditing.ResizeDays(draft, end: true, -1),
+                    _ => null
+                };
+        }
+        else
+        {
+            var columns = _layout?.Columns ?? [];
+            var byColumn = PersonColumns && edit.Surface != CalendarSurface.Month;
+            var week = TimeSpan.FromDays(7);
+            var day = TimeSpan.FromDays(1);
+            switch (key)
+            {
+                case "ArrowUp":
+                    next = CalendarEditing.Move(draft, edit.Surface == CalendarSurface.Time ? -SlotLength : -week);
+                    break;
+                case "ArrowDown":
+                    next = CalendarEditing.Move(draft, edit.Surface == CalendarSurface.Time ? SlotLength : week);
+                    break;
+                case "ArrowLeft" or "ArrowRight":
+                    var direction = key == "ArrowRight" ? 1 : -1;
+                    if (byColumn)
+                    {
+                        var index = columns.FindIndex(c => c.Key == edit.ToKey) + direction;
+                        if (index < 0 || index >= columns.Count) break;
+                        toKey = columns[index].Key;
+                        next = draft with
+                        {
+                            PersonIds = CalendarEditing.Reassign(original.PersonIds ?? [], PersonOfColumn(edit.FromKey), PersonOfColumn(toKey))
+                        };
+                    }
+                    else
+                    {
+                        next = CalendarEditing.Move(draft, direction * day);
+                    }
+                    break;
+            }
+        }
+
+        if (next is null || !CalendarEditing.Fits(next, original, edit.Surface, Bounds())) return false;
+        edit.Draft = next;
+        edit.ToKey = toKey;
+        AnnounceStep();
+        return true;
+    }
+
+    private void CancelKeyEdit()
+    {
+        if (_keyEdit is null) return;
+        _keyEdit = null;
+        Announce(Labels.Cancelled);
+    }
+
+    // The draft's day and times, its person when it moved column, its conflicts.
+    private void AnnounceStep()
+    {
+        if (_keyEdit is not { } edit) return;
+        var text = DescribeSpan(edit.Draft);
+        if (PersonColumns && edit.ToKey != edit.FromKey && edit.Kind != CalendarChangeKind.Create)
+            text += ", " + (PersonOfColumn(edit.ToKey) is { } id ? _peopleById[id].Name : Labels.Unassigned);
+        var conflicts = CalendarEditing.Conflicts(edit.Draft, _events, _availability, _knownPersonIds);
+        Announce(conflicts.Count == 0 ? text : text + ". " + ConflictText(conflicts));
+    }
+
+    private static string EventSelector(string id)
+        => "[data-event-id=\"" + id.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"]";
+
+    // The conflicts drawn while a keyboard change is under way are those of the
+    // draft in place of its original, so other events show what it would do.
+    private List<CalendarEvent> ConflictBase(List<CalendarEvent> effective)
+    {
+        if (_keyEdit is not { } edit) return effective;
+        var list = effective.Where(e => e.Id != edit.Draft.Id).ToList();
+        list.Add(edit.Draft);
+        return list;
+    }
+
+    private bool IsSource(CalendarEvent e) => _keyEdit?.Original?.Id == e.Id;
+
+    // ── Rendering the cursor and the preview ──
+
+    private RenderFragment TimeCursor(ViewLayout layout) => __builder =>
+    {
+        if (CursorColumn is not { } column) return;
+        var allDay = _cursorRow < 0;
+        var place = allDay
+            ? FormattableString.Invariant($"grid-column:{_cursorCol + 2};grid-row:1 / span {layout.Lanes}")
+            : FormattableString.Invariant($"grid-column:{_cursorCol + 2};grid-row:1;") + SlotSpanStyle(_cursorRow, _cursorRow);
+        var time = _grid.DayStart + SlotLength * Math.Max(_cursorRow, 0);
+        var name = LongDate(column.Day) + ", " + (allDay ? Labels.AllDay : FormatTime(time));
+        if (layout.ByPerson) name += ", " + (column.Person?.Name ?? Labels.Unassigned);
+        <div class="cal-cursor-row" role="row" aria-rowindex="@(_cursorRow + 2)" style="@place" @key="@("cursor-row")">
+            <div class="cal-cursor"
+                 role="gridcell"
+                 tabindex="0"
+                 aria-colindex="@(_cursorCol + 1)"
+                 aria-label="@name"
+                 aria-describedby="@CreateHintId"
+                 @onkeydown="OnCursorKeyAsync"
+                 @onfocusout="OnCursorFocusOut"></div>
+        </div>
+    };
+
+    private RenderFragment MonthCursor(ViewLayout layout, int week) => __builder =>
+    {
+        var day = CursorDay;
+        <div class="cal-cursor-row" role="row" aria-rowindex="@(week + 1)"
+             style="@FormattableString.Invariant($"grid-column:{_cursorDay % 7 + 1};grid-row:1 / -1")" @key="@("cursor-row")">
+            <div class="cal-cursor"
+                 role="gridcell"
+                 tabindex="0"
+                 aria-colindex="@(_cursorDay % 7 + 1)"
+                 aria-label="@LongDate(day)"
+                 aria-describedby="@CreateHintId"
+                 @onkeydown="OnCursorKeyAsync"
+                 @onfocusout="OnCursorFocusOut"></div>
+        </div>
+    };
+
+    // The preview of a change in the time grid: one box, placed in a column of the
+    // grid. The keyboard path renders it here; the pointer bridge drives the same
+    // element through data attributes and its own style while a gesture runs.
+    private RenderFragment TimePreview(ViewLayout layout) => __builder =>
+    {
+        string? style = null, title = null, time = null, conflict = null;
+        if (_keyEdit is { Surface: CalendarSurface.Time } edit)
+        {
+            var index = layout.ByPerson
+                ? layout.Columns.FindIndex(c => c.Key == edit.ToKey)
+                : layout.Columns.FindIndex(c => c.Day == DateOnly.FromDateTime(edit.Draft.Start));
+            if (index >= 0 && CalendarLayout.Segment(edit.Draft, layout.Columns[index].Day, _grid) is { } segment)
+            {
+                style = FormattableString.Invariant($"grid-column:{index + 2};grid-row:1;") +
+                        $"top:{CalendarLayout.Pct(segment.Top)};height:{CalendarLayout.Pct(segment.Height)}";
+                title = string.IsNullOrEmpty(edit.Draft.Title) ? Labels.NewEvent : edit.Draft.Title;
+                time = TimeRange(edit.Draft);
+                conflict = CalendarEditing.Conflicts(edit.Draft, _events, _availability, _knownPersonIds).Count > 0 ? "1" : "0";
+            }
+        }
+        <div class="@(style is null ? "cal-preview" : "cal-preview is-active")"
+             style="@style"
+             data-color="@(_keyEdit is { } k ? Color(k.Draft) : null)"
+             data-title="@title"
+             data-time="@time"
+             data-pv-conflict="@conflict"
+             aria-hidden="true">
+            <span class="cal-conflict"><DrylIcon Name="Alert" Size="12" /></span>
+        </div>
+    };
+
+    private string SlotSpanStyle(int firstSlot, int lastSlot)
+    {
+        var top = _grid.Fraction(_grid.DayStart + SlotLength * firstSlot);
+        var end = Math.Min(_grid.Fraction(_grid.DayStart + SlotLength * (lastSlot + 1)), 1);
+        return $"top:{CalendarLayout.Pct(top)};height:{CalendarLayout.Pct(end - top)}";
+    }
+
+    // The days a keyboard change of a bar, or a create in the all-day row or the
+    // month view, would cover — marked on the cells, as a bar has no box of its own.
+    private bool IsPreviewDay(DateOnly day, string? columnKey)
+    {
+        if (_keyEdit is not { } edit || edit.Surface == CalendarSurface.Time) return false;
+        if (columnKey is not null && PersonColumns && edit.ToKey != columnKey) return false;
+        if (edit.Surface == CalendarSurface.Month && _view != CalendarView.Month) return false;
+        if (edit.Surface == CalendarSurface.AllDay && _view == CalendarView.Month) return false;
+        var (first, end) = CalendarLayout.DaySpan(edit.Draft);
+        return day >= first && day < end;
+    }
+
+    private string AllDayCellClass(TimeColumn column)
+    {
+        var css = IsSelectedColumn(column) ? "cal-allday-cell is-selected" : "cal-allday-cell";
+        return IsPreviewDay(column.Day, column.Key) ? css + " is-preview" : css;
+    }
+
+    // ── Interop of the keyboard path ──
+
+    private async Task SyncKeyboardInteropAsync()
+    {
+        try
+        {
+            if (Editable != _keysAttached)
+            {
+                _keysAttached = Editable;
+                // The arrows, Home and End move the cursor and the preview; the page
+                // must not scroll underneath.
+                await JS.InvokeVoidAsync(Editable ? "dryl.keynav.attach" : "dryl.keynav.detach", _rootEl);
+            }
+            if (_focusSelector is { } selector)
+            {
+                _focusSelector = null;
+                await JS.InvokeVoidAsync("dryl.calendar.focus", _rootEl, selector);
+            }
+        }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+        catch (InvalidOperationException) { }
+        catch (TaskCanceledException) { }
     }
 
     // ── Classes and styles ──────────────────────────────────────────────
