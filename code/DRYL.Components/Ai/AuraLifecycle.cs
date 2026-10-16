@@ -46,6 +46,13 @@ public sealed class AuraLifecycle : IDisposable
     public bool Present => RenderState != AiState.None || Exiting;
 
     /// <summary>
+    /// True while <see cref="RenderState"/> is <see cref="AiState.Generated"/> and that state was
+    /// entered directly from <see cref="AiState.Proposed"/> — a human accepted a proposal. Drives
+    /// the accept wave and keeps the already-visible surface from replaying its entrance lift.
+    /// </summary>
+    public bool FromProposed { get; private set; }
+
+    /// <summary>
     /// Reconcile against the host's effective state. Call from <c>OnParametersSet</c>.
     /// Re-entering AI mode cancels a pending exit; leaving it starts the fade and schedules
     /// the final unmount re-render via <paramref name="requestRender"/>.
@@ -58,6 +65,7 @@ public sealed class AuraLifecycle : IDisposable
     public void Sync(AiState effective, Func<Task> requestRender)
     {
         var entering = effective != _lastEffective;
+        var previous = _lastEffective;
         _lastEffective = effective;
 
         if (effective == AiState.Generated)
@@ -71,6 +79,8 @@ public sealed class AuraLifecycle : IDisposable
                 _exitCts?.Cancel();
                 Exiting = false;
                 RenderState = AiState.Generated;
+                // Accepting a proposal: the host moved straight from Proposed to Generated.
+                FromProposed = previous == AiState.Proposed;
                 _exitCts = new CancellationTokenSource();
                 _ = RetireGeneratedAsync(_exitCts.Token, requestRender);
             }
@@ -78,9 +88,14 @@ public sealed class AuraLifecycle : IDisposable
             return;
         }
 
+        // Any state other than Generated ends an accept hand-over. Generated retiring to None
+        // keeps it until the aura is gone, so the frozen edge fades out as it was.
+        if (effective != AiState.None) FromProposed = false;
+
         if (effective != AiState.None)
         {
-            // Live (or re-activated mid-exit): cancel any pending exit and show it.
+            // Live, resting (Proposed) or re-activated mid-exit: cancel any pending exit
+            // and show it. Proposed never retires by itself — the host resolves it.
             _exitCts?.Cancel();
             _exitCts = null;
             Exiting = false;

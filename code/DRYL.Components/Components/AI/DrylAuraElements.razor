@@ -2,7 +2,8 @@
 
 @*  ─────────────────────────────────────────────────────────
     DrylAuraElements — the shared child markup for an AI aura
-    (rotating comet ring, breathing glow, one-shot Generated wash).
+    (rotating comet ring, breathing glow, one-shot Generated wash,
+    and for Proposed: a screen-reader description and the accept wave).
     Drop it as the first child of any AI-aware host, driven by the
     host's AuraLifecycle; pair it with AiAuraCss.Append(...) which
     puts the matching ai-aura* classes on the host root.
@@ -24,6 +25,18 @@
     @if (Aura.RenderState == AiState.Generated && !Aura.Exiting)
     {
         <div class="ai-aura-wash" aria-hidden="true" @key="GenTick"></div>
+        @if (Aura.FromProposed)
+        {
+            @* The accept wave. Starts where dryl.js stamped the click (--ai-wave-x/-y on the
+               host), or at the centre; clipped to the host's rounded box. *@
+            <div class="ai-aura-wave" aria-hidden="true" @key="WaveKey"></div>
+        }
+    }
+    @if (Aura.RenderState == AiState.Proposed && !Aura.Exiting)
+    {
+        @* Read when a screen reader reaches the surface; deliberately not a live region,
+           so a screen of proposals is not a flood of announcements (UX-04). *@
+        <span class="visually-hidden">AI suggestion, awaiting your decision</span>
     }
 }
 
@@ -36,4 +49,7 @@
     /// re-keys and its bloom animation replays.
     /// </summary>
     [Parameter] public int GenTick { get; set; }
+
+    // A sibling of the wash, so it needs a key of its own that still changes with GenTick.
+    private string WaveKey => $"wave-{GenTick}";
 }

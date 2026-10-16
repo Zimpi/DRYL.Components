@@ -26,5 +26,13 @@ public enum AiState
     Streaming,
 
     /// <summary>One-shot reveal after generation completes (lift + accent wash).</summary>
-    Generated
+    Generated,
+
+    /// <summary>
+    /// The AI is done and a human now has to accept or dismiss what it produced — a still,
+    /// frozen aurora edge that rests until the host changes the state. Accepting moves the
+    /// surface to <see cref="Generated"/> (with a wave from the point of the click), dismissing
+    /// moves it to <see cref="None"/>. Set it only where an accept or dismiss action exists.
+    /// </summary>
+    Proposed
 }

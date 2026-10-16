@@ -24,31 +24,35 @@ release.
 | `dryl.motion.stopAutoFlip` | `DrylCanvas` | Stops that observation. |
 | `dryl.topLayer.show` / `dryl.topLayer.hide` | `DrylCanvas` | Promotes the canvas root to the top layer while it is expanded to fullscreen, and takes it back down. |
 
-### The accept wave — `dryl.js` without an entry point
+### The accept wave — `dryl.proposal`, without an entry point
 
 `DrylAuraElements` stays pure markup: it makes no interop call. The accept wave
-of `AiState.Proposed` → `AiState.Generated` is positioned by the always-loaded
-`dryl.js` on its own, so the wave can start at the right spot before it is
-painted, with no round trip to the server in between.
+of `AiState.Proposed` → `AiState.Generated` is aimed by `window.dryl.proposal`
+in the always-loaded `dryl.js`, at input time rather than at render time, so
+the wave starts at the right spot from its first frame with no round trip to
+the server in between.
 
-- `dryl.js` records the most recent pointer-down in the document and whether a
-  key press came after it. Both listeners are passive and are registered once
-  for the page, not per component.
-- `dryl.js` notices every wave layer as it enters the DOM, before the browser
-  paints it, and aims it: it writes the start point and the scale needed to
-  reach the surface's farthest corner as custom properties and marks the layer
-  with a `data-*` attribute (never a class, which the next Blazor render of the
-  `class` attribute would erase). The wave's animation starts only once that
-  mark is set, so it never begins at a wrong point and jumps.
-- Start point: the recorded pointer-down when it lies inside the surface and no
-  key press followed it; otherwise the centre of the focused element when focus
-  is inside the surface; otherwise the centre of the surface.
-- Without `dryl.js` the wave does not play; the completion wash of
-  `AiState.Generated` still does. Nothing else depends on it.
-- Under `prefers-reduced-motion: reduce` there is no wave to aim.
+- `dryl.proposal` registers one capture-phase, passive `pointerdown` listener
+  and one `keydown` listener on the document as `dryl.js` loads — once for the
+  page, not per component.
+- A pointer-down inside a surface carrying `ai-aura` and `ai-proposed` writes
+  its point, relative to that surface, onto the surface as `--ai-wave-x` and
+  `--ai-wave-y`.
+- `Enter` or `Space` with focus inside such a surface writes the centre of the
+  focused element the same way.
+- Every pointer-down and every key press first clears the previous stamp, so a
+  click inside a card followed by an "accept all" elsewhere does not start the
+  card's wave at the old click.
+- A stamp whose wave is still playing (the surface carries `ai-from-proposed`)
+  survives a clear and goes at the next one, so a click elsewhere mid-wave does
+  not make the wave jump. A surface that left the DOM is released.
+- The wave layer reads the two properties from its host; without them it starts
+  at the centre. Its disc is sized in container units large enough to reach the
+  farthest corner from any start point, so nothing measures it.
+- Without `dryl.js` the wave starts at the centre; everything else is CSS.
 
-Cleanup: none per component. The page-level listeners and the observer live as
-long as the page, like the rest of `window.dryl.motion`.
+Cleanup: none per component. The two listeners live as long as the page, like
+the rest of `window.dryl.motion`. Tests: `tests/js/proposal.test.mjs`.
 
 ### The `dryl-canvas.js` module
 
