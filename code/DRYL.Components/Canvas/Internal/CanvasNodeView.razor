@@ -135,7 +135,7 @@
             @if (Ctx.State is AiState.Streaming or AiState.Thinking)
             {
                 <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" Ai="AiState.Streaming" />
-                <span class="canvas-waiting">@Ctx.Texts.WaitingFor(Node.Type)</span>
+                <span class="canvas-waiting">@Ctx.Texts.WaitingFor(Ctx.Texts.TypeName(Node.Type))</span>
             }
             else
             {
@@ -693,7 +693,7 @@
         get
         {
             if (!Selectable) return null;
-            var label = $"{CanvasLabel.For(Node)}, {Node.Type}";
+            var label = $"{CanvasLabel.For(Node, Ctx.Texts.TypeName)}, {Ctx.Texts.TypeName(Node.Type)}";
             return Node.Locked ? $"{label}, {Ctx.Texts.PinnedState}" : label;
         }
     }

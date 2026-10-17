@@ -161,6 +161,6 @@ public class CanvasSelectionRenderTests : BunitContext
 
         cut.Find("[data-cid='a']").Click();
 
-        Assert.Contains("Selected: Revenue, stat", cut.Markup);
+        Assert.Contains("Selected: Revenue, Stat", cut.Markup);
     }
 }

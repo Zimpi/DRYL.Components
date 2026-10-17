@@ -68,7 +68,7 @@ public class DrylAiCanvasTests : BunitContext
 
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
 
-        Assert.Contains("waiting for stat", cut.Markup);
+        Assert.Contains("waiting for Stat", cut.Markup);
         Assert.NotEmpty(cut.FindAll(".skel-wrap"));
         Assert.Empty(cut.FindAll(".canvas-invalid"));
     }
@@ -264,7 +264,7 @@ public class DrylAiCanvasTests : BunitContext
                 {"id":"t","type":"tabs","props":{"labels":["One","Two"]},"children":[]}]}}
             """));
         var cut = Render<DrylAiCanvas>(p => p.Add(x => x.Run, run));
-        Assert.Contains("waiting for tabs", cut.Markup);
+        Assert.Contains("waiting for Tabs", cut.Markup);
 
         cut.InvokeAsync(() => run.RevealSnapshot(Parse("""
             {"root":{"id":"root","type":"stack","props":{},"children":[

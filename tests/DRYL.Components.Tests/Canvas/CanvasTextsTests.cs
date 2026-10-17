@@ -43,6 +43,7 @@ public class CanvasTextsTests : BunitContext
         Remove = "Element entfernen",
         Reorder = "Element verschieben",
         PinnedState = "angeheftet",
+        TypeName = type => type == "stat" ? "Kennzahl" : CanvasTexts.Default.TypeName(type),
         WaitingFor = type => $"warte auf {type} …",
         Selected = (label, type) => $"Ausgewählt: {label} ({type})",
         SelectionCleared = "Auswahl aufgehoben.",
@@ -80,6 +81,17 @@ public class CanvasTextsTests : BunitContext
         Assert.Equal("Action 'order.approve' failed.", texts.ActionFailed("order.approve"));
         Assert.Equal("Confirmation is unavailable — the action was not run.", texts.ConfirmUnavailable);
         Assert.Equal("Confirm", texts.Confirm);
+        Assert.Equal("Line chart", texts.TypeName("lineChart"));
+        Assert.Equal("Element", texts.TypeName(null));
+        Assert.Equal("Undo", texts.Undo);
+        Assert.Equal("Redo", texts.Redo);
+        Assert.Equal("Version history", texts.VersionHistory);
+        Assert.Equal("Undone: Pinned Revenue", texts.Undone("Pinned Revenue"));
+        Assert.Equal("Undone: last change", texts.Undone(null));
+        Assert.Equal("Redone: last change", texts.Redone(null));
+        Assert.Equal("Restored version 2 of 3", texts.Restored(2, 3));
+        Assert.Equal("Close Overview", texts.CloseView("Overview"));
+        Assert.Equal("Version 4", texts.VersionLabel(4));
     }
 
     [Fact]
@@ -139,7 +151,7 @@ public class CanvasTextsTests : BunitContext
         var cut = Canvas(sel);
 
         cut.Find("[data-cid='a']").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Ausgewählt: Revenue (stat)", Live(cut)));
+        cut.WaitForAssertion(() => Assert.Equal("Ausgewählt: Revenue (Kennzahl)", Live(cut)));
 
         cut.InvokeAsync(sel.Clear);
         cut.WaitForAssertion(() => Assert.Equal("Auswahl aufgehoben.", Live(cut)));
@@ -157,7 +169,7 @@ public class CanvasTextsTests : BunitContext
         cut.WaitForAssertion(() => Assert.Equal("Revenue angeheftet.", Live(cut)));
         Assert.Equal("Revenue angeheftet", edits[^1].Label);
         // The pinned element's accessible name and the pin button follow the state.
-        Assert.Equal("Revenue, stat, angeheftet", cut.Find("[data-cid='a']").GetAttribute("aria-label"));
+        Assert.Equal("Revenue, Kennzahl, angeheftet", cut.Find("[data-cid='a']").GetAttribute("aria-label"));
         Assert.NotNull(cut.Find(".canvas-node-tools button[aria-label='Element lösen']"));
     }
 
@@ -183,7 +195,7 @@ public class CanvasTextsTests : BunitContext
             .Add(x => x.Ai, AiState.Streaming)
             .Add(x => x.Texts, German));
 
-        Assert.Equal("warte auf stat …", cut.Find(".canvas-waiting").TextContent);
+        Assert.Equal("warte auf Kennzahl …", cut.Find(".canvas-waiting").TextContent);
     }
 
     private const string SpecWithAction = """
@@ -283,5 +295,133 @@ public class CanvasTextsTests : BunitContext
 
         Assert.NotNull(cut.Find("button[aria-label='Vergrößern']"));
         Assert.DoesNotContain("Expand artifact", cut.Markup);
+    }
+    // ───── the type name and the workspace (I24) ─────
+
+    private static CanvasSpec Unnamed() => Parse("""
+        { "root": { "id": "root", "type": "stack", "children": [
+            { "id": "c", "type": "lineChart", "props": { "series": [] } },
+            { "id": "d", "type": "divider" } ] } }
+        """);
+
+    private static readonly CanvasTexts GermanTypes = CanvasTexts.Default with
+    {
+        TypeName = type => type switch
+        {
+            "lineChart" => "Liniendiagramm",
+            "divider" => "Trennlinie",
+            _ => CanvasTexts.Default.TypeName(type),
+        },
+        Selected = (label, type) => $"Ausgewählt: {label}, {type}",
+        RemoveEdit = label => $"{label} entfernt",
+    };
+
+    [Fact]
+    public void An_unnamed_element_is_named_by_the_hosts_type_name_everywhere()
+    {
+        var sel = new CanvasSelection();
+        var edits = new List<CanvasEdit>();
+        var cut = Render<DrylCanvas>(p => p
+            .Add(x => x.Spec, Unnamed())
+            .Add(x => x.Selection, sel)
+            .Add(x => x.Texts, GermanTypes)
+            .Add(x => x.OnEdit, e => edits.Add(e)));
+
+        Assert.Equal("Trennlinie, Trennlinie", cut.Find("[data-cid='d']").GetAttribute("aria-label"));
+
+        cut.Find("[data-cid='d']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Ausgewählt: Trennlinie, Trennlinie", Live(cut)));
+        // The shared selection carries the translated name to the dock's chip and the prompt,
+        // while the catalog id stays available to the model.
+        Assert.Equal("Trennlinie", sel.Label);
+        Assert.Equal("divider", sel.Type);
+
+        cut.Find(".canvas-node-tools button[aria-label='Remove element']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Trennlinie entfernt", edits[^1].Label));
+    }
+
+    [Fact]
+    public void The_raw_type_id_never_reaches_the_accessible_name()
+    {
+        var cut = Render<DrylCanvas>(p => p
+            .Add(x => x.Spec, Unnamed())
+            .Add(x => x.Selection, new CanvasSelection()));
+
+        Assert.Equal("Divider, Divider", cut.Find("[data-cid='d']").GetAttribute("aria-label"));
+        Assert.EndsWith(", Line chart", cut.Find("[data-cid='c']").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void A_blank_host_type_name_falls_back_to_the_default()
+    {
+        var node = new CanvasNode { Id = "d", Type = "keyValue" };
+
+        Assert.Equal("Key value", CanvasLabel.For(node, _ => " "));
+        Assert.Equal("Schlüssel-Wert", CanvasLabel.For(node, _ => "Schlüssel-Wert"));
+        Assert.Equal("Key value", CanvasLabel.For(node));   // the old overload is unchanged
+    }
+
+    [Fact]
+    public void The_workspace_speaks_the_hosts_language()
+    {
+        var workspace = new CanvasWorkspace();
+        workspace.Open("Übersicht").Spec = TwoStats();
+
+        var cut = Render<DrylCanvasWorkspace>(p => p
+            .Add(x => x.Workspace, workspace)
+            .Add(x => x.ShowHistory, true)
+            .Add(x => x.Texts, CanvasTexts.Default with
+            {
+                Undo = "Rückgängig",
+                Redo = "Wiederholen",
+                VersionHistory = "Versionsverlauf",
+                CloseView = title => $"{title} schließen",
+                Expand = "Vergrößern",
+            }));
+
+        Assert.NotNull(cut.Find(".ws-tools button[aria-label='Rückgängig']"));
+        Assert.NotNull(cut.Find(".ws-tools button[aria-label='Wiederholen']"));
+        Assert.NotNull(cut.Find(".ws-tools button[aria-label='Versionsverlauf']"));
+        Assert.NotNull(cut.Find("button[aria-label='Übersicht schließen']"));
+        // The fallback body canvas receives the same texts.
+        Assert.NotNull(cut.Find("button[aria-label='Vergrößern']"));
+        foreach (var english in new[] { "Undo", "Redo", "Version history", "Close Übersicht", "Expand artifact" })
+            Assert.DoesNotContain($"\"{english}\"", cut.Markup);
+    }
+
+    [Fact]
+    public void Workspace_versions_and_announcements_speak_the_hosts_language()
+    {
+        var workspace = new CanvasWorkspace();
+        var view = workspace.Open("Übersicht");
+        view.Spec = TwoStats();
+        var texts = CanvasTexts.Default with
+        {
+            VersionLabel = n => $"Fassung {n}",
+            Undone = label => $"Rückgängig: {label ?? "letzte Änderung"}",
+            Redone = label => $"Wiederholt: {label ?? "letzte Änderung"}",
+            Restored = (n, count) => $"Fassung {n} von {count} wiederhergestellt",
+        };
+
+        var cut = Render<DrylCanvasWorkspace>(p => p
+            .Add(x => x.Workspace, workspace)
+            .Add(x => x.ShowHistory, true)
+            .Add(x => x.Texts, texts)
+            .Add(x => x.Revision, 1));
+
+        view.Spec = Parse("""{ "root": { "id": "root", "type": "stack", "children": [] } }""");
+        cut.Render(p => p.Add(x => x.Revision, 2));
+
+        Assert.Equal("Fassung 2", workspace.Active!.History.Entries[^1].Label);
+
+        cut.Find(".ws-tools button[aria-label='Undo']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Rückgängig: Fassung 2", cut.Find(".ws-live").TextContent.Trim()));
+
+        cut.Find(".ws-tools button[aria-label='Redo']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Wiederholt: Fassung 2", cut.Find(".ws-live").TextContent.Trim()));
+
+        cut.Find(".ws-tools button[aria-label='Version history']").Click();
+        cut.FindAll(".ws-version")[^1].Click();   // the oldest version
+        cut.WaitForAssertion(() => Assert.Equal("Fassung 1 von 2 wiederhergestellt", cut.Find(".ws-live").TextContent.Trim()));
     }
 }

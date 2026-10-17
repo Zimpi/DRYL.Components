@@ -83,30 +83,30 @@
         @if (ShowHistory)
         {
             <div class="ws-tools">
-                <DrylTooltip Text="Undo">
+                <DrylTooltip Text="@T.Undo">
                     <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                 Size="DrylButton.ButtonSize.Small"
-                                AriaLabel="Undo"
+                                AriaLabel="@T.Undo"
                                 Disabled="@(Workspace?.CanUndo != true)"
                                 OnClick="UndoAsync">
                         <DrylIcon Name="Undo" Size="14" />
                     </DrylButton>
                 </DrylTooltip>
-                <DrylTooltip Text="Redo">
+                <DrylTooltip Text="@T.Redo">
                     <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                 Size="DrylButton.ButtonSize.Small"
-                                AriaLabel="Redo"
+                                AriaLabel="@T.Redo"
                                 Disabled="@(Workspace?.CanRedo != true)"
                                 OnClick="RedoAsync">
                         <DrylIcon Name="Redo" Size="14" />
                     </DrylButton>
                 </DrylTooltip>
-                <DrylPopover @bind-Open="_versionsOpen" PanelAriaLabel="Version history">
+                <DrylPopover @bind-Open="_versionsOpen" PanelAriaLabel="@T.VersionHistory">
                     <TriggerContent>
-                        <DrylTooltip Text="Version history">
+                        <DrylTooltip Text="@T.VersionHistory">
                             <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                         Size="DrylButton.ButtonSize.Small"
-                                        AriaLabel="Version history"
+                                        AriaLabel="@T.VersionHistory"
                                         Disabled="@(Versions.Count == 0)">
                                 <DrylIcon Name="History" Size="14" />
                             </DrylButton>
@@ -144,7 +144,7 @@
             }
             else
             {
-                <DrylCanvas @ref="_bodyCanvas" Spec="active.Spec" EmptyText="@EmptyText" />
+                <DrylCanvas @ref="_bodyCanvas" Spec="active.Spec" EmptyText="@EmptyText" Texts="T" />
             }
         }
         else
@@ -207,6 +207,13 @@
     /// <summary>Accessible label of the view bar.</summary>
     [Parameter] public string AriaLabel { get; set; } = "Views";
 
+    /// <summary>The fixed words of the workspace's chrome — undo, redo, the version history, its
+    /// announcements, the close label and the generated version label — and of the fallback
+    /// <c>DrylCanvas</c>, which receives the same instance. Defaults to
+    /// <see cref="CanvasTexts.Default"/> (English); replace only what you translate with
+    /// <c>CanvasTexts.Default with { … }</c>.</summary>
+    [Parameter] public CanvasTexts Texts { get; set; } = CanvasTexts.Default;
+
     /// <summary>Extra CSS class(es) merged onto the workspace root.</summary>
     [Parameter] public string? Class { get; set; }
 
@@ -243,7 +250,7 @@
         if (Revision != _lastRevision)
         {
             _lastRevision = Revision;
-            Workspace?.Commit(RevisionLabel ?? FormattableString.Invariant($"Version {Revision}"));
+            Workspace?.Commit(RevisionLabel ?? T.VersionLabel(Revision));
             ScheduleSave();
         }
     }
@@ -273,18 +280,18 @@
 
     private Task UndoAsync() => HistoryStep(
         () => Workspace!.Undo(),
-        () => $"Undone: {Versions.ElementAtOrDefault(Position + 1)?.Label ?? "last change"}");
+        () => T.Undone(Versions.ElementAtOrDefault(Position + 1)?.Label));
 
     private Task RedoAsync() => HistoryStep(
         () => Workspace!.Redo(),
-        () => $"Redone: {Versions.ElementAtOrDefault(Position)?.Label ?? "last change"}");
+        () => T.Redone(Versions.ElementAtOrDefault(Position)?.Label));
 
     private Task RestoreAsync(int index)
     {
         _versionsOpen = false;
         return HistoryStep(
             () => Workspace!.RestoreVersion(index),
-            () => FormattableString.Invariant($"Restored version {index + 1} of {Versions.Count}"));
+            () => T.Restored(index + 1, Versions.Count));
     }
 
     // A history step is a state change, so it is a movement: the same mow-transition layer the
@@ -396,7 +403,9 @@
         catch (JSException) { /* bar left the DOM between render and interop (presence exit) */ }
     }
 
-    private static string CloseLabel(CanvasView view) => $"Close {view.Title}";
+    private string CloseLabel(CanvasView view) => T.CloseView(view.Title);
+
+    private CanvasTexts T => Texts ?? CanvasTexts.Default;
 
     public async ValueTask DisposeAsync()
     {

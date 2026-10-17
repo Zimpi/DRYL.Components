@@ -39,7 +39,7 @@ not do.
 ### Not-yet-valid nodes
 
 - A node that fails validation renders as a skeleton with a "waiting for
-  {type}…" note (`Texts.WaitingFor`) while `Ai` is `AiState.Streaming` or
+  {type name}…" note (`Texts.WaitingFor`, from `Texts.TypeName`) while `Ai` is `AiState.Streaming` or
   `AiState.Thinking`.
 - The same node renders its validation error once `Ai` has settled — a
   finished-broken node reads as broken, not as loading.

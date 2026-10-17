@@ -48,7 +48,7 @@ files carry a `State` and no `Source`.
 | `EmptyTitle` | `string` | `"No artifact yet"` | Headline of the empty state. |
 | `FallbackTitle` | `string` | `"Artifact"` | Header title while the artifact has none of its own. |
 | `ErrorTitle` | `string` | `"Artifact failed"` | Title of the alert that replaces the tree when `Error` is set. |
-| `Texts` | `CanvasTexts` | `CanvasTexts.Default` | The fixed words of the canvas's own chrome — header buttons, node toolbar, node hints, announcements, edit labels, data and action failures, the action confirmation. English by default. |
+| `Texts` | `CanvasTexts` | `CanvasTexts.Default` | The fixed words of the canvas's own chrome — header buttons, node toolbar, the name of an element type, node hints, announcements, edit labels, data and action failures, the action confirmation. English by default. |
 | `Epoch` | `int` | `0` | Bump to reset interactive form state when a fresh artifact recycles field names. |
 | `Pulse` | `CanvasPulseTracker?` | `null` | The change-pulse stamps to render. Without one the canvas owns its own. |
 | `Selection` | `CanvasSelection?` | `null` | Opt-in for direct manipulation. Without it nothing about the canvas changes. |
