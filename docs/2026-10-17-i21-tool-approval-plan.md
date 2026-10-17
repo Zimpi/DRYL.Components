@@ -42,3 +42,11 @@ run (`CLAUDE.md` stage 5). Changelog complete, specs `Implemented`.
 ## Progress
 
 - [ ] T1 · [ ] T2 · [ ] T3 · [ ] T4 · [ ] T5 · [ ] T6
+
+## Decisions taken during implementation
+
+- 2026-10-17, T3: `ToolApprovalRequestContent.RequiresConfirmation` is marked
+  experimental (`MEAI001`); the rest of the approval API is stable. The runner does
+  not read it, so a future removal cannot break consumers at run time. Consequence:
+  an informational-only request (rare, some hosted tools) also shows as pending and
+  is answered like any other. The spec criterion about it was dropped.

@@ -134,13 +134,10 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
 
 ### Approval request
 
-- `DrylAgentRunner.Start` turns a `ToolApprovalRequestContent` whose
-  `RequiresConfirmation` is `true` into a tool call with `Approval`
-  `DrylToolApproval.Pending`.
+- `DrylAgentRunner.Start` turns a `ToolApprovalRequestContent` into a tool call
+  with `Approval` `DrylToolApproval.Pending`.
 - That tool call carries the `CallId`, the tool name and the arguments of the
   request's wrapped function call.
-- A `ToolApprovalRequestContent` whose `RequiresConfirmation` is `false` creates
-  no pending call.
 - A function call that arrives for a call id already in the trace updates that
   call instead of adding a second one.
 - The run's `State` is `AiState.Proposed` once the agent's response has ended
