@@ -20,6 +20,9 @@ values are refreshed and how the change is shown.
 - The refresh button appears in the header exactly when the artifact has at
   least one binding. Its label and tooltip are `Texts.Refresh`; the stale-value
   marker reads `Texts.NotUpToDate` and the row-limit note `Texts.Truncated`.
+  A source that throws is reported as `Texts.SourceUnavailable` applied to the
+  source's name; `DrylCanvas` hands its `Texts` to its `CanvasDataBinder` on
+  every parameter set.
 - A binding whose value has not yet arrived renders as a skeleton (see `S2`).
 
 ### Refresh

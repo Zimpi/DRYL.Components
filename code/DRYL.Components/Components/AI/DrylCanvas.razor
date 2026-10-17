@@ -290,6 +290,8 @@
     {
         _ctx.State = Ai;
         _ctx.Texts = Texts ?? CanvasTexts.Default;
+        if (_binder is not null) _binder.Texts = _ctx.Texts;
+        if (_runner is not null) _runner.Texts = _ctx.Texts;
         _ctx.Intent = OnInteraction;
         if (Pulse is not null && !ReferenceEquals(_ctx.Pulse, Pulse)) _ctx.Pulse = Pulse;
 

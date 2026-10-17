@@ -3,6 +3,7 @@ using Bunit;
 using DRYL.Components.Agents;
 using DRYL.Components.Ai;
 using DRYL.Components.Canvas;
+using DRYL.Components.Dialogs;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -75,6 +76,10 @@ public class CanvasTextsTests : BunitContext
         Assert.Equal("waiting for stat…", texts.WaitingFor("stat"));
         Assert.Equal("Showing the first 30 rows.", texts.Truncated(30));
         Assert.Equal("Pinned Revenue", texts.PinEdit("Revenue"));
+        Assert.Equal("Source 'orders.open' is unavailable.", texts.SourceUnavailable("orders.open"));
+        Assert.Equal("Action 'order.approve' failed.", texts.ActionFailed("order.approve"));
+        Assert.Equal("Confirmation is unavailable — the action was not run.", texts.ConfirmUnavailable);
+        Assert.Equal("Confirm", texts.Confirm);
     }
 
     [Fact]
@@ -179,6 +184,92 @@ public class CanvasTextsTests : BunitContext
             .Add(x => x.Texts, German));
 
         Assert.Equal("warte auf stat …", cut.Find(".canvas-waiting").TextContent);
+    }
+
+    private const string SpecWithAction = """
+        {"root":{"id":"r","type":"stack","children":[
+          {"id":"btn","type":"button","props":{"label":"Freigeben"},
+           "action":{"name":"order.approve","args":{"orderId":"4711"}}}]}}
+        """;
+
+    [Fact]
+    public void A_failing_source_speaks_the_hosts_language()
+    {
+        Services.AddDrylCanvasDataSource("orders.open", "Test source.",
+            (CanvasDataContext _, CancellationToken _) => Task.FromException<CanvasScalarData>(new InvalidOperationException("boom")));
+
+        var cut = Render<DrylCanvas>(p => p
+            .Add(x => x.Spec, Parse("""
+                {"root":{"id":"root","type":"stack","children":[
+                    {"id":"s1","type":"stat","props":{"label":"Offen"},"data":{"source":"orders.open"}}]}}
+                """))
+            .Add(x => x.Texts, CanvasTexts.Default with { SourceUnavailable = s => $"Quelle {s} nicht erreichbar." }));
+
+        cut.WaitForAssertion(() => Assert.Contains("Quelle orders.open nicht erreichbar.", cut.Find(".canvas-data-error").TextContent),
+                             TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
+    public void A_throwing_action_speaks_the_hosts_language()
+    {
+        Services.AddDrylCanvasAction("order.approve", "Gibt einen Auftrag frei.",
+            (ApproveArgs _, CanvasActionContext _, CancellationToken _) =>
+                Task.FromException<CanvasActionResult>(new InvalidOperationException("boom")));
+
+        var cut = Render<DrylCanvas>(p => p
+            .Add(x => x.Spec, Parse(SpecWithAction))
+            .Add(x => x.Texts, CanvasTexts.Default with { ActionFailed = a => $"Aktion {a} fehlgeschlagen." }));
+        cut.Find(".canvas-body button.btn").Click();
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Aktion order.approve fehlgeschlagen.", cut.Find(".canvas-action-error").TextContent));
+    }
+
+    private static CanvasActionRunner Runner(ServiceProvider sp) =>
+        new(sp.GetRequiredService<ICanvasActionService>(), null, new CanvasFormState(), sp)
+        {
+            Texts = CanvasTexts.Default with
+            {
+                ConfirmUnavailable = "Keine Bestätigung möglich.",
+                Confirm = "Bestätigen",
+                Cancel = "Abbrechen",
+            },
+        };
+
+    private static ServiceCollection ActionServices()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDrylCanvasAction("a", "…",
+            (CanvasActionContext _, CancellationToken _) => Task.FromResult(CanvasActionResult.Ok()));
+        return services;
+    }
+
+    [Fact]
+    public async Task A_missing_confirmation_speaks_the_hosts_language()
+    {
+        // No IDrylDialogService on purpose: a gated action must not run unconfirmed.
+        using var sp = ActionServices().BuildServiceProvider();
+        var runner = Runner(sp);
+
+        await runner.InvokeAsync("btn", "Freigeben", new CanvasActionBinding { Name = "a", Confirm = "Wirklich?" });
+
+        Assert.Equal("Keine Bestätigung möglich.", runner.StateOf("btn")!.Error);
+    }
+
+    [Fact]
+    public async Task The_confirmation_dialog_speaks_the_hosts_language()
+    {
+        var services = ActionServices();
+        services.AddScoped<IDrylDialogService, StubDialogService>();
+        using var sp = services.BuildServiceProvider();
+        var runner = Runner(sp);
+
+        await runner.InvokeAsync("btn", null, new CanvasActionBinding { Name = "a", Confirm = "Wirklich?" });
+
+        var dialogs = (StubDialogService)sp.GetRequiredService<IDrylDialogService>();
+        Assert.Equal("Bestätigen", dialogs.Asked.Single().Title);   // an unlabelled button
+        Assert.Equal(("Bestätigen", "Abbrechen"), dialogs.Labels.Single());
     }
 
     [Fact]

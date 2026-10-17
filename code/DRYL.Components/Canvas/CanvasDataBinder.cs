@@ -76,6 +76,10 @@ public sealed class CanvasDataBinder : IAsyncDisposable
         _data.Invalidated += HandleInvalidated;
     }
 
+    /// <summary>The words of the canvas the binder reports failures in. <c>DrylCanvas</c> keeps it in
+    /// step with its <c>Texts</c>; read at the moment a load fails.</summary>
+    public CanvasTexts Texts { get; set; } = CanvasTexts.Default;
+
     /// <summary>Raised whenever something a node renders has changed. The canvas re-renders.</summary>
     public event Action? OnChanged;
 
@@ -250,7 +254,7 @@ public sealed class CanvasDataBinder : IAsyncDisposable
         {
             // A handler that throws must never reach the renderer, let alone the circuit.
             _log?.LogError(ex, "Canvas data source '{Source}' failed.", entry.Source);
-            error = $"Source '{entry.Source}' is unavailable.";
+            error = Texts.SourceUnavailable(entry.Source);
         }
 
         if (_disposed || entry.Seq != seq) return;   // superseded — drop the straggler

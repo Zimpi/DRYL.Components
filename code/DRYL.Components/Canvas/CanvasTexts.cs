@@ -65,6 +65,26 @@ public sealed record CanvasTexts
     /// <summary>Accessible name of a <c>dataGrid</c> node's table.</summary>
     public string DataGrid { get; init; } = "Data grid";
 
+    // ───── failures and confirmation ─────
+
+    /// <summary>Shown on a bound node whose data source threw, from the source's name. The
+    /// exception itself goes to the logger, never to the user.</summary>
+    public Func<string, string> SourceUnavailable { get; init; } = source => $"Source '{source}' is unavailable.";
+
+    /// <summary>Shown under a button whose action handler threw, from the action's name.</summary>
+    public Func<string, string> ActionFailed { get; init; } = action => $"Action '{action}' failed.";
+
+    /// <summary>Shown under a button whose action asks for confirmation when no dialog service is
+    /// registered — the action is not run.</summary>
+    public string ConfirmUnavailable { get; init; } = "Confirmation is unavailable — the action was not run.";
+
+    /// <summary>Title and confirm button of an action's confirmation dialog when the button has
+    /// no label of its own.</summary>
+    public string Confirm { get; init; } = "Confirm";
+
+    /// <summary>Cancel button of an action's confirmation dialog.</summary>
+    public string Cancel { get; init; } = "Cancel";
+
     // ───── announcements (aria-live) ─────
 
     /// <summary>Announced when an element is selected, from its label and its node type.</summary>

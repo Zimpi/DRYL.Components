@@ -109,6 +109,12 @@ direct manipulation of the artifact's own elements.
   (`PinEdit`, `DuplicateEdit`, `RemoveEdit`, `MoveEdit`). The form's
   required-field hint (`Required`) and a `dataGrid` table's accessible name
   (`DataGrid`) come from it as well.
+- An action button's own messages come from `Texts` too: the inline error of
+  a handler that threw (`ActionFailed`, from the action's name), the inline
+  error when a confirmation is required but no dialog service is registered
+  (`ConfirmUnavailable`), and the confirmation dialog's title for an unlabelled
+  button and its buttons (`Confirm`, `Cancel`). `DrylCanvas` hands its `Texts`
+  to its `CanvasActionRunner` on every parameter set.
 - Without `Texts` every one of them reads as before, in English — the quoted
   wording above is `CanvasTexts.Default`.
 - A replaced text lands everywhere its default did: the tooltip, the
