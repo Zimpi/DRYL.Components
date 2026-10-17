@@ -14,6 +14,12 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.10.1] — 2026-10-17
+
+### Fixed
+- `DrylReveal` — A wrapper taller than viewport / `Threshold` never revealed: the observer waited for 15 % of the element to be visible, which a long grid on a phone never reaches, so its content stayed invisible however far you scrolled (and on a wide screen only appeared deep into the list). A wrapper now also counts as in view once it fills `Threshold` of the viewport.
+- `DrylReveal` with `Stagger` — Each direct child is now watched on its own and comes in as it scrolls into view, delayed by its place among the children arriving together (at most ten steps) instead of by its index in the whole list, where the fortieth tile waited 2.4 s. Children added after the first render are watched too. A shown child carries `data-revealed`; the wrapper no longer gets `is-revealed` in this mode, except under reduced motion, where everything still shows at once.
+
 ## [3.10.0] — 2026-10-17
 
 ### Added

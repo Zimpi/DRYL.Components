@@ -1340,8 +1340,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 @keyframes presence-out-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-12px); } }
 
 /* Reveal — scroll-triggered entrance. dryl.motion.observe adds
- * .is-revealed when the wrapper scrolls into view; direct children
- * tween in, optionally staggered via per-child --reveal-i. */
+ * .is-revealed when the wrapper scrolls into view and its direct
+ * children tween in. With Stagger each child is watched on its own and
+ * gets [data-revealed] as it arrives, delayed by its place in the batch
+ * that arrived together (--reveal-i). */
 .reveal > * {
   opacity: 0;
   transition:
@@ -1351,7 +1353,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 .reveal--rise > *    { transform: translateY(16px); }
 .reveal--scale-in > *{ transform: scale(0.96); }
-.reveal.is-revealed > * { opacity: 1; transform: none; }
+.reveal.is-revealed > *,
+.reveal > [data-revealed] { opacity: 1; transform: none; }
 
 /* Reduced motion — show end states instantly, no movement. dryl.motion also
    short-circuits in JS, but this covers the CSS-only paths too. */

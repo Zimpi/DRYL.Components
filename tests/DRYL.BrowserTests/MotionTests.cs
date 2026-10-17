@@ -106,4 +106,38 @@ public sealed class MotionTests(BrowserFixture browser)
             Assert.False(await page.Locator("body").EvaluateAsync<bool>("el => el.classList.contains('dryl-scroll-locked')"));
             await Assertions.Expect(page.Locator("#dialog-open")).ToBeFocusedAsync();
         });
+
+    [Theory]
+    [InlineData("dark")]
+    [InlineData("light")]
+    public Task Reveal_reaches_tall_targets_and_long_lists_on_a_phone(string mode) =>
+        browser.RunAsync(nameof(Reveal_reaches_tall_targets_and_long_lists_on_a_phone), mode, async page =>
+        {
+            // A phone viewport: the tall block never shows 15 % of itself, the list
+            // is many screens long. Both must still land once they are in view.
+            await page.SetViewportSizeAsync(390, 800);
+            var tall = page.Locator("#reveal-tall > *");
+            var tile = (int i) => page.Locator($"#reveal-list [data-tile='{i}']");
+            await Assertions.Expect(tall).ToHaveCSSAsync("opacity", "0");
+
+            await page.Locator("#reveal-tall").EvaluateAsync("el => el.scrollIntoView({ block: 'start' })");
+            await Assertions.Expect(page.Locator("#reveal-tall.is-revealed")).ToHaveCountAsync(1);
+            await Assertions.Expect(tall).ToHaveCSSAsync("opacity", "1");
+
+            await tile(0).EvaluateAsync("el => el.scrollIntoView({ block: 'start' })");
+            await Assertions.Expect(tile(0)).ToHaveCSSAsync("opacity", "1");
+            await Assertions.Expect(tile(39)).Not.ToHaveAttributeAsync("data-revealed", "");
+            Assert.Equal("0", await tile(39).EvaluateAsync<string>("el => getComputedStyle(el).opacity"));
+
+            await tile(39).EvaluateAsync("el => el.scrollIntoView({ block: 'center' })");
+            await Assertions.Expect(tile(39)).ToHaveCSSAsync("opacity", "1");
+            // The delay counts within the batch that arrived together, not from the top of the list.
+            Assert.True(await tile(39).EvaluateAsync<int>("el => parseInt(el.style.getPropertyValue('--reveal-i'))") <= 10);
+
+            // A tile added later comes in like the rest.
+            await page.Locator("#reveal-add").ScrollIntoViewIfNeededAsync();
+            await page.Locator("#reveal-add").ClickAsync();
+            await tile(40).EvaluateAsync("el => el.scrollIntoView({ block: 'center' })");
+            await Assertions.Expect(tile(40)).ToHaveCSSAsync("opacity", "1");
+        });
 }
