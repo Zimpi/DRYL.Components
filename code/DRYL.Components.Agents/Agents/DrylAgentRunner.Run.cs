@@ -160,7 +160,14 @@ public sealed partial class DrylAgentRunner
 
             // The response ended asking a human: rest at Proposed until every call is decided,
             // then answer them all at once and stream the continuation into this same run.
-            if (run.PendingApprovals.Count > 0) SetState(run, AiState.Proposed, aiKey);
+            // The scope is cleared rather than set to Proposed: nothing is working, and the
+            // components inheriting it carry no accept action (the I20 anti-decoration guard).
+            if (run.PendingApprovals.Count > 0)
+            {
+                run.State = AiState.Proposed;
+                if (_activity is not null && aiKey is not null) _activity.Clear(aiKey);
+                run.Raise();
+            }
             await run.WaitForDecisionsAsync(ct);
             var responses = awaiting
                 .Select(i => i.ApprovalRequest!.CreateResponse(i.Approval == DrylToolApproval.Approved))

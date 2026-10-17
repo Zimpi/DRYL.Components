@@ -143,6 +143,11 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
 - The run's `State` is `AiState.Proposed` once the agent's response has ended
   with at least one pending call.
 - The run does not reach `AiState.Generated` while a call is pending.
+- While the run rests at `AiState.Proposed`, the activity of its `aiKey` is
+  cleared, so components inheriting that `DrylAiScope` show no proposal look —
+  they carry no accept action.
+- The activity of the `aiKey` returns to `AiState.Thinking` when the
+  continuation starts.
 - The run's `PendingApprovals` lists exactly the calls that are
   `DrylToolApproval.Pending`, in arrival order.
 

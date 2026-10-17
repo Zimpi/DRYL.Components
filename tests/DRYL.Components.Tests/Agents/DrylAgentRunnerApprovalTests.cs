@@ -117,6 +117,29 @@ public class DrylAgentRunnerApprovalTests
     }
 
     [Fact]
+    public async Task Waiting_clears_the_scope_and_resuming_lights_it_again()
+    {
+        var activity = new DRYL.Components.Ai.DrylAiActivityService();
+        var gate = new TaskCompletionSource();
+        async IAsyncEnumerable<AgentResponseUpdate> Continuation(
+            IReadOnlyList<ToolApprovalResponseContent> _, [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            await gate.Task;
+            yield return Content(new TextContent("ok"));
+        }
+        var run = new DrylAgentRunner(activity).Replay(
+            Updates(new[] { Content(Ask("c1")) }), Continuation, aiKey: "admin");
+        await Until(() => run.State == AiState.Proposed);
+
+        Assert.Equal(AiState.None, activity.GetState("admin"));
+
+        run.Approve("c1");
+        await Until(() => activity.GetState("admin") == AiState.Thinking);
+        gate.SetResult();
+        await run.WaitForCompletionAsync();
+    }
+
+    [Fact]
     public async Task The_run_waits_for_the_last_pending_call()
     {
         var resume = new Resume();
