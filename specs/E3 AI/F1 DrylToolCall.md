@@ -35,7 +35,10 @@ itself: it raises the callback, and the host moves `Ai` on — to
 `AiState.Generated` when the call was approved, which plays the shared accept
 wave from the button, or to `AiState.None` with `Declined` set when it was
 denied, which ends the card quietly with the label "Declined" rather than with
-an error. Several stacked inside a `DrylTimeline` make
+an error. An approved call usually runs only after the decision, so the host
+sets `Running` until its result is in: the card stays at `AiState.Generated`
+and keeps its accept wave, while the status pill reads "Running". Several
+stacked inside a `DrylTimeline` make
 an agent trace; wrapped in a `DrylToolCallGroup` they collapse into one summary
 row.
 
@@ -56,6 +59,7 @@ row.
 | `ApproveLabel` | `string` | `"Approve"` | Visible text of the Approve button. |
 | `DenyLabel` | `string` | `"Deny"` | Visible text of the Deny button. |
 | `Declined` | `bool` | `false` | The call was denied by a human. With `Ai` at `AiState.None`, the status pill reads "Declined" instead of "Idle". |
+| `Running` | `bool` | `false` | The tool is still executing. With `Ai` at `AiState.Generated` — an accepted call — the status pill reads "Running" instead of "Done". |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the component's own. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
@@ -144,6 +148,14 @@ themselves.
   `AiState.None`.
 - A declined card renders its tool name in `--fg-muted`.
 - A declined card renders no danger alert unless `Error` is non-empty.
+- The status pill reads "Running" when `Running` is `true` and `Ai` is
+  `AiState.Generated`, and its `DrylAiIndicator` is at `AiState.Thinking`.
+- `Running` leaves the card's own state, aura and accept wave untouched: only
+  the pill runs, so the wave is not replayed when `Running` is cleared.
+- Clearing `Running` while `Ai` stays `AiState.Generated` returns the pill to
+  "Done" with its indicator at `AiState.Generated`.
+- `Running` does not change the status pill while `Ai` is anything other than
+  `AiState.Generated`.
 
 ### Disclosure
 

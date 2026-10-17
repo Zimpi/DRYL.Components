@@ -12,12 +12,12 @@
     var visible = Visible.ToList();
     if (visible.Count > 0)
     {
-        var active = visible.FirstOrDefault(t => t.State is AiState.Thinking or AiState.Streaming);
+        var active = visible.FirstOrDefault(Runs);
         var pending = visible.Count(t => t.Approval == DrylToolApproval.Pending);
 
         <DrylToolCallGroup Count="visible.Count"
                            ActiveLabel="@active?.ToolName"
-                           Ai="@(active?.State ?? (pending > 0 ? AiState.Proposed : AiState.None))"
+                           Ai="@(active is null ? (pending > 0 ? AiState.Proposed : AiState.None) : active.State == AiState.Streaming ? AiState.Streaming : AiState.Thinking)"
                            HasError="@visible.Any(t => !string.IsNullOrEmpty(t.Error))"
                            PendingCount="pending"
                            OnApproveAll="ApproveAll"
@@ -33,6 +33,7 @@
                               Error="@t.Error"
                               Ai="@t.State"
                               Declined="@(t.Approval == DrylToolApproval.Declined)"
+                              Running="@Runs(t)"
                               OnApprove="@(() => Run!.Approve(t.CallId))"
                               OnDeny="@(() => Run!.Deny(t.CallId))"
                               ApproveLabel="@ApproveLabel"
@@ -65,8 +66,16 @@
 
     private IEnumerable<DrylToolInvocation> Visible =>
         Run is null ? Enumerable.Empty<DrylToolInvocation>()
-        : ActiveOnly ? Run.ToolCalls.Where(t => t.State is AiState.Thinking or AiState.Proposed)
+        : ActiveOnly ? Run.ToolCalls.Where(t => Runs(t) || t.State == AiState.Proposed)
         : Run.ToolCalls;
+
+    // Executing now. An approved call is Generated (its accept wave played) but runs only once the
+    // run resumes — which it does when the last pending call of the response has a decision.
+    // Until then it is waiting, not running.
+    private bool Runs(DrylToolInvocation t) =>
+        t.State is AiState.Thinking or AiState.Streaming
+        || t.Running && t.Approval == DrylToolApproval.Approved
+           && Run!.ToolCalls.All(c => c.Approval != DrylToolApproval.Pending);
 
     protected override void OnParametersSet()
     {

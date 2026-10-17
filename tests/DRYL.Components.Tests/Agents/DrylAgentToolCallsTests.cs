@@ -100,6 +100,57 @@ public class DrylAgentToolCallsTests : BunitContext
     }
 
     [Fact]
+    public void An_approved_call_reads_running_until_its_result_is_in()
+    {
+        var run = PendingRun("1");
+        var cut = RenderRun(run);
+
+        cut.Find(".tool-call-actions button[aria-label='Approve tool_1']").Click();
+
+        var card = cut.FindComponent<DrylToolCall>().Instance;
+        Assert.Equal(AiState.Generated, card.Ai);   // the accept wave still plays
+        Assert.True(card.Running);
+        Assert.Contains("Running", cut.Find(".tool-call-status").TextContent);
+        Assert.Equal(AiState.Thinking, cut.FindComponent<DrylToolCallGroup>().Instance.Ai);
+
+        run.ToolCalls[0].Result = "\"sent\"";
+        cut.Render();
+
+        Assert.False(cut.FindComponent<DrylToolCall>().Instance.Running);
+        Assert.Contains("Done", cut.Find(".tool-call-status").TextContent);
+    }
+
+    [Fact]
+    public void An_approved_call_waiting_for_its_siblings_is_not_running()
+    {
+        var run = PendingRun("1", "2");
+        var cut = RenderRun(run);
+
+        cut.Find(".tool-call-actions button[aria-label='Approve tool_1']").Click();
+
+        // The run resumes only once tool_2 has a decision too — nothing executes yet.
+        Assert.All(cut.FindComponents<DrylToolCall>(), c => Assert.False(c.Instance.Running));
+        Assert.Equal(AiState.Proposed, cut.FindComponent<DrylToolCallGroup>().Instance.Ai);
+
+        cut.Find(".tool-call-actions button[aria-label='Approve tool_2']").Click();
+
+        Assert.All(cut.FindComponents<DrylToolCall>(), c => Assert.True(c.Instance.Running));
+    }
+
+    [Fact]
+    public void ActiveOnly_keeps_an_approved_call_while_it_runs()
+    {
+        var run = new DrylAgentRun();
+        run.AddToolCall(new DrylToolInvocation { CallId = "1", ToolName = "approved", Approval = DrylToolApproval.Approved });
+        run.AddToolCall(new DrylToolInvocation { CallId = "2", ToolName = "finished", Approval = DrylToolApproval.Approved, Result = "\"ok\"" });
+
+        var cut = RenderRun(run, activeOnly: true);
+
+        Assert.Single(cut.FindAll(".tool-call"));
+        Assert.Contains("approved", cut.Markup);
+    }
+
+    [Fact]
     public void A_card_approve_approves_that_call()
     {
         var run = PendingRun("1", "2");

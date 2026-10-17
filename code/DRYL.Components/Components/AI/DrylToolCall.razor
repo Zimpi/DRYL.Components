@@ -12,6 +12,8 @@
       Generated → the call just completed (one-shot reveal)
       Proposed  → the call waits for a human (Approve / Deny when bound)
       None      → idle / historical (or "Declined" when Declined is set)
+    An accepted call that still runs stays Generated (no second wave) and sets
+    Running: the pill then reads "Running" until the host clears it.
 
     Usage:
       <DrylToolCall ToolName="get_weather"
@@ -36,7 +38,7 @@
         <span class="tool-call-icon"><DrylIcon Name="Wrench" Size="14" /></span>
         <span class="tool-call-name">@ToolName</span>
         <span class="tool-call-status">
-            <DrylAiIndicator State="@Ai">@StatusLabel</DrylAiIndicator>
+            <DrylAiIndicator State="@IndicatorState">@StatusLabel</DrylAiIndicator>
         </span>
         <span class="tool-call-chevron @(_expanded ? "tool-call-chevron--open" : null)">
             <DrylIcon Name="ChevronDown" Size="16" />
@@ -162,6 +164,14 @@
     /// </summary>
     [Parameter] public bool Declined { get; set; }
 
+    /// <summary>
+    /// The tool is still executing. Matters where <see cref="Ai"/> does not already say so: an
+    /// approved call moves to <see cref="AiState.Generated"/> at once (the accept wave plays),
+    /// yet runs only afterwards — while this is set, its status pill reads "Running" and the
+    /// pill's indicator runs, without replaying the wave. Clear it when the result or error is in.
+    /// </summary>
+    [Parameter] public bool Running { get; set; }
+
     /// <summary>Extra CSS class(es) merged onto the tool-call's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
@@ -240,11 +250,15 @@
         AiState.None when Declined => "Declined",
         AiState.Thinking  => "Running",
         AiState.Streaming => "Streaming",
+        AiState.Generated when Running => "Running",
         AiState.Generated => "Done",
         AiState.Active    => "Active",
         AiState.Proposed  => "Awaiting approval",
         _                 => "Idle"
     };
+
+    // Only the pill runs again; the card stays Generated, so its accept wave is not replayed.
+    private AiState IndicatorState => Ai == AiState.Generated && Running ? AiState.Thinking : Ai;
 
     private string RootCssClass
     {

@@ -304,6 +304,36 @@ public class DrylToolCallTests : BunitContext
     }
 
     [Fact]
+    public void An_accepted_call_that_still_runs_reads_running_on_its_pill_only()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "send_invoice")
+            .Add(p => p.Ai, AiState.Generated)
+            .Add(p => p.Running, true));
+
+        Assert.Contains("Running", cut.Find(".tool-call-status").TextContent);
+        Assert.Equal(AiState.Thinking, cut.FindComponent<DrylAiIndicator>().Instance.State);
+        Assert.Equal(AiState.Generated, cut.Instance.Ai);   // the card itself stays accepted
+
+        cut.Render(ps => ps.Add(p => p.Running, false).Add(p => p.Result, "\"sent\""));
+
+        Assert.Contains("Done", cut.Find(".tool-call-status").TextContent);
+        Assert.Equal(AiState.Generated, cut.FindComponent<DrylAiIndicator>().Instance.State);
+    }
+
+    [Fact]
+    public void Running_changes_nothing_outside_generated()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "send_invoice")
+            .Add(p => p.Ai, AiState.Proposed)
+            .Add(p => p.Running, true));
+
+        Assert.Contains("Awaiting approval", cut.Find(".tool-call-status").TextContent);
+        Assert.Equal(AiState.Proposed, cut.FindComponent<DrylAiIndicator>().Instance.State);
+    }
+
+    [Fact]
     public void A_pending_call_with_a_decision_opens_its_arguments_once()
     {
         var cut = RenderPending(() => { }, () => { });
