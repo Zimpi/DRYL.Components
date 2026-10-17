@@ -31,6 +31,7 @@
     <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     <button type="button"
+            @ref="_head"
             class="tool-group-head"
             aria-expanded="@(_expanded ? "true" : "false")"
             aria-controls="@_bodyId"
@@ -44,6 +45,22 @@
             <DrylIcon Name="ChevronDown" Size="16" />
         </span>
     </button>
+
+    @* Bulk decisions, from two pending calls on. A row of their own (the head is a
+       <button>) and outside the disclosure; each card inside keeps its own pair. *@
+    <DrylPresence Visible="ShowBulk" Transition="PresenceTransition.Fade" Speed="PresenceSpeed.Fast"
+                  Class="tool-group-actions">
+        @if (OnApproveAll.HasDelegate)
+        {
+            <DrylButton Variant="DrylButton.ButtonVariant.Primary" Size="DrylButton.ButtonSize.Small"
+                        OnClick="ApproveAllAsync">@ApproveAllLabel</DrylButton>
+        }
+        @if (OnDenyAll.HasDelegate)
+        {
+            <DrylButton Variant="DrylButton.ButtonVariant.Ghost" Size="DrylButton.ButtonSize.Small"
+                        OnClick="DenyAllAsync">@DenyAllLabel</DrylButton>
+        }
+    </DrylPresence>
 
     @* grid-template-rows 0fr → 1fr disclosure (same trick as DrylExpansion):
        the body animates open without ever squeezing its content, and stays
@@ -95,6 +112,25 @@
     [Parameter] public bool DefaultExpanded { get; set; }
 
     /// <summary>
+    /// Number of calls awaiting a human decision. While <see cref="Ai"/> is
+    /// <see cref="AiState.Proposed"/> the row reads "N awaiting approval", and from two on
+    /// the bulk buttons appear.
+    /// </summary>
+    [Parameter] public int PendingCount { get; set; }
+
+    /// <summary>Raised by the Approve all button (shown while <see cref="Ai"/> is <see cref="AiState.Proposed"/> and <see cref="PendingCount"/> is at least 2).</summary>
+    [Parameter] public EventCallback OnApproveAll { get; set; }
+
+    /// <summary>Raised by the Deny all button (shown while <see cref="Ai"/> is <see cref="AiState.Proposed"/> and <see cref="PendingCount"/> is at least 2).</summary>
+    [Parameter] public EventCallback OnDenyAll { get; set; }
+
+    /// <summary>Visible text of the Approve all button. Default "Approve all".</summary>
+    [Parameter] public string ApproveAllLabel { get; set; } = "Approve all";
+
+    /// <summary>Visible text of the Deny all button. Default "Deny all".</summary>
+    [Parameter] public string DenyAllLabel { get; set; } = "Deny all";
+
+    /// <summary>
     /// AI aura variant for the ambient pulse. Leave <c>null</c> to inherit a surrounding
     /// <c>DrylAiScope</c>, ultimately falling back to <see cref="AiAura.Aurora"/> — the calm
     /// variant, chosen so a collapsed group stays discreet.
@@ -115,6 +151,7 @@
     public IDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private readonly string _bodyId = $"dryl-tool-group-{Guid.NewGuid():N}";
+    private ElementReference _head;
     private bool _expanded;
     private bool _initialised;
     private bool _prevHasError;
@@ -136,6 +173,10 @@
         if (HasError && !_prevHasError) _expanded = true;
         _prevHasError = HasError;
 
+        // Nobody should approve a call whose arguments they have not seen — reveal once
+        // per entry into Proposed; the user may close it again.
+        if (Ai == AiState.Proposed && _prevState != AiState.Proposed) _expanded = true;
+
         if (Ai == AiState.Generated && _prevState != AiState.Generated) _genTick++;
         _prevState = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
@@ -145,11 +186,29 @@
 
     private void Toggle() => _expanded = !_expanded;
 
+    private bool Proposed => Ai == AiState.Proposed;
+
+    private bool ShowBulk =>
+        Proposed && PendingCount >= 2 && (OnApproveAll.HasDelegate || OnDenyAll.HasDelegate);
+
+    private Task ApproveAllAsync() => DecideAsync(OnApproveAll);
+
+    private Task DenyAllAsync() => DecideAsync(OnDenyAll);
+
+    // The buttons leave once the calls are resolved; keep focus on the group.
+    private async Task DecideAsync(EventCallback callback)
+    {
+        await callback.InvokeAsync();
+        await _head.FocusAsync();
+    }
+
     // Ticker while a call runs; the settled count otherwise (singular/plural).
     private string LabelText =>
         Active && !string.IsNullOrEmpty(ActiveLabel)
             ? ActiveLabel!
-            : $"{Count} tool call{(Count == 1 ? "" : "s")}";
+            : Proposed && PendingCount > 0
+                ? $"{PendingCount} awaiting approval"
+                : $"{Count} tool call{(Count == 1 ? "" : "s")}";
 
     private string LabelCss =>
         Active && !string.IsNullOrEmpty(ActiveLabel)
@@ -158,6 +217,7 @@
 
     private string StatusLabel =>
         Active ? (Ai == AiState.Streaming ? "Streaming" : "Running")
+        : Proposed ? "Awaiting approval"
         : HasError ? "Error"
         : "Done";
 

@@ -18,6 +18,7 @@ Version bump guide:
 
 ### Added
 - `DrylToolCall` — A call can now be approved or denied on the card. With `Ai` at `AiState.Proposed`, new `OnApprove` and `OnDeny` callbacks each render a button in a row under the head, visible while the body is collapsed; a button whose callback is unbound is not rendered, so `Proposed` without callbacks stays the resting look alone. The card decides nothing itself: move `Ai` to `AiState.Generated` to accept (the accept wave starts at the button) or to `AiState.None` to dismiss. The buttons fade in and out, read `ApproveLabel` / `DenyLabel` (defaults "Approve" / "Deny") and are named "Approve {ToolName}" / "Deny {ToolName}" for assistive tech; after a decision focus moves to the head row. New `Declined`: with `Ai` at `AiState.None` the status pill reads "Declined" and the tool name recedes, without a danger alert — denying is a decision, not a failure.
+- `DrylToolCallGroup` — Calls awaiting a human. With `Ai` at `AiState.Proposed` the summary reads "N awaiting approval" from the new `PendingCount` and the status pill "Awaiting approval", and the group opens by itself once per entry into `Proposed` (a user who closes it keeps it closed), so nobody approves a call whose arguments they have not seen. From two pending calls on, new `OnApproveAll` / `OnDenyAll` callbacks render "Approve all" / "Deny all" under the head (`ApproveAllLabel` / `DenyAllLabel`); a bulk approval's wave starts at the centre of each card. Focus returns to the head row after a bulk decision.
 
 ## [3.7.0] — 2026-10-17
 
