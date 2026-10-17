@@ -1,7 +1,7 @@
 # DrylToolCallGroup
 
 ## Meta
-- **State:** Implemented
+- **State:** Modified
 - **Source:** code/DRYL.Components/Components/AI/DrylToolCallGroup.razor
               code/DRYL.Components/Components/AI/DrylToolCallGroup.razor.css
 
@@ -29,6 +29,13 @@ Two decisions distinguish it from `DrylToolCall`. Its aura falls back to
 secondary surface that should not shout. And `HasError` reveals the body once, so
 a failed tool is never swallowed by the summary.
 
+Calls can wait for a human. With `Ai` at `AiState.Proposed` the summary reads
+"N awaiting approval" from `PendingCount`, and the group opens by itself once,
+so nobody approves a call whose arguments they have not seen. From two pending
+calls on, and with the callbacks bound, the summary offers "Approve all" and
+"Deny all"; each card inside keeps its own pair. The group decides nothing
+itself — it raises the callback and the host resolves the calls.
+
 ## Public API
 
 | Member | Type | Default | Purpose |
@@ -40,6 +47,11 @@ a failed tool is never swallowed by the summary.
 | `HasError` | `bool` | `false` | A tool in the run failed; the group reveals itself once and marks the row. |
 | `ChildContent` | `RenderFragment?` | `null` | The individual `DrylToolCall` cards. |
 | `DefaultExpanded` | `bool` | `false` | Whether the group starts expanded. |
+| `PendingCount` | `int` | `0` | Number of calls awaiting a human decision; read while `Ai` is `AiState.Proposed`. |
+| `OnApproveAll` | `EventCallback` | — | Raised by the Approve all button. |
+| `OnDenyAll` | `EventCallback` | — | Raised by the Deny all button. |
+| `ApproveAllLabel` | `string` | `"Approve all"` | Visible text of the Approve all button. |
+| `DenyAllLabel` | `string` | `"Deny all"` | Visible text of the Deny all button. |
 | `Aura` | `AiAura?` | `null` | Aura variant. `null` inherits the surrounding `DrylAiScope`, ultimately `AiAura.Aurora`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the component's own. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -59,15 +71,21 @@ a failed tool is never swallowed by the summary.
   the cards below it.
 - The label falls back to the count when the group is active but `ActiveLabel` is
   empty.
+- The collapsed row renders `PendingCount` followed by "awaiting approval" when
+  `Ai` is `AiState.Proposed` and `PendingCount` is greater than `0`.
+- The collapsed row renders the count when `Ai` is `AiState.Proposed` and
+  `PendingCount` is `0`.
 
 ### Status
 
 - The status pill reads "Running" when the group is active and `Ai` is not
   `AiState.Streaming`.
 - The status pill reads "Streaming" when `Ai` is `AiState.Streaming`.
-- The status pill reads "Error" when `HasError` is `true` and the group is not
-  active.
-- The status pill reads "Done" when the group is neither active nor in error.
+- The status pill reads "Awaiting approval" when `Ai` is `AiState.Proposed`.
+- The status pill reads "Error" when `HasError` is `true`, the group is not
+  active and `Ai` is not `AiState.Proposed`.
+- The status pill reads "Done" when the group is neither active, nor in error, nor
+  at `AiState.Proposed`.
 
 ### AI state
 
@@ -90,6 +108,26 @@ a failed tool is never swallowed by the summary.
 - A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
   accept wave of `DrylAuraElements` before the completion wash.
 
+### Approval
+
+- The component renders an Approve all button when `Ai` is `AiState.Proposed`,
+  `PendingCount` is at least `2` and `OnApproveAll` is bound.
+- The component renders a Deny all button when `Ai` is `AiState.Proposed`,
+  `PendingCount` is at least `2` and `OnDenyAll` is bound.
+- The component renders neither bulk button when `PendingCount` is below `2`.
+- The component renders neither bulk button when `Ai` is not
+  `AiState.Proposed`.
+- The bulk buttons sit outside the collapsible body, under the head row.
+- Activating the Approve all button fires `OnApproveAll` once.
+- Activating the Deny all button fires `OnDenyAll` once.
+- Activating either bulk button does not toggle the body.
+- The Approve all button reads `ApproveAllLabel`, defaulting to "Approve all".
+- The Deny all button reads `DenyAllLabel`, defaulting to "Deny all".
+- The Approve all button is a `DrylButton` of `ButtonVariant.Primary` in
+  `ButtonSize.Small`.
+- The Deny all button is a `DrylButton` of `ButtonVariant.Ghost` in
+  `ButtonSize.Small`.
+
 ### Disclosure and error handling
 
 - The body starts collapsed when `DefaultExpanded` is `false`.
@@ -101,6 +139,9 @@ a failed tool is never swallowed by the summary.
 - The body is revealed when `HasError` transitions from `false` to `true`.
 - The reveal happens once per transition: the user may collapse the group again
   while `HasError` stays `true`.
+- The body is revealed when `Ai` transitions into `AiState.Proposed`.
+- That reveal happens once per transition: the user may collapse the group again
+  while `Ai` stays `AiState.Proposed`.
 - The root carries `tool-group--error` while `HasError` is `true`.
 - The error border derives from `--danger`, mixed rather than applied at full
   strength (`DESIGN-08`).
@@ -116,6 +157,8 @@ a failed tool is never swallowed by the summary.
 - The head row's color transitions over `--dur-fast` with `--ease-out` on hover.
 - The body and chevron transitions are disabled under
   `prefers-reduced-motion: reduce`.
+- The bulk buttons enter and leave through `DrylPresence` with
+  `PresenceTransition.Fade` (`DESIGN-12`).
 
 ### Keyboard and accessibility
 
@@ -131,6 +174,9 @@ a failed tool is never swallowed by the summary.
 - The body carries `inert` exactly while collapsed, so no card head and no copy
   button inside it can be reached by <kbd>Tab</kbd> while invisible (`UX-07`).
 - The head row shows a focus ring in `--accent-line` on `:focus-visible`.
+- The bulk buttons follow the head row in the tab order.
+- After either bulk button is activated, focus moves to the head row, so focus
+  is not lost when the buttons leave.
 
 ### Appearance
 
@@ -152,13 +198,13 @@ a failed tool is never swallowed by the summary.
   `node scripts/check-light-sync.mjs` and
   `node scripts/validate-light-contrast.mjs`; the component defines no
   mode-specific rule.
-- **Enter/exit animation** — the disclosure body, the chevron and the head
-  row's hover, above.
+- **Enter/exit animation** — the disclosure body, the chevron, the head row's
+  hover and the bulk buttons' `DrylPresence`, above.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above.
 - **AI mode** — yes, and it is an opt-in: the parameter is a switch on a row
   that would otherwise render as an ordinary summary, so `AI-03` requires it to
   be called `Ai`.
-- **Demo page** — `DRYL.Website/Components/Examples/ToolCallGroup/Running.razor`
-  and `.../ToolCallGroup/Summary.razor`.
+- **Demo page** — `DRYL.Website/Components/Examples/ToolCallGroup/Running.razor`,
+  `.../ToolCallGroup/Summary.razor` and `.../ToolCallGroup/Approval.razor`.
 - **`ComponentCatalog`** — registered as `"Tool Call Group"` / `tool-call-group`
   in `DRYL.Website/Components/ComponentCatalog.cs`.
