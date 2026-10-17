@@ -1,3 +1,4 @@
+using AngleSharp.Dom;
 using Bunit;
 using DRYL.Components;
 
@@ -116,5 +117,186 @@ public class DrylToolCallTests : BunitContext
         Assert.Contains("is-open", cut.Find(".tool-call").GetAttribute("class"));
         Assert.Equal("true", cut.Find("button.tool-call-head").GetAttribute("aria-expanded"));
         Assert.Null(cut.Find(".tool-call-body").GetAttribute("aria-hidden"));
+    }
+
+    // ── Approval (I21) ────────────────────────────────────────────────
+
+    private IRenderedComponent<DrylToolCall> RenderPending(
+        Action? onApprove = null, Action? onDeny = null, AiState ai = AiState.Proposed)
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        return Render<DrylToolCall>(ps =>
+        {
+            ps.Add(p => p.ToolName, "delete_customer")
+              .Add(p => p.Arguments, "{\"id\":7}")
+              .Add(p => p.Ai, ai);
+            if (onApprove is not null) ps.Add(p => p.OnApprove, onApprove);
+            if (onDeny is not null) ps.Add(p => p.OnDeny, onDeny);
+        });
+    }
+
+    private static IElement? Button(IRenderedComponent<DrylToolCall> cut, string text) =>
+        cut.FindAll(".tool-call-actions button").FirstOrDefault(b => b.TextContent.Trim() == text);
+
+    [Fact]
+    public void Proposed_with_callbacks_renders_approve_and_deny()
+    {
+        var cut = RenderPending(() => { }, () => { });
+
+        Assert.NotNull(Button(cut, "Approve"));
+        Assert.NotNull(Button(cut, "Deny"));
+    }
+
+    [Fact]
+    public void Only_bound_callbacks_get_a_button()
+    {
+        var cut = RenderPending(onApprove: () => { });
+
+        Assert.NotNull(Button(cut, "Approve"));
+        Assert.Null(Button(cut, "Deny"));
+    }
+
+    [Fact]
+    public void Proposed_without_callbacks_renders_no_buttons()
+    {
+        var cut = RenderPending();
+
+        Assert.Empty(cut.FindAll(".tool-call-actions"));
+    }
+
+    [Theory]
+    [InlineData(AiState.None)]
+    [InlineData(AiState.Thinking)]
+    [InlineData(AiState.Generated)]
+    public void No_buttons_outside_proposed(AiState ai)
+    {
+        var cut = RenderPending(() => { }, () => { }, ai);
+
+        Assert.Empty(cut.FindAll(".tool-call-actions button"));
+    }
+
+    [Fact]
+    public void Buttons_sit_outside_the_collapsed_body()
+    {
+        var cut = RenderPending(() => { }, () => { });
+
+        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+        Assert.Empty(cut.Find(".tool-call-body").QuerySelectorAll(".tool-call-actions"));
+        Assert.NotEmpty(cut.FindAll(".tool-call-actions button"));
+    }
+
+    [Fact]
+    public void Approve_fires_once_and_does_not_toggle_the_body()
+    {
+        var approved = 0;
+        var cut = RenderPending(() => approved++, () => { });
+
+        Button(cut, "Approve")!.Click();
+
+        Assert.Equal(1, approved);
+        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void Deny_fires_once_and_does_not_toggle_the_body()
+    {
+        var denied = 0;
+        var cut = RenderPending(() => { }, () => denied++);
+
+        Button(cut, "Deny")!.Click();
+
+        Assert.Equal(1, denied);
+        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void Labels_are_overridable()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "delete_customer")
+            .Add(p => p.Ai, AiState.Proposed)
+            .Add(p => p.OnApprove, () => { })
+            .Add(p => p.OnDeny, () => { })
+            .Add(p => p.ApproveLabel, "Freigeben")
+            .Add(p => p.DenyLabel, "Ablehnen"));
+
+        Assert.NotNull(Button(cut, "Freigeben"));
+        Assert.NotNull(Button(cut, "Ablehnen"));
+    }
+
+    [Fact]
+    public void Label_defaults()
+    {
+        var cut = Render<DrylToolCall>();
+
+        Assert.Equal("Approve", cut.Instance.ApproveLabel);
+        Assert.Equal("Deny", cut.Instance.DenyLabel);
+    }
+
+    [Fact]
+    public void Buttons_use_primary_and_ghost_in_small()
+    {
+        var cut = RenderPending(() => { }, () => { });
+
+        var buttons = cut.FindComponents<DrylButton>();
+        Assert.Contains(buttons, b => b.Instance.Variant == DrylButton.ButtonVariant.Primary
+                                   && b.Instance.Size == DrylButton.ButtonSize.Small);
+        Assert.Contains(buttons, b => b.Instance.Variant == DrylButton.ButtonVariant.Ghost
+                                   && b.Instance.Size == DrylButton.ButtonSize.Small);
+    }
+
+    [Fact]
+    public void Buttons_name_the_tool_for_assistive_tech()
+    {
+        var cut = RenderPending(() => { }, () => { });
+
+        Assert.Equal("Approve delete_customer", Button(cut, "Approve")!.GetAttribute("aria-label"));
+        Assert.Equal("Deny delete_customer", Button(cut, "Deny")!.GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void Buttons_follow_the_head_row_in_document_order()
+    {
+        var cut = RenderPending(() => { }, () => { });
+
+        var all = cut.FindAll("button").ToList();
+        var head = all.FindIndex(b => b.ClassList.Contains("tool-call-head"));
+        var approve = all.FindIndex(b => b.TextContent.Trim() == "Approve");
+        Assert.True(head >= 0 && approve > head);
+    }
+
+    [Fact]
+    public void Deciding_returns_focus_to_the_head_row()
+    {
+        var cut = RenderPending(() => { }, () => { });
+
+        Button(cut, "Approve")!.Click();
+
+        JSInterop.VerifyFocusAsyncInvoke();
+    }
+
+    [Fact]
+    public void Declined_reads_declined_at_none()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "delete_customer")
+            .Add(p => p.Declined, true));
+
+        Assert.Contains("Declined", cut.Find(".tool-call-status").TextContent);
+        Assert.Contains("tool-call--declined", cut.Find(".tool-call").GetAttribute("class"));
+        Assert.Empty(cut.FindComponents<DrylAlert>());
+    }
+
+    [Fact]
+    public void Declined_does_not_change_a_live_state()
+    {
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "delete_customer")
+            .Add(p => p.Ai, AiState.Thinking)
+            .Add(p => p.Declined, true));
+
+        Assert.Contains("Running", cut.Find(".tool-call-status").TextContent);
+        Assert.DoesNotContain("tool-call--declined", cut.Find(".tool-call").GetAttribute("class"));
     }
 }
