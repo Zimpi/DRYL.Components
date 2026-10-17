@@ -16,6 +16,10 @@ public abstract class DrylRunBase : IAsyncDisposable
     private readonly TaskCompletionSource _completed =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _cts = new();
+    private TaskCompletionSource? _decided;
+    // Decisions come from the UI while the processing loop adds calls and waits; outside a
+    // Blazor synchronization context those are different threads.
+    private readonly object _gate = new();
     private bool _disposed;
 
     // Cached once so TextStream is a STABLE reference across re-renders: consumers like
@@ -48,6 +52,24 @@ public abstract class DrylRunBase : IAsyncDisposable
     /// <summary>The tool calls observed in this run, in arrival order.</summary>
     public IReadOnlyList<DrylToolInvocation> ToolCalls => _toolCalls;
 
+    /// <summary>The calls awaiting a human decision (<see cref="DrylToolApproval.Pending"/>), in arrival order.</summary>
+    public IReadOnlyList<DrylToolInvocation> PendingApprovals
+    {
+        get { lock (_gate) return _toolCalls.Where(t => t.Approval == DrylToolApproval.Pending).ToList(); }
+    }
+
+    /// <summary>
+    /// Approves one pending call. Once the last pending call has a decision, the run answers the
+    /// agent and streams on. Returns <c>false</c> when no pending call has that id.
+    /// </summary>
+    public bool Approve(string callId) => Decide(callId, DrylToolApproval.Approved);
+
+    /// <summary>
+    /// Denies one pending call; the model receives a failed function result for it. Returns
+    /// <c>false</c> when no pending call has that id.
+    /// </summary>
+    public bool Deny(string callId) => Decide(callId, DrylToolApproval.Declined);
+
     /// <summary>Raised whenever <see cref="State"/>, <see cref="Text"/>, <see cref="ToolCalls"/> or subclass state changes.</summary>
     public event Action? OnChange;
 
@@ -57,7 +79,56 @@ public abstract class DrylRunBase : IAsyncDisposable
     /// <summary>Cancelled when the run is disposed; lets in-flight work (e.g. an artifact reveal) stop cleanly.</summary>
     internal CancellationToken DisposalToken => _cts.Token;
 
-    internal void AddToolCall(DrylToolInvocation t) { _toolCalls.Add(t); Raise(); }
+    internal void AddToolCall(DrylToolInvocation t) { lock (_gate) _toolCalls.Add(t); Raise(); }
+
+    private bool Decide(string callId, DrylToolApproval decision)
+    {
+        TaskCompletionSource? release = null;
+        lock (_gate)
+        {
+            var call = _toolCalls.FirstOrDefault(t => t.CallId == callId && t.Approval == DrylToolApproval.Pending);
+            if (call is null) return false;
+            call.Approval = decision;
+            if (!_toolCalls.Any(t => t.Approval == DrylToolApproval.Pending)) release = _decided;
+        }
+        Raise();
+        release?.TrySetResult();
+        return true;
+    }
+
+    /// <summary>
+    /// Completes once no call is pending. Cancelling <paramref name="ct"/> or disposing the run
+    /// ends the wait with <see cref="OperationCanceledException"/>, after declining what was pending.
+    /// </summary>
+    internal async Task WaitForDecisionsAsync(CancellationToken ct)
+    {
+        TaskCompletionSource decided;
+        lock (_gate)
+        {
+            if (!_toolCalls.Any(t => t.Approval == DrylToolApproval.Pending)) return;
+            decided = _decided = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+        try
+        {
+            if (_disposed) throw new OperationCanceledException();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
+            await decided.Task.WaitAsync(linked.Token);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        {
+            // Nobody decided: the call did not run, so it reads as declined rather than as still waiting.
+            lock (_gate)
+            {
+                foreach (var t in _toolCalls.Where(t => t.Approval == DrylToolApproval.Pending))
+                    t.Approval = DrylToolApproval.Declined;
+            }
+            throw new OperationCanceledException();
+        }
+        finally
+        {
+            lock (_gate) _decided = null;
+        }
+    }
 
     /// <summary>Drops the trace. For runs that are reused across sessions (a voice run is one),
     /// so the next session does not inherit the previous one's tool calls.</summary>

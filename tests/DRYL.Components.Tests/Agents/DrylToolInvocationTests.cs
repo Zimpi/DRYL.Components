@@ -25,4 +25,25 @@ public class DrylToolInvocationTests
         var t = new DrylToolInvocation { CallId = "1", ToolName = "x", Error = "boom" };
         Assert.Equal(AiState.None, t.State);
     }
+
+    [Fact]
+    public void Approval_defaults_to_none()
+        => Assert.Equal(DrylToolApproval.None, new DrylToolInvocation().Approval);
+
+    [Theory]
+    [InlineData(DrylToolApproval.Pending, null, null, AiState.Proposed)]
+    [InlineData(DrylToolApproval.Approved, null, null, AiState.Generated)]   // accepted: straight to Generated (the wave)
+    [InlineData(DrylToolApproval.Approved, "\"ok\"", null, AiState.Generated)]
+    [InlineData(DrylToolApproval.Declined, null, null, AiState.None)]
+    [InlineData(DrylToolApproval.Declined, "\"rejected\"", null, AiState.None)]
+    [InlineData(DrylToolApproval.Pending, null, "boom", AiState.None)]      // an error always wins
+    [InlineData(DrylToolApproval.Approved, null, "boom", AiState.None)]
+    [InlineData(DrylToolApproval.None, null, null, AiState.Thinking)]
+    [InlineData(DrylToolApproval.None, "\"ok\"", null, AiState.Generated)]
+    public void State_follows_the_approval(DrylToolApproval approval, string? result, string? error, AiState expected)
+    {
+        var call = new DrylToolInvocation { Approval = approval, Result = result, Error = error };
+
+        Assert.Equal(expected, call.State);
+    }
 }

@@ -41,6 +41,18 @@
     text-overflow: ellipsis;
 }
 
+/* A declined call recedes: a decision, not a failure, so no danger color. */
+.tool-call--declined .tool-call-name { color: var(--fg-muted); }
+
+/* The approval pair — its own row, since the head is a <button>. DrylPresence renders
+   the wrapper, so it is styled through ::deep from this scope. */
+.tool-call ::deep .tool-call-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-3) var(--sp-2);
+}
+
 .tool-call-status {
     margin-left: auto;
     flex: none;

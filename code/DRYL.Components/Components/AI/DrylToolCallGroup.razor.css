@@ -83,6 +83,14 @@
     padding: 0 var(--sp-2) var(--sp-2);
 }
 
+/* Bulk decisions — their own row under the head (DrylPresence renders the wrapper). */
+.tool-group ::deep .tool-group-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-3) var(--sp-2);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .tool-group-body { transition: none; }
     .tool-group-chevron { transition: none; }

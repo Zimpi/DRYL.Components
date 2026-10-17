@@ -8,6 +8,15 @@ public sealed partial class DrylAgentRunner
 {
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
+    // The trace cards' JSON is for reading only: keep non-ASCII as written, so a user approving
+    // a call sees the name it carries rather than its escape sequence. Blazor HTML-encodes the
+    // text when it renders it.
+    private static readonly JsonSerializerOptions DisplayJson = new()
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     /// <summary>
     /// Start an agent run and return an observable <see cref="DrylAgentRun"/>. The run drives
     /// <see cref="AiState"/> automatically and (when <paramref name="aiKey"/> is set and the
@@ -17,7 +26,11 @@ public sealed partial class DrylAgentRunner
                               string? aiKey = null, CancellationToken ct = default)
     {
         var updates = agent.RunStreamingAsync(message, session, options: null, cancellationToken: ct);
-        return StartFromUpdates(updates, aiKey, ct);
+        // Approval-required tools: answer the agent on the same session, one user message
+        // carrying every decision of the response.
+        return StartFromUpdates(updates, aiKey, ct, (responses, c) => agent.RunStreamingAsync(
+            new ChatMessage(ChatRole.User, responses.Cast<AIContent>().ToList()),
+            session, options: null, cancellationToken: c));
     }
 
     /// <summary>
@@ -30,22 +43,43 @@ public sealed partial class DrylAgentRunner
         IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey = null, CancellationToken ct = default)
         => StartFromUpdates(updates, aiKey, ct);
 
+    /// <summary>
+    /// Like <see cref="Replay(IAsyncEnumerable{AgentResponseUpdate}, string?, CancellationToken)"/>,
+    /// and answers approval requests: once the last pending call has a decision,
+    /// <paramref name="resume"/> receives the responses and its updates continue the same run —
+    /// what <see cref="Start"/> does with the agent and session it was given.
+    /// </summary>
+    public DrylAgentRun Replay(
+        IAsyncEnumerable<AgentResponseUpdate> updates,
+        Func<IReadOnlyList<ToolApprovalResponseContent>, CancellationToken, IAsyncEnumerable<AgentResponseUpdate>> resume,
+        string? aiKey = null, CancellationToken ct = default)
+        => StartFromUpdates(updates, aiKey, ct, resume);
+
     internal DrylAgentRun StartFromUpdates(
-        IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct)
+        IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct,
+        Func<IReadOnlyList<ToolApprovalResponseContent>, CancellationToken, IAsyncEnumerable<AgentResponseUpdate>>? resume = null)
     {
         var run = new DrylAgentRun();
-        _ = ProcessAsync(run, updates, aiKey, ct);
+        _ = ProcessAsync(run, updates, aiKey, ct, resume);
         return run;
     }
 
+    /// <param name="resume">
+    /// Answers approval requests and yields the agent's continuation. Without it, approval
+    /// requests are ignored (the generation, build and orchestration paths).
+    /// </param>
     private async Task ProcessAsync(
-        DrylRunBase run, IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct)
+        DrylRunBase run, IAsyncEnumerable<AgentResponseUpdate> updates, string? aiKey, CancellationToken ct,
+        Func<IReadOnlyList<ToolApprovalResponseContent>, CancellationToken, IAsyncEnumerable<AgentResponseUpdate>>? resume = null)
     {
         SetState(run, AiState.Thinking, aiKey);
         var byCallId = new Dictionary<string, DrylToolInvocation>();
+        var awaiting = new List<DrylToolInvocation>();   // asked in this response, not yet answered
 
         try
         {
+          while (true)
+          {
             await foreach (var update in updates.WithCancellation(ct))
             {
                 foreach (var content in update.Contents)
@@ -56,6 +90,40 @@ public sealed partial class DrylAgentRunner
                             SetState(run, AiState.Thinking, aiKey);
                             break;
 
+                        case ToolApprovalRequestContent ar when resume is not null:
+                        {
+                            var fcall = ar.ToolCall as FunctionCallContent;
+                            if (!byCallId.TryGetValue(ar.ToolCall.CallId, out var inv))
+                            {
+                                inv = new DrylToolInvocation
+                                {
+                                    CallId = ar.ToolCall.CallId,
+                                    ToolName = fcall?.Name ?? "tool",   // hosted / MCP calls carry no function name
+                                    Arguments = fcall?.Arguments is null
+                                        ? null : JsonSerializer.Serialize(fcall.Arguments, DisplayJson),
+                                    Approval = DrylToolApproval.Pending,
+                                    ApprovalRequest = ar,
+                                };
+                                byCallId[inv.CallId] = inv;
+                                run.AddToolCall(inv);
+                            }
+                            else
+                            {
+                                inv.Approval = DrylToolApproval.Pending;
+                                inv.ApprovalRequest = ar;
+                                run.Raise();
+                            }
+                            awaiting.Add(inv);
+                            break;
+                        }
+
+                        case FunctionCallContent fc when byCallId.TryGetValue(fc.CallId, out var known)
+                                                      && known.Approval != DrylToolApproval.None:
+                            // The framework re-issues an approved call on resumption: one card per call.
+                            if (known.Arguments is null && fc.Arguments is not null)
+                                known.Arguments = JsonSerializer.Serialize(fc.Arguments, DisplayJson);
+                            break;
+
                         case FunctionCallContent fc:
                         {
                             var inv = new DrylToolInvocation
@@ -63,7 +131,7 @@ public sealed partial class DrylAgentRunner
                                 CallId = fc.CallId,
                                 ToolName = fc.Name,
                                 Arguments = fc.Arguments is null
-                                    ? null : JsonSerializer.Serialize(fc.Arguments, JsonOpts),
+                                    ? null : JsonSerializer.Serialize(fc.Arguments, DisplayJson),
                             };
                             byCallId[fc.CallId] = inv;
                             run.AddToolCall(inv);
@@ -75,7 +143,10 @@ public sealed partial class DrylAgentRunner
                         {
                             if (byCallId.TryGetValue(fr.CallId, out var inv))
                             {
-                                if (fr.Exception is not null) inv.Error = fr.Exception.Message;
+                                // A denied call's failed result is the framework telling the model,
+                                // not a failure to show: the call stays quietly declined.
+                                if (inv.Approval == DrylToolApproval.Declined) inv.Result = SerializeResult(fr.Result);
+                                else if (fr.Exception is not null) inv.Error = fr.Exception.Message;
                                 else inv.Result = SerializeResult(fr.Result);
                                 run.Raise();
                             }
@@ -95,15 +166,38 @@ public sealed partial class DrylAgentRunner
                 }
             }
 
+            if (awaiting.Count == 0 || resume is null) break;
+
+            // The response ended asking a human: rest at Proposed until every call is decided,
+            // then answer them all at once and stream the continuation into this same run.
+            // The scope is cleared rather than set to Proposed: nothing is working, and the
+            // components inheriting it carry no accept action (the I20 anti-decoration guard).
+            if (run.PendingApprovals.Count > 0)
+            {
+                if (_activity is not null && aiKey is not null) _activity.Clear(aiKey);
+                run.State = AiState.Proposed;   // last, so an observer of State sees the scope already cleared
+                run.Raise();
+            }
+            await run.WaitForDecisionsAsync(ct);
+            var responses = awaiting
+                .Select(i => i.ApprovalRequest!.CreateResponse(i.Approval == DrylToolApproval.Approved))
+                .ToList();
+            awaiting.Clear();
+            SetState(run, AiState.Thinking, aiKey);
+            updates = resume(responses, ct);
+          }
+
             SetState(run, AiState.Generated, aiKey);
         }
         catch (OperationCanceledException)
         {
+            EndUnrunApprovals(run, "The run was cancelled before this approved call ran.");
             SetStateRaw(run, AiState.None, aiKey);   // clear the scope on cancel
         }
         catch (Exception ex)
         {
             // Failed = Error set + AiState.None (mirrors DrylToolInvocation's convention).
+            EndUnrunApprovals(run, "The run ended before this approved call ran.");
             run.Error = new DrylRunError(ex.Message, ex);
             SetStateRaw(run, AiState.None, aiKey);
         }
@@ -114,13 +208,22 @@ public sealed partial class DrylAgentRunner
         }
     }
 
+    // An approved call reads Generated from the moment it is accepted. If the run ends before
+    // its result arrives, it never ran — it must not stay on "Done".
+    private static void EndUnrunApprovals(DrylRunBase run, string message)
+    {
+        foreach (var t in run.ToolCalls.Where(t =>
+                     t.Approval == DrylToolApproval.Approved && t.Result is null && t.Error is null))
+            t.Error = message;
+    }
+
     private static string SerializeResult(object? result) =>
         result switch
         {
             null => "null",
-            string s => JsonSerializer.Serialize(s, JsonOpts),
+            string s => JsonSerializer.Serialize(s, DisplayJson),
             JsonElement je => je.GetRawText(),
-            _ => JsonSerializer.Serialize(result, JsonOpts),
+            _ => JsonSerializer.Serialize(result, DisplayJson),
         };
 
     private void SetState(DrylRunBase run, AiState state, string? aiKey)

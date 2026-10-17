@@ -26,7 +26,16 @@ card still renders its name, its arguments and its result, and simply carries no
 AI styling.
 
 The component is a leaf. It does not fetch, poll or own the call; the host passes
-the current values on every render. Several stacked inside a `DrylTimeline` make
+the current values on every render.
+
+A call can wait for a human. With `Ai` at `AiState.Proposed` and an `OnApprove`
+or `OnDeny` callback bound, the card shows an Approve / Deny pair under its head
+row, visible whether the body is open or not. The card does not decide anything
+itself: it raises the callback, and the host moves `Ai` on — to
+`AiState.Generated` when the call was approved, which plays the shared accept
+wave from the button, or to `AiState.None` with `Declined` set when it was
+denied, which ends the card quietly with the label "Declined" rather than with
+an error. Several stacked inside a `DrylTimeline` make
 an agent trace; wrapped in a `DrylToolCallGroup` they collapse into one summary
 row.
 
@@ -42,11 +51,17 @@ row.
 | `State` | `AiState` | — | **Obsolete.** Delegating alias for `Ai`; removed in `3.0.0`. See `_Api.md`. |
 | `Aura` | `AiAura?` | `null` | Aura variant. `null` inherits the surrounding `DrylAiScope`, ultimately `AiAura.Comet`. |
 | `DefaultExpanded` | `bool` | `false` | Whether the body starts expanded. |
+| `OnApprove` | `EventCallback` | — | Raised by the Approve button. The button renders only while `Ai` is `AiState.Proposed` and this callback is bound. |
+| `OnDeny` | `EventCallback` | — | Raised by the Deny button. The button renders only while `Ai` is `AiState.Proposed` and this callback is bound. |
+| `ApproveLabel` | `string` | `"Approve"` | Visible text of the Approve button. |
+| `DenyLabel` | `string` | `"Deny"` | Visible text of the Deny button. |
+| `Declined` | `bool` | `false` | The call was denied by a human. With `Ai` at `AiState.None`, the status pill reads "Declined" instead of "Idle". |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the component's own. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
-The component takes no `EventCallback`: expanding is internal state, and the
-call's lifecycle belongs to the host.
+Expanding is internal state; the call's lifecycle belongs to the host. The two
+callbacks report a human's decision and change nothing on the card by
+themselves.
 
 ## Acceptance Criteria
 
@@ -91,6 +106,45 @@ call's lifecycle belongs to the host.
 - A change from `AiState.Proposed` straight to `AiState.Generated` plays the shared
   accept wave of `DrylAuraElements` before the completion wash.
 
+### Approval
+
+- The component renders an Approve button when `Ai` is `AiState.Proposed` and
+  `OnApprove` is bound.
+- The component renders a Deny button when `Ai` is `AiState.Proposed` and
+  `OnDeny` is bound.
+- The component renders neither button when `Ai` is not `AiState.Proposed`.
+- The component renders no button whose callback is unbound, so `AiState.Proposed`
+  without callbacks stays the resting look alone.
+- The buttons sit outside the collapsible body and are visible while the body is
+  collapsed.
+- Activating the Approve button fires `OnApprove` once.
+- Activating the Deny button fires `OnDeny` once.
+- Activating either button does not toggle the body.
+- Once a decision was sent, activating either button again while they fade out
+  sends nothing further, so a proposal receives exactly one decision.
+- The body is revealed when `Ai` transitions into `AiState.Proposed` while
+  `OnApprove` or `OnDeny` is bound, so the arguments of a call awaiting a
+  decision are on screen.
+- That reveal happens once per transition: the user may collapse the body again
+  while `Ai` stays `AiState.Proposed`.
+- `AiState.Proposed` without a bound callback does not reveal the body.
+- The Approve button reads `ApproveLabel`.
+- The Deny button reads `DenyLabel`.
+- `ApproveLabel` defaults to "Approve".
+- `DenyLabel` defaults to "Deny".
+- The Approve button is a `DrylButton` of `ButtonVariant.Primary` in
+  `ButtonSize.Small`.
+- The Deny button is a `DrylButton` of `ButtonVariant.Ghost` in
+  `ButtonSize.Small`.
+- The status pill reads "Declined" when `Declined` is `true` and `Ai` is
+  `AiState.None`.
+- `Declined` does not change the status pill while `Ai` is anything other than
+  `AiState.None`.
+- The root carries `tool-call--declined` while `Declined` is `true` and `Ai` is
+  `AiState.None`.
+- A declined card renders its tool name in `--fg-muted`.
+- A declined card renders no danger alert unless `Error` is non-empty.
+
 ### Disclosure
 
 - The body starts collapsed when `DefaultExpanded` is `false`.
@@ -113,6 +167,9 @@ call's lifecycle belongs to the host.
   `DrylToolCallGroup` and `DrylExpansion` already do.
 - The chevron rotates over `--dur-med` with `--ease-in-out` rather than snapping.
 - Both transitions are disabled under `prefers-reduced-motion: reduce`.
+- The approval buttons enter and leave through `DrylPresence` with
+  `PresenceTransition.Fade`, so they fade out when the host resolves the
+  proposal rather than vanishing (`DESIGN-12`).
 - The sections inside the body carry no transition of their own: they sit inside
   the animated disclosure, and a result arriving should not animate a second
   time under the first.
@@ -134,6 +191,14 @@ call's lifecycle belongs to the host.
   its code blocks; focusable content inside an `aria-hidden` subtree is a
   contradiction assistive tech cannot resolve (`UX-07`).
 - The head row shows a focus ring in `--accent-line` on `:focus-visible`.
+- The approval buttons follow the head row in the tab order.
+- The Approve button's accessible name is `ApproveLabel` followed by `ToolName`,
+  so a screen of pending calls does not read as a list of identical buttons.
+- The Deny button's accessible name is `DenyLabel` followed by `ToolName`.
+- After either approval button is activated, focus moves to the head row, so
+  focus is not lost when the buttons leave.
+- Moving focus is best effort: when the host removed the card in its callback,
+  or the connection is gone, the click completes without an error.
 
 ### Appearance
 
@@ -154,7 +219,8 @@ call's lifecycle belongs to the host.
   `node scripts/check-light-sync.mjs` and
   `node scripts/validate-light-contrast.mjs`; the component defines no
   mode-specific rule.
-- **Enter/exit animation** — the disclosure body and the chevron, above. Added
+- **Enter/exit animation** — the disclosure body, the chevron and the approval
+  buttons' `DrylPresence`, above. Added
   2026-08-11: the body previously sat behind a bare `@if` and had none, which
   `DESIGN-12` does not allow. The `DESIGN-12` note under "Motion" states how the
   rule is met.
@@ -162,7 +228,7 @@ call's lifecycle belongs to the host.
 - **AI mode** — yes, and it is an opt-in: the parameter is a switch on a card
   that would otherwise render as an ordinary one, so `AI-03` requires it to be
   called `Ai`.
-- **Demo page** — `DRYL.Website/Components/Examples/ToolCall/States.razor` and
-  `.../ToolCall/AgentTrace.razor`.
+- **Demo page** — `DRYL.Website/Components/Examples/ToolCall/States.razor`,
+  `.../ToolCall/AgentTrace.razor` and `.../ToolCall/Approval.razor`.
 - **`ComponentCatalog`** — registered as `"Tool Call"` / `tool-call` in
   `DRYL.Website/Components/ComponentCatalog.cs`.
