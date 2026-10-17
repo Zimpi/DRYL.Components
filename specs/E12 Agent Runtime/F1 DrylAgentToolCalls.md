@@ -1,7 +1,7 @@
 # DrylAgentToolCalls
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components.Agents/Agents/DrylAgentToolCalls.razor
               code/DRYL.Components.Agents/Agents/DrylToolInvocation.cs
 

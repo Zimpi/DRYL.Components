@@ -41,7 +41,7 @@ run (`CLAUDE.md` stage 5). Changelog complete, specs `Implemented`.
 
 ## Progress
 
-- [ ] T1 · [ ] T2 · [ ] T3 · [ ] T4 · [ ] T5 · [ ] T6
+- [x] T1 · [x] T2 · [x] T3 · [x] T4 · [ ] T5 · [ ] T6
 
 ## Decisions taken during implementation
 

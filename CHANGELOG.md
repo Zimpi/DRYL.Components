@@ -23,6 +23,7 @@ Version bump guide:
 - `DrylRunBase` (Agents 0.22.0) — New `PendingApprovals`, `Approve(callId)` and `Deny(callId)`; both methods return `false` for an id that is not pending. A denied call reaches the model as the framework's failed function result.
 - `DrylToolInvocation` (Agents 0.22.0) — New `Approval` of the new enum `DrylToolApproval` (`None`, `Pending`, `Approved`, `Declined`). `State` maps a pending call to `AiState.Proposed`, an approved one straight to `AiState.Generated` (so its card plays the accept wave, and stays there while the tool runs) and a declined one to `AiState.None`.
 - `DrylAgentRunner.Replay` (Agents 0.22.0) — New overload with a `resume` function that receives the approval responses and returns the continuation, for replays, demos and tests that include approvals.
+- `DrylAgentToolCalls` (Agents 0.22.0) — Wires approval in: a pending call's card shows Approve / Deny bound to the run, the group reads "N awaiting approval", opens by itself and offers "Approve all" / "Deny all" from two pending calls on, and a declined card reads "Declined". The group is at `AiState.Proposed` while calls wait and nothing runs. `ActiveOnly` now also shows calls awaiting approval. New `ApproveLabel`, `DenyLabel`, `ApproveAllLabel` and `DenyAllLabel` localise the buttons.
 
 ## [3.7.0] — 2026-10-17
 
