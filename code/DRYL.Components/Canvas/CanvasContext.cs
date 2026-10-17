@@ -44,6 +44,9 @@ public sealed class CanvasContext
     /// that have not finished streaming.</summary>
     public AiState State { get; internal set; }
 
+    /// <summary>The fixed words of the canvas's chrome, from <c>DrylCanvas.Texts</c>.</summary>
+    public CanvasTexts Texts { get; internal set; } = CanvasTexts.Default;
+
     /// <summary>Raised when the user triggers a button intent inside the artifact.</summary>
     public EventCallback<CanvasInteraction> Intent { get; internal set; }
 

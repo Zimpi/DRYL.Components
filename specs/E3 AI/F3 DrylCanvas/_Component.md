@@ -48,6 +48,7 @@ files carry a `State` and no `Source`.
 | `EmptyTitle` | `string` | `"No artifact yet"` | Headline of the empty state. |
 | `FallbackTitle` | `string` | `"Artifact"` | Header title while the artifact has none of its own. |
 | `ErrorTitle` | `string` | `"Artifact failed"` | Title of the alert that replaces the tree when `Error` is set. |
+| `Texts` | `CanvasTexts` | `CanvasTexts.Default` | The fixed words of the canvas's own chrome — header buttons, node toolbar, node hints, announcements, edit labels. English by default. |
 | `Epoch` | `int` | `0` | Bump to reset interactive form state when a fresh artifact recycles field names. |
 | `Pulse` | `CanvasPulseTracker?` | `null` | The change-pulse stamps to render. Without one the canvas owns its own. |
 | `Selection` | `CanvasSelection?` | `null` | Opt-in for direct manipulation. Without it nothing about the canvas changes. |
@@ -61,6 +62,13 @@ files carry a `State` and no `Source`.
 | `OnWidthChanged` | `Action<int>?` | `null` | The measured usable body width in CSS px, past a deadband. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the root. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root. |
+
+`CanvasTexts` is a `sealed record` in `DRYL.Components.Canvas`: plain `string` members for
+fixed words and `Func<…, string>` members for texts with a placeholder (an element's
+label, a type, a position). A host translates with
+`CanvasTexts.Default with { Expand = "Vergrößern" }` and passes it once; the canvas
+hands it to its node views through `CanvasContext.Texts`. The artifact's own content
+(titles, labels, values) is authored by the spec and is not covered.
 
 `Context` (`CanvasContext`) is exposed as a public property so a wrapper such as
 `DrylAiCanvas` can read the live field values.

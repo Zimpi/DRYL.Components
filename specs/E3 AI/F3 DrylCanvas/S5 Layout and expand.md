@@ -19,7 +19,9 @@ budget for.
 - <kbd>Escape</kbd> does nothing while the canvas is inline, so it never
   swallows the key from a surrounding dialog or palette.
 - The expand button reflects the current state through `aria-pressed`, and its
-  label reads "Expand artifact" or "Exit fullscreen" accordingly.
+  label reads "Expand artifact" or "Exit fullscreen" accordingly — the
+  defaults of `Texts.Expand` and `Texts.ExitFullscreen`, which also feed its
+  tooltip.
 - `AllowExpand="false"` is the setting for a canvas embedded in a surface that
   owns its own layering — a dialog, a fixed side panel.
 

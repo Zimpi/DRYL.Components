@@ -99,6 +99,21 @@ direct manipulation of the artifact's own elements.
 - Pin, duplicate and remove each announce what happened to which element.
 - A reorder announces the node's new position as "position n of m".
 
+### Texts
+
+- Every fixed word of the interaction chrome comes from `Texts` (`CanvasTexts`):
+  the toolbar's labels and tooltips (`Prompt`, `Pin` / `Unpin`, `Duplicate`,
+  `Remove`, `Reorder`), the pinned state in an element's accessible name
+  (`PinnedState`), the announcements (`Selected`, `SelectionCleared`, `Pinned`,
+  `Unpinned`, `Duplicated`, `Removed`, `MovedTo`) and the `CanvasEdit` labels
+  (`PinEdit`, `DuplicateEdit`, `RemoveEdit`, `MoveEdit`). The form's
+  required-field hint (`Required`) and a `dataGrid` table's accessible name
+  (`DataGrid`) come from it as well.
+- Without `Texts` every one of them reads as before, in English — the quoted
+  wording above is `CanvasTexts.Default`.
+- A replaced text lands everywhere its default did: the tooltip, the
+  `aria-label` and the `aria-live` region alike.
+
 ## I13 gesture regression evidence
 
 - `tests/js/gestures.test.mjs` executes the real exports from

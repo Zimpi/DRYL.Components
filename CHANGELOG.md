@@ -14,6 +14,12 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.9.0] — 2026-10-17
+
+### Added
+- `DrylCanvas` — New `Texts` of the new record `CanvasTexts` translates the canvas's own chrome in one place: the expand and refresh buttons, the node toolbar (prompt, pin / unpin, duplicate, remove, reorder), the pinned state in an element's accessible name, the "waiting for …" caption, the "Required" hint, the "Not up to date" marker, the row-limit note, the data grid's accessible name, every selection and command announcement in the `aria-live` region, and the `CanvasEdit.Label` of a direct manipulation. Every member defaults to the English text the canvas used before, so nothing changes until you pass one; replace only what you translate with `CanvasTexts.Default with { Expand = "Vergrößern" }`. Texts with a placeholder (an element's label, a node type, a position) are `Func<…, string>`. The artifact's own content is authored by the spec and is not covered.
+- `DrylAiCanvas` (Agents 0.23.0) — New `Texts`, forwarded to the inner `DrylCanvas`.
+
 ## [3.8.0] — 2026-10-17
 
 ### Added
