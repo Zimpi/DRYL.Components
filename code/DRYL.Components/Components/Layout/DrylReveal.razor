@@ -7,9 +7,12 @@
 
     An IntersectionObserver (via dryl.motion) adds the revealed state
     the first time the wrapper enters the viewport; direct children
-    tween in, optionally staggered. Use it on content-heavy or
-    marketing surfaces for a motion.dev-style scroll entrance
-    (rule 2.12).
+    tween in, optionally staggered. A wrapper taller than the viewport
+    counts as in view once it fills Threshold of the viewport. With
+    Stagger every direct child is watched on its own, so a long list
+    lands row by row as it scrolls in — children added later included.
+    Use it on content-heavy or marketing surfaces for a motion.dev-style
+    scroll entrance (rule 2.12).
 
     Usage:
       <DrylReveal Transition="RevealTransition.Rise" Stagger>
@@ -39,7 +42,11 @@
     /// <summary>If true (default), reveal happens once; if false, content re-hides when scrolled away.</summary>
     [Parameter] public bool Once { get; set; } = true;
 
-    /// <summary>Fraction of the element that must be visible to trigger the reveal (0–1).</summary>
+    /// <summary>
+    /// Fraction of the element that must be visible to trigger the reveal (0–1) — or of the
+    /// viewport it must fill, for an element too tall to ever show that much of itself.
+    /// With <see cref="Stagger"/> it applies to each child.
+    /// </summary>
     [Parameter] public double Threshold { get; set; } = 0.15;
 
     /// <summary>Extra CSS class(es) merged onto the wrapper element.</summary>

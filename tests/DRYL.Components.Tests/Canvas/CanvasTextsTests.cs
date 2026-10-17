@@ -421,7 +421,7 @@ public class CanvasTextsTests : BunitContext
         cut.WaitForAssertion(() => Assert.Equal("Wiederholt: Fassung 2", cut.Find(".ws-live").TextContent.Trim()));
 
         cut.Find(".ws-tools button[aria-label='Version history']").Click();
-        cut.FindAll(".ws-version")[^1].Click();   // the oldest version
+        cut.WaitForElements(".ws-version")[^1].Click();   // the oldest version — the list renders after the toggle
         cut.WaitForAssertion(() => Assert.Equal("Fassung 1 von 2 wiederhergestellt", cut.Find(".ws-live").TextContent.Trim()));
     }
 }

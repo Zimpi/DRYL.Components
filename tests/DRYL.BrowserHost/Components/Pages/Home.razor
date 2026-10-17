@@ -134,6 +134,20 @@
         }
     </section>
     <LiveVoiceFixture />
+
+    <section id="reveal-scene" class="fixture-scene">
+        <h2>Reveal</h2>
+        <DrylReveal id="reveal-tall" Transition="RevealTransition.Rise">
+            <div class="fixture-reveal-tall">Taller than the viewport</div>
+        </DrylReveal>
+        <DrylReveal id="reveal-list" Transition="RevealTransition.Rise" Stagger Class="fixture-reveal-list">
+            @for (var i = 0; i < _revealTiles; i++)
+            {
+                <div class="fixture-reveal-tile" data-tile="@i">Tile @i</div>
+            }
+        </DrylReveal>
+        <button id="reveal-add" type="button" @onclick="() => _revealTiles++">Add tile</button>
+    </section>
 </main>
 
 @code {
@@ -152,6 +166,7 @@
     private int _presenceExits;
     private int _canvasEdits;
     private int _voiceChanges;
+    private int _revealTiles = 40;
     private AiState _auraState = AiState.Active;
     private string? _activeStep = "first";
     private string _name = "";

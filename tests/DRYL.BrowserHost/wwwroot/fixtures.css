@@ -21,3 +21,6 @@ body { margin: 0; background: var(--bg-0); color: var(--fg); font-family: var(--
 .fixture-surface-panel-float { background: var(--panel-float); backdrop-filter: var(--glass-fx-float); }
 #focus-scene .field { margin-block: var(--sp-4); }
 #canvas-scene .canvas-node[data-cid] { min-height: 4rem; }
+.fixture-reveal-tall { block-size: 900vh; }
+.fixture-reveal-list { display: grid; gap: var(--sp-4); }
+.fixture-reveal-tile { block-size: 30vh; }

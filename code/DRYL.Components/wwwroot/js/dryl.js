@@ -1905,16 +1905,29 @@ window.dryl.motion = (() => {
         if (s) { s.ro.disconnect(); _ind.delete(container); }
     }
 
-    /* ---- Reveal ---------------------------------------------------- */
+    /* ---- Reveal -----------------------------------------------------
+     * A target counts as in view once `threshold` of it is visible OR it
+     * fills `threshold` of the viewport. The ratio alone never fires on a
+     * target taller than viewport / threshold — a long grid on a phone
+     * stayed invisible however far you scrolled. Two observers carry the
+     * two halves: one on the ratio, one on a root shrunk by `threshold`
+     * from the bottom (any overlap there = the target reaches that far up).
+     *
+     * Stagger observes each direct child on its own, so a long list lands
+     * row by row as it scrolls in, and the delay counts within the batch
+     * that arrives together (capped), not from the top of the list. Shown
+     * children carry [data-revealed] — an attribute Blazor does not own,
+     * unlike `class`. Children added later are picked up by a
+     * MutationObserver and come in the same way.
+     * ---------------------------------------------------------------- */
+    const REVEAL_STAGGER_CAP = 10; // a full screen of tiles still settles quickly
+
     function observe(el, dotnetRef, opts) {
-        if (!el || _reveal.has(el)) return;
+        if (!el || el.nodeType !== 1 || _reveal.has(el)) return;
         opts = opts || {};
         const once      = opts.once !== false;
-        const threshold = typeof opts.threshold === 'number' ? opts.threshold : 0.15;
-
-        if (opts.stagger) {
-            Array.from(el.children).forEach((c, i) => c.style.setProperty('--reveal-i', i));
-        }
+        const stagger   = !!opts.stagger;
+        const threshold = Math.min(1, Math.max(0, typeof opts.threshold === 'number' ? opts.threshold : 0.15));
 
         // No observer support or reduced motion → show immediately, no animation.
         if (reduced() || !('IntersectionObserver' in window)) {
@@ -1922,23 +1935,75 @@ window.dryl.motion = (() => {
             return;
         }
 
-        const io = new IntersectionObserver((entries) => {
+        const seen    = new WeakMap(); // target -> { ratio, reach }
+        const pending = new Set();
+        const state   = { observers: [], mo: null, frame: 0 };
+
+        const show = (target, on) => {
+            if (!stagger) { target.classList.toggle('is-revealed', on); return; }
+            if (on) target.setAttribute('data-revealed', '');
+            else    target.removeAttribute('data-revealed');
+        };
+
+        // Batch what arrives in one frame so it staggers in document order.
+        const flush = () => {
+            state.frame = 0;
+            const batch = Array.from(pending).sort((a, b) =>
+                a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+            pending.clear();
+            batch.forEach((target, i) => {
+                if (stagger) target.style.setProperty('--reveal-i', Math.min(i, REVEAL_STAGGER_CAP));
+                show(target, true);
+            });
+        };
+
+        const update = (key) => (entries) => {
             entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('is-revealed');
-                    if (once) io.unobserve(entry.target);
+                const target = entry.target;
+                const s = seen.get(target) || { ratio: false, reach: false };
+                s[key] = key === 'ratio'
+                    ? entry.isIntersecting && entry.intersectionRatio >= threshold
+                    : entry.isIntersecting;
+                seen.set(target, s);
+
+                if (s.ratio || s.reach) {
+                    if (once) state.observers.forEach((io) => io.unobserve(target));
+                    pending.add(target);
+                    if (!state.frame) state.frame = requestAnimationFrame(flush);
                 } else if (!once) {
-                    entry.target.classList.remove('is-revealed');
+                    pending.delete(target);
+                    show(target, false);
                 }
             });
-        }, { threshold });
-        io.observe(el);
-        _reveal.set(el, { io });
+        };
+
+        state.observers = [
+            new IntersectionObserver(update('ratio'), { threshold: [0, threshold] }),
+            new IntersectionObserver(update('reach'), { rootMargin: `0px 0px -${threshold * 100}% 0px` })
+        ];
+        const watch   = (target) => state.observers.forEach((io) => io.observe(target));
+        const unwatch = (target) => { state.observers.forEach((io) => io.unobserve(target)); pending.delete(target); };
+
+        if (stagger) {
+            Array.from(el.children).forEach(watch);
+            state.mo = new MutationObserver((muts) => muts.forEach((m) => {
+                m.addedNodes.forEach((n) => { if (n.nodeType === 1 && n.parentNode === el) watch(n); });
+                m.removedNodes.forEach((n) => { if (n.nodeType === 1) unwatch(n); });
+            }));
+            state.mo.observe(el, { childList: true });
+        } else {
+            watch(el);
+        }
+        _reveal.set(el, state);
     }
 
     function unobserve(el) {
         const s = _reveal.get(el);
-        if (s) { s.io.disconnect(); _reveal.delete(el); }
+        if (!s) return;
+        s.observers.forEach((io) => io.disconnect());
+        s.mo?.disconnect();
+        cancelAnimationFrame(s.frame);
+        _reveal.delete(el);
     }
 
     /* ---- FLIP glide -------------------------------------------------
