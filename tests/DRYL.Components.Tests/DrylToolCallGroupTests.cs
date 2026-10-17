@@ -256,4 +256,31 @@ public class DrylToolCallGroupTests : BunitContext
         cut.Render(ps => ps.Add(p => p.Count, 2).Add(p => p.PendingCount, 1).Add(p => p.Ai, AiState.Proposed));
         Assert.DoesNotContain("is-open", cut.Find(".tool-group").GetAttribute("class"));
     }
+
+    [Fact]
+    public void Re_entering_proposed_opens_the_group_again()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var cut = Render<DrylToolCallGroup>(ps => ps.Add(p => p.Count, 2).Add(p => p.PendingCount, 2).Add(p => p.Ai, AiState.Proposed));
+        cut.Find("button.tool-group-head").Click();   // closed by the user
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Thinking).Add(p => p.PendingCount, 0));
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Proposed).Add(p => p.PendingCount, 1));
+
+        Assert.Contains("is-open", cut.Find(".tool-group").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void A_second_bulk_click_while_the_buttons_fade_sends_no_second_decision()
+    {
+        var decisions = 0;
+        var cut = RenderPending(2, onApproveAll: () => decisions++, onDenyAll: () => decisions++);
+        Bulk(cut, "Approve all")!.Click();
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Thinking).Add(p => p.PendingCount, 0));
+        Assert.NotEmpty(cut.FindAll(".tool-group-actions button"));   // still mounted, fading
+        foreach (var b in cut.FindAll(".tool-group-actions button")) b.Click();
+
+        Assert.Equal(1, decisions);
+    }
 }

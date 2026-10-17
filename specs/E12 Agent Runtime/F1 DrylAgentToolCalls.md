@@ -138,8 +138,12 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
   with `Approval` `DrylToolApproval.Pending`.
 - That tool call carries the `CallId`, the tool name and the arguments of the
   request's wrapped function call.
-- A function call that arrives for a call id already in the trace updates that
-  call instead of adding a second one.
+- A request whose wrapped call is not a function call (a hosted or MCP call)
+  names its tool call "tool".
+- A function call that arrives for the call id of a call that awaited approval
+  updates that call instead of adding a second one.
+- A function call that reuses the call id of a call that needed no approval
+  adds a call of its own, as before.
 - The run's `State` is `AiState.Proposed` once the agent's response has ended
   with at least one pending call.
 - The run does not reach `AiState.Generated` while a call is pending.
@@ -194,6 +198,10 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
 - Cancelling the run's token while calls are pending settles the run at
   `AiState.None` without an `Error`.
 - Disposing the run while calls are pending ends the wait.
+- An approved call whose result never arrived because the run was cancelled
+  gains an `Error`, so it does not stay at `AiState.Generated`.
+- An approved call whose result never arrived because the run failed gains an
+  `Error`, so it does not stay at `AiState.Generated`.
 - `Replay` without a `resume` function leaves approval requests unanswered and
   creates no pending call, as before.
 

@@ -121,6 +121,8 @@ itself — it raises the callback and the host resolves the calls.
 - Activating the Approve all button fires `OnApproveAll` once.
 - Activating the Deny all button fires `OnDenyAll` once.
 - Activating either bulk button does not toggle the body.
+- Once a bulk decision was sent, activating either bulk button again while they
+  fade out sends nothing further.
 - The Approve all button reads `ApproveAllLabel`, defaulting to "Approve all".
 - The Deny all button reads `DenyAllLabel`, defaulting to "Deny all".
 - The Approve all button is a `DrylButton` of `ButtonVariant.Primary` in
@@ -177,6 +179,8 @@ itself — it raises the callback and the host resolves the calls.
 - The bulk buttons follow the head row in the tab order.
 - After either bulk button is activated, focus moves to the head row, so focus
   is not lost when the buttons leave.
+- Moving focus is best effort: when the host removed the group in its callback,
+  or the connection is gone, the click completes without an error.
 
 ### Appearance
 

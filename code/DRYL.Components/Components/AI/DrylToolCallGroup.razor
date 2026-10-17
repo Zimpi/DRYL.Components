@@ -152,6 +152,8 @@
 
     private readonly string _bodyId = $"dryl-tool-group-{Guid.NewGuid():N}";
     private ElementReference _head;
+    private bool _deciding;
+    private bool _disposed;
     private bool _expanded;
     private bool _initialised;
     private bool _prevHasError;
@@ -182,7 +184,11 @@
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
 
-    public void Dispose() => _aura.Dispose();
+    public void Dispose()
+    {
+        _disposed = true;
+        _aura.Dispose();
+    }
 
     private void Toggle() => _expanded = !_expanded;
 
@@ -195,11 +201,21 @@
 
     private Task DenyAllAsync() => DecideAsync(OnDenyAll);
 
-    // The buttons leave once the calls are resolved; keep focus on the group.
+    // One bulk decision at a time: the buttons stay mounted while they fade out.
     private async Task DecideAsync(EventCallback callback)
     {
-        await callback.InvokeAsync();
-        await _head.FocusAsync();
+        if (_deciding || !ShowBulk) return;
+        _deciding = true;
+        try { await callback.InvokeAsync(); }
+        finally { _deciding = false; }
+
+        // The buttons leave once the calls are resolved; keep focus on the group. Best effort —
+        // the host may have removed the group, or the circuit may be gone.
+        if (_disposed) return;
+        try { await _head.FocusAsync(); }
+        catch (JSException) { }
+        catch (JSDisconnectedException) { }
+        catch (InvalidOperationException) { }
     }
 
     // Ticker while a call runs; the settled count otherwise (singular/plural).

@@ -120,6 +120,14 @@ themselves.
 - Activating the Approve button fires `OnApprove` once.
 - Activating the Deny button fires `OnDeny` once.
 - Activating either button does not toggle the body.
+- Once a decision was sent, activating either button again while they fade out
+  sends nothing further, so a proposal receives exactly one decision.
+- The body is revealed when `Ai` transitions into `AiState.Proposed` while
+  `OnApprove` or `OnDeny` is bound, so the arguments of a call awaiting a
+  decision are on screen.
+- That reveal happens once per transition: the user may collapse the body again
+  while `Ai` stays `AiState.Proposed`.
+- `AiState.Proposed` without a bound callback does not reveal the body.
 - The Approve button reads `ApproveLabel`.
 - The Deny button reads `DenyLabel`.
 - `ApproveLabel` defaults to "Approve".
@@ -189,6 +197,8 @@ themselves.
 - The Deny button's accessible name is `DenyLabel` followed by `ToolName`.
 - After either approval button is activated, focus moves to the head row, so
   focus is not lost when the buttons leave.
+- Moving focus is best effort: when the host removed the card in its callback,
+  or the connection is gone, the click completes without an error.
 
 ### Appearance
 

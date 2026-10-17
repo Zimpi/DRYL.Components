@@ -179,6 +179,7 @@ public class DrylToolCallTests : BunitContext
     public void Buttons_sit_outside_the_collapsed_body()
     {
         var cut = RenderPending(() => { }, () => { });
+        cut.Find("button.tool-call-head").Click();   // collapse the auto-opened body
 
         Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
         Assert.Empty(cut.Find(".tool-call-body").QuerySelectorAll(".tool-call-actions"));
@@ -190,11 +191,12 @@ public class DrylToolCallTests : BunitContext
     {
         var approved = 0;
         var cut = RenderPending(() => approved++, () => { });
+        var open = cut.Find(".tool-call").GetAttribute("class")!.Contains("is-open");
 
         Button(cut, "Approve")!.Click();
 
         Assert.Equal(1, approved);
-        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+        Assert.Equal(open, cut.Find(".tool-call").GetAttribute("class")!.Contains("is-open"));
     }
 
     [Fact]
@@ -202,11 +204,12 @@ public class DrylToolCallTests : BunitContext
     {
         var denied = 0;
         var cut = RenderPending(() => { }, () => denied++);
+        var open = cut.Find(".tool-call").GetAttribute("class")!.Contains("is-open");
 
         Button(cut, "Deny")!.Click();
 
         Assert.Equal(1, denied);
-        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+        Assert.Equal(open, cut.Find(".tool-call").GetAttribute("class")!.Contains("is-open"));
     }
 
     [Fact]
@@ -298,5 +301,57 @@ public class DrylToolCallTests : BunitContext
 
         Assert.Contains("Running", cut.Find(".tool-call-status").TextContent);
         Assert.DoesNotContain("tool-call--declined", cut.Find(".tool-call").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void A_pending_call_with_a_decision_opens_its_arguments_once()
+    {
+        var cut = RenderPending(() => { }, () => { });
+        Assert.Contains("is-open", cut.Find(".tool-call").GetAttribute("class"));
+
+        // The user closes it; staying in Proposed must not force it open again.
+        cut.Find("button.tool-call-head").Click();
+        cut.Render(ps => ps.Add(p => p.ToolName, "delete_customer"));
+        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void Proposed_without_callbacks_does_not_open_the_body()
+    {
+        var cut = RenderPending();
+
+        Assert.DoesNotContain("is-open", cut.Find(".tool-call").GetAttribute("class"));
+    }
+
+    [Fact]
+    public void A_second_click_while_the_buttons_fade_sends_no_second_decision()
+    {
+        var decisions = 0;
+        var cut = RenderPending(() => decisions++, () => decisions++);
+        Button(cut, "Approve")!.Click();
+
+        // The host accepted; the pair stays mounted while DrylPresence fades it out.
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+        Assert.NotEmpty(cut.FindAll(".tool-call-actions button"));   // still mounted, fading
+        foreach (var b in cut.FindAll(".tool-call-actions button")) b.Click();
+
+        Assert.Equal(1, decisions);
+    }
+
+    [Fact]
+    public void A_failing_focus_does_not_escape_the_click_handler()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        JSInterop.SetupVoid("Blazor._internal.domWrapper.focus", _ => true)
+            .SetException(new Microsoft.JSInterop.JSException("Unable to focus an invalid element."));
+        var approved = 0;
+        var cut = Render<DrylToolCall>(ps => ps
+            .Add(p => p.ToolName, "delete_customer")
+            .Add(p => p.Ai, AiState.Proposed)
+            .Add(p => p.OnApprove, () => approved++));
+
+        Button(cut, "Approve")!.Click();
+
+        Assert.Equal(1, approved);
     }
 }

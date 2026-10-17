@@ -41,7 +41,7 @@ run (`CLAUDE.md` stage 5). Changelog complete, specs `Implemented`.
 
 ## Progress
 
-- [x] T1 · [x] T2 · [x] T3 · [x] T4 · [ ] T5 · [ ] T6
+- [x] T1 · [x] T2 · [x] T3 · [x] T4 · [x] T5 · [x] T6
 
 ## Decisions taken during implementation
 
@@ -50,3 +50,12 @@ run (`CLAUDE.md` stage 5). Changelog complete, specs `Implemented`.
   not read it, so a future removal cannot break consumers at run time. Consequence:
   an informational-only request (rare, some hosted tools) also shows as pending and
   is answered like any other. The spec criterion about it was dropped.
+- 2026-10-17, T6 review: five should-fix findings taken — focus after a decision is
+  best effort (no circuit crash when the host removes the card), one decision per
+  proposal while the pair fades out, a pending card opens its arguments once, a lock
+  around the decision hand-off, and an approved call that never ran gains an `Error`.
+  Nits taken: dedupe only for approval calls, "tool" as the name of a non-function
+  call. Kept as decided, for the Product Owner: an approved call reads "Done" from
+  the moment it is accepted (the accept wave needs Proposed → Generated directly).
+  Follow-up outside I21: `DrylAiStream` reads `Streaming` while a run's text stream
+  is open but idle — documented in the changelog, the demo binds around it.

@@ -131,7 +131,7 @@ public class DrylAgentRunnerApprovalTests
             Updates(new[] { Content(Ask("c1")) }), Continuation, aiKey: "admin");
         await Until(() => run.State == AiState.Proposed);
 
-        Assert.Equal(AiState.None, activity.GetState("admin"));
+        await Until(() => activity.GetState("admin") == AiState.None);
 
         run.Approve("c1");
         await Until(() => activity.GetState("admin") == AiState.Thinking);
@@ -377,5 +377,70 @@ public class DrylAgentRunnerApprovalTests
         Assert.Equal(DrylToolApproval.Declined, call.Approval);
         Assert.Null(call.Error);
         Assert.Equal(AiState.None, call.State);
+    }
+
+    private static async IAsyncEnumerable<AgentResponseUpdate> Failing(
+        IReadOnlyList<ToolApprovalResponseContent> responses, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await Task.Yield();
+        if (responses.Count >= 0) throw new InvalidOperationException("provider down");
+        yield break;
+    }
+
+    [Fact]
+    public async Task An_approved_call_whose_continuation_fails_does_not_stay_done()
+    {
+        var run = new DrylAgentRunner().Replay(Updates(new[] { Content(Ask("c1")) }), Failing);
+        await Until(() => run.State == AiState.Proposed);
+
+        run.Approve("c1");
+        await run.WaitForCompletionAsync();
+
+        var call = Assert.Single(run.ToolCalls);
+        Assert.NotNull(call.Error);
+        Assert.Equal(AiState.None, call.State);
+        Assert.NotNull(run.Error);
+    }
+
+    [Fact]
+    public async Task Reused_call_ids_outside_approval_still_get_their_own_cards()
+    {
+        var run = new DrylAgentRunner().Replay(Updates(new[]
+        {
+            Content(new FunctionCallContent("call_0", "search")),
+            Content(new FunctionResultContent("call_0", "first")),
+            Content(new FunctionCallContent("call_0", "search")),
+            Content(new FunctionResultContent("call_0", "second")),
+        }));
+
+        await run.WaitForCompletionAsync();
+
+        Assert.Equal(2, run.ToolCalls.Count);
+    }
+
+    [Fact]
+    public async Task A_request_without_a_function_name_still_names_its_card()
+    {
+        var run = new DrylAgentRunner().Replay(
+            Updates(new[] { Content(new ToolApprovalRequestContent("r1", new ToolCallContent("c9"))) }),
+            new Resume().Invoke);
+
+        await Until(() => run.State == AiState.Proposed);
+
+        Assert.Equal("tool", Assert.Single(run.ToolCalls).ToolName);
+    }
+
+    [Fact]
+    public async Task Arguments_keep_non_ascii_readable()
+    {
+        var run = new DrylAgentRunner().Replay(Updates(new[]
+        {
+            Content(new FunctionCallContent("c1", "delete_customer",
+                new Dictionary<string, object?> { ["name"] = "Müller — Köln" })),
+        }));
+
+        await run.WaitForCompletionAsync();
+
+        Assert.Contains("Müller — Köln", run.ToolCalls[0].Arguments);
     }
 }

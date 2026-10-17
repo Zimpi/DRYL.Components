@@ -171,6 +171,8 @@
 
     private readonly string _bodyId = $"dryl-tool-{Guid.NewGuid():N}";
     private ElementReference _head;
+    private bool _deciding;
+    private bool _disposed;
     private bool _expanded;
     private bool _initialised;
     private AiState _prevState = AiState.None;
@@ -184,12 +186,20 @@
             _expanded = DefaultExpanded;
             _initialised = true;
         }
+        // A call waiting for a decision shows what it would do: reveal the arguments once per
+        // entry into Proposed (when there is something to decide); the user may close it again.
+        if (ShowActions && _prevState != AiState.Proposed) _expanded = true;
+
         if (Ai == AiState.Generated && _prevState != AiState.Generated) _genTick++;
         _prevState = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
     }
 
-    public void Dispose() => _aura.Dispose();
+    public void Dispose()
+    {
+        _disposed = true;
+        _aura.Dispose();
+    }
 
     private void Toggle() => _expanded = !_expanded;
 
@@ -202,12 +212,27 @@
 
     private Task DenyAsync() => DecideAsync(OnDeny);
 
-    // The buttons leave once the host resolves the proposal; hand focus to the head row
-    // first, so a keyboard user is not dropped onto the body.
+    // One decision per proposal: the buttons stay mounted while they fade out, so a second
+    // click (or a click while an async host is still saving) must not send a second one.
     private async Task DecideAsync(EventCallback callback)
     {
-        await callback.InvokeAsync();
-        await _head.FocusAsync();
+        if (_deciding || !ShowActions) return;
+        _deciding = true;
+        try { await callback.InvokeAsync(); }
+        finally { _deciding = false; }
+        await FocusHeadAsync();
+    }
+
+    // The buttons leave once the host resolves the proposal; hand focus to the head row so a
+    // keyboard user is not dropped onto the body. Best effort: the host may have removed the
+    // card in its callback, or the circuit may be gone — neither may crash the circuit.
+    private async Task FocusHeadAsync()
+    {
+        if (_disposed) return;
+        try { await _head.FocusAsync(); }
+        catch (JSException) { }
+        catch (JSDisconnectedException) { }
+        catch (InvalidOperationException) { }
     }
 
     private string StatusLabel => Ai switch
