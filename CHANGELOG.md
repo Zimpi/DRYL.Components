@@ -26,7 +26,7 @@ Version bump guide:
 - `DrylAgentToolCalls` (Agents 0.22.0) — Wires approval in: a pending call's card shows Approve / Deny bound to the run, the group reads "N awaiting approval", opens by itself and offers "Approve all" / "Deny all" from two pending calls on, and a declined card reads "Declined". The group is at `AiState.Proposed` while calls wait and nothing runs. `ActiveOnly` now also shows calls awaiting approval. New `ApproveLabel`, `DenyLabel`, `ApproveAllLabel` and `DenyAllLabel` localise the buttons.
 
 ### Fixed
-- `DrylAgentRunner` (Agents 0.22.0) — The JSON shown on tool-call cards keeps non-ASCII characters as written: arguments and results read "Müller" instead of "Müller". Display only; the JSON the runner uses for schemas and structured output is unchanged.
+- `DrylAgentRunner` (Agents 0.22.0) — The JSON shown on tool-call cards keeps non-ASCII characters as written: arguments and results read "Müller" instead of "M\u00fcller". Display only; the JSON the runner uses for schemas and structured output is unchanged.
 
 ## [3.7.0] — 2026-10-17
 
