@@ -2,7 +2,6 @@
   "version": 1,
   "uncovered": [
     "code/DRYL.Components.Agents/Agents/DrylAgentError.razor",
-    "code/DRYL.Components.Agents/Agents/DrylAgentToolCalls.razor",
     "code/DRYL.Components.Agents/Agents/DrylAgentUsage.razor",
     "code/DRYL.Components.Agents/Agents/DrylHandoffTrace.razor",
     "code/DRYL.Components.Agents/CommandPalette/DrylAiCommandPalette.razor",
