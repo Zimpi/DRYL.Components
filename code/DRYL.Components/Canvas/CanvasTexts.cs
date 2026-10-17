@@ -1,9 +1,11 @@
 namespace DRYL.Components.Canvas;
 
 /// <summary>
-/// The fixed words of a canvas's own chrome — header buttons, the node toolbar, node hints and
+/// The fixed words of a canvas's own chrome — header buttons, the node toolbar, node hints, the
+/// workspace's history bar and
 /// the screen-reader announcements — in one place, so a host can translate them in one place.
-/// Hand an instance to <c>DrylCanvas.Texts</c> (or <c>DrylAiCanvas.Texts</c>); every member
+/// Hand an instance to <c>DrylCanvas.Texts</c> (or <c>DrylAiCanvas.Texts</c>,
+/// <c>DrylCanvasWorkspace.Texts</c>); every member
 /// defaults to the English text the canvas has always used, so set only what you replace:
 /// <code>Texts="@(CanvasTexts.Default with { Expand = "Vergrößern", Refresh = "Aktualisieren" })"</code>
 /// The artifact's own content (titles, labels, values) is authored by the spec, not here.
@@ -46,10 +48,21 @@ public sealed record CanvasTexts
 
     // ───── nodes ─────
 
-    /// <summary>Appended to a pinned element's accessible name ("Revenue, lineChart, pinned").</summary>
+    /// <summary>
+    /// The name a human reads for a catalog node type ("lineChart" → "Line chart"; a missing
+    /// type → "Element"). Names an element that carries no text of its own — in its accessible
+    /// name, the selection announcement, the "waiting for …" caption, <see cref="CanvasEdit.Label"/>
+    /// and <see cref="CanvasSelection.Label"/>, which the prompt dock shows and sends to the model.
+    /// Map the types you translate and fall back to the default for the rest:
+    /// <c>t => t == "lineChart" ? "Liniendiagramm" : CanvasTexts.Default.TypeName(t)</c>.
+    /// </summary>
+    public Func<string?, string> TypeName { get; init; } = CanvasLabel.TypeName;
+
+    /// <summary>Appended to a pinned element's accessible name ("Revenue, Line chart, pinned").</summary>
     public string PinnedState { get; init; } = "pinned";
 
-    /// <summary>Caption under a node that has not finished streaming, from its node type.</summary>
+    /// <summary>Caption under a node that has not finished streaming, from its type name
+    /// (<see cref="TypeName"/>).</summary>
     public Func<string, string> WaitingFor { get; init; } = type => $"waiting for {type}…";
 
     /// <summary>Hint on a required form field the user left empty on submit.</summary>
@@ -87,7 +100,8 @@ public sealed record CanvasTexts
 
     // ───── announcements (aria-live) ─────
 
-    /// <summary>Announced when an element is selected, from its label and its node type.</summary>
+    /// <summary>Announced when an element is selected, from its label and its type name
+    /// (<see cref="TypeName"/>).</summary>
     public Func<string, string, string> Selected { get; init; } = (label, type) => $"Selected: {label}, {type}";
 
     /// <summary>Announced when the selection is cleared.</summary>
@@ -123,4 +137,36 @@ public sealed record CanvasTexts
 
     /// <summary><see cref="CanvasEdit.Label"/> of a reorder, from the element's label.</summary>
     public Func<string, string> MoveEdit { get; init; } = label => $"Moved {label}";
+
+    // ───── workspace (DrylCanvasWorkspace) ─────
+
+    /// <summary>Label and tooltip of the workspace's undo button.</summary>
+    public string Undo { get; init; } = "Undo";
+
+    /// <summary>Label and tooltip of the workspace's redo button.</summary>
+    public string Redo { get; init; } = "Redo";
+
+    /// <summary>Label and tooltip of the version history button, and the label of its panel.</summary>
+    public string VersionHistory { get; init; } = "Version history";
+
+    /// <summary>Announced after an undo, from the label of the version that was undone — null
+    /// when it has none.</summary>
+    public Func<string?, string> Undone { get; init; } = label => $"Undone: {label ?? "last change"}";
+
+    /// <summary>Announced after a redo, from the label of the version that was redone — null
+    /// when it has none.</summary>
+    public Func<string?, string> Redone { get; init; } = label => $"Redone: {label ?? "last change"}";
+
+    /// <summary>Announced after a version was restored, from its 1-based number and the number
+    /// of versions.</summary>
+    public Func<int, int, string> Restored { get; init; } =
+        (version, count) => FormattableString.Invariant($"Restored version {version} of {count}");
+
+    /// <summary>Label and tooltip of a view chip's close button, from the view's title.</summary>
+    public Func<string, string> CloseView { get; init; } = title => $"Close {title}";
+
+    /// <summary>Label of a committed version when the host gave no <c>RevisionLabel</c>, from
+    /// the revision number.</summary>
+    public Func<int, string> VersionLabel { get; init; } =
+        revision => FormattableString.Invariant($"Version {revision}");
 }

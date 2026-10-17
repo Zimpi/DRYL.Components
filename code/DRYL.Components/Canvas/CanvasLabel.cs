@@ -19,9 +19,19 @@ public static class CanvasLabel
 
     /// <summary>The node's display name, at most 60 characters, never empty.</summary>
     /// <param name="node">The node to name.</param>
-    public static string For(CanvasNode node)
+    public static string For(CanvasNode node) => For(node, TypeName);
+
+    /// <summary>
+    /// The node's display name, at most 60 characters, never empty — with
+    /// <paramref name="typeName"/> naming a node that carries no text of its own.
+    /// </summary>
+    /// <param name="node">The node to name.</param>
+    /// <param name="typeName">Turns the node's catalog type into the name a human reads,
+    /// typically <see cref="CanvasTexts.TypeName"/>.</param>
+    public static string For(CanvasNode node, Func<string?, string> typeName)
     {
         ArgumentNullException.ThrowIfNull(node);
+        ArgumentNullException.ThrowIfNull(typeName);
 
         if (node.Props is { ValueKind: JsonValueKind.Object } props)
         {
@@ -35,7 +45,8 @@ public static class CanvasLabel
             }
         }
 
-        return TypeName(node.Type);
+        var fallback = typeName(node.Type);
+        return string.IsNullOrWhiteSpace(fallback) ? TypeName(node.Type) : Truncate(fallback);
     }
 
     private static string FirstLine(string? raw)
@@ -50,7 +61,8 @@ public static class CanvasLabel
         text.Length <= MaxLength ? text : text[..(MaxLength - 1)] + "…";
 
     // "lineChart" → "Line chart", "keyValue" → "Key value", "stat" → "Stat".
-    private static string TypeName(string? type)
+    // The default of CanvasTexts.TypeName.
+    internal static string TypeName(string? type)
     {
         if (string.IsNullOrWhiteSpace(type)) return "Element";
 

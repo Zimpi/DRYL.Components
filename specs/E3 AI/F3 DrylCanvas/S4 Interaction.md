@@ -94,17 +94,38 @@ direct manipulation of the artifact's own elements.
 
 ### Announcements
 
-- Selecting a node announces its label and its type.
+- Selecting a node announces its label and its type name.
 - Clearing the selection announces that it was cleared.
 - Pin, duplicate and remove each announce what happened to which element.
 - A reorder announces the node's new position as "position n of m".
+
+### Element names
+
+- An element is named by `CanvasLabel.For(node, Texts.TypeName)`: the first
+  non-blank of its `title`, `label`, `text`, `submitLabel`, `name` and
+  `content` props, at most 60 characters.
+- An element with none of those props is named by `Texts.TypeName` of its
+  catalog type — by default the readable English name ("Line chart" for
+  `lineChart`, "Element" for a missing type).
+- A blank result from a host's `TypeName` falls back to the default name, so an
+  element's name is never empty.
+- The type part of a selectable element's accessible name, the type in the
+  selection announcement and the type in the "waiting for …" caption all come
+  from `Texts.TypeName` — the raw catalog id never reaches a human.
+- The same name reaches every place an element is named: its accessible name,
+  the announcements, the `CanvasEdit` label and `CanvasSelection.Label`.
+- `DrylCanvas` hands its `Texts.TypeName` to its `Selection` on every parameter
+  set, so the dock's context chip and the prompt to the model carry the
+  translated name; `CanvasSelection.Type` keeps the raw catalog id, so the model
+  can still identify the element.
+- `CanvasLabel.For(node)` without a type-name function keeps the default name.
 
 ### Texts
 
 - Every fixed word of the interaction chrome comes from `Texts` (`CanvasTexts`):
   the toolbar's labels and tooltips (`Prompt`, `Pin` / `Unpin`, `Duplicate`,
-  `Remove`, `Reorder`), the pinned state in an element's accessible name
-  (`PinnedState`), the announcements (`Selected`, `SelectionCleared`, `Pinned`,
+  `Remove`, `Reorder`), the name of an element type (`TypeName`), the pinned
+  state in an element's accessible name (`PinnedState`), the announcements (`Selected`, `SelectionCleared`, `Pinned`,
   `Unpinned`, `Duplicated`, `Removed`, `MovedTo`) and the `CanvasEdit` labels
   (`PinEdit`, `DuplicateEdit`, `RemoveEdit`, `MoveEdit`). The form's
   required-field hint (`Required`) and a `dataGrid` table's accessible name

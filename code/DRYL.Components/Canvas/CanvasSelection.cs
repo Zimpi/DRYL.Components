@@ -104,7 +104,7 @@ public sealed class CanvasSelection
 
         if (focus) FocusTick++;
 
-        var label = CanvasLabel.For(node);
+        var label = CanvasLabel.For(node, TypeName);
         if (Id == node.Id && Locked == node.Locked && Label == label && Type == node.Type)
         {
             if (focus) OnChange?.Invoke();   // same node, but it has to take focus again
@@ -140,4 +140,9 @@ public sealed class CanvasSelection
     /// <summary>Registers the node that owns the tab stop while nothing is selected. Set by
     /// <c>DrylCanvas</c> from the spec's root; silent, because it changes nothing the user sees.</summary>
     internal void SetFallback(string? id) => _fallbackId = id;
+
+    /// <summary>Names a node without text of its own — <see cref="CanvasTexts.TypeName"/> of the
+    /// canvas that renders this selection. Set by <c>DrylCanvas</c> on every parameter set, so a
+    /// translated name reaches the dock's chip and the prompt as well.</summary>
+    internal Func<string?, string> TypeName { get; set; } = CanvasLabel.TypeName;
 }

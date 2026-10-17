@@ -14,6 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.10.0] — 2026-10-17
+
+### Added
+- `DrylCanvas` — New `CanvasTexts.TypeName` names an element type for humans (default: "Line chart" for `lineChart`, "Element" for a missing type). It names an element that has no title, label or text of its own — in its accessible name, the selection announcement, the `CanvasEdit.Label` and `CanvasSelection.Label` — so a translated canvas no longer falls back to English there. `DrylCanvas` hands it to its `Selection`, so the prompt dock's context chip and the prompt to the model carry the translated name as well; `CanvasSelection.Type` still carries the catalog id. Map the types you translate and fall back to the default for the rest: `TypeName = t => t == "lineChart" ? "Liniendiagramm" : CanvasTexts.Default.TypeName(t)`. A blank result falls back to the default name. New overload `CanvasLabel.For(CanvasNode, Func<string?, string>)`; `CanvasLabel.For(CanvasNode)` is unchanged.
+- `DrylCanvasWorkspace` — New `Texts` (`CanvasTexts`) translates the workspace's chrome, which was fixed English until now: the undo, redo and version history buttons, the "Close …" label of a view chip, the history announcements and the generated "Version n" label. `CanvasTexts` gains `Undo`, `Redo`, `VersionHistory`, `Undone`, `Redone`, `Restored`, `CloseView` and `VersionLabel`, each defaulting to the previous wording. The workspace hands its `Texts` to the `DrylCanvas` it renders without a `View` slot, which until now could not be translated at all.
+
+### Changed
+- `DrylCanvas` — A selectable element's accessible name, the selection announcement and the "waiting for …" caption now read the type name instead of the raw catalog id: "Revenue, Stat" and "waiting for Line chart…" instead of "Revenue, stat" and "waiting for lineChart…". A screen reader no longer spells out an identifier. `CanvasTexts.Selected` and `CanvasTexts.WaitingFor` receive the type name in their `type` argument; a host that matched on the raw id there should match in `TypeName` instead.
+
 ## [3.9.0] — 2026-10-17
 
 ### Added

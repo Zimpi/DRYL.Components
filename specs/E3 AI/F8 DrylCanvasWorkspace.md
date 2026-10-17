@@ -62,6 +62,7 @@ its criteria fit into the thematic `###` sections `SPEC-03` allows for large spe
 | `EmptyTitle` | `string` | `"No view yet"` | Headline shown while there is nothing to show. |
 | `EmptyText` | `string?` | `"Ask the assistant to open one."` | Text shown while there is nothing to show, and the empty text of the fallback canvas. |
 | `AriaLabel` | `string` | `"Views"` | Accessible label of the view bar. |
+| `Texts` | `CanvasTexts` | `CanvasTexts.Default` | The fixed words of the workspace's chrome — undo, redo, the version history, its announcements, the close label, the generated version label — handed on to the fallback canvas. English by default. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the root. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
@@ -89,7 +90,7 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 - A chip offers a close button when `AllowClose` is `true`.
 - A chip offers no close button when `AllowClose` is `false`.
 - The close button carries a tooltip and a matching accessible label naming the
-  view it closes (`UX-05`).
+  view it closes (`UX-05`), from `Texts.CloseView`.
 - Only the chips scroll horizontally; the tool group stays reachable when the bar
   is wider than the viewport.
 
@@ -99,6 +100,7 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 - The body renders a `DrylCanvas` over the active view's spec when `View` is
   `null`.
 - The fallback canvas is given `EmptyText` as its own empty text.
+- The fallback canvas is given the workspace's `Texts`.
 - The body renders a `DrylEmptyState` with `EmptyTitle` and `EmptyText` when there
   is no active view.
 - The body renders the empty state when `Workspace` is `null`.
@@ -127,8 +129,8 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 
 - A change to `Revision` commits a version of the active view.
 - The committed version is labelled with `RevisionLabel` when it is set.
-- The committed version is labelled with a generated, invariant "Version *n*" when
-  `RevisionLabel` is `null`.
+- The committed version is labelled with `Texts.VersionLabel` of the revision
+  when `RevisionLabel` is `null` — by default an invariant "Version *n*".
 - A commit whose serialized spec is identical to the current snapshot is dropped,
   so committing generously costs nothing.
 - Undo is disabled while the active view has no earlier snapshot.
@@ -142,7 +144,10 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 - A history step that moved nothing announces nothing and leaves the cursor where
   it was.
 - Undo, redo and restore each announce what happened through the workspace's
-  `aria-live` region.
+  `aria-live` region: `Texts.Undone` and `Texts.Redone` from the label of the
+  version stepped over (null when it has none, "last change" by default), and
+  `Texts.Restored` from the restored version's 1-based number and the number of
+  versions.
 - History is per view: undo on one view never reaches another.
 
 ### Autosave
@@ -169,6 +174,18 @@ the host and an AI tool call all mutate it, and the workspace re-renders on its
 - No field values are folded in when the host supplied its own `View` slot: the
   workspace holds no reference to a canvas it did not render, and capturing them is
   then the host's own job.
+
+### Texts
+
+- Every fixed word of the workspace's chrome comes from `Texts` (`CanvasTexts`):
+  the labels and tooltips of undo (`Undo`), redo (`Redo`) and the version history
+  button, which also names its panel (`VersionHistory`), the close label
+  (`CloseView`), the history announcements (`Undone`, `Redone`, `Restored`) and
+  the generated version label (`VersionLabel`).
+- Without `Texts` every one of them reads as before, in English — "Undo",
+  "Redo", "Version history", "Close {title}", "Undone: {label}",
+  "Redone: {label}", "Restored version {n} of {m}", "Version {n}".
+- `EmptyTitle`, `EmptyText` and `AriaLabel` stay parameters of their own.
 
 ### Keyboard and accessibility
 

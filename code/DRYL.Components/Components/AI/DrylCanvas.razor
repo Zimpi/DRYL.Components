@@ -313,6 +313,7 @@
         }
 
         // The node that owns the tab stop while nothing is selected.
+        if (Selection is not null) Selection.TypeName = _ctx.Texts.TypeName;
         Selection?.SetFallback(Spec?.Root?.Children?.FirstOrDefault()?.Id);
 
         // A different spec instance is a different artifact — nothing bound to the old one
@@ -329,7 +330,7 @@
     private void HandleSelectionChanged()
     {
         _selectionAnnouncement = Selection is { HasSelection: true, Label: { } label, Type: { } type }
-            ? _ctx.Texts.Selected(label, type)
+            ? _ctx.Texts.Selected(label, _ctx.Texts.TypeName(type))
             : _ctx.Texts.SelectionCleared;
         InvokeAsync(StateHasChanged);
     }
@@ -362,7 +363,7 @@
         var node = CanvasTree.Find(root, id);
         if (node is null) return;
 
-        var label = CanvasLabel.For(node);
+        var label = CanvasLabel.For(node, _ctx.Texts.TypeName);
         var done = command switch
         {
             CanvasNodeCommand.TogglePin => TogglePin(node),
