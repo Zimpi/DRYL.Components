@@ -55,6 +55,16 @@ else
     /// </summary>
     [Parameter] public bool Smooth { get; set; }
 
+    /// <summary>
+    /// Set while the stream is open but nobody is writing into it — e.g. a run resting at
+    /// <see cref="AiState.Proposed"/> while a tool call awaits approval. The live states
+    /// (<see cref="AiState.Thinking"/>, <see cref="AiState.Streaming"/>) then read as
+    /// <see cref="AiState.None"/>, for the context and the <see cref="Key"/> alike; the text stays
+    /// and keeps accumulating. Completion is unaffected: a stream that ends while paused still
+    /// reaches <see cref="AiState.Generated"/> and <see cref="SettleTo"/>.
+    /// </summary>
+    [Parameter] public bool Paused { get; set; }
+
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
     // Dwell time on the Generated reveal before relaxing to SettleTo. Not a CSS duration —
@@ -72,6 +82,8 @@ else
     private IDrylAiActivityService? _service;
     private IAsyncEnumerable<string>? _current;
     private CancellationTokenSource? _cts;
+    private AiState _live = AiState.None;   // what the stream itself says, before Paused masks it
+    private bool _paused;
 
     protected override void OnInitialized() =>
         _service = Services.GetService<IDrylAiActivityService>();
@@ -80,8 +92,15 @@ else
     {
         if (!ReferenceEquals(Source, _current))
         {
+            _paused = Paused;
             _current = Source;
             _ = RunAsync();
+        }
+        else if (Paused != _paused)
+        {
+            // Pausing never restarts the run — it only changes what the open stream reports.
+            _paused = Paused;
+            Apply(_live, _context.Text);
         }
     }
 
@@ -179,8 +198,10 @@ else
         }
     }
 
-    private void Apply(AiState state, string text)
+    private void Apply(AiState live, string text)
     {
+        _live = live;
+        var state = _paused && live is AiState.Thinking or AiState.Streaming ? AiState.None : live;
         _context.State = state;
         _context.Text = text;
 

@@ -42,6 +42,13 @@ as a paste. `Smooth` puts a backlog between the source and the screen and drains
 at a steady pace, faster the further behind it is, so a live token stream is not
 slowed down and a burst still reads as typing.
 
+`Paused` exists for a stream that is open while nobody writes into it — a run
+resting at `AiState.Proposed` while a tool call awaits approval keeps its text
+stream open across the wait. Without it the stream would keep reporting
+`Streaming` for minutes. While `Paused` is `true` the live states read as
+`AiState.None`; the end of the stream is not masked, because the end is news and
+the wait is not ([I22](../../ideas/I22%20A%20stream%20that%20knows%20it%20is%20paused.md)).
+
 ## Public API
 
 | Member | Type | Default | Purpose |
@@ -52,6 +59,7 @@ slowed down and a burst still reads as typing.
 | `OnCompleted` | `EventCallback<string>` | — | Raised once the stream completed successfully, with the full text. |
 | `SettleTo` | `AiState` | `AiState.None` | The state to settle to after the `AiState.Generated` reveal. Not an opt-in (`AI-03`) — see `_Api.md`. |
 | `Smooth` | `bool` | `false` | Reveal incoming text at a steady, backlog-adaptive pace instead of rendering each chunk as it arrives. |
+| `Paused` | `bool` | `false` | The open stream is waiting, not writing: `Thinking` and `Streaming` read as `AiState.None`. |
 
 `AiStreamContext` exposes `Text` (`string`) and `State` (`AiState`), both settable
 only from inside the library. The component reuses **one** context instance for the
@@ -128,6 +136,21 @@ put them on.
 - With `Smooth`, a source that throws still settles the state as it does without
   `Smooth`: the fault is surfaced after the backlog loop ends, never swallowed.
 
+### Pause
+
+- While `Paused` is `true`, a state of `AiState.Thinking` or `AiState.Streaming`
+  is reported as `AiState.None` — to `ChildContent` and to the service under
+  `Key`, where it clears the key as any `None` does.
+- While `Paused` is `true`, the accumulated text stays, and tokens that still
+  arrive keep accumulating.
+- Changing `Paused` never restarts the run and never clears the text.
+- Setting `Paused` back to `false` reports the stream's live state again at once
+  — `Thinking` before the first token, `Streaming` after it.
+- `Paused` does not mask the end of the stream: a source that completes while
+  paused still reaches `AiState.Generated` and then `SettleTo`, and a source that
+  throws settles as it does without `Paused`.
+- `Paused` defaults to `false`, which leaves every criterion above it unchanged.
+
 ### Keyboard, accessibility and motion
 
 - The component contributes no element, no focusable node and no ARIA semantics; it
@@ -173,5 +196,8 @@ put them on.
 The behaviour above is partly covered by
 `tests/DRYL.Components.Tests/DrylAiStreamTests.cs`, which asserts direct-mode
 accumulation, the gradual reveal of a 600-character burst under `Smooth`, and that
-`Smooth` does not change the final text. The state progression, the callback
+`Smooth` does not change the final text.
+`tests/DRYL.Components.Tests/DrylAiStreamPauseTests.cs` covers the `Pause` block,
+including the service binding under `Key` while paused. The rest of the state
+progression, the callback
 ordering and the service binding are not yet covered there.
