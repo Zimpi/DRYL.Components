@@ -128,6 +128,11 @@
     /// <summary>Title of the alert that replaces the tree when <see cref="Error"/> is set.</summary>
     [Parameter] public string ErrorTitle { get; set; } = "Artifact failed";
 
+    /// <summary>The fixed words of the canvas's own chrome — header buttons, the node toolbar,
+    /// node hints and the screen-reader announcements. Defaults to <see cref="CanvasTexts.Default"/>
+    /// (English); replace only what you translate with <c>CanvasTexts.Default with { … }</c>.</summary>
+    [Parameter] public CanvasTexts Texts { get; set; } = CanvasTexts.Default;
+
     /// <summary>Bump this to reset the interactive form state — a fresh artifact recycles field
     /// names, and the previous artifact's user input must not leak into it.</summary>
     [Parameter] public int Epoch { get; set; }
@@ -284,6 +289,9 @@
     protected override void OnParametersSet()
     {
         _ctx.State = Ai;
+        _ctx.Texts = Texts ?? CanvasTexts.Default;
+        if (_binder is not null) _binder.Texts = _ctx.Texts;
+        if (_runner is not null) _runner.Texts = _ctx.Texts;
         _ctx.Intent = OnInteraction;
         if (Pulse is not null && !ReferenceEquals(_ctx.Pulse, Pulse)) _ctx.Pulse = Pulse;
 
@@ -321,8 +329,8 @@
     private void HandleSelectionChanged()
     {
         _selectionAnnouncement = Selection is { HasSelection: true, Label: { } label, Type: { } type }
-            ? $"Selected: {label}, {type}"
-            : "Selection cleared.";
+            ? _ctx.Texts.Selected(label, type)
+            : _ctx.Texts.SelectionCleared;
         InvokeAsync(StateHasChanged);
     }
 
@@ -366,9 +374,9 @@
 
         _selectionAnnouncement = command switch
         {
-            CanvasNodeCommand.TogglePin => node.Locked ? $"{label} pinned." : $"{label} unpinned.",
-            CanvasNodeCommand.Duplicate => $"{label} duplicated.",
-            CanvasNodeCommand.Remove => $"{label} removed.",
+            CanvasNodeCommand.TogglePin => node.Locked ? _ctx.Texts.Pinned(label) : _ctx.Texts.Unpinned(label),
+            CanvasNodeCommand.Duplicate => _ctx.Texts.Duplicated(label),
+            CanvasNodeCommand.Remove => _ctx.Texts.Removed(label),
             _ => PositionAnnouncement(root, node, label),
         };
 
@@ -376,12 +384,12 @@
         await OnEdit.InvokeAsync(new CanvasEdit(id, command, EditLabel(command, label)));
     }
 
-    private static string EditLabel(CanvasNodeCommand command, string label) => command switch
+    private string EditLabel(CanvasNodeCommand command, string label) => command switch
     {
-        CanvasNodeCommand.TogglePin => $"Pinned {label}",
-        CanvasNodeCommand.Duplicate => $"Duplicated {label}",
-        CanvasNodeCommand.Remove => $"Removed {label}",
-        _ => $"Moved {label}",
+        CanvasNodeCommand.TogglePin => _ctx.Texts.PinEdit(label),
+        CanvasNodeCommand.Duplicate => _ctx.Texts.DuplicateEdit(label),
+        CanvasNodeCommand.Remove => _ctx.Texts.RemoveEdit(label),
+        _ => _ctx.Texts.MoveEdit(label),
     };
 
     // The pin is metadata, not content: it never goes through the patcher and never pulses.
@@ -434,12 +442,14 @@
         }) is null;
     }
 
-    private static string PositionAnnouncement(CanvasNode root, CanvasNode node, string label)
+    private string PositionAnnouncement(CanvasNode root, CanvasNode node, string label)
     {
         var siblings = CanvasTree.FindParent(root, node.Id)?.Children;
-        if (siblings is null) return $"{label} moved.";
-        return FormattableString.Invariant(
-            $"{label} moved to position {siblings.IndexOf(node) + 1} of {siblings.Count}.");
+        // A reorder only succeeds inside a parent, so a missing sibling list is a node that was
+        // the only child all along.
+        return siblings is null
+            ? _ctx.Texts.MovedTo(label, 1, 1)
+            : _ctx.Texts.MovedTo(label, siblings.IndexOf(node) + 1, siblings.Count);
     }
 
     private Task PurgeSelf(string id)
@@ -569,9 +579,9 @@
 
     private bool IsBusy => Ai is AiState.Streaming or AiState.Thinking || _binder?.Busy == true;
 
-    private string ExpandLabel => _expanded ? "Exit fullscreen" : "Expand artifact";
+    private string ExpandLabel => _expanded ? _ctx.Texts.ExitFullscreen : _ctx.Texts.Expand;
 
-    private const string RefreshLabel = "Refresh data";
+    private string RefreshLabel => _ctx.Texts.Refresh;
 
     // "manual" (not "auto"): we own Escape and must stay in step with _expanded, so no
     // light-dismiss behind the component's back. A browser without the Popover API ignores

@@ -41,7 +41,12 @@ normal case — hence the bulk buttons and the group opening by itself.
 An approved call moves straight from `AiState.Proposed` to `AiState.Generated`:
 the human accepted, and the card plays the shared accept wave from the button.
 It stays at `AiState.Generated` while the tool runs and after its result
-arrives. A denied call ends at `AiState.None` with `Declined` set on its card;
+arrives; while it runs, its card's `Running` is set, so the status pill reads
+"Running" until the result is in
+([I23](../../ideas/I23%20An%20approved%20call%20reads%20running%20until%20it%20is%20done.md)).
+The tool runs only once the run resumes — after the last pending call of the
+response has a decision — so an approved call whose siblings still wait is not
+running yet, and its pill reads "Done" in that user-driven window. A denied call ends at `AiState.None` with `Declined` set on its card;
 the framework hands the model a failed function result and the run goes on.
 
 Scope limits, stated so they are not mistaken for gaps:
@@ -79,6 +84,7 @@ Scope limits, stated so they are not mistaken for gaps:
 | `Error` | `string?` | An error message; the call failed. |
 | `Approval` | `DrylToolApproval` | Where the call stands with a human. Defaults to `DrylToolApproval.None`. |
 | `State` | `AiState` | Derived; see the criteria. |
+| `Running` | `bool` | Derived: the call has not finished — neither pending nor declined, and neither `Result` nor `Error` is in. |
 
 ### `DrylToolApproval`
 
@@ -97,21 +103,24 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
   order.
 - The component renders the cards inside one `DrylToolCallGroup`.
 - The group's `Count` is the number of rendered cards.
-- The group's `ActiveLabel` is the name of the first call at
-  `AiState.Thinking` or `AiState.Streaming`.
+- A call counts as executing when it is at `AiState.Thinking` or
+  `AiState.Streaming`, or when it is `DrylToolApproval.Approved`, `Running`, and
+  no call of the run is `DrylToolApproval.Pending`.
+- The group's `ActiveLabel` is the name of the first executing call.
 - The group's `HasError` is `true` while any rendered call has a non-empty
   `Error`.
 - The component re-renders when the run raises `OnChange`.
 - The component unsubscribes from the run's `OnChange` when `Run` changes.
 - The component unsubscribes from the run's `OnChange` when it is disposed.
-- With `ActiveOnly`, the component renders the calls at `AiState.Thinking`.
+- With `ActiveOnly`, the component renders the executing calls.
 - With `ActiveOnly`, the component renders the calls at `AiState.Proposed`.
 - With `ActiveOnly`, the component renders no call in any other state.
 
 ### Group state
 
-- The group's `Ai` is the state of the first call at `AiState.Thinking` or
-  `AiState.Streaming`.
+- The group's `Ai` is `AiState.Streaming` when the first executing call is at
+  `AiState.Streaming`, and `AiState.Thinking` for any other executing call —
+  including an approved one, whose own state is `AiState.Generated`.
 - The group's `Ai` is `AiState.Proposed` when no call is running and at least
   one call is `DrylToolApproval.Pending`.
 - The group's `Ai` is `AiState.None` when no call is running and none is
@@ -131,6 +140,8 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
 - `State` is `AiState.Generated` when `Result` is set, `Error` is empty and the
   call is neither pending nor declined.
 - `State` is `AiState.Thinking` when none of the above applies.
+- `Running` is `true` when `Result` and `Error` are both `null` and `Approval`
+  is `DrylToolApproval.None` or `DrylToolApproval.Approved`; otherwise `false`.
 
 ### Approval request
 
@@ -183,6 +194,9 @@ The run members (`PendingApprovals`, `Approve`, `Deny`) and the runner's
 
 - Each card's `Declined` is `true` exactly when its call is
   `DrylToolApproval.Declined`.
+- Each card's `Running` is `true` exactly when its call is executing (see
+  "Trace"), so an approved call's pill reads "Running" from the moment the run
+  resumes until its `Result` or `Error` is in.
 - A pending call's card renders Approve and Deny buttons.
 - Activating a card's Approve button calls `Approve` with that card's `CallId`.
 - Activating a card's Deny button calls `Deny` with that card's `CallId`.

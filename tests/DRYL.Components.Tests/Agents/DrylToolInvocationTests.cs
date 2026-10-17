@@ -46,4 +46,19 @@ public class DrylToolInvocationTests
 
         Assert.Equal(expected, call.State);
     }
+
+    [Theory]
+    [InlineData(DrylToolApproval.None, null, null, true)]
+    [InlineData(DrylToolApproval.None, "\"ok\"", null, false)]
+    [InlineData(DrylToolApproval.Approved, null, null, true)]      // accepted, result not in yet
+    [InlineData(DrylToolApproval.Approved, "null", null, false)]   // a void tool's result
+    [InlineData(DrylToolApproval.Approved, null, "boom", false)]
+    [InlineData(DrylToolApproval.Pending, null, null, false)]      // has not run
+    [InlineData(DrylToolApproval.Declined, null, null, false)]
+    public void Running_until_the_result_or_error_is_in(DrylToolApproval approval, string? result, string? error, bool expected)
+    {
+        var call = new DrylToolInvocation { Approval = approval, Result = result, Error = error };
+
+        Assert.Equal(expected, call.Running);
+    }
 }

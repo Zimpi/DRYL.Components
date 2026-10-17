@@ -51,10 +51,10 @@
                     already moved the selection (a duplicate selects the copy, a remove clears). *@
                 <div class="canvas-node-tools glass-card"
                      @onclick="() => { }" @onclick:stopPropagation="true">
-                    <DrylTooltip Text="Prompt about this element">
+                    <DrylTooltip Text="@Ctx.Texts.Prompt">
                         <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                     Size="DrylButton.ButtonSize.Small"
-                                    AriaLabel="Prompt about this element"
+                                    AriaLabel="@Ctx.Texts.Prompt"
                                     OnClick="@(() => Ctx.Selection!.RequestPrompt())">
                             <DrylIcon Name="Sparkle" Size="14" />
                         </DrylButton>
@@ -68,19 +68,19 @@
                             <DrylIcon Name="Lock" Size="14" />
                         </DrylButton>
                     </DrylTooltip>
-                    <DrylTooltip Text="Duplicate element">
+                    <DrylTooltip Text="@Ctx.Texts.Duplicate">
                         <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                     Size="DrylButton.ButtonSize.Small"
-                                    AriaLabel="Duplicate element"
+                                    AriaLabel="@Ctx.Texts.Duplicate"
                                     Disabled="Node.Locked"
                                     OnClick="@(_ => RunCommand(CanvasNodeCommand.Duplicate))">
                             <DrylIcon Name="Copy" Size="14" />
                         </DrylButton>
                     </DrylTooltip>
-                    <DrylTooltip Text="Remove element">
+                    <DrylTooltip Text="@Ctx.Texts.Remove">
                         <DrylButton Variant="DrylButton.ButtonVariant.Danger"
                                     Size="DrylButton.ButtonSize.Small"
-                                    AriaLabel="Remove element"
+                                    AriaLabel="@Ctx.Texts.Remove"
                                     Disabled="Node.Locked"
                                     OnClick="@(_ => RunCommand(CanvasNodeCommand.Remove))">
                             <DrylIcon Name="Trash" Size="14" />
@@ -88,10 +88,10 @@
                     </DrylTooltip>
                     @if (HasSiblings)
                     {
-                        <DrylTooltip Text="Reorder element">
+                        <DrylTooltip Text="@Ctx.Texts.Reorder">
                             <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                                         Size="DrylButton.ButtonSize.Small"
-                                        AriaLabel="Reorder element"
+                                        AriaLabel="@Ctx.Texts.Reorder"
                                         Disabled="Node.Locked"
                                         data-drag-handle="">
                                 <DrylIcon Name="GripVertical" Size="14" />
@@ -135,7 +135,7 @@
             @if (Ctx.State is AiState.Streaming or AiState.Thinking)
             {
                 <DrylSkeleton Variant="DrylSkeleton.SkeletonVariant.Card" Ai="AiState.Streaming" />
-                <span class="canvas-waiting">@($"waiting for {Node.Type}…")</span>
+                <span class="canvas-waiting">@Ctx.Texts.WaitingFor(Node.Type)</span>
             }
             else
             {
@@ -299,7 +299,7 @@
                         <DrylTable TItem="CanvasGridRow" Items="@rows"
                                    ShowToolbar="@searchable" Searchable="@searchable"
                                    PageSize="@effectivePageSize"
-                                   AriaLabel="Data grid"
+                                   AriaLabel="@Ctx.Texts.DataGrid"
                                    RowIdSelector="@(r => r.Index)">
                             <Columns>
                                 @for (var i = 0; i < p.Columns.Count; i++)
@@ -538,7 +538,7 @@
 
         @if (_truncated)
         {
-            <span class="canvas-data-truncated">Showing the first @CanvasDataMapper.MaxTableRows rows.</span>
+            <span class="canvas-data-truncated">@Ctx.Texts.Truncated(CanvasDataMapper.MaxTableRows)</span>
         }
         @if (binding is { HasValue: true, Error: { } staleError })
         {
@@ -547,7 +547,7 @@
             <DrylTooltip Text="@staleError">
                 <span class="canvas-data-flag">
                     <DrylIcon Name="Alert" Size="12" />
-                    Not up to date
+                    @Ctx.Texts.NotUpToDate
                 </span>
             </DrylTooltip>
         }
@@ -694,7 +694,7 @@
         {
             if (!Selectable) return null;
             var label = $"{CanvasLabel.For(Node)}, {Node.Type}";
-            return Node.Locked ? label + ", pinned" : label;
+            return Node.Locked ? $"{label}, {Ctx.Texts.PinnedState}" : label;
         }
     }
 
@@ -704,7 +704,7 @@
         Ctx.Selection!.Select(Node);
     }
 
-    private string PinLabel => Node.Locked ? "Unpin element" : "Pin element";
+    private string PinLabel => Node.Locked ? Ctx.Texts.Unpin : Ctx.Texts.Pin;
 
     private Task RunCommand(CanvasNodeCommand command) =>
         Ctx.Command?.Invoke(Node.Id, command) ?? Task.CompletedTask;
@@ -833,7 +833,7 @@
                       Transition="PresenceTransition.SlideUp" Speed="PresenceSpeed.Fast">
             <span class="canvas-field-required">
                 <DrylIcon Name="Alert" Size="12" />
-                Required
+                @Ctx.Texts.Required
             </span>
         </DrylPresence>
     };

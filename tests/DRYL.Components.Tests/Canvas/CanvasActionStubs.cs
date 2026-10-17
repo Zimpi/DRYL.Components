@@ -16,6 +16,8 @@ internal sealed class StubDialogService : IDrylDialogService
 
     public List<(string Title, string Message)> Asked { get; } = new();
 
+    public List<(string Confirm, string Cancel)> Labels { get; } = new();
+
     public Task<IDrylDialogReference> ShowAsync<TDialog>(
         string? title = null, DialogParameters? parameters = null, DialogOptions? options = null)
         where TDialog : IComponent => throw new NotSupportedException();
@@ -24,6 +26,7 @@ internal sealed class StubDialogService : IDrylDialogService
         string confirmLabel = "Confirm", string cancelLabel = "Cancel", DialogOptions? options = null)
     {
         Asked.Add((title, message));
+        Labels.Add((confirmLabel, cancelLabel));
         if (Yield) await Task.Yield();
         return Confirm ? DialogResult.Ok() : DialogResult.Cancel();
     }

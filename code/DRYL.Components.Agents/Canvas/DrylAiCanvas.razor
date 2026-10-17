@@ -33,6 +33,7 @@
             EmptyTitle="@EmptyTitle"
             FallbackTitle="@FallbackTitle"
             ErrorTitle="@ErrorTitle"
+            Texts="Texts"
             Epoch="@(Run?.ArtifactEpoch ?? 0)"
             Pulse="Run?.Pulse"
             OnInteraction="OnInteraction"
@@ -90,6 +91,11 @@
 
     /// <summary>Title of the alert shown when the run failed.</summary>
     [Parameter] public string ErrorTitle { get; set; } = "Artifact failed";
+
+    /// <summary>The fixed words of the canvas's own chrome — header buttons, the node toolbar, node
+    /// hints and the selection announcements; see <c>DrylCanvas.Texts</c>. Defaults to
+    /// <see cref="CanvasTexts.Default"/> (English).</summary>
+    [Parameter] public CanvasTexts Texts { get; set; } = CanvasTexts.Default;
 
     /// <summary>Status pill while nothing is running.</summary>
     [Parameter] public string IdleText { get; set; } = "Idle";

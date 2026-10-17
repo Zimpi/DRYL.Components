@@ -51,6 +51,7 @@ it once it is gone.
 | `EmptyTitle` | `string` | `"No artifact yet"` | Headline of the empty state. |
 | `FallbackTitle` | `string` | `"Artifact"` | Header title while the artifact has none of its own. |
 | `ErrorTitle` | `string` | `"Artifact failed"` | Title of the alert shown when the run failed. |
+| `Texts` | `CanvasTexts` | `CanvasTexts.Default` | Forwarded to `DrylCanvas.Texts`: the canvas chrome's fixed words. |
 | `IdleText` | `string` | `"Idle"` | Status pill while nothing runs. |
 | `WorkingText` | `string` | `"Working"` | Status pill while the run thinks. |
 | `BuildingText` | `Func<int, string>?` | `null` | Status pill while streaming, from the element count; `null` gives `Building` / `Building · n elements`. |
@@ -93,6 +94,8 @@ it once it is gone.
 - The empty state renders `EmptyTitle` as its headline and `EmptyText` as its
   message.
 - The header renders `FallbackTitle` while the artifact has no title of its own.
+- `Texts` reaches the inner `DrylCanvas` unchanged, so the header buttons, the
+  node toolbar and the selection announcements speak the host's language too.
 - The status pill reads `IdleText` while the run is idle.
 - The status pill reads `WorkingText` while the run is thinking.
 - The status pill reads `BuildingText` applied to the element count while the

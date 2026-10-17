@@ -65,4 +65,13 @@ public sealed class DrylToolInvocation
         : Approval == DrylToolApproval.Pending ? AiState.Proposed
         : Approval == DrylToolApproval.Approved || Result is not null ? AiState.Generated
         : AiState.Thinking;
+
+    /// <summary>
+    /// The tool is executing: it was not declined or left pending, and neither its result nor
+    /// an error is in. Feeds the core <c>DrylToolCall</c>'s <c>Running</c>, so an approved call —
+    /// already <see cref="AiState.Generated"/> for its accept wave — reads "Running" until it is done.
+    /// </summary>
+    public bool Running =>
+        Result is null && Error is null
+        && Approval is DrylToolApproval.None or DrylToolApproval.Approved;
 }

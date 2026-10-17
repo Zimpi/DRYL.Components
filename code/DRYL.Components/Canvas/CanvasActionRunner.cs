@@ -76,6 +76,10 @@ public sealed class CanvasActionRunner
     /// up unchanged.</summary>
     public Func<CanvasInteraction, Task>? Ask { get; set; }
 
+    /// <summary>The words of the canvas the runner reports failures and asks for confirmation in.
+    /// <c>DrylCanvas</c> keeps it in step with its <c>Texts</c>; read at the moment it is needed.</summary>
+    public CanvasTexts Texts { get; set; } = CanvasTexts.Default;
+
     /// <summary>Invoked after every completed action, successful or not.</summary>
     public Func<CanvasActionOutcome, Task>? Completed { get; set; }
 
@@ -117,7 +121,7 @@ public sealed class CanvasActionRunner
             // A handler that throws must never reach the renderer, let alone the circuit — and the
             // user gets the action's name, not the exception's innards.
             _log?.LogError(ex, "Canvas action '{Action}' failed.", name);
-            var failure = $"Action '{name}' failed.";
+            var failure = Texts.ActionFailed(name);
             Set(nodeId, new CanvasActionState(busy: false, error: failure));
             await NotifyAsync(nodeId, name, false, failure);
             return;
@@ -165,12 +169,12 @@ public sealed class CanvasActionRunner
             // An action the author deliberately gated behind a confirmation must never run
             // unconfirmed just because the host forgot the provider.
             _log?.LogError("A canvas action requires confirmation but no IDrylDialogService is available.");
-            Set(nodeId, new CanvasActionState(false, "Confirmation is unavailable — the action was not run."));
+            Set(nodeId, new CanvasActionState(false, Texts.ConfirmUnavailable));
             return null;
         }
 
-        var title = string.IsNullOrWhiteSpace(label) ? "Confirm" : label!;
-        var result = await dialogs.ShowConfirmAsync(title, question, confirmLabel: title);
+        var title = string.IsNullOrWhiteSpace(label) ? Texts.Confirm : label!;
+        var result = await dialogs.ShowConfirmAsync(title, question, confirmLabel: title, cancelLabel: Texts.Cancel);
         return !result.Canceled;
     }
 
