@@ -165,5 +165,8 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.
 - **Tests** — `tests/DRYL.Components.Tests/DrylIconTests.cs` guards named
   entries of the set (the history icons; the map, route, attachment and upload
-  icons; the phone, car, fingerprint and crown icons) and scans every literal `<DrylIcon Name="…">` under `code/` against
-  `Icons`.
+  icons; the phone, car, fingerprint and crown icons; the playback, screen and
+  audio icons; the domain icons — sending, operations and defence, money, books
+  and teaching, scheduling, memory and messages, workplaces, crafting and
+  materials, radio and exits) and scans every literal `<DrylIcon Name="…">`
+  under `code/` against `Icons`.
