@@ -56,6 +56,48 @@ public class DrylIconTests
     }
 
     /// <summary>
+    /// Icons a consuming app reached for and had to stand in for with a near miss — a globe
+    /// for a map, a crown for dues, a database for a fuel tank — or did not get at all, like
+    /// <c>Send</c>, which rendered blank.
+    /// </summary>
+    [Theory]
+    [InlineData("Send")]
+    [InlineData("Crosshair")]
+    [InlineData("Swords")]
+    [InlineData("Shield")]
+    [InlineData("Coins")]
+    [InlineData("HandCoins")]
+    [InlineData("BookOpen")]
+    [InlineData("BookAudio")]
+    [InlineData("GraduationCap")]
+    [InlineData("ClipboardCheck")]
+    [InlineData("CalendarClock")]
+    [InlineData("CalendarPlus")]
+    [InlineData("Brain")]
+    [InlineData("MessageSquare")]
+    [InlineData("Heading")]
+    [InlineData("Pin")]
+    [InlineData("Briefcase")]
+    [InlineData("Warehouse")]
+    [InlineData("Factory")]
+    [InlineData("Workflow")]
+    [InlineData("Merge")]
+    [InlineData("Calculator")]
+    [InlineData("Repeat")]
+    [InlineData("ChefHat")]
+    [InlineData("Fuel")]
+    [InlineData("FlaskConical")]
+    [InlineData("Gem")]
+    [InlineData("Pickaxe")]
+    [InlineData("Radio")]
+    [InlineData("DoorOpen")]
+    public void The_domain_icons_are_in_the_set(string name)
+    {
+        Assert.True(DrylIcon.Icons.ContainsKey(name));
+        Assert.NotEmpty(DrylIcon.Icons[name]);
+    }
+
+    /// <summary>
     /// An unknown name renders an empty <c>svg</c> and nothing reports it — that is how
     /// <c>DrylFileUpload</c>'s <c>UploadCloud</c> went unnoticed. So every literal
     /// <c>&lt;DrylIcon Name="…"&gt;</c> in the library's source is checked against the set.

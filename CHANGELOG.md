@@ -14,6 +14,11 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.11.0] — 2026-10-19
+
+### Added
+- `DrylIcon` — Thirty new icons in the same line style, for what an app built on DRYL kept standing in for with a near miss (a globe for a map, a crown for dues, a database for a fuel tank, a star for "pinned"): `Send`, `Crosshair`, `Swords`, `Shield`, `Coins`, `HandCoins`, `BookOpen`, `BookAudio`, `GraduationCap`, `ClipboardCheck`, `CalendarClock`, `CalendarPlus`, `Brain`, `MessageSquare`, `Heading`, `Pin`, `Briefcase`, `Warehouse`, `Factory`, `Workflow`, `Merge`, `Calculator`, `Repeat`, `ChefHat`, `Fuel`, `FlaskConical`, `Gem`, `Pickaxe`, `Radio` and `DoorOpen` (lucide `send`, `crosshair`, `swords`, `shield`, `coins`, `hand-coins`, `book-open`, `book-audio`, `graduation-cap`, `clipboard-check`, `calendar-clock`, `calendar-plus`, `brain`, `message-square`, `heading`, `pin`, `briefcase`, `warehouse`, `factory`, `workflow`, `merge`, `calculator`, `repeat`, `chef-hat`, `fuel`, `flask-conical`, `gem`, `pickaxe`, `radio`, `door-open`). `Send` was asked for before it existed and rendered blank.
+
 ## [3.10.1] — 2026-10-17
 
 ### Fixed
