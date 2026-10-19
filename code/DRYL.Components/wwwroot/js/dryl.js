@@ -1176,16 +1176,54 @@ window.dryl.commandpalette = (() => {
         listEl.querySelector(`#${CSS.escape(itemId)}`)?.scrollIntoView({ block: 'nearest' });
     }
 
-    // Move the backdrop element to <body> so it is always in the root stacking
-    // context, regardless of where <DrylCommandPalette> is placed in the DOM tree.
-    // Blazor tracks elements by reference (not parent position), so it can still
-    // diff and remove the element correctly after re-parenting.
+    // Move the overlay to <body> so it is always in the root stacking context,
+    // regardless of where <DrylCommandPalette> is placed in the DOM tree. The
+    // backdrop sits in a DrylPresence wrapper (.cmd-layer) that plays the exit;
+    // the wrapper is what moves, so the exit still has its element. Blazor
+    // tracks elements by reference (not parent position), so it can still diff
+    // and remove the element correctly after re-parenting.
     function portal(el) {
-        if (!el || el.parentNode === document.body) return;
-        document.body.appendChild(el);
+        if (!el) return;
+        const node = el.parentElement?.classList.contains('cmd-layer') ? el.parentElement : el;
+        if (node.parentNode === document.body) return;
+        document.body.appendChild(node);
     }
 
-    return { attachGlobal, detachGlobal, focusInput, scrollItemIntoView, portal };
+    // Per open: Tab / Shift+Tab in the search field move between result groups
+    // (Blazor cannot prevent the default conditionally, and the modal's focus trap
+    // would otherwise take the key), ↑ / ↓ no longer jump the caret, and the end
+    // of a leaving row's exit animation is reported so the row can be dropped.
+    // Returns whether reduced motion is on: then rows leave at once.
+    function attach(backdrop, input, dotnetRef) {
+        if (input && !input.__drylCmdKeys) {
+            const onKey = (e) => {
+                if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey
+                    && input.hasAttribute('data-cmd-groups')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dotnetRef.invokeMethodAsync('OnGroupKey', e.shiftKey).catch(() => {});
+                } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.altKey) {
+                    e.preventDefault();
+                }
+            };
+            input.addEventListener('keydown', onKey);
+            input.__drylCmdKeys = onKey;
+        }
+        if (backdrop && !backdrop.__drylCmdRows) {
+            const onEnd = (e) => {
+                if (!String(e.animationName).startsWith('cmd-row-out')) return;
+                const key = e.target?.closest?.('[data-cmd-key]')?.getAttribute('data-cmd-key');
+                if (key == null) return;
+                dotnetRef.invokeMethodAsync('OnRowLeft', key).catch(() => {});
+            };
+            backdrop.addEventListener('animationend', onEnd);
+            backdrop.addEventListener('animationcancel', onEnd);
+            backdrop.__drylCmdRows = onEnd;
+        }
+        return window.dryl.reduced();
+    }
+
+    return { attachGlobal, detachGlobal, focusInput, scrollItemIntoView, portal, attach };
 })();
 
 // ── File Upload — drag-over visual feedback ──────────────────────────────────
