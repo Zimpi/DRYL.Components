@@ -3918,6 +3918,22 @@ body.dryl-scroll-locked { overflow: hidden; }
   padding: var(--sp-5);
 }
 .dialog-layer:has(.dialog-fullscreen) { padding: 0; }
+
+/* Command palette layer — the DrylPresence wrapper DrylCommandPalette portals to
+   <body>. It is the root stacking context of the overlay, so it carries the
+   modal z-index. Its own enter/exit animate nothing visible: opacity on an
+   ancestor would make it a backdrop root and drop the backdrop's blur for the
+   whole fade. They only time the exit; the backdrop fades and the panel scales
+   in the palette's own stylesheet, keyed off .presence-enter / .presence-exit. */
+.cmd-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+.cmd-layer.presence-enter { animation-name: presence-in-cmd-layer; }
+.cmd-layer.presence-exit  { animation-name: presence-out-cmd-layer; pointer-events: none; }
+@keyframes presence-in-cmd-layer  { from { visibility: visible; } to { visibility: visible; } }
+@keyframes presence-out-cmd-layer { from { visibility: visible; } to { visibility: visible; } }
 .dialog-layer.is-exiting { pointer-events: none; }
 .dialog-layer.is-exiting .dialog { animation: dialogOut var(--dur-med) var(--ease-in-out) both; }
 

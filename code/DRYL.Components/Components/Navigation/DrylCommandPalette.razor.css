@@ -1,12 +1,52 @@
-﻿/* ── Palette shell ─────────────────────────────────────────────────────────── */
+﻿/* ── Overlay motion ────────────────────────────────────────────────────────── */
+
+/* The .cmd-layer wrapper (dryl.css) carries the presence classes; the backdrop
+   fades and the panel scales off them. The backdrop's own fadeIn from
+   .dialog-backdrop is replaced, so the overlay fades exactly once. */
+.cmd-backdrop {
+    animation: none;
+    align-items: start;
+    padding-block-start: clamp(var(--sp-5), 12vh, var(--sp-8));
+}
+
+.presence-enter .cmd-backdrop {
+    animation: cmd-backdrop-in var(--dur-med) var(--ease-out) both;
+}
+
+.presence-exit .cmd-backdrop {
+    animation: cmd-backdrop-out var(--dur-med) var(--ease-out) both;
+}
+
+.presence-enter .cmd-palette {
+    animation: cmd-in var(--dur-med) var(--ease-spring) both;
+}
+
+.presence-exit .cmd-palette {
+    animation: cmd-out var(--dur-med) var(--ease-out) both;
+}
+
+@keyframes cmd-backdrop-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cmd-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+
+@keyframes cmd-in {
+    from { opacity: 0; transform: scale(0.97) translateY(-8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+@keyframes cmd-out {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: scale(0.97) translateY(-8px); }
+}
+
+/* ── Palette shell ─────────────────────────────────────────────────────────── */
 
 .cmd-palette {
     position: relative;
     display: flex;
     flex-direction: column;
     width: 640px;
-    max-width: calc(100vw - var(--sp-8));
-    max-height: min(80vh, 680px);
+    max-width: calc(100vw - var(--sp-6));
+    max-height: min(76vh, 680px);
     border-radius: var(--r-lg);
     background: var(--panel-grad-strong);
     backdrop-filter: var(--glass-fx-float);
@@ -14,18 +54,6 @@
     border: 1px solid var(--line-strong);
     box-shadow: var(--shadow-lg), 0 0 80px color-mix(in srgb, var(--accent-a) 14%, transparent);
     overflow: hidden;
-    animation: cmd-in var(--dur-med) var(--ease-spring);
-}
-
-@keyframes cmd-in {
-    from {
-        opacity: 0;
-        transform: scale(0.97) translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
 }
 
 /* ── Search row ────────────────────────────────────────────────────────────── */
@@ -64,10 +92,6 @@
     color: var(--fg-dim);
 }
 
-.cmd-search-spinner {
-    flex: 0 0 auto;
-}
-
 .cmd-search-kbd {
     flex: 0 0 auto;
     font-family: var(--font-mono);
@@ -95,10 +119,17 @@
 .cmd-results {
     flex: 1 1 auto;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: var(--sp-1) 0;
     min-height: 0;
     scrollbar-width: thin;
     scrollbar-color: var(--line-strong) transparent;
+    transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* A later query is loading: the previous rows stay, quieted, until the new ones land. */
+.cmd-results.is-stale {
+    opacity: 0.55;
 }
 
 .cmd-results::-webkit-scrollbar {
@@ -114,9 +145,41 @@
     border-radius: 2px;
 }
 
-/* Category header — aria-hidden, not focusable */
+/* ── Row wrapper: enter, leave, stagger ────────────────────────────────────── */
+
+/* Every row sits in a one-track grid. Animating the track between 0fr and 1fr
+   grows and collapses the row to its real height, so the list resizes smoothly
+   as rows arrive and leave instead of snapping to its new height. */
+.cmd-row {
+    display: grid;
+    grid-template-rows: 1fr;
+    animation: cmd-row-in var(--dur-med) var(--ease-out) both;
+    animation-delay: calc(var(--reveal-step) * var(--i, 0));
+}
+
+.cmd-row > * {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.cmd-row.is-leaving {
+    animation: cmd-row-out var(--dur-fast) var(--ease-out) both;
+    pointer-events: none;
+}
+
+@keyframes cmd-row-in {
+    from { grid-template-rows: 0fr; opacity: 0; transform: translateY(4px); }
+    to   { grid-template-rows: 1fr; opacity: 1; transform: none; }
+}
+
+@keyframes cmd-row-out {
+    from { grid-template-rows: 1fr; opacity: 1; }
+    to   { grid-template-rows: 0fr; opacity: 0; }
+}
+
+/* Category header — aria-hidden, names its group through aria-labelledby */
 .cmd-category {
-    padding: var(--sp-2) var(--sp-4) var(--sp-1);
+    padding: var(--sp-3) var(--sp-4) var(--sp-1);
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 0.14em;
@@ -138,7 +201,8 @@
     user-select: none;
     transition:
         background var(--dur-fast) var(--ease-out),
-        color var(--dur-fast) var(--ease-out);
+        color var(--dur-fast) var(--ease-out),
+        box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .cmd-item:hover,
@@ -206,10 +270,30 @@
     line-height: 1.35;
 }
 
+/* Secondary fact at the trailing end — the size and colour of the description. */
+.cmd-item-meta {
+    flex: 0 1 auto;
+    max-width: 40%;
+    font-size: 11px;
+    color: var(--fg-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+    transition: color var(--dur-fast) var(--ease-out);
+}
+
+.cmd-item:hover .cmd-item-meta,
+.cmd-item.is-focused .cmd-item-meta {
+    color: var(--fg-muted);
+}
+
 .cmd-item-trailing {
     color: var(--fg-faint);
     flex: 0 0 auto;
-    transition: color var(--dur-fast) var(--ease-out);
+    transition:
+        color var(--dur-fast) var(--ease-out),
+        opacity var(--dur-fast) var(--ease-out);
 }
 
 .cmd-item:hover .cmd-item-trailing,
@@ -224,6 +308,7 @@
 
 .cmd-item:hover .cmd-item-trailing--ai,
 .cmd-item.is-focused .cmd-item-trailing--ai {
+    color: var(--accent-a);
     opacity: 1;
 }
 
@@ -233,6 +318,92 @@
     text-align: center;
     color: var(--fg-dim);
     font-size: 13px;
+}
+
+/* ── Loading skeleton — the shape of result rows ───────────────────────────── */
+
+.cmd-skeleton-rows {
+    padding: var(--sp-1) 0;
+    gap: 0;
+}
+
+.cmd-skeleton-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-4);
+}
+
+.cmd-skeleton-icon {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--r-xs);
+}
+
+.cmd-skeleton-text {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    min-width: 0;
+}
+
+.cmd-skeleton-label {
+    height: 11px;
+    width: calc(64% - var(--cmd-skel-i, 0) * 9%);
+}
+
+.cmd-skeleton-desc {
+    height: 9px;
+    width: 38%;
+    opacity: 0.7;
+}
+
+/* ── Footer hints ──────────────────────────────────────────────────────────── */
+
+.cmd-footer {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-4);
+    padding: var(--sp-2) var(--sp-4);
+    border-top: 1px solid var(--line);
+    color: var(--fg-dim);
+    font-size: 11px;
+    user-select: none;
+}
+
+.cmd-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    white-space: nowrap;
+}
+
+.cmd-hint--end {
+    margin-inline-start: auto;
+}
+
+.cmd-hint kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    min-width: 18px;
+    padding: 3px var(--sp-1);
+    text-align: center;
+    border-radius: var(--r-xs);
+    border: 1px solid var(--line);
+    background: var(--glass-1);
+    color: var(--fg-dim);
+}
+
+/* A touch screen has no keys to hint at. */
+@media (max-width: 520px) {
+    .cmd-footer {
+        display: none;
+    }
 }
 
 /* ── AI result panel ───────────────────────────────────────────────────────── */
@@ -275,12 +446,6 @@
 }
 
 /* ── Command/registry/AI layer (additive) ──────────────────────────────────── */
-
-/* AI "thinking" pill in the search row while a resolver is working. */
-.cmd-ai-pill {
-    flex: 0 0 auto;
-    margin-left: var(--sp-2);
-}
 
 /* Per-row shortcut hint (registry commands). */
 .cmd-item-shortcut {
@@ -352,8 +517,25 @@
 /* ── Reduced motion ────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-    .cmd-palette {
+    .presence-enter .cmd-backdrop,
+    .presence-exit .cmd-backdrop,
+    .presence-enter .cmd-palette,
+    .presence-exit .cmd-palette {
         animation: none;
+    }
+
+    .cmd-row {
+        animation: none;
+    }
+
+    /* Without an exit animation no animationend arrives; a row caught leaving
+       when the setting changed mid-session is simply gone. */
+    .cmd-row.is-leaving {
+        display: none;
+    }
+
+    .cmd-results {
+        transition: none;
     }
 
     .cmd-ai-panel.ai-generated {

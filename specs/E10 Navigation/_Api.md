@@ -5,7 +5,7 @@ part of the data contract the 1.0 freeze binds.
 
 **Source folder:** `code/DRYL.Components/Components/Navigation/`
 
-This reference currently covers the Stepper family. Other navigation types
+This reference currently covers the Stepper family and the command palette. Other navigation types
 remain phase-C work. It carries no `Meta` block and claims no component
 (`SPEC-03`).
 
@@ -63,3 +63,81 @@ completion callback.
 then defaults to `AiAura.Comet`. `DrylStep` inherits the variant only; its AI
 state is the explicitly supplied `Ai`. These are shared types, not new
 navigation-specific enums (`AI-01`, `AI-03`).
+
+## `CommandItem`
+
+Defined in `code/DRYL.Components/Models/CommandItem.cs`, namespace
+`DRYL.Components`. A result or static entry of `DrylCommandPalette` — the
+**items** path, equal to the **commands** path of `DrylCommand`.
+
+| Member | Type | Meaning |
+|---|---|---|
+| `Id` | `string?` | Stable identity across searches; keys the row. Falls back to `Category` + `Label`. |
+| `Label` | `string` | The row's label. |
+| `Description` | `string?` | Second line. |
+| `Meta` | `string?` | Short muted fact at the trailing end. |
+| `Icon` | `string?` | Icon name. |
+| `Category` | `string?` | Group header. |
+| `Type` | `CommandItemType` | How the item runs; defaults to `Action`. |
+| `Href` | `string?` | Target of a `Navigate` item. |
+| `Action` | `EventCallback` | Callback of an `Action` item. |
+| `AiAction` | `EventCallback` | Callback of an `AiIntent` item. |
+
+## `CommandItemType`
+
+Defined beside `CommandItem`.
+
+| Member | Meaning |
+|---|---|
+| `Navigate` | Closes the palette and navigates to `Href`. |
+| `Action` | Closes the palette and invokes `Action`. |
+| `AiIntent` | Keeps the palette open and invokes `AiAction`. |
+
+## `CommandGroupOrder`
+
+Defined in `code/DRYL.Components/Components/Navigation/CommandGroupOrder.cs`.
+
+| Member | Meaning |
+|---|---|
+| `Alphabetical` | Groups by name; rows without a group last. The default of `DrylCommandPalette.GroupOrder`. |
+| `AsProvided` | Groups in the order their first row arrives. |
+
+## `CommandPaletteTexts`
+
+Defined in `code/DRYL.Components/Components/Navigation/CommandPaletteTexts.cs`.
+A record of `init` strings with English defaults, reached through
+`CommandPaletteTexts.Default`: `Placeholder`, `AriaLabel`, `EmptyText`,
+`Loading`, `Back`, `Run`, `Thinking`, `AiResult`, `ConfirmTitle`, `Confirm`,
+`Cancel`, `HintNavigate`, `HintRun`, `HintGroups`, `HintClose`. Translate with
+`CommandPaletteTexts.Default with { … }`.
+
+## `CommandArgType`
+
+Defined in `code/DRYL.Components/Components/Navigation/CommandArgType.cs`:
+`Text` (default), `Number`, `Boolean`, `Choice`.
+
+## `ICommandRegistry`
+
+Defined in `code/DRYL.Components/Components/Navigation/ICommandRegistry.cs`,
+registered scoped by `AddDrylComponents()` as `CommandRegistry`. Members:
+`Commands` (registration order), `Add(DrylCommand)` (ignores a known id),
+`Remove(string id)`, event `OnChanged`.
+
+## `ICommandResolver`
+
+Defined in `code/DRYL.Components/Components/Navigation/ICommandResolver.cs`.
+`ResolveAsync(string query, IReadOnlyList<DrylCommand> commands,
+CancellationToken ct)` returns a `CommandResolution?`. It never runs the
+command. The core ships no implementation.
+
+## `CommandResolution`
+
+Defined in `code/DRYL.Components/Components/Navigation/CommandResolution.cs`: a
+record of `Command` (`DrylCommand`), `Arguments`
+(`IReadOnlyDictionary<string, object?>`) and `Confidence` (`double`, 0–1).
+
+## `CommandContext`
+
+Defined in `code/DRYL.Components/Components/Navigation/CommandContext.cs`. The
+payload of `DrylCommand.OnRun`: `Arguments`, `CancellationToken` and
+`GetArgument<T>(string name)`.

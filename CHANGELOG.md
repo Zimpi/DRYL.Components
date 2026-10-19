@@ -14,6 +14,19 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.12.0] — 2026-10-19
+
+### Added
+- `DrylCommandPalette` — A host can now make it the one field that finds anything in its application. New `Fallback` (`Func<string, CommandItem?>`) keeps one entry present for every non-blank query — "Ask the assistant: …", "Search the web", "Create '…'": it sits last while other rows match and moves first, focused, when none does, and follows the query as it is typed. New `OnItemRun` (`EventCallback<CommandItem>`) fires for every provider item, static item and fallback that runs, before its navigation or action; the palette stores nothing, so return your own recent items as the result of the empty query. New `GroupOrder` of the new enum `CommandGroupOrder` (`Alphabetical`, the default and the previous behaviour, or `AsProvided`). New `Debounce` (default 250 ms, as before); the empty query is no longer debounced, so the start state appears at once. New `Texts` of the new record `CommandPaletteTexts` translates every word of the palette's own chrome — placeholder, accessible name, empty text, the loading label, back, run, thinking, the AI result panel, the destructive-command confirmation and the footer hints.
+- `CommandItem` — New `Id`, the item's identity across searches, and `Meta`, a short muted fact at the trailing end of the row ("12 in stock").
+- `DrylCommandPalette` — Tab / Shift+Tab in the search field jump to the first row of the next / previous group, wrapping. Groups with a header are `role="group"` named by their header. A footer shows the key hints (hidden on narrow screens).
+- Specs for `DrylCommandPalette` (split, four stories) and `DrylCommand` under `specs/E10 Navigation/`.
+
+### Changed
+- `DrylCommandPalette` — Nothing pops any more. The overlay mounts through `DrylPresence`: the backdrop fades and the panel scales in and out, and closing plays the exit before the overlay leaves the DOM. Rows are keyed by `CommandItem.Id` (an item without one by its category and label): a row that survives a keystroke keeps its element, a new row grows in, a dropped row collapses out in place, and the list changes height with them instead of snapping. The first rows after opening arrive staggered. The first load shows a skeleton in the shape of result rows instead of a spinner; a later query keeps the previous rows visible, quieted, until the new ones arrive. All of it is instant under reduced motion.
+- `DrylCommandPalette` — `EmptyText` defaults to English ("No results") instead of "Keine Treffer", so the component has one default language. `Placeholder`, `EmptyText` and `AriaLabel` are now nullable and default to `null`; when set they still win over `Texts`, so a host that set them sees no change.
+- `DrylCommandPalette` — The panel sits towards the top of the viewport instead of in its centre, so a phone's keyboard does not cover the results, and keeps a wider gutter on narrow screens. ↑ / ↓ no longer move the caret of the search field.
+
 ## [3.11.0] — 2026-10-19
 
 ### Added
