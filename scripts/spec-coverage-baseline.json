@@ -49,8 +49,6 @@
     "code/DRYL.Components/Components/Layout/DrylTypo.razor",
     "code/DRYL.Components/Components/Navigation/DrylBreadcrumbItem.razor",
     "code/DRYL.Components/Components/Navigation/DrylBreadcrumbs.razor",
-    "code/DRYL.Components/Components/Navigation/DrylCommand.razor",
-    "code/DRYL.Components/Components/Navigation/DrylCommandPalette.razor",
     "code/DRYL.Components/Components/Navigation/DrylNavGroup.razor",
     "code/DRYL.Components/Components/Navigation/DrylNavLink.razor",
     "code/DRYL.Components/Components/Navigation/DrylTab.razor",
