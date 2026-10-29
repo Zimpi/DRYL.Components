@@ -24,6 +24,39 @@ builder.Services.AddDrylComponents().AddDrylAgents();
 
 Place a single `<DrylDialogProvider />` in your root layout (required by the tool dialogs).
 
+## Using DRYL with AI coding agents
+
+DRYL runs a read-only MCP server at `https://components.dryl.dev/mcp` that gives Claude Code, Codex,
+GitHub Copilot and Cursor the real API of both packages — components, parameters, enum members,
+design tokens — and checks their `<Dryl…>` markup (`validate_markup`). Claude Code:
+
+```bash
+claude mcp add --transport http dryl https://components.dryl.dev/mcp
+```
+
+Codex — `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.dryl]
+url = "https://components.dryl.dev/mcp"
+```
+
+VS Code / GitHub Copilot — `.vscode/mcp.json`:
+
+```json
+{ "servers": { "dryl": { "type": "http", "url": "https://components.dryl.dev/mcp" } } }
+```
+
+Cursor — `.cursor/mcp.json`:
+
+```json
+{ "mcpServers": { "dryl": { "url": "https://components.dryl.dev/mcp" } } }
+```
+
+Without MCP: [`llms.txt`](https://components.dryl.dev/llms.txt) and
+[`llms-full.txt`](https://components.dryl.dev/llms-full.txt). Rules to paste into your `AGENTS.md` /
+`CLAUDE.md` are in the [DRYL.Components readme](https://www.nuget.org/packages/DRYL.Components#readme-body-tab).
+
 ## Platform requirement
 
 All subsystems run in **interactive Blazor (Server or WASM) with a live circuit**.

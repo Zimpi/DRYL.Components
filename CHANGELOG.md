@@ -14,6 +14,17 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.12.1] — 2026-10-29
+
+Documentation only — no code changes. Agents 0.23.1 ships the same readme section.
+
+### Added
+- `PACKAGE.md` (both packages) — A "Using DRYL with AI coding agents" section. DRYL now runs a read-only MCP server at `https://components.dryl.dev/mcp` that gives Claude Code, Codex, GitHub Copilot and Cursor the real API — `search_components`, `get_component` (parameters, enum members with their qualified names, an example), `get_tokens` (the CSS variables with dark and light values) and `validate_markup` (checks `<Dryl…>` markup against the real API and suggests fixes). The section gives the install line for each client, links `llms.txt` / `llms-full.txt`, and carries a copy-ready `AGENTS.md` / `CLAUDE.md` rules snippet.
+
+### Fixed
+- `PACKAGE.md`, `README.md` — The quick start wrote `Variant="ButtonVariant.Primary"`, which does not compile in consumer code: `ButtonVariant` is nested in `DrylButton`. It now reads `Variant="DrylButton.ButtonVariant.Primary"`.
+- `PACKAGE.md`, `README.md` — The AI mode table listed five states; it now includes `AiState.Proposed`.
+
 ## [3.12.0] — 2026-10-19
 
 ### Added

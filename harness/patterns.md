@@ -58,7 +58,7 @@ src/DRYL/
     DrylButton — primary action component.
 
     Usage:
-      <DrylButton Variant="ButtonVariant.Primary"
+      <DrylButton Variant="DrylButton.ButtonVariant.Primary"
                   Loading="@isSaving"
                   OnClick="HandleSave">
         Save changes
