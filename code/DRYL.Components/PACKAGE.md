@@ -107,8 +107,63 @@ builder.Services.AddDrylComponents();
 @using DRYL.Components
 
 <DrylCard>
-    <DrylButton Variant="ButtonVariant.Primary">Hello DRYL</DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary">Hello DRYL</DrylButton>
 </DrylCard>
+```
+
+---
+
+## Using DRYL with AI coding agents
+
+Claude Code, Codex, GitHub Copilot and Cursor know little about DRYL from training, so they tend to
+guess parameter names and enum values. DRYL runs a read-only **MCP server** that hands them the real
+API instead — no key, no install:
+
+| Tool | What the agent gets |
+|---|---|
+| `search_components` | The right component for a job, found by name, category or purpose |
+| `get_component` | Every parameter with type and default, every enum member, an example |
+| `get_tokens` | The CSS variables, with their dark and light values |
+| `validate_markup` | A check of its own `<Dryl…>` markup against the real API, with fixes |
+
+**Claude Code**
+
+```bash
+claude mcp add --transport http dryl https://components.dryl.dev/mcp
+```
+
+**Codex** — `~/.codex/config.toml`
+
+```toml
+[mcp_servers.dryl]
+url = "https://components.dryl.dev/mcp"
+```
+
+**VS Code / GitHub Copilot** — `.vscode/mcp.json`
+
+```json
+{ "servers": { "dryl": { "type": "http", "url": "https://components.dryl.dev/mcp" } } }
+```
+
+**Cursor** — `.cursor/mcp.json`
+
+```json
+{ "mcpServers": { "dryl": { "url": "https://components.dryl.dev/mcp" } } }
+```
+
+Without MCP, point the agent at [`llms.txt`](https://components.dryl.dev/llms.txt) or the complete
+[`llms-full.txt`](https://components.dryl.dev/llms-full.txt).
+
+**Rules for your agent** — paste into `AGENTS.md` or `CLAUDE.md`:
+
+```markdown
+## DRYL (Blazor UI library)
+- Look DRYL components up with the `dryl` MCP server (`search_components`, `get_component`) before using them; never guess parameters.
+- Variants, sizes and states are enums, never strings. Write them as `qualifiedName.Member` from `get_component`, e.g. `Variant="DrylButton.ButtonVariant.Secondary"` — many enums are nested in their component.
+- Style with DRYL's CSS variables (`var(--sp-3)`, `var(--accent)`, `var(--dur-med)`), never literal colors, sizes or durations; `get_tokens` lists them. DRYL follows the user's color mode through them.
+- Wrap conditionally shown content in `<DrylPresence Visible="…">` so it animates in and out instead of popping.
+- Mark AI-driven surfaces with the `Ai` parameter (`AiState.Thinking`, `AiState.Streaming`, …) instead of styling them yourself.
+- Run `validate_markup` on every DRYL markup you write or change, and fix its findings.
 ```
 
 ---
@@ -117,7 +172,7 @@ builder.Services.AddDrylComponents();
 
 Every surface that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That parameter drives a consistent, learnable visual vocabulary across cards, tables, dialogs, inputs and more — users see the same rotating gradient border on a card that's streaming tokens as they do on a step being filled by a tool call.
 
-### The five states
+### The six states
 
 | State        | Visual                                                          | When to use                                                |
 | ------------ | --------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -126,6 +181,7 @@ Every surface that can carry AI-generated content accepts a single `Ai` paramete
 | `Thinking`   | Faster pulse on border and glow.                                | A tool call is in flight.                                  |
 | `Streaming`  | Moderate pulse; content updates incrementally.                  | Tokens are arriving from the model.                        |
 | `Generated`  | One-shot accent wash sweep + soft lift.                         | Reveal moment immediately after generation completes.       |
+| `Proposed`   | A still, frozen aurora edge that rests until decided.           | The AI is done and a human has to accept or dismiss it.    |
 
 ---
 

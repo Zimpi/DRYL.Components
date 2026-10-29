@@ -111,7 +111,7 @@ builder.Services.AddDrylComponents();
 @using DRYL.Components
 
 <DrylCard>
-    <DrylButton Variant="ButtonVariant.Primary">Hello DRYL</DrylButton>
+    <DrylButton Variant="DrylButton.ButtonVariant.Primary">Hello DRYL</DrylButton>
 </DrylCard>
 ```
 
@@ -121,7 +121,7 @@ builder.Services.AddDrylComponents();
 
 Every surface that can carry AI-generated content accepts a single `Ai` parameter of type `AiState`. That parameter drives a consistent, learnable visual vocabulary across cards, tables, dialogs, inputs and more — users see the same rotating gradient border on a card that's streaming tokens as they do on a step being filled by a tool call.
 
-### The five states
+### The six states
 
 | State        | Visual                                                          | When to use                                                |
 | ------------ | --------------------------------------------------------------- | ---------------------------------------------------------- |
@@ -130,6 +130,7 @@ Every surface that can carry AI-generated content accepts a single `Ai` paramete
 | `Thinking`   | Faster pulse on border and glow.                                | A tool call is in flight.                                  |
 | `Streaming`  | Moderate pulse; content updates incrementally.                  | Tokens are arriving from the model.                        |
 | `Generated`  | One-shot accent wash sweep + soft lift.                         | Reveal moment immediately after generation completes.       |
+| `Proposed`   | A still, frozen aurora edge that rests until decided.           | The AI is done and a human has to accept or dismiss it.    |
 
 ---
 
