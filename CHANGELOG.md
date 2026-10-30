@@ -14,6 +14,13 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.12.3] — 2026-10-30
+
+### Fixed
+- `IDrylMorph` — On Blazor Server, the destination of a morph no longer flashes at its final size before it moves. This affects `DrylMorph`, `DrylRouteTransition`, the dialog handoff, `DrylTable` with `AnimateReorder` and the canvas. The engine played a round trip after the render, so the browser had already painted the new state once; it now arms the browser (`dryl.morph.arm`), which plays from inside the render that brings the target in. Its own play after the render remains as the fallback for a render that inserts no target. `dryl.morph.arm` also takes `null` as its root, meaning the whole document, and no longer drops its capture after two seconds — it only stops watching, so a slow navigation still morphs.
+- `DrylCanvas` — Expanding to fullscreen no longer flashes the full-size canvas for a frame and no longer jumps halfway through when it enters the top layer. `dryl.morph.arm` now also plays when a captured target only changes its `class`, and promotes a target that has just been given `popover` into the top layer before it measures.
+- `DrylCanvas` — The expanded canvas is opaque. It kept the translucent in-flow glass, so the whole page showed through it in fullscreen; it now sits on `--bg-2` without `backdrop-filter`.
+
 ## [3.12.2] — 2026-10-30
 
 Agents 0.23.2 ships with it.

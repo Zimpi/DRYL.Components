@@ -9,9 +9,9 @@ library as a whole rather than to one category.
 
 | Entry point | Used by | Purpose |
 |---|---|---|
-| `dryl.morph.capture` | `DrylMorphEngine` (the service behind `IDrylMorph`) | Measures every `[data-dryl-morph]` element in the document before a state change. Reads all rects before writing anything, so one morph costs one layout pass rather than one per target. |
-| `dryl.morph.play` | `DrylMorphEngine` | Measures again after the render and animates each target from where it was to where it now is; a target that changed size hands over to a clone of its old face, which rides the same curve and fades out. Does nothing when the user prefers reduced motion. |
-| `dryl.morph.arm(root, durationMs, enterMs)` | `DrylCanvasDock` | Captures now and plays from a `MutationObserver` on `root` as soon as a render brings in a captured target — inside the render, before the browser paints the new state, rather than a .NET round trip later. A mutation that brings in no captured target does not spend it; an arm whose render never comes is dropped after two seconds. |
+| `dryl.morph.capture` | `dryl.morph.arm`, internally — no .NET caller since 3.12.3 | Measures every `[data-dryl-morph]` element in the document before a state change. Reads all rects before writing anything, so one morph costs one layout pass rather than one per target. |
+| `dryl.morph.play` | `DrylMorphEngine` (the service behind `IDrylMorph`), as the fallback after the render | Measures again after the render and animates each target from where it was to where it now is; a target that changed size hands over to a clone of its old face, which rides the same curve and fades out. Does nothing when the user prefers reduced motion. |
+| `dryl.morph.arm(root, durationMs, enterMs)` | `DrylMorphEngine` (with `root` null: the whole document) and `DrylCanvasDock` | Captures now and plays from a `MutationObserver` on `root` as soon as a render brings in a captured target or changes a captured target's `class` (promoting a target that has just been given `popover` into the top layer first, so it is measured where it is going) — inside the render, before the browser paints the new state, rather than a .NET round trip later. A mutation that brings in no captured target does not spend it; an arm whose render never comes is dropped after two seconds. |
 
 *(the rest: phase C)*
 

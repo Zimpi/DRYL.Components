@@ -112,6 +112,10 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 - The component reports its render even while it claims no name, so an instance
   that is only the *destination* of a morph still closes the timing loop.
 - A consumer using `DrylMorph` never calls `SignalRendered()` itself.
+- The destination is never painted at its final geometry before it moves: the
+  engine arms the browser (`dryl.morph.arm`), which plays from inside the render
+  that brings the target in. The play after `SignalRendered()` is the fallback
+  for a render that inserts no target, and finds nothing left to play otherwise.
 
 ### Behaviour where the morph cannot run
 

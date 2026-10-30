@@ -71,9 +71,13 @@ internal sealed class DrylMorphEngine : IDrylMorph, IDisposable
 
     private async Task<bool> TryCaptureAsync()
     {
+        // Armed, not merely captured: on Blazor Server the render reaches the browser a round
+        // trip before TryPlayAsync does, and in between the new state would be painted at its
+        // final geometry — a flash of the destination before the morph puts it back. Armed, the
+        // browser plays from inside that render; TryPlayAsync then finds nothing left to play.
         try
         {
-            await _js.InvokeVoidAsync("dryl.morph.capture");
+            await _js.InvokeVoidAsync("dryl.morph.arm", null, MoveMs, EnterMs);
             return true;
         }
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)

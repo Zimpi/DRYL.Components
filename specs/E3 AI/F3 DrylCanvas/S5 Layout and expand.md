@@ -35,12 +35,20 @@ budget for.
 - A browser without the Popover API ignores the attribute and the CSS fallback
   positions the overlay instead.
 - The promotion happens before the render is signalled, so the browser
-  snapshots the finished state.
+  snapshots the finished state. While a morph is armed, the morph engine
+  promotes the canvas itself in the same microtask as the render, so the morph
+  measures the fullscreen geometry instead of jumping to it halfway; the
+  component's own promotion then finds it open.
+- The expanded canvas sits on the opaque `--bg-2` ground with no
+  `backdrop-filter`: the page under it never shows through (`DESIGN-06`).
 
 ### Motion
 
 - The morph between inline and fullscreen runs as a morph, so the CSS
   describes only the destination and never the movement (`DESIGN-13`).
+- No frame shows the fullscreen canvas at its final size before the morph
+  starts, and none shows it jump when it enters the top layer
+  (browser-checked on 2026-10-30, frame by frame, in both directions).
 - Each canvas instance carries a document-unique `data-dryl-morph`; a
   duplicate name would void the entire transition, so two canvases on one page
   do not collide.
