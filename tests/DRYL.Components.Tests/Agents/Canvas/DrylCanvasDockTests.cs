@@ -143,6 +143,46 @@ public class DrylCanvasDockTests : BunitContext
     }
 
     [Fact]
+    public void The_panel_and_the_button_are_one_morph_target()
+    {
+        // One name on both faces: that is what lets the panel shrink into the button instead of
+        // the two cross-fading in the same box.
+        var cut = Render<DrylCanvasDock>();
+        var name = cut.Find(".dock-panel").GetAttribute("data-dryl-morph");
+        Assert.False(string.IsNullOrEmpty(name));
+
+        cut.Find(".dock-collapse").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".dock-panel")));
+        Assert.Equal(name, cut.Find(".dock-fab").GetAttribute("data-dryl-morph"));
+    }
+
+    [Fact]
+    public void Collapsing_runs_a_morph()
+    {
+        var cut = Render<DrylCanvasDock>();
+
+        cut.Find(".dock-collapse").Click();
+
+        // Armed in the browser, so the morph plays from inside the render — not a round trip
+        // later, after the new face has already been painted at full size.
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".dock-panel")));
+        Assert.Single(JSInterop.Invocations, i => i.Identifier == "dryl.morph.arm");
+        Assert.DoesNotContain(JSInterop.Invocations, i => i.Identifier == "dryl.morph.play");
+    }
+
+    [Fact]
+    public void A_host_flipping_Collapsed_gets_the_same_morph()
+    {
+        var cut = Render<DrylCanvasDock>();
+
+        cut.Render(p => p.Add(x => x.Collapsed, true));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".dock-fab")));
+        Assert.Single(JSInterop.Invocations, i => i.Identifier == "dryl.morph.arm");
+    }
+
+    [Fact]
     public void Without_a_log_there_is_no_disclosure()
     {
         var cut = Render<DrylCanvasDock>(p => p.Add(x => x.Run, BuildingRun()));

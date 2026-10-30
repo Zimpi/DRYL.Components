@@ -29,9 +29,15 @@
 @*  data-dryl-modal-island: the dock floats above every dialog in the top layer, so it stays
     operable while one is open — F6 moves the keyboard between the dialog and the dock
     (dryl.modal). *@
+@*  The button and the panel are one object, not two: both carry the same morph name, and the
+    collapse runs through dryl.morph, so the panel shrinks into the button (and the button grows
+    back into the panel) on the viscous curve, passing through blur on the way. Two presences
+    used to cross-fade here instead — and while the panel played its exit the button already
+    sat in the same box, top-left of a 420px card, and then jumped into the corner. *@
 <div class="@RootCssClass" popover="@PopoverMode" data-dryl-modal-island @ref="_el" @attributes="AdditionalAttributes">
-    <DrylPresence Visible="@Collapsed" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
-        <div class="dock-fab">
+    @if (Collapsed)
+    {
+        <div class="dock-fab" data-dryl-morph="@_morphName" data-dryl-morph-depth>
             <DrylTooltip Text="@FabLabel">
                 <DrylButton Variant="DrylButton.ButtonVariant.Bold"
                             AriaLabel="@FabLabel"
@@ -41,10 +47,10 @@
                 </DrylButton>
             </DrylTooltip>
         </div>
-    </DrylPresence>
-
-    <DrylPresence Visible="@(!Collapsed)" Transition="PresenceTransition.Scale" Speed="PresenceSpeed.Fast">
-        <div class="dock-panel glass-card">
+    }
+    else
+    {
+        <div class="dock-panel glass-card" data-dryl-morph="@_morphName" data-dryl-morph-depth>
             <div class="dock-head">
                 <DrylAiIndicator State="@DockAi" />
 
@@ -196,7 +202,7 @@
                 </div>
             </DrylPresence>
         </div>
-    </DrylPresence>
+    }
 </div>
 
 @code {
@@ -347,6 +353,19 @@
     private bool _shown;      // …and the element is actually promoted
     private bool _scrollLog;
 
+    // Unique per instance: morph names are page-wide, and a page may hold more than one dock.
+    private readonly string _morphName = "dryl-canvas-dock-" + Guid.NewGuid().ToString("N");
+
+    // A host flipping Collapsed gets the same morph as the dock's own buttons. Its own flips
+    // arrive here already applied (two-way binding echoes them back), so they pass straight on.
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        if (parameters.TryGetValue<bool>(nameof(Collapsed), out var collapsed) && collapsed != Collapsed)
+            return MorphCollapseAsync(() => base.SetParametersAsync(parameters));
+
+        return base.SetParametersAsync(parameters);
+    }
+
     protected override void OnParametersSet()
     {
         if (!ReferenceEquals(_subscribed, Run))
@@ -410,8 +429,35 @@
     private async Task SetCollapsedAsync(bool collapsed)
     {
         if (Collapsed == collapsed) return;
-        Collapsed = collapsed;
-        await CollapsedChanged.InvokeAsync(collapsed);
+        // The host hears about it with the flip, not after the movement: its own render is part
+        // of the new state the morph measures.
+        await MorphCollapseAsync(async () =>
+        {
+            Collapsed = collapsed;
+            StateHasChanged();
+            await CollapsedChanged.InvokeAsync(collapsed);
+        });
+    }
+
+    // The morph's move and the arrival of a face with no counterpart: --dur-slow and --dur-med,
+    // the same pair IDrylMorph plays with.
+    private const int MorphMs = 420;
+    private const int MorphEnterMs = 240;
+
+    // Not IDrylMorph: it plays once the render has been reported back to .NET, a round trip after
+    // the browser has already painted the new face at full size — the panel flashed open, vanished
+    // and only then grew out of the button. arm() plays from inside the render instead.
+    // Before the dock is in the top layer there is nothing on screen to morph from.
+    private async Task MorphCollapseAsync(Func<Task> flip)
+    {
+        if (_shown)
+        {
+            try { await JS.InvokeVoidAsync("dryl.morph.arm", _el, MorphMs, MorphEnterMs); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (JSException) { /* stale dryl.js — the flip still happens, unanimated */ }
+            catch (InvalidOperationException) { /* prerender — no JS */ }
+        }
+        await flip();
     }
 
     private void ToggleLog()
@@ -470,8 +516,10 @@
     private async Task OpenFromFabAsync()
     {
         var startVoice = VoiceFromFab;
-        await SetCollapsedAsync(false);
+        // The microphone does not wait for the panel to finish growing.
+        var expand = SetCollapsedAsync(false);
         if (startVoice) await StartVoiceAsync();
+        await expand;
     }
 
     // What the voice is doing, in one line. The host's VoiceStatusText goes first; a null from it

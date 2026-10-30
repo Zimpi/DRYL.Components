@@ -2443,6 +2443,46 @@ window.dryl.morph = (() => {
 
     function clear() { first = new Map(); }
 
+    // capture() now, play() from inside the render that changes `root`.
+    //
+    // On Blazor Server the render and the play() call are separate messages:
+    // the new state reaches the DOM, gets painted at its final size, and only a
+    // round trip later does play() put it back where it came from — a frame of
+    // the finished state, gone again, then the movement. A MutationObserver
+    // callback is a microtask, so playing from there inverts the new state
+    // before the browser has painted it once. Only a mutation that brings in a
+    // captured target counts: an unrelated status line updating in the meantime
+    // must not spend the morph.
+    let armed = null;
+
+    function disarm() {
+        if (!armed) return;
+        armed.observer.disconnect();
+        clearTimeout(armed.timer);
+        armed = null;
+    }
+
+    function arm(root, durationMs, enterMs) {
+        disarm();
+        if (!root) return;
+        capture();
+        if (!first.size) return;
+        const names = new Set(first.keys());
+        const brings = (node) => node.nodeType === 1 && (
+            names.has(node.getAttribute('data-dryl-morph'))
+            || [...node.querySelectorAll('[data-dryl-morph]')].some(n => names.has(n.getAttribute('data-dryl-morph'))));
+        const observer = new MutationObserver((records) => {
+            if (!records.some(r => [...r.addedNodes].some(brings))) return;
+            disarm();
+            play(durationMs, enterMs);
+        });
+        observer.observe(root, { childList: true, subtree: true });
+        // A render that never comes (the flip was a no-op after all) must not
+        // leave a stale capture for the next morph to play.
+        const timer = setTimeout(() => { disarm(); clear(); }, 2000);
+        armed = { observer, timer };
+    }
+
     function play(durationMs, enterMs) {
         const captured = first;
         first = new Map();
@@ -2571,7 +2611,7 @@ window.dryl.morph = (() => {
         ], { duration: ms, easing, fill: 'both' });
     }
 
-    return { capture, play, clear };
+    return { capture, play, clear, arm };
 })();
 
 /* ──────────────────────────────────────────────────────────
@@ -2747,8 +2787,20 @@ window.dryl.tooltip = (() => {
         requestAnimationFrame(() => { if (current === wrap && wrap.isConnected) b.classList.add('is-open'); });
     }
 
+    // A trigger inside a morph target that is still travelling has no place
+    // to point at: its rect is the stretched FLIP geometry, not the button.
+    // And it was not hovered — it slid under a cursor that stood still, which
+    // is how a collapsing dock popped its button's bubble above the middle of
+    // the old panel. The next real pointer movement shows it as usual.
+    function inFlight(wrap) {
+        const host = wrap.closest('[data-dryl-morph]');
+        return !!host && host.getAnimations().some(a =>
+            a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity);
+    }
+
     function show(wrap) {
         if (current === wrap) return;
+        if (inFlight(wrap)) { if (current) hide(); return; }
         current = wrap;
         place(wrap);
     }
