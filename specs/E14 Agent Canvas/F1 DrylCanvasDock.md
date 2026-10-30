@@ -92,9 +92,18 @@ popover would close behind the component's back on the first click elsewhere.
   renders expanded.
 - The root carries the collapsed modifier class exactly while `Collapsed` is
   `true`, and the root narrows to the button's own width in that state.
-- Exactly one of the two — the collapsed button or the panel — is visible at a
-  time; each is wrapped in its own `DrylPresence`, so the swap is animated in
-  both directions rather than cut.
+- Exactly one of the two — the collapsed button or the panel — is in the DOM at
+  a time. Both carry the same per-instance `data-dryl-morph` name with the
+  depth marker, and every flip of `Collapsed` — the dock's own buttons and a
+  host setting the parameter — runs through `dryl.morph.arm`, which plays from
+  inside the render rather than a round trip after it, so the new face is never
+  painted at full size before it moves: the panel shrinks
+  into the button and the button grows back into the panel on the morph curve,
+  never two surfaces cross-fading in the same box.
+- The collapsed button never appears anywhere but its corner: no frame of the
+  swap places it inside the panel's old box.
+- `CollapsedChanged` is raised with the flip, not after the movement, and a
+  voice session started from the collapsed button starts without waiting for it.
 - The collapsed button expands the dock, and the head's collapse button
   collapses it.
 - Both raise `CollapsedChanged`, and neither changes `Collapsed` without raising
@@ -295,8 +304,11 @@ ownership, not microphone hardware or provider audio quality.
   `docs/screenshots/2026-08-18-canvas-dock-fab-bold-dark.png` and
   `docs/screenshots/2026-08-18-canvas-dock-fab-bold-light.png`.
 - **Enter/exit animation** — present throughout and central to the component: the
-  collapsed button and the panel each own a `DrylPresence` on the scale
-  transition, and the context chip, the suggestions, the composer and the voice
+  collapsed button and the panel are one morph target, so collapsing shrinks the
+  panel into the button through the depth-glass blur on `--ease-viscous` and
+  `--dur-slow` (browser-checked on 2026-10-30 in both modes: the button's rect
+  travels continuously from the panel's box into the corner, and no ghost is left
+  behind), and the context chip, the suggestions, the composer and the voice
   takeover each own one of their own, so every row of the dock arrives and leaves
   with a movement (`DESIGN-11`, `DESIGN-12`). The status line and the spoken line
   animate by re-keying their presence on their own text.

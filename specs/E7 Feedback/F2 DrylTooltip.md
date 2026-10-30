@@ -74,6 +74,10 @@ omission — see the cross-cutting evidence below.
 - The bubble hides on scroll and on viewport resize, rather than staying at a
   stale position.
 - The bubble hides when its trigger is removed from the DOM while hovered.
+- No bubble opens for a trigger inside a `[data-dryl-morph]` target while that
+  target's morph is running: the trigger slid under a cursor that stood still,
+  and its rect is the stretched FLIP geometry. The next pointer movement after
+  the morph shows it as usual.
 - One bubble exists per page, and a second tooltip reuses it rather than adding
   another.
 - The bubble is rendered outside every component's subtree, so no ancestor's

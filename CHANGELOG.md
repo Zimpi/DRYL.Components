@@ -14,6 +14,23 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.12.2] — 2026-10-30
+
+Agents 0.23.2 ships with it.
+
+### Fixed
+- `DrylTooltip` — No bubble opens for a trigger inside a morph target that is still moving. A trigger that slides under a cursor that stood still was not hovered, and its rect is the stretched FLIP geometry: a collapsing `DrylCanvasDock` popped its button's tooltip above the middle of the old panel. The next pointer movement after the morph shows the bubble as usual.
+
+### Added
+- `dryl.morph.arm(root, durationMs, enterMs)` (JS) — Captures now and plays from inside the render that changes `root`, before the browser paints it. On Blazor Server, `IDrylMorph` plays a round trip after the render, so the new state can show for a frame at its final size before the morph puts it back. `IDrylMorph` is unchanged.
+
+## [Agents 0.23.2] — 2026-10-30
+
+Requires core 3.12.2.
+
+### Fixed
+- `DrylCanvasDock` (Agents 0.23.2) — Collapsing the dock no longer throws the button across the screen. The panel and the collapsed button were two `DrylPresence`s cross-fading in the same box, so for the length of the panel's exit the button sat at the top-left of the 420px card and then jumped into the corner. The two are now one morph target: the panel shrinks into the button, and the button grows back into the panel, through the depth-glass blur on the shared morph curve. A host that sets `Collapsed` gets the same movement. The morph plays from inside the render (`dryl.morph.arm`), so the expanded panel no longer flashes at full size before it grows out of the button. `CollapsedChanged` still fires with the flip, and a voice session started from the collapsed button still starts at once. Instant under reduced motion.
+
 ## [3.12.1] — 2026-10-29
 
 Documentation only — no code changes. Agents 0.23.1 ships the same readme section.
