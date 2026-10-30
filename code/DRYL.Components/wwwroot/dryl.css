@@ -4129,19 +4129,101 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 /* Alert */
 .alert {
+  /* The Kind's tone and the ember tempo — set per Kind below, read by the ember
+     layer, the border and the arrival. Weightier kinds drift faster and brighter. */
+  --alert-tone: var(--accent-a);
+  --alert-tone-2: var(--accent-a);
+  --alert-ember-dur: 16s;
+  --alert-ember-mix: 34%;
+  position: relative;
+  isolation: isolate;
   display: flex;
   gap: 12px;
   padding: 14px 16px;
   border-radius: var(--r-md);
-  border: 1px solid var(--line-strong);
+  border: 1px solid color-mix(in srgb, var(--alert-tone) 26%, var(--line-strong));
   background: var(--glass-1);
   backdrop-filter: var(--glass-fx-flow);
+}
+.alert.success { --alert-tone: var(--success); --alert-tone-2: var(--success); }
+.alert.warning { --alert-tone: var(--warning); --alert-tone-2: var(--warning);
+                 --alert-ember-dur: 11s; --alert-ember-mix: 38%; }
+.alert.danger  { --alert-tone: var(--danger);  --alert-tone-2: var(--danger);
+                 --alert-ember-dur: 8s;  --alert-ember-mix: 36%; }
+.alert.ai      { --alert-tone-2: var(--accent-b); }
+
+/* Ember layer — clipped to the alert, behind its content (z-index -1 inside the
+   isolated root). The glows are oversized circles of which only a horizontal band
+   shows; they drift on transform alone, so the loop stays on the compositor. */
+.alert-ember {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+.alert-ember-glow {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--alert-tone) var(--alert-ember-mix), transparent),
+    transparent);
+  animation: alert-ember-a var(--alert-ember-dur) var(--ease-in-out) infinite alternate;
+}
+.alert-ember-glow:first-child { left: -16%; }
+.alert-ember-glow:nth-child(2) {
+  right: -12%;
+  width: 48%;
+  background: radial-gradient(closest-side,
+    color-mix(in srgb, var(--alert-tone-2) calc(var(--alert-ember-mix) * 0.75), transparent),
+    transparent);
+  animation-name: alert-ember-b;
+  animation-duration: calc(var(--alert-ember-dur) * 1.3);
+  animation-delay: calc(var(--alert-ember-dur) * -0.6);
+}
+@keyframes alert-ember-a {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(38%, 22%, 0) scale(1.18); }
+}
+@keyframes alert-ember-b {
+  0%   { transform: translate3d(0, 0, 0) scale(1.1); }
+  100% { transform: translate3d(-46%, 14%, 0) scale(0.92); }
+}
+
+/* Arrival — once, when the alert mounts: a band of the Kind's tone sweeps from the
+   icon across the alert and the icon chip springs in. Blazor patches the alert in
+   place, so a re-render never replays it. */
+.alert-wave {
+  position: absolute;
+  inset: 0;
+  width: 60%;
+  background: linear-gradient(90deg,
+    transparent,
+    color-mix(in srgb, var(--alert-tone) 30%, transparent) 55%,
+    transparent);
+  opacity: 0;
+  animation: alert-wave var(--dur-choreo) var(--ease-out) both;
+}
+@keyframes alert-wave {
+  0%   { opacity: 1; transform: translateX(-100%); }
+  70%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translateX(180%); }
 }
 .alert .ico {
   width: 28px; height: 28px;
   border-radius: 8px;
   display: grid; place-content: center;
   flex: 0 0 28px;
+  animation: alert-ico-in var(--dur-slow) var(--ease-spring) both;
+}
+@keyframes alert-ico-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
 }
 .alert.info .ico    { background: var(--accent-soft); color: var(--accent-ico); }
 .alert.success .ico { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
@@ -4174,6 +4256,11 @@ body.dryl-scroll-locked { overflow: hidden; }
 /* AI aura on the alert — the border recedes so the gradient ring dominates.
    The alert has no overflow:hidden, so the default inset of -1px works. */
 .alert.ai-aura { border-color: var(--accent-line); }
+@media (prefers-reduced-motion: reduce) {
+  .alert-ember-glow,
+  .alert .ico { animation: none; }
+  .alert-wave { display: none; }
+}
 
 /* Spotlight card */
 .spotlight-card {

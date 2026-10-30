@@ -10,7 +10,7 @@ namespace DRYL.Components.Tests;
 /// </summary>
 public class DrylAlertTests : BunitContext
 {
-    // The self-dismissing configuration wraps in DrylPresence, which wires dryl.motion.
+    // Dismissing plays the alert's own exit through dryl.motion.collapse.
     public DrylAlertTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
     private IRenderedComponent<DrylAlert> RenderAlert(
@@ -22,17 +22,40 @@ public class DrylAlertTests : BunitContext
         });
 
     [Fact]
-    public void Dismiss_without_a_handler_starts_removing_the_alert()
+    public void Dismiss_without_a_handler_removes_the_alert_after_its_exit()
     {
-        // The removal itself finishes when DrylPresence's exit animation ends, which is
-        // driven by dryl.motion and therefore out of bUnit's reach — see DrylPresenceTests
-        // for the same boundary. What is visible here is that the alert answered the press
-        // by beginning to leave, which is exactly what it did not do before.
+        // In the browser the exit is a real animation; bUnit's loose interop completes
+        // the call at once, so what is visible here is the order: exit, then removal.
         var cut = RenderAlert();
 
         cut.Find(".alert-dismiss").Click();
 
-        Assert.Contains("presence-exit", cut.Find(".presence").GetAttribute("class"));
+        Assert.Single(JSInterop.Invocations, i => i.Identifier == "dryl.motion.collapse");
+        Assert.Empty(cut.FindAll(".alert"));
+    }
+
+    [Fact]
+    public void Dismiss_with_a_handler_plays_the_exit_before_raising_it()
+    {
+        var collapsedFirst = false;
+        var cut = RenderAlert(onDismiss: () =>
+            collapsedFirst = JSInterop.Invocations.Any(i => i.Identifier == "dryl.motion.collapse"));
+
+        cut.Find(".alert-dismiss").Click();
+
+        Assert.True(collapsedFirst);
+    }
+
+    [Fact]
+    public void A_host_that_keeps_the_alert_gets_it_back()
+    {
+        // The handler ran but the host did not unmount: the exit plays in reverse.
+        var cut = RenderAlert(onDismiss: () => { });
+
+        cut.Find(".alert-dismiss").Click();
+
+        cut.WaitForAssertion(() =>
+            Assert.Single(JSInterop.Invocations, i => i.Identifier == "dryl.motion.restore"));
     }
 
     [Fact]
@@ -58,10 +81,19 @@ public class DrylAlertTests : BunitContext
     }
 
     [Fact]
+    public void A_self_dismissing_alert_gains_no_wrapper_element()
+    {
+        // The exit is played on the alert itself, so no configuration adds an
+        // element around it.
+        var cut = RenderAlert();
+
+        Assert.DoesNotContain("presence", cut.Markup);
+        Assert.StartsWith("alert", cut.Find("*").GetAttribute("class"));
+    }
+
+    [Fact]
     public void An_alert_with_a_handler_gains_no_wrapper_element()
     {
-        // The DrylPresence wrapper exists only in the self-dismissing configuration,
-        // so an alert that worked before does not change shape.
         var cut = RenderAlert(onDismiss: () => { });
 
         Assert.DoesNotContain("presence", cut.Markup);

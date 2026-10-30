@@ -2250,7 +2250,80 @@ window.dryl.motion = (() => {
         el.__drylCount = { value: to, raf: requestAnimationFrame(step) };
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip, countUp };
+    /* ---- Collapse: an in-flow element leaving its place -------------
+     * collapse(el) plays a two-beat exit on an element that stays in the
+     * flow — first it shrinks, blurs and fades where it stands, then the
+     * space it held closes so its neighbours glide up rather than jump. The
+     * returned promise settles when the space is closed; the element keeps
+     * its collapsed end state (fill: forwards) until the caller unmounts it.
+     * The gap its flex/grid parent puts between it and a sibling closes too,
+     * via a negative margin, so nothing snaps on unmount.
+     *
+     * restore(el) plays the same exit backwards — for a host that answered a
+     * dismiss request by keeping the element after all.
+     *
+     * Duration is --dur-choreo (a multi-step one-shot), easing --ease-in-out.
+     * Reduced motion skips the movement and settles at once.
+     * ---------------------------------------------------------------- */
+    function tokenMs(name, fallback) {
+        const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms > 0 ? ms : fallback;
+    }
+
+    function collapse(el) {
+        if (!el || el.nodeType !== 1 || !el.isConnected || reduced()) return Promise.resolve();
+        if (el.__drylCollapse) return el.__drylCollapse.finished.then(() => {}, () => {});
+
+        const cs = getComputedStyle(el);
+        const parent = el.parentElement;
+        const pcs = parent ? getComputedStyle(parent) : null;
+        const hasSibling = !!(el.previousElementSibling || el.nextElementSibling);
+        let gap = 0;
+        if (pcs && hasSibling) {
+            const flexColumn = pcs.display.includes('flex') && pcs.flexDirection.startsWith('column');
+            if (flexColumn || pcs.display.includes('grid')) gap = parseFloat(pcs.rowGap) || 0;
+        }
+
+        const h = el.getBoundingClientRect().height;
+        const held = {
+            height: h + 'px',
+            paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom,
+            borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth,
+            marginBottom: cs.marginBottom
+        };
+        const gone = { opacity: 0, transform: 'scale(0.94) translateY(-4px)', filter: 'blur(6px)' };
+        const easing = getComputedStyle(document.documentElement).getPropertyValue('--ease-in-out').trim() || 'ease-in-out';
+
+        el.style.overflow = 'hidden';
+        el.style.minHeight = '0';
+        el.style.pointerEvents = 'none';
+        const animation = el.animate([
+            { offset: 0,    opacity: 1, transform: 'none', filter: 'blur(0)', ...held },
+            { offset: 0.45, ...gone, ...held },
+            { offset: 1,    ...gone,
+              height: '0px', paddingTop: '0px', paddingBottom: '0px',
+              borderTopWidth: '0px', borderBottomWidth: '0px',
+              marginBottom: `calc(${cs.marginBottom} - ${gap}px)` }
+        ], { duration: tokenMs('--dur-choreo', 900), easing, fill: 'forwards' });
+        el.__drylCollapse = animation;
+        return animation.finished.then(() => {}, () => {});
+    }
+
+    function restore(el) {
+        const animation = el?.__drylCollapse;
+        if (!animation) return;
+        el.__drylCollapse = null;
+        const clear = () => {
+            animation.cancel();
+            el.style.overflow = el.style.minHeight = el.style.pointerEvents = '';
+        };
+        if (reduced()) { clear(); return; }
+        animation.onfinish = clear;
+        animation.reverse();
+    }
+
+    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
 })();
 
 /* ──────────────────────────────────────────────────────────
