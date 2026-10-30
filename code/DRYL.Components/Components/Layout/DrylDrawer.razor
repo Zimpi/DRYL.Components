@@ -52,7 +52,7 @@
         {
             <div class="sidebar-header">@Header</div>
         }
-        <div class="sidebar-content">@(Content ?? ChildContent)</div>
+        <div class="sidebar-content"><span class="nav-ink" aria-hidden="true"></span>@(Content ?? ChildContent)</div>
         @if (Footer is not null)
         {
             <div class="sidebar-footer">@Footer</div>
@@ -60,6 +60,7 @@
     }
     else
     {
+        <span class="nav-ink" aria-hidden="true"></span>
         @ChildContent
     }
 </aside>
@@ -129,6 +130,11 @@
     private bool _persistLoaded;
     private DrylLayoutContext? _registered;
     private bool _collapseRegistered;
+    // Which layout the glide was last attached to (null = not attached). The JS
+    // side finds its ink by structure, so a switch between slotted and plain
+    // content re-attaches. Also the prerender guard: Dispose only calls into JS
+    // after an interactive render attached it.
+    private bool? _navGlideSlots;
 
     private bool _collapsible => Mode is SidebarMode.Collapsible or SidebarMode.Pinnable;
     // Every mode except Static can overlay the content: Auto / Collapsible / Pinnable
@@ -203,6 +209,17 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // The active row's indicator glides between rows; the hover light follows the mouse (I29).
+        if (_navGlideSlots != _useSlots)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("dryl.motion.navGlide", _aside);
+                _navGlideSlots = _useSlots;
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
+
         // Pinnable: restore the persisted collapsed state once, after first interactive render.
         if (firstRender && Mode == SidebarMode.Pinnable && !string.IsNullOrEmpty(PersistStateKey))
         {
@@ -297,6 +314,11 @@
         if (_collapseRegistered) _registered?.UnregisterSidebarToggle(ToggleCollapseAsync);
         _registered?.UnregisterDrawer(this);
         await DetachFlyoutAsync();
+        if (_navGlideSlots is not null)
+        {
+            try { await JS.InvokeVoidAsync("dryl.motion.disposeNavGlide", _aside); }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+        }
         _dotNetRef?.Dispose();
     }
 }
