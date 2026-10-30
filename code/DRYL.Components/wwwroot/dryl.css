@@ -1550,6 +1550,16 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    plain ChildContent never render these wrappers. */
 .sidebar-header { flex: 0 0 auto; }
 .sidebar-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-1); }
+/* The nav softens into the header and footer instead of being cut by them. The
+   padding is exactly the fade, so a list at rest is never dimmed — only what
+   has scrolled past the edge. The mask reads alpha only; black is not a colour
+   anyone sees. Positioned so the gliding .nav-ink measures against it (I29). */
+.sidebar-content {
+  position: relative;
+  padding-block: var(--sp-3);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--sp-3), black calc(100% - var(--sp-3)), transparent);
+          mask-image: linear-gradient(to bottom, transparent, black var(--sp-3), black calc(100% - var(--sp-3)), transparent);
+}
 .sidebar-footer {
   flex: 0 0 auto;
   margin-top: var(--sp-2);
@@ -1806,6 +1816,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   user-select: none;
+  /* Own stacking context + clip: the hover light (::after, z-index -1) sits
+     between the row's fill and its label and never spills past its corners. */
+  isolation: isolate;
+  overflow: hidden;
 }
 .nav-item:hover { background: var(--glass-2); color: var(--fg); }
 .nav-item.active {
@@ -1813,10 +1827,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px color-mix(in srgb, var(--accent-a) 15%, transparent);
 }
+/* The accent edge sits inside the row. Outside it (it used to hang 18px left)
+   the scrolling .sidebar-content clipped it away entirely. */
 .nav-item.active::before {
   content: '';
   position: absolute;
-  left: -18px;
+  left: var(--sp-1);
   top: 50%;
   transform: translateY(-50%);
   width: 3px;
@@ -1825,7 +1841,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   background: var(--accent-grad);
   box-shadow: 0 0 12px var(--accent-a);
 }
-.nav-item .ico { width: 16px; height: 16px; flex: 0 0 16px; opacity: 0.8; }
+.nav-item .ico {
+  width: 16px; height: 16px; flex: 0 0 16px; opacity: 0.8;
+  transition: color var(--dur-med) var(--ease-out), opacity var(--dur-med) var(--ease-out);
+}
+.nav-item.active .ico,
+.nav-section-link.active .ico { color: var(--accent-ico); opacity: 1; }
 .nav-item .kbd {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -1905,6 +1926,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   user-select: none;
   min-width: 0;
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
 }
 .nav-section-link:hover { background: var(--glass-2); color: var(--fg); }
 .nav-section-link.active {
@@ -1915,7 +1938,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .nav-section-link.active::before {
   content: '';
   position: absolute;
-  left: -22px;
+  left: var(--sp-1);
   top: 50%;
   transform: translateY(-50%);
   width: 3px;
@@ -1972,6 +1995,85 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding-left: 30px;
   height: 30px;
   font-size: 12.5px;
+}
+
+/* ── Gliding active indicator (I29) ───────────────────────
+   DrylDrawer renders one .nav-ink in its scrolling region; dryl.motion.navGlide
+   lays it under the active row and lets it glide to the next one. The host's
+   data-nav-ink says what the ink may do: "place" (first placement, no motion),
+   "glide" (navigation — spring travel) or "track" (a group or the rail is
+   resizing, the ink follows frame by frame). The row it covers carries
+   data-nav-ink-target and gives up its own fill, so the pill is drawn once.
+   Without script — prerender, static SSR, a NavLink outside a drawer — the
+   ink never shows and every active row keeps the static treatment above. */
+.nav-ink {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-a) 18%, transparent), color-mix(in srgb, var(--accent-b) 4%, transparent));
+  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px color-mix(in srgb, var(--accent-a) 15%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+.nav-ink::before {
+  content: '';
+  position: absolute;
+  left: var(--sp-1);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-grad);
+  box-shadow: 0 0 12px var(--accent-a);
+}
+[data-nav-ink="glide"] > .nav-ink {
+  transition: transform var(--dur-slow) var(--ease-spring),
+              width var(--dur-slow) var(--ease-spring),
+              height var(--dur-med) var(--ease-out),
+              opacity var(--dur-med) var(--ease-out);
+}
+[data-nav-ink="track"] > .nav-ink { transition: opacity var(--dur-med) var(--ease-out); }
+[data-nav-ink] .nav-item.active[data-nav-ink-target],
+[data-nav-ink] .nav-section-link.active[data-nav-ink-target] {
+  background: transparent;
+  box-shadow: none;
+}
+[data-nav-ink] .nav-item.active[data-nav-ink-target]::before,
+[data-nav-ink] .nav-section-link.active[data-nav-ink-target]::before { content: none; }
+
+/* ── Hover light (I29) ────────────────────────────────────
+   A soft accent glow under the label that follows the mouse across the row.
+   navGlide writes the pointer's offset into --nav-spot-x/y and marks the row
+   data-nav-spot on its first mouse move, so touch never lights a row and the
+   glow never flashes at the corner before it knows where the pointer is. It
+   moves by transform only; nothing is repainted per move. */
+.nav-item::after,
+.nav-section-link::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--sp-8) * -1);
+  top: calc(var(--sp-8) * -1);
+  z-index: -1;
+  width: calc(var(--sp-8) * 2);
+  height: calc(var(--sp-8) * 2);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-a) 32%, transparent), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(var(--nav-spot-x, 0px), var(--nav-spot-y, 0px));
+  transition: opacity var(--dur-med) var(--ease-out);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .nav-item[data-nav-spot]:hover::after,
+  .nav-section-link[data-nav-spot]:hover::after { opacity: 1; will-change: transform; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-nav-ink] > .nav-ink { transition: none; }
+  .nav-item .ico { transition: none; }
 }
 
 .topbar {
