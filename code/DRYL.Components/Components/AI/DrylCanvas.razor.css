@@ -33,6 +33,12 @@
     padding: 0;
     overflow: hidden;
     color: var(--fg);
+    /* Fullscreen is for reading the artifact, and the page under it was showing through
+       the in-flow glass — a translucent fill over a whole viewport of content. An opaque
+       ground (the menus' and popovers' --bg-2) hides it; frost on top would be invisible
+       by definition, so there is none. */
+    background: var(--bg-2);
+    backdrop-filter: none;
 }
 
 /* Fullscreen gives the artifact the whole box: the body takes the leftover height and

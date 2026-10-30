@@ -16,7 +16,7 @@ public class DrylMorphEngineTests : BunitContext
     {
         var order = new List<string>();
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.SetupVoid("dryl.morph.capture").SetVoidResult();
+        JSInterop.SetupVoid("dryl.morph.arm", _ => true).SetVoidResult();
 
         var svc = new DrylMorphEngine(JSInterop.JSRuntime);
         var run = svc.RunAsync(() => order.Add("mutate"));
@@ -25,7 +25,7 @@ public class DrylMorphEngineTests : BunitContext
 
         // The first thing that happened was the capture call, not the mutation:
         // measuring after the change would measure the wrong geometry.
-        var captured = JSInterop.Invocations["dryl.morph.capture"];
+        var captured = JSInterop.Invocations["dryl.morph.arm"];
         Assert.NotEmpty(captured);
         Assert.Equal(new[] { "mutate" }, order);
     }

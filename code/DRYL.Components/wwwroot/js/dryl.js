@@ -2462,24 +2462,42 @@ window.dryl.morph = (() => {
         armed = null;
     }
 
+    // `root` null watches the whole document — what IDrylMorph does, since its
+    // targets can be anywhere. A render that brings in no target (a class change
+    // that only resizes) never fires the observer; the caller's own play()
+    // after the render covers that, and is a no-op once arm() has played.
     function arm(root, durationMs, enterMs) {
         disarm();
-        if (!root) return;
+        root = root || document.body;
         capture();
         if (!first.size) return;
         const names = new Set(first.keys());
         const brings = (node) => node.nodeType === 1 && (
             names.has(node.getAttribute('data-dryl-morph'))
             || [...node.querySelectorAll('[data-dryl-morph]')].some(n => names.has(n.getAttribute('data-dryl-morph'))));
+        // A target can also change in place — the canvas going fullscreen is a
+        // class on the same element — so a changed class on a captured target
+        // counts as well.
+        const restyles = (r) => r.type === 'attributes' && r.target.nodeType === 1
+            && names.has(r.target.getAttribute('data-dryl-morph'));
         const observer = new MutationObserver((records) => {
-            if (!records.some(r => [...r.addedNodes].some(brings))) return;
+            if (!records.some(r => restyles(r) || [...r.addedNodes].some(brings))) return;
             disarm();
+            // A target that has just been given a popover only reaches its real
+            // geometry in the top layer, and its own showPopover() call is a
+            // round trip away. Promoted here, the morph measures where it is
+            // going instead of jumping there halfway through; the later call
+            // then finds it open, which dryl.topLayer.show already tolerates.
+            for (const el of targets()) {
+                if (!names.has(el.getAttribute('data-dryl-morph')) || !el.hasAttribute('popover')) continue;
+                try { if (!el.matches(':popover-open')) el.showPopover(); } catch (_) { /* no Popover API */ }
+            }
             play(durationMs, enterMs);
         });
-        observer.observe(root, { childList: true, subtree: true });
-        // A render that never comes (the flip was a no-op after all) must not
-        // leave a stale capture for the next morph to play.
-        const timer = setTimeout(() => { disarm(); clear(); }, 2000);
+        observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        // Stop watching after a while. The capture stays: a navigation may take
+        // longer than this, and the caller's own play() still finds it then.
+        const timer = setTimeout(disarm, 2000);
         armed = { observer, timer };
     }
 
