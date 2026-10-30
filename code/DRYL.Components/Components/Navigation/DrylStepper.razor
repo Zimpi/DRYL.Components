@@ -21,89 +21,122 @@
     DrylStep renders no DOM — DrylStepper draws the header track and the
     active step's body. Clicking a step header navigates to it (unless Disabled).
     AI ambient state on a step wraps its header in the shared ai-aura vocabulary.
+
+    Motion: horizontally one glowing ring glides to the active step and the
+    connectors behind it fill one after another; the body leaves the way the
+    user came from and the next one arrives from the direction of travel.
+    Vertically the body unfolds under its own header with the rail beside it.
     ───────────────────────────────────────────────────────── *@
 
 <div class="@RootCssClass" role="group" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
 
-    @* ── Step headers track ── *@
-    <div class="stepper-track">
+    @* ── Step headers track ──
+       --step-n / --step-i drive the gliding ring in pure CSS: horizontal steps are
+       equal-width, so the ring's offset is the active index times one step. *@
+    <div class="stepper-track" style="@TrackStyle">
+        @if (Orientation == StepperOrientation.Horizontal && ActiveIndex >= 0)
+        {
+            <div class="stepper-glider" aria-hidden="true"><span class="stepper-glider-ring"></span></div>
+        }
+
         @for (int i = 0; i < _steps.Count; i++)
         {
             var step = _steps[i];
-            var isActive = step.InternalId == _activeStepId;
+            var index = i;
+            var isActive = i == ActiveIndex;
             var isLast = i == _steps.Count - 1;
 
-            <button type="button"
-                 class="@StepHeaderCss(step, isActive)"
-                 disabled="@step.Disabled"
-                 aria-current="@(isActive ? "step" : null)"
-                 @onclick="() => ActivateStep(step)"
-                 @key="step.InternalId">
+            <div class="@StepItemCss(step, index)" style="@ConnectorStyle(index)" @key="step.InternalId">
+                <button type="button"
+                     class="@StepHeaderCss(step, isActive)"
+                     disabled="@step.Disabled"
+                     aria-current="@(isActive ? "step" : null)"
+                     @onclick="() => ActivateStep(step)">
 
-                @* AI aura primitives on the header — driven by the step's own lifecycle *@
-                <DrylAuraElements Aura="step.AuraFx" GenTick="step.GenTick" />
+                    @* AI aura primitives on the header — driven by the step's own lifecycle *@
+                    <DrylAuraElements Aura="step.AuraFx" GenTick="step.GenTick" />
 
-                @* Indicator circle *@
-                <div class="@IndicatorCss(step, isActive)">
-                    @if (step.StepState == StepState.Completed)
-                    {
-                        <DrylIcon Name="Check" Size="14" />
-                    }
-                    else if (step.StepState == StepState.Error)
-                    {
-                        <DrylIcon Name="X" Size="14" />
-                    }
-                    else if (!string.IsNullOrEmpty(step.Icon))
-                    {
-                        <DrylIcon Name="@step.Icon" Size="14" />
-                    }
-                    else
-                    {
-                        <span class="step-number">@(i + 1)</span>
-                    }
-                </div>
+                    @* Indicator circle *@
+                    <div class="@IndicatorCss(step, isActive)">
+                        @if (step.StepState == StepState.Completed)
+                        {
+                            <DrylIcon Name="Check" Size="14" />
+                        }
+                        else if (step.StepState == StepState.Error)
+                        {
+                            <DrylIcon Name="X" Size="14" />
+                        }
+                        else if (!string.IsNullOrEmpty(step.Icon))
+                        {
+                            <DrylIcon Name="@step.Icon" Size="14" />
+                        }
+                        else
+                        {
+                            <span class="step-number">@(index + 1)</span>
+                        }
+                    </div>
 
-                @* Label + description *@
-                <div class="step-label-group">
-                    @if (!string.IsNullOrEmpty(step.Label))
-                    {
-                        <span class="step-label">@step.Label</span>
-                    }
-                    @if (!string.IsNullOrEmpty(step.Description))
-                    {
-                        <span class="step-description">@step.Description</span>
-                    }
-                </div>
+                    @* Label + description *@
+                    <div class="step-label-group">
+                        @if (!string.IsNullOrEmpty(step.Label))
+                        {
+                            <span class="step-label">@step.Label</span>
+                        }
+                        @if (!string.IsNullOrEmpty(step.Description))
+                        {
+                            <span class="step-description">@step.Description</span>
+                        }
+                    </div>
+                </button>
 
-                @* Connector line to the next step *@
+                @* Connector to the next step — its fill sweeps in once the step lies behind the active one *@
                 @if (!isLast)
                 {
-                    <div class="step-connector"></div>
+                    <div class="step-connector" aria-hidden="true"><span class="step-connector-fill"></span></div>
                 }
-            </button>
+
+                @* Vertical: the body unfolds under its own header, the rail running alongside *@
+                @if (Orientation == StepperOrientation.Vertical && step.ChildContent is not null)
+                {
+                    <div class="step-collapse @(isActive ? "is-open" : null)">
+                        <div class="step-collapse-inner">
+                            <DrylPresence Visible="isActive" Transition="PresenceTransition.SlideDown">
+                                <div class="step-panel" inert="@(!isActive)">@step.ChildContent</div>
+                            </DrylPresence>
+                        </div>
+                    </div>
+                }
+            </div>
         }
     </div>
 
     @* Announce the active step to assistive tech without a visible label. *@
     <div class="stepper-live" role="status" aria-live="polite">
-        @{
-            var liveStep = _steps.FirstOrDefault(s => s.InternalId == _activeStepId);
-            var liveIndex = liveStep is null ? -1 : _steps.IndexOf(liveStep);
-        }
-        @if (liveStep is not null)
+        @if (ActiveIndex >= 0)
         {
-            <text>Step @(liveIndex + 1) of @_steps.Count@(string.IsNullOrEmpty(liveStep.Label) ? "" : $": {liveStep.Label}")</text>
+            var liveStep = _steps[ActiveIndex];
+            <text>Step @(ActiveIndex + 1) of @_steps.Count@(string.IsNullOrEmpty(liveStep.Label) ? "" : $": {liveStep.Label}")</text>
         }
     </div>
 
-    @* ── Active step body ── *@
-    @{
-        var activeStep = _steps.FirstOrDefault(s => s.InternalId == _activeStepId);
-    }
-    @if (activeStep?.ChildContent != null)
+    @* ── Horizontal body: the outgoing panel leaves the way the user came from while
+       the incoming one arrives from the direction of travel, both in one grid cell ── *@
+    @if (Orientation == StepperOrientation.Horizontal && _steps.Any(s => s.ChildContent is not null))
     {
-        <div class="step-panel" @key="activeStep.InternalId">
-            @activeStep.ChildContent
+        <div class="stepper-panels">
+            @for (int i = 0; i < _steps.Count; i++)
+            {
+                var step = _steps[i];
+                var isActive = i == ActiveIndex;
+                if (step.ChildContent is null) continue;
+
+                <DrylPresence @key="step.InternalId"
+                              Visible="isActive"
+                              Transition="PanelTransition(isActive)"
+                              Class="stepper-panel-slot">
+                    <div class="step-panel" inert="@(!isActive)">@step.ChildContent</div>
+                </DrylPresence>
+            }
         </div>
     }
 
@@ -140,10 +173,30 @@
     private readonly List<DrylStep> _steps = new();
     private string? _activeStepId;
 
+    // The index rendered last, and the one active before it: the change between the two
+    // gives the panels their direction of travel and the connectors their stagger order.
+    private int _renderedIndex = -1;
+    private int _fromIndex = -1;
+
+    private int ActiveIndex => _steps.FindIndex(s => s.InternalId == _activeStepId);
+
     protected override void OnParametersSet()
     {
         if (ActiveStep != _activeStepId)
             _activeStepId = ActiveStep;
+    }
+
+    // Runs before every render but the first, whichever path changed the active step
+    // (header click, bound parameter, removal fallback) — so direction is always known.
+    protected override bool ShouldRender()
+    {
+        var current = ActiveIndex;
+        if (current != _renderedIndex)
+        {
+            _fromIndex = _renderedIndex;
+            _renderedIndex = current;
+        }
+        return true;
     }
 
     internal void RegisterStep(DrylStep step)
@@ -178,6 +231,32 @@
         if (ActiveStepChanged.HasDelegate)
             await ActiveStepChanged.InvokeAsync(_activeStepId);
         StateHasChanged();
+    }
+
+    private bool Forward => _fromIndex < 0 || _renderedIndex >= _fromIndex;
+
+    // Forward: the new panel comes in from the right, the old one leaves to the left.
+    private PresenceTransition PanelTransition(bool isActive) =>
+        isActive == Forward ? PresenceTransition.SlideLeft : PresenceTransition.SlideRight;
+
+    private string TrackStyle =>
+        FormattableString.Invariant($"--step-n: {Math.Max(_steps.Count, 1)}; --step-i: {Math.Max(ActiveIndex, 0)};");
+
+    // Stagger: connectors fill (or drain) one after another, starting at the step left behind.
+    private string? ConnectorStyle(int index)
+    {
+        if (_fromIndex < 0 || _renderedIndex < 0) return null;
+        var k = Forward ? index - _fromIndex : _fromIndex - 1 - index;
+        return k > 0 ? FormattableString.Invariant($"--step-k: {k};") : null;
+    }
+
+    private string StepItemCss(DrylStep step, int index)
+    {
+        var parts = new List<string> { "step-item" };
+        var active = ActiveIndex;
+        if (active >= 0 && index < active)        parts.Add("is-traversed");
+        if (step.StepState == StepState.Completed) parts.Add("is-completed");
+        return string.Join(' ', parts);
     }
 
     private string RootCssClass

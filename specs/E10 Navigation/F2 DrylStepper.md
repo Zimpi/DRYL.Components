@@ -21,9 +21,12 @@ The developer supplies any Back, Next, validation or submission controls.
 This contract records the existing navigation behaviour and adopts the bounded
 panel-motion and forced-colors focus repairs from
 [`I13`](../../ideas/I13%20Performance%20and%20hardening%20update.md). Those repairs
-are implemented and verified by the scoped browser matrix below. Other existing
-limitations remain recorded debt; this package does not redesign navigation,
-change public parameters or add a panel exit primitive.
+are implemented and verified by the scoped browser matrix below.
+[`I27`](../../ideas/I27%20A%20stepper%20that%20moves.md) adds the motion layer: a
+gliding active ring, connectors that fill behind the active step, directional
+panel enter/exit and a vertical body that unfolds under its own header. Other
+existing limitations remain recorded debt; neither package changes public
+parameters.
 
 ## Public API
 
@@ -64,12 +67,15 @@ The declaration's API belongs to [`F3 DrylStep.md`](F3%20DrylStep.md).
   the indicator when supplied.
 - A step without a state icon or custom icon displays its one-based position.
 - The final header has no connector to a following step.
+- Each header sits in a `.step-item` together with its connector.
 - The active step's `ChildContent` is rendered in `.step-panel` when non-null.
-- An inactive step's `ChildContent` is not rendered as a step panel.
+- An inactive step's `ChildContent` is not rendered as a step panel once its
+  exit has finished.
 - An active step with null `ChildContent` has no step panel.
 - An identifier with no matching registered step produces no step panel.
-- Changing the active identifier replaces the active body; inactive child
-  component instances inside the previous body are not retained.
+- Changing the active identifier replaces the active body. The previous body
+  stays mounted only for its `DrylPresence` exit, carries `inert` meanwhile, and
+  its child component instances are not retained afterwards.
 
 ### Selection and callbacks
 
@@ -102,16 +108,22 @@ The declaration's API belongs to [`F3 DrylStep.md`](F3%20DrylStep.md).
 - Horizontal orientation lays out headers in a row.
 - A horizontal track scrolls when its headers do not fit the available width.
 - Vertical orientation lays out headers in a column.
-- The vertical active body appears after the track, indented to its labels.
+- The horizontal active body appears below the track in `.stepper-panels`.
+- The vertical active body appears directly under its own header, inside its
+  `.step-item`, indented to its labels; the connector rail runs beside it.
 - Enabled header hover uses `--glass-1`.
+- Pending indicators use a solid `--line-strong` hairline on `--glass-1`.
 - Active header labels use `--fg`.
 - Completed header labels use `--fg`.
 - Other header labels use `--fg-muted`.
 - Descriptions use `--fg-dim`.
 - Completed indicators use `--success`.
 - Error indicators use `--danger`.
-- Completed connectors use `--success`.
-- Other connectors use `--line-strong`.
+- Every connector's track uses `--line-strong`.
+- The connector of each step before the active one carries
+  `.step-item.is-traversed` and is filled with the `--accent-a` → `--accent-b`
+  gradient; traversal is visual only and does not change `StepState`.
+- A completed step's connector is filled with `--success`, traversed or not.
 - Colors resolve from the same selectors in both light and dark modes
   (`DESIGN-02`).
 
@@ -132,12 +144,29 @@ The declaration's API belongs to [`F3 DrylStep.md`](F3%20DrylStep.md).
 - Normal-mode keyboard focus uses the existing accent treatment from
   `.step-header:focus-visible` (`UX-02`).
 
+### Motion — I27
+
+- Horizontal: one `.stepper-glider` ring, one step wide, is translated by the
+  active index (`--step-i` of `--step-n`) with `--dur-slow` and `--ease-spring`;
+  it renders only while a step is active. No script measures it.
+- A connector fill sweeps in (`scaleX`, vertically `scaleY`) with `--dur-slow`
+  and `--ease-out`. On a jump over several steps each fill is delayed by
+  `--dur-fast` per step away from the step left behind, so the line travels.
+- Every step body is wrapped in a `DrylPresence`. Horizontally, moving to a
+  later step enters the new body with `PresenceTransition.SlideLeft` and exits
+  the old one with `PresenceTransition.SlideRight`; moving back reverses both.
+  Incoming and outgoing body share one grid cell.
+- Vertically, the body's `.step-collapse` opens with `grid-template-rows`
+  `0fr → 1fr` on `--dur-med` and `--ease-out`, and the body enters with
+  `PresenceTransition.SlideDown`; the active indicator springs into its own
+  gradient ring.
+- No new token, keyframe or public parameter is introduced.
+
 ### Motion and focus hardening — I13
 
-- Normal-motion step panels retain their existing `menu-in` entrance using
-  `--dur-med` and `--ease-out` (`DESIGN-10`).
 - Under `prefers-reduced-motion: reduce`, a newly active `.step-panel` is
-  immediately visible in its settled state with no entrance motion (`UX-06`).
+  immediately visible in its settled state with no entrance motion (`UX-06`);
+  the glider, connector fills, collapse and indicator transitions are off.
 - Changing to reduced motion while the panel enters leaves its content visible
   in the settled state.
 - Reduced motion does not change the enabled headers' keyboard order (`UX-07`).
@@ -154,11 +183,12 @@ The declaration's API belongs to [`F3 DrylStep.md`](F3%20DrylStep.md).
   appearance tokens named above and no mode selector. This is source evidence,
   not a visual pass. Inspection in both rendered modes remains required before
   implementation completion (`DESIGN-02`).
-- **Enter/exit:** `.step-panel` uses the existing shared `menu-in` keyframes.
-  `.step-header`, `.step-indicator` and `.step-connector` have token-based
-  transitions. The active body is conditionally mounted without an exit wrapper;
-  that pre-existing `DESIGN-12` debt is retained below. No motion exception is
-  claimed for the body.
+- **Enter/exit:** each body mounts through `DrylPresence` with the shared
+  `presence-*` slides, closing the former `DESIGN-12` body-exit debt.
+  `.stepper-glider`, `.step-indicator`, `.step-connector-fill` and
+  `.step-collapse` have token-based transitions. Verified in the browser on
+  2026-10-30 (dark and light): glider travel, staggered fill and drain, one
+  panel per stepper after exit, vertical unfold.
 - **Keyboard and a11y:** the native buttons, disabled attributes, `aria-current`
   and `.stepper-live` are present in `DrylStepper.razor`. Source review does not
   establish real keyboard focus or screen-reader announcement timing. I13
@@ -186,9 +216,6 @@ exercise these selectors; token-sync success alone proves neither repair.
 
 ## Recorded debt and scope limits
 
-- **Body exit (`DESIGN-12`):** changing steps removes the prior `.step-panel`
-  immediately. There is no `DrylPresence` or exit lifecycle. I13's bounded panel
-  motion repair does not add one.
 - **Literal geometry (`DESIGN-01`):** `.step-indicator`, `.step-number`,
   `.step-label`, `.step-description`, `.step-label-group`, connector offsets,
   horizontal header sizing and focus/indicator shadow geometry retain literal
