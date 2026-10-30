@@ -27,6 +27,10 @@ check that produced it is still running, and an `AlertKind.Ai` alert can sit at
 `AiState.None` once its content is final. Both are specified in
 [`_Api.md`](_Api.md).
 
+[`I28`](../../ideas/I28%20An%20alert%20that%20is%20alive.md) gives it a life of
+its own: glows in the `Kind`'s tone drifting behind the content, an arrival
+when it mounts and an exit that shrinks it away when it is dismissed.
+
 The component is also the fallback surface of
 [`F7 DrylErrorBoundary`](F7%20DrylErrorBoundary.md), which renders it as
 `AlertKind.Danger` and forwards its own `Ai` and `Aura` into it.
@@ -49,9 +53,10 @@ The component is also the fallback surface of
 `Dismissible` and `OnDismiss` are separate on purpose, and which of them is set
 decides **who owns the alert's lifetime**. With a handler, the host owns it:
 dismissing is a request, and the host answers it by unmounting the alert. With
-no handler, nobody is listening, so the alert answers the press itself and
-animates away. The button is therefore never inert, and an alert that worked
-before behaves exactly as it did.
+no handler, nobody is listening, so the alert answers the press itself. The
+button is therefore never inert. In both cases the alert plays its own exit
+first — it shrinks and fades where it stands, then the space it held closes —
+so a dismissal animates without the host wrapping the alert in anything.
 
 ## Acceptance Criteria
 
@@ -89,17 +94,21 @@ before behaves exactly as it did.
 
 - The dismiss button is rendered only when `Dismissible` is `true`.
 - Activating the dismiss button raises `OnDismiss` when a handler is attached.
+- Activating the dismiss button plays the alert's exit before anything else
+  happens, in every configuration (`dryl.motion.collapse`).
+- With a handler attached, `OnDismiss` is raised once the exit has played.
 - With a handler attached the component does not remove itself: unmounting the
   alert is the host's decision, taken in response to `OnDismiss`.
-- With no handler attached the component dismisses itself, so the button is
-  never a control that does nothing.
-- A self-dismissing alert animates out rather than disappearing instantly
-  (`DESIGN-12`).
+- A host that keeps the alert after `OnDismiss` gets it back: the exit plays in
+  reverse (`dryl.motion.restore`).
+- With no handler attached the component removes itself once the exit has
+  played, so the button is never a control that does nothing.
+- Further presses while the exit is playing are ignored, so `OnDismiss` is
+  raised once per dismissal.
 - Setting `Dismissible` to `false` restores a self-dismissed alert, so a host
   without a handler can still bring it back without remounting it.
-- The extra wrapper element the self-dismissing configuration needs is present
-  only in that configuration, so an alert with a handler and a non-dismissible
-  alert render exactly the markup they did before.
+- No configuration adds an element around the alert: the exit plays on the
+  alert's own root.
 - The dismiss button is a `type="button"`, so an alert inside a form cannot
   submit it.
 - A dismissible alert reserves the space its button occupies, so adding
@@ -126,10 +135,17 @@ before behaves exactly as it did.
   literal color (`DESIGN-01`).
 - The alert sits in the flow and therefore pairs `--glass-1` with
   `--glass-fx-flow`, the pairing `DESIGN-06` requires for an in-flow surface.
-- The border is `--line-strong` and the corner radius `--r-md`.
-- Each `Kind` tints only its icon chip — background and text stay neutral — so
-  the accent is an indicator rather than the fill of a large surface
-  (`DESIGN-08`).
+- The border is `--line-strong` tinted toward the `Kind`'s tone, and the corner
+  radius `--r-md`.
+- Each `Kind` tints its icon chip, its border and the ember layer; the text
+  stays neutral.
+- The ember layer is two soft radial glows in the `Kind`'s tone, clipped to the
+  alert and drawn behind its content. They are gradients at low strength, so
+  the surface stays glass and the accent never fills it (`DESIGN-08`).
+- `AlertKind.Ai`'s second glow is `--accent-b`; every other `Kind` uses its
+  tone for both.
+- The ember layer is hidden from assistive technology and takes no pointer
+  events.
 - `AlertKind.Success`, `Warning` and `Danger` derive their chip from the
   matching semantic token.
 - `AlertKind.Info` and `AlertKind.Ai` derive their chip from `--accent-soft` and
@@ -142,12 +158,21 @@ before behaves exactly as it did.
 
 - The dismiss button transitions its background and its text color over
   `--dur-fast` with `--ease-out` on hover.
-- The alert has no mount animation of its own: it is an in-flow element the host
-  places, and a host that wants it to animate in wraps it in `DrylPresence`
-  (`DESIGN-12`).
-- A self-dismissing alert fades out over the shared presence vocabulary rather
-  than a treatment of its own (`DESIGN-13`).
-- Under `prefers-reduced-motion: reduce` the alert remains fully legible and
+- The ember glows drift continuously on `transform` alone, `--ease-in-out`,
+  `infinite alternate` (`alert-ember-a`, `alert-ember-b`).
+- The drift's tempo and strength scale with the `Kind`'s weight: `Info`,
+  `Success` and `Ai` drift calmest, `Warning` faster and brighter, `Danger`
+  fastest.
+- On mount the alert arrives once: a band of its tone sweeps from the icon
+  across the alert over `--dur-choreo` (`alert-wave`), and the icon chip
+  springs in over `--dur-slow` with `--ease-spring` (`alert-ico-in`).
+- A re-render does not replay the arrival, because the alert is patched in
+  place.
+- The exit is two beats over `--dur-choreo`: the alert shrinks, blurs and fades
+  where it stands, then its height, padding, border and the gap of a flex or
+  grid parent close, so the content below glides up instead of jumping.
+- Under `prefers-reduced-motion: reduce` the glows stand still, the arrival is
+  skipped and the exit settles at once; the alert remains fully legible and
   fully dismissible.
 
 ### AI mode
@@ -164,6 +189,8 @@ before behaves exactly as it did.
   dissolves rather than snapping away.
 - Entering `AiState.Generated` replays the one-shot completion wash, every time
   it is entered, including on a second entry after leaving.
+- With an aura present, the ring and the comet stay the dominant AI signal; the
+  ember layer is the `Kind`'s identity, not an AI visual.
 - The AI state changes nothing about the alert's layout, so text does not reflow
   when an operation starts or ends.
 - `AiState.Proposed` renders the shared resting proposal look of `DrylAuraElements`:
@@ -182,10 +209,14 @@ before behaves exactly as it did.
   role/`aria-live` split by `Kind` and the empty-string icon; plus the class
   merge in `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The title and body
   slots, the icon resolution per `Kind` and the whole AI section are not.
-- **The self-dismissal completes outside bUnit's reach.** The removal finishes
-  when the presence exit animation ends, which is driven by JS, so the test
-  suite can only assert that the alert began to leave. That it actually goes was
-  measured in the browser instead.
+- **The exit itself plays outside bUnit's reach.** It is a Web Animations call in
+  `dryl.motion.collapse`; bUnit's loose interop completes it at once, so the
+  suite asserts the order (exit, then handler or removal; restore when the host
+  keeps the alert). That the alert shrinks, the space closes and a kept alert
+  comes back whole was measured in the browser.
+- **A parent's gap is closed only for flex columns and grids.** The exit reads
+  the parent's `row-gap`; a gap from a horizontal flex row or a sibling's own
+  margin is not compensated.
 - **Literal type sizes and paddings.** The alert's font sizes, the icon chip's
   dimensions and the banner's padding are literals in
   `code/DRYL.Components/wwwroot/dryl.css`. `DESIGN-01` covers colors, radii,
@@ -202,12 +233,10 @@ before behaves exactly as it did.
   `node scripts/validate-light-contrast.mjs`. The glass fill, the frost and the
   semantic chips are the mode-dependent tokens; the component defines no
   mode-specific rule.
-- **Enter/exit animation** — no enter animation of its own, and that is the
-  written exception `DESIGN-11` allows: an in-flow banner is mounted by its host,
-  which wraps it in `DrylPresence` when it should animate in. The one unmount the
-  component owns — a dismissal nobody is listening to — does animate out, through
-  `DrylPresence` and the shared presence vocabulary. Its other motion is the
-  dismiss button's hover transition and the AI aura.
+- **Enter/exit animation** — the alert arrives with its one-shot wave and chip
+  spring, and every dismissal plays its own exit before the alert is removed.
+  Its continuous motion is the ember drift; its other motion is the dismiss
+  button's hover transition and the AI aura.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   role/`aria-live` split by `Kind` is the substantive decision: only a failure
   or a warning interrupts.

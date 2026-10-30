@@ -20,6 +20,10 @@ A visual refresh across the library.
 
 ### Changed
 - `DrylStepper` — The stepper now shows progress as it moves. Horizontally, one glowing gradient ring glides to the active step instead of the ring jumping from circle to circle, and the connectors behind the active step fill with the accent gradient, one after another on a jump over several steps. The body leaves the way the user came from while the next one arrives from the direction of travel, so a step's body now also animates out. Vertically, the body unfolds directly under its own header with the rail running beside it, instead of below the whole track. Pending indicators use a solid hairline instead of a dashed border. The public API is unchanged; a completed step's connector stays `--success`.
+- `DrylAlert` — Alerts are alive. Two soft glows in the kind's tone drift behind the content, calmest for `Info`, `Success` and `Ai`, faster and brighter for `Warning` and `Danger`; the border carries a hint of the same tone. On mount a band of light sweeps from the icon across the alert and the icon chip springs in. Dismissing no longer just fades: the alert shrinks, blurs and fades where it stands, then the space it held closes so the content below glides up. This exit plays in every configuration, without a `DrylPresence` around the alert; with an `OnDismiss` handler the callback is now raised once the exit has played, and a host that keeps the alert gets it back. The self-dismissing configuration no longer wraps the alert in a `DrylPresence` element. Under `prefers-reduced-motion` the glows stand still and arrival and exit are skipped.
+
+### Added
+- `dryl.motion.collapse(el)` / `dryl.motion.restore(el)` (JS) — A two-beat exit for an in-flow element: shrink, blur and fade in place, then close its height and the gap of a flex or grid parent, so neighbours glide instead of jumping. `restore` plays it backwards. Uses `--dur-choreo` and `--ease-in-out`; reduced motion settles at once.
 
 ## [3.12.3] — 2026-10-30
 
