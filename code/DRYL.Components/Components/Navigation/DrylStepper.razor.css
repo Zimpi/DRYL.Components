@@ -1,12 +1,19 @@
 ﻿/* ── Root ───────────────────────────────────────────────── */
 
 .stepper {
+    /* Minimum width of one horizontal step — shared by the step and the gliding ring,
+       which must stay exactly one step wide for its offset to land. */
+    --step-min: 6rem;
     display: flex;
     flex-direction: column;
     gap: 0;
 }
 
 /* ── Track (header row / column) ────────────────────────── */
+
+.stepper-track {
+    position: relative;
+}
 
 .stepper--horizontal .stepper-track {
     display: flex;
@@ -24,6 +31,19 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+}
+
+/* ── Step item (header + connector [+ vertical body]) ───── */
+
+.step-item {
+    position: relative;
+    min-width: 0;
+}
+
+/* Horizontal: each step takes equal space. A min width keeps labels readable on
+   narrow slots; when the steps no longer fit, the track scrolls (above). */
+.stepper--horizontal .step-item {
+    flex: 1 0 var(--step-min);
 }
 
 /* ── Step header ─────────────────────────────────────────── */
@@ -77,18 +97,13 @@
     border: 0;
 }
 
-/* Horizontal: each header takes equal space, centers content vertically.
-   A min width keeps labels readable on narrow slots; when the steps no longer
-   fit, the track scrolls (above) instead of crushing every label. */
 .stepper--horizontal .step-header {
-    flex: 1 0 6rem;
     flex-direction: column;
     align-items: center;
     text-align: center;
     padding: var(--sp-2) var(--sp-2);
 }
 
-/* Vertical: header fills full width, row layout */
 .stepper--vertical .step-header {
     flex-direction: row;
     align-items: center;
@@ -110,33 +125,68 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: all var(--dur-med) var(--ease-out);
+    transition: background var(--dur-med) var(--ease-out),
+                border-color var(--dur-med) var(--ease-out),
+                color var(--dur-med) var(--ease-out),
+                transform var(--dur-med) var(--ease-spring);
     position: relative;
     z-index: 1;
 }
 
 .step-indicator.is-pending {
-    background: transparent;
-    border: 2px dashed var(--line-strong);
+    background: var(--glass-1);
+    border: 1px solid var(--line-strong);
     color: var(--fg-dim);
 }
 
+.step-header:hover:not(:disabled) .step-indicator.is-pending {
+    border-color: var(--fg-dim);
+    color: var(--fg-muted);
+}
+
 .step-indicator.is-active {
-    background: transparent;
-    border: 2px solid transparent;
-    box-shadow: 0 0 0 2px var(--accent-a), 0 0 12px color-mix(in srgb, var(--accent-a) 40%, transparent);
+    background: var(--glass-2);
+    border: 1px solid transparent;
     color: var(--fg);
+    transform: scale(1.06);
+}
+
+/* Vertical has no glider — the active indicator wears the ring itself and
+   springs into it as the step becomes active. */
+.stepper--vertical .step-indicator::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity var(--dur-med) var(--ease-out),
+                transform var(--dur-med) var(--ease-spring);
+}
+
+.stepper--vertical .step-indicator.is-active::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.stepper--vertical .step-indicator.is-active {
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent-a) 55%, transparent));
 }
 
 .step-indicator.is-completed {
     background: var(--success);
-    border: none;
+    border: 1px solid transparent;
     color: var(--bg-0);
 }
 
 .step-indicator.is-error {
     background: var(--danger);
-    border: none;
+    border: 1px solid transparent;
     color: var(--bg-0);
 }
 
@@ -144,6 +194,46 @@
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Gliding ring (horizontal) ──────────────────────────── */
+/* One ring for the whole track, exactly one step wide, translated by the active
+   index — so it travels from step to step instead of blinking out and in. */
+
+.stepper-glider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: max(var(--step-min), calc(100% / var(--step-n, 1)));
+    padding-top: var(--sp-2);
+    display: flex;
+    justify-content: center;
+    transform: translateX(calc(var(--step-i, 0) * 100%));
+    transition: transform var(--dur-slow) var(--ease-spring);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.stepper-glider-ring {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent-a) 55%, transparent));
+}
+
+.stepper-glider-ring::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
 }
 
 /* ── Connector line ──────────────────────────────────────── */
@@ -151,31 +241,55 @@
 .step-connector {
     background: var(--line-strong);
     position: absolute;
-    transition: background var(--dur-med) var(--ease-out);
+    overflow: hidden;
+    border-radius: var(--r-pill);
+    pointer-events: none;
+}
+
+/* The fill sweeps along the connector once its step lies behind the active one;
+   --step-k (set per item on a change) staggers a multi-step jump so the line
+   travels instead of lighting up all at once. */
+.step-connector-fill {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--dur-slow) var(--ease-out) calc(var(--step-k, 0) * var(--dur-fast)),
+                background var(--dur-med) var(--ease-out);
+}
+
+.step-item.is-traversed .step-connector-fill,
+.step-item.is-completed .step-connector-fill {
+    transform: none;
+}
+
+/* An explicitly completed step's connector reads as success, traversed or not. */
+.step-item.is-completed .step-connector-fill {
+    background: var(--success);
 }
 
 /* Horizontal connector: runs right from the center of this indicator */
 .stepper--horizontal .step-connector {
-    height: 1px;
-    /* Center of indicator is at 50% of header width.
-       Start after the indicator + a small gap, end at the right edge. */
-    top: calc(var(--sp-2) + 16px); /* top-padding + half of 32px indicator */
-    left: calc(50% + 16px + var(--sp-1));
-    right: calc(-50% + 16px + var(--sp-1));
+    height: 2px;
+    top: calc(var(--sp-2) + 16px - 1px); /* top-padding + half of 32px indicator */
+    left: calc(50% + 16px + var(--sp-2));
+    right: calc(-50% + 16px + var(--sp-2));
 }
 
-/* Vertical connector: runs down from the bottom of this indicator */
+/* Vertical connector: the rail runs down from this indicator, past an open body,
+   to just above the next indicator. */
 .stepper--vertical .step-connector {
-    width: 1px;
-    /* left = left-padding + half indicator width */
-    left: calc(var(--sp-3) + 16px);
-    top: calc(var(--sp-3) + 32px);  /* top-padding + full indicator height */
-    bottom: calc(-1 * var(--sp-3));
+    width: 2px;
+    left: calc(var(--sp-3) + 16px - 1px);
+    top: calc(var(--sp-3) + 32px + var(--sp-1));
+    bottom: calc(var(--sp-1) - var(--sp-3));
 }
 
-/* Completed connector gets accent color */
-.step-header.is-completed .step-connector {
-    background: var(--success);
+.stepper--vertical .step-connector-fill {
+    background: linear-gradient(180deg, var(--accent-a), var(--accent-b));
+    transform: scaleY(0);
+    transform-origin: center top;
 }
 
 /* ── Label group ─────────────────────────────────────────── */
@@ -195,11 +309,16 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color var(--dur-med) var(--ease-out);
 }
 
 .step-header.is-active .step-label,
 .step-header.is-completed .step-label {
     color: var(--fg);
+}
+
+.step-header.is-active .step-label {
+    font-weight: 600;
 }
 
 .step-description {
@@ -212,30 +331,61 @@
 }
 
 /* ── Step panel (active body) ───────────────────────────── */
+/* Enter and exit come from DrylPresence; the panel itself only sets spacing. */
 
 .step-panel {
     padding: var(--sp-4) 0;
-    animation: menu-in var(--dur-med) var(--ease-out) both;
 }
 
-/* Vertical: indent body to align under the label (past the indicator) */
-.stepper--vertical .step-panel {
-    padding-left: calc(var(--sp-3) + 32px + var(--sp-3));
-    padding-top: var(--sp-2);
-    padding-bottom: var(--sp-5);
-}
-
-/* Horizontal: top border to separate from the track */
-.stepper--horizontal .step-panel {
+/* Horizontal: incoming and outgoing panel share one grid cell, so the swap
+   happens in place instead of stacking. */
+.stepper-panels {
+    display: grid;
     border-top: 1px solid var(--line);
-    padding-top: var(--sp-4);
     margin-top: var(--sp-2);
 }
 
+.stepper-panels ::deep .stepper-panel-slot {
+    grid-area: 1 / 1;
+    min-width: 0;
+}
+
+.stepper-panels ::deep .presence-exit {
+    pointer-events: none;
+}
+
+/* Vertical: the body unfolds under its own header (grid-rows 0fr → 1fr), indented
+   to the labels so the rail runs alongside it. */
+.step-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--dur-med) var(--ease-out);
+}
+
+.step-collapse.is-open {
+    grid-template-rows: 1fr;
+}
+
+.step-collapse-inner {
+    overflow: hidden;
+    min-height: 0;
+}
+
+.stepper--vertical .step-panel {
+    padding-left: calc(var(--sp-3) + 32px + var(--sp-3));
+    padding-top: var(--sp-1);
+    padding-bottom: var(--sp-4);
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .step-panel { animation: none; }
+    .stepper-glider,
+    .step-connector-fill,
+    .step-collapse,
+    .step-indicator,
+    .stepper--vertical .step-indicator::before { transition: none; }
 }
 
 @media (forced-colors: active) {
     .step-header:focus-visible { outline: auto var(--accent-b); }
+    .stepper-glider-ring { outline: 2px solid var(--accent-b); }
 }

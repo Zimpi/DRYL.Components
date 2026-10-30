@@ -14,6 +14,13 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.13.0] — Unreleased
+
+A visual refresh across the library.
+
+### Changed
+- `DrylStepper` — The stepper now shows progress as it moves. Horizontally, one glowing gradient ring glides to the active step instead of the ring jumping from circle to circle, and the connectors behind the active step fill with the accent gradient, one after another on a jump over several steps. The body leaves the way the user came from while the next one arrives from the direction of travel, so a step's body now also animates out. Vertically, the body unfolds directly under its own header with the rail running beside it, instead of below the whole track. Pending indicators use a solid hairline instead of a dashed border. The public API is unchanged; a completed step's connector stays `--success`.
+
 ## [3.12.3] — 2026-10-30
 
 ### Fixed
