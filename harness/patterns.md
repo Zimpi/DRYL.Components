@@ -10,7 +10,7 @@ This file describes the **shape** a DRYL Blazor component takes. Every component
 src/DRYL/
 ├── DRYL.csproj
 ├── _Imports.razor                    ← Global usings
-├── AiState.cs                        ← Shared AI state enum (None / Active / Thinking / Streaming / Generated)
+├── AiState.cs                        ← Shared AI state enum (None / Active / Thinking / Streaming / Generated / Proposed)
 ├── wwwroot/
 │   ├── dryl.css                      ← The design system (single file, incl. AI mode primitives)
 │   └── js/
@@ -176,7 +176,7 @@ public enum ButtonSize    { Small, Medium, Large }
 public enum BadgeKind     { Neutral, Accent, Success, Warning, Danger }
 public enum AlertKind     { Info, Success, Warning, Danger }
 public enum InputState    { Default, Error, Success }
-public enum AiState       { None, Active, Thinking, Streaming, Generated }
+public enum AiState       { None, Active, Thinking, Streaming, Generated, Proposed }
 ```
 
 `AiState` is the single source of truth for AI activity across the library. **Never** introduce a per-component AI enum (`ChatLoadingState`, `GenerationPhase`, etc.) — every AI-aware surface must speak the same vocabulary.
@@ -326,6 +326,8 @@ private string CssClass
 ### Streaming with `Microsoft.Extensions.AI`
 
 The canonical lifecycle: `None → Thinking → Streaming → Generated → Active` (or back to `None` if the surface is only AI-driven transiently).
+
+When the result needs a human decision before it counts, the stream ends in `Proposed` instead of `Generated`: the surface rests, nothing moves, and the host resolves it — accept → `Generated` (the wave plays from where the user acted), dismiss → `None`. The library never ends `Proposed` by itself (`AI-06`).
 
 ```csharp
 private AiState _state = AiState.None;
