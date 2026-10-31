@@ -45,8 +45,8 @@ break that dialog's trap.
 The morph uses a **dedicated** `DrylMorphEngine` instance rather
 than the DI-scoped one, so a dialog handoff is independent of whatever else in
 the host application is mid-transition. It falls back to the plain CSS
-cross-fade in browsers without View Transition support, during prerender, and
-under reduced motion.
+cross-fade during prerender, on a disconnected circuit, and under reduced
+motion.
 
 ## Services
 

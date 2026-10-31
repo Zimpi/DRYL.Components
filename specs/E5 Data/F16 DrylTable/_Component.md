@@ -28,7 +28,7 @@ while every `S{n}` beside it does.
 | `S4 Selection.md` | Row selection, the header checkbox, the bulk-action bar |
 | `S5 Columns.md` | Registration, order, visibility, resize, reorder, pinning |
 | `S6 Inline editing.md` | Row and cell editing, the working copy, commit and cancel |
-| `S7 Row reordering and motion.md` | Drag and keyboard reorder, view-transition morphs, streaming glide |
+| `S7 Row reordering and motion.md` | Drag and keyboard reorder, row morphs, streaming glide |
 | `S8 Grouping, detail rows and export.md` | `GroupBy`, `DetailTemplate`, CSV export |
 | `S9 Presentation, accessibility and AI.md` | Layout, tokens, roles, keyboard, `Ai`, state persistence, cleanup |
 

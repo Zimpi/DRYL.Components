@@ -14,9 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [Agents 0.23.3] — 2026-10-31
+## [3.13.1] — 2026-10-31
 
-Agents-only release; the core package stays at 3.13.0.
+Agents 0.23.3 ships with it. Documentation only; no behaviour changes.
+
+### Fixed
+- `DialogOptions.AnimateHandoff`, `DrylTable.AnimateReorder` and `DrylTable.Ai` — The XML documentation said these morphs fall back "in browsers without View Transition support". Since 3.0.0 every morph runs on `IDrylMorph` (FLIP), which needs no browser support of its own; the fallbacks are prerender, a disconnected circuit and `prefers-reduced-motion`, and the docs now say so. The comments in the library that still described morphs as view transitions are rewritten to match.
+
+## [Agents 0.23.3] — 2026-10-31
 
 ### Changed
 - `DRYL.Components.Agents` (Agents 0.23.3) — Minimum `Microsoft.Agents.AI` raised from 1.25.0 to 1.27.0. No API of this package changes; consumers pinned to 1.25.x need to move up with it.

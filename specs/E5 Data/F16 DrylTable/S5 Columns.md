@@ -120,7 +120,7 @@
   neither a `Title` nor a `Field`-derived name appears in the menu as a
   generated identifier.
 - **Nothing is animated.** A column appearing, disappearing, moving or being
-  resized happens between two frames. The table has a whole view-transition
+  resized happens between two frames. The table has a whole morph
   machinery for row moves (`S7`) and none of it is applied to columns
   (`DESIGN-11`, `DESIGN-12`).
 - **`Pinned` requires a scroll container that the table does not enforce.**

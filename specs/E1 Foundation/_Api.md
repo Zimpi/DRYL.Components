@@ -64,7 +64,7 @@ gains an unhandled case — a compiler warning, not a break (`REL-01`, MINOR).
 
 ## Motion primitives
 
-*(mostly phase C. The view-transition surface is documented here because
+*(mostly phase C. The morph surface is documented here because
 `DrylRouteTransition` and `DrylMorph` both depend on it and neither owns it.)*
 
 ### `DrylMorphStyle`

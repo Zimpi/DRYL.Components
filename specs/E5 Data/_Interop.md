@@ -159,7 +159,7 @@ Nine components implement a disposal.
 | `DrylTimelineItem` | The aura lifecycle's timer. |
 | `DrylTreeView` | Detaches the key-suppression listener. `IAsyncDisposable`. |
 | `DrylCalendar` | The timer that advances the current-time line while `Now` is `null`. While editable: the editing bridge's root listener and the `DotNetObjectReference` behind it, and `dryl.keynav` on the root. `IAsyncDisposable`. |
-| `DrylTable` | The aura lifecycle's timer, the search debounce, the in-flight data-provider request, the view-transition helper, the resize listener and the object reference behind it. `IAsyncDisposable`. |
+| `DrylTable` | The aura lifecycle's timer, the search debounce, the in-flight data-provider request, the row morph engine, the resize listener and the object reference behind it. `IAsyncDisposable`. |
 
 Three patterns are worth naming because getting them wrong has broken this
 repository before.

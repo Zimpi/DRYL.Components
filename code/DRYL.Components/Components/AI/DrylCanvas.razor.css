@@ -8,7 +8,7 @@
 }
 
 /* Fullscreen — an overlay, not a modal: no backdrop, no focus trap, Escape collapses.
-   The morph between inline and fullscreen is a view transition (see VtStyle), so this
+   The morph between inline and fullscreen is a FLIP morph (IDrylMorph), so this
    rule only has to describe the destination, never the movement.
 
    The element is promoted to the top layer (popover="manual", see dryl.topLayer),

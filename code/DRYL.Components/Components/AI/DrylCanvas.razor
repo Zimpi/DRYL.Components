@@ -494,10 +494,11 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Promote/demote BEFORE signalling the render: a fullscreen canvas only really covers
-        // the viewport from the top layer (see dryl.topLayer), and the browser must see the
-        // finished state before it snapshots "new". The one frame in which the popover
-        // attribute is present but not yet shown (display: none) never paints — we are inside
-        // the view transition's update callback, during which the browser holds rendering.
+        // the viewport from the top layer (see dryl.topLayer), and the morph must measure that
+        // finished geometry as its destination. The armed morph (dryl.morph.arm) already
+        // promotes the target from inside the render, before the browser paints, so the frame
+        // in which the popover attribute is present but not yet shown (display: none) never
+        // shows; this call then finds it open, which dryl.topLayer.show tolerates.
         if (_expandedApplied != _expanded)
         {
             _expandedApplied = _expanded;
@@ -506,9 +507,9 @@
             catch (InvalidOperationException) { /* prerender — no JS */ }
         }
 
-        // Unconditional, cheap no-op when no transition is in flight — this is what tells the
-        // browser the "new" state has reached the DOM and it may take the second snapshot.
-        // It also covers a transition a wrapper started around a spec swap.
+        // Unconditional, cheap no-op when no morph is in flight — this is what tells the
+        // engine the new state has reached the DOM and it may measure the destination.
+        // It also covers a morph a wrapper started around a spec swap.
         Morph.SignalRendered();
 
         if (!firstRender) return;
@@ -566,8 +567,8 @@
 
     private Task RefreshAsync() => _binder?.RefreshAllAsync() ?? Task.CompletedTask;
 
-    // The morph between inline and fullscreen is a view transition, so the CSS only has to
-    // describe the destination, never the movement.
+    // The morph between inline and fullscreen is a FLIP morph (IDrylMorph), so the CSS only
+    // has to describe the destination, never the movement.
     private Task ToggleExpandAsync() =>
         Morph.RunAsync(() =>
         {

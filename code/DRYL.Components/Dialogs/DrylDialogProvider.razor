@@ -24,7 +24,7 @@
     a cross-fade handoff instead of two full backdrop fades.
 
     When the incoming dialog opts into DialogOptions.AnimateHandoff,
-    that CSS cross-fade is replaced by a browser View Transition
+    that CSS cross-fade is replaced by a FLIP morph
     (RunHandoffMorphAsync): the predecessor is finalized
     immediately (skipping its own dialogOut) and the swap — its
     removal plus the successor's mount — is wrapped in one
@@ -111,7 +111,7 @@
         if (reference is not DrylDialogReference impl) return;
 
         // Opted into AnimateHandoff AND a predecessor is currently exiting →
-        // morph via the View Transition API instead of the CSS cross-fade.
+        // morph via IDrylMorph instead of the CSS cross-fade.
         var predecessor = impl.Options.AnimateHandoff
             ? _entries.FirstOrDefault(e => e.IsExiting && !e.Finalized)
             : null;
@@ -153,10 +153,10 @@
     }
 
     // Runs the predecessor's removal + successor's mount as a single DOM mutation
-    // inside a view transition: the browser snapshots the predecessor as it is
-    // currently rendered (the "old" state), then — once ApplyChange's
-    // StateHasChanged has reached the DOM (SignalRendered) — snapshots the
-    // successor (the "new" state) and morphs between them. Both dialogs render
+    // inside a morph: the engine measures the predecessor as it is currently
+    // rendered (the "old" state), then — once ApplyChange's StateHasChanged has
+    // reached the DOM (SignalRendered) — measures the successor (the "new"
+    // state) and glides between them. Both dialogs render
     // the same morph name (DrylDialog.MorphHandoff), so only one may be
     // in flight per provider at a time; that already matches the sequential,
     // non-stacked chain this option is designed for.
@@ -188,7 +188,7 @@
     // JS interop and drops it from _entries — without a StateHasChanged of its
     // own, so RunHandoffMorphAsync can chain it with adding the successor
     // and render both changes as one atomic step (see there for why that
-    // ordering matters for the view transition's "new" snapshot).
+    // ordering matters for the morph's "new" measurement).
     private async Task FinalizeExitImmediateAsync(Entry entry)
     {
         if (entry.Finalized) return;
@@ -209,7 +209,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Cheap no-op unless a handoff view transition is currently awaiting this
+        // Cheap no-op unless a handoff morph is currently awaiting this
         // render (see RunHandoffMorphAsync / IDrylMorph contract).
         _handoffMorph?.SignalRendered();
 
