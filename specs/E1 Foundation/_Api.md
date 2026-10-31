@@ -100,6 +100,31 @@ prefers reduced motion (which the engine checks before it animates anything).
 *(phase C — the consumer-overridable custom properties, cross-referenced to
 [`../../harness/tokens.md`](../../harness/tokens.md))*
 
+### Motion
+
+Declared once in the shared `:root` block of `wwwroot/dryl.css`; mode-neutral,
+so neither LIGHT-TOKEN-SET copy repeats them (`DESIGN-02`). A consumer may
+override any of them; the rules that bind their use are `DESIGN-10` and
+`harness/tokens.md`.
+
+| Token | Default | Contract |
+|---|---|---|
+| `--dur-fast` | `140ms` | Transition scale — hover, press. |
+| `--dur-med` | `240ms` | Transition scale — most colour and border changes. |
+| `--dur-slow` | `420ms` | Transition scale — layout shifts, entries, large reveals. |
+| `--dur-choreo` | `900ms` | One-shot, multi-beat choreography only; never on a `transition`. Not a fourth step of the scale. Added by `ideas/I2 Motion tokens for choreography and delay.md`. |
+| `--delay-short` | `200ms` | A beat's offset inside an `animation`/`transition` shorthand. Added by I2. |
+| `--delay-long` | `800ms` | A hold before something retires itself. Added by I2. |
+| `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Exits, fade-ins, default reveal. |
+| `--ease-in-out` | `cubic-bezier(0.65, 0, 0.35, 1)` | Layout shifts, content swaps. |
+| `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Toggles, indicator pings. |
+| `--ease-viscous` | `cubic-bezier(0.45, 0.05, 0.15, 1)` | Morph settle only (`DrylMorphStyle`). |
+
+There is no `linear` easing in the vocabulary (`DESIGN-10`). A stagger step
+multiplied by an index (`--reveal-step`) and `0s` are not delays in the sense of
+this table and stay outside it. `check-motion-tokens.mjs` enforces the
+duration and delay side.
+
 ## Presence and shared reduced motion (I13)
 
 `PresenceTransition` has `Fade`, `Scale`, `SlideUp`, `SlideDown`, `SlideLeft` and
