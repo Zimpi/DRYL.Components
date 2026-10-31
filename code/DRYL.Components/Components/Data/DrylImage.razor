@@ -135,10 +135,13 @@
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
-    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the state and the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
+    /// <summary>Resolved AI state: an explicit <see cref="Ai"/> wins, otherwise the surrounding <c>DrylAiScope</c>'s state.</summary>
+    private AiState EffectiveAi => AiScope.Resolve(Ai, Scope);
 
     /// <summary>
     /// Streaming sharpen progress, 0–100. When set (and <see cref="Ai"/> is
@@ -178,13 +181,13 @@
             _phase = string.IsNullOrEmpty(Src) ? Phase.Failed : Phase.Loading;
         }
 
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated)
         {
             _genKey = new();
             _waveKey = new();
         }
-        _prevAi = Ai;
-        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+        _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
     }
 
     public void Dispose() => _aura.Dispose();
@@ -255,7 +258,7 @@
         {
             var parts = new List<string> { "img-el" };
             if (_phase == Phase.Loaded) parts.Add("is-loaded");
-            if (Ai == AiState.Streaming)
+            if (EffectiveAi == AiState.Streaming)
                 parts.Add(Progress.HasValue ? "img-el--stream-progress" : "img-el--stream-auto");
             return string.Join(' ', parts);
         }
@@ -279,7 +282,7 @@
             };
             if (ratio is not null) styles.Add($"aspect-ratio: {ratio}");
             if (Width is > 0) styles.Add(FormattableString.Invariant($"width: {Width}px"));
-            if (Ai == AiState.Streaming && !Progress.HasValue)
+            if (EffectiveAi == AiState.Streaming && !Progress.HasValue)
                 styles.Add(FormattableString.Invariant($"--img-blur-dur: {BlurDuration}ms"));
 
             return string.Join("; ", styles);
@@ -309,7 +312,7 @@
             var styles = new List<string> { $"object-fit: {fit}", $"object-position: {pos}" };
 
             // Streaming with explicit progress: interpolate blur 12px → 0 as it rises.
-            if (Ai == AiState.Streaming && Progress.HasValue)
+            if (EffectiveAi == AiState.Streaming && Progress.HasValue)
             {
                 var p = Math.Clamp(Progress.Value, 0, 100);
                 var blur = Math.Round((100 - p) / 100.0 * 12, 2);
@@ -320,7 +323,7 @@
         }
     }
 
-    private string? StateLabel => Ai switch
+    private string? StateLabel => EffectiveAi switch
     {
         AiState.Active    => "AI ready",
         AiState.Thinking  => "Generating image…",

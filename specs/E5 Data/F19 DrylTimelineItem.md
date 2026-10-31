@@ -54,7 +54,7 @@ trailing off.
 | `AriaLabel` | `string?` | `null` | Accessible name of the row's button; `null` uses `Title`. |
 | `Variant` | `TimelineVariant` | `TimelineVariant.Default` | Colour treatment of the marker. |
 | `ChildContent` | `RenderFragment?` | `null` | Body content for the event. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state; wraps the marker in the aura. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state; wraps the marker in the aura. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the item's own class. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -177,6 +177,9 @@ trailing off.
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The aura is applied to the **marker**, not to the row, so a running step is
   marked on the rail where a reader is already looking.
 - The component renders the shared aura vocabulary through the shared helper

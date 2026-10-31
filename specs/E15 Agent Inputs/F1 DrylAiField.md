@@ -6,6 +6,7 @@
               code/DRYL.Components.Agents/Field/DrylAiField.razor.css
               code/DRYL.Components.Agents/Field/AiFieldPrompt.cs
               code/DRYL.Components.Agents/Field/AiFieldSnapshot.cs
+              code/DRYL.Components.Agents/Field/AiFieldTexts.cs
               code/DRYL.Components.Agents/wwwroot/js/dryl-aifield.js
 
 ## User Story
@@ -53,12 +54,32 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`. Requires
 | `ShowPrompt` | `bool` | `false` | Always opens the mini-prompt; `Instruction` becomes its prefill. |
 | `Context` | `string?` | `null` | Extra context sent with the prompt. |
 | `SessionFactory` | `Func<CancellationToken, Task<AgentSession>>?` | `null` | Session reuse; `null` creates a fresh session per run. |
-| `TriggerLabel` | `string` | `"Mit AI ausfüllen"` | Tooltip and accessible name of the trigger at rest. |
-| `CancelLabel` | `string` | `"Abbrechen"` | Tooltip and accessible name of the trigger while a run can be cancelled. |
-| `SendLabel` | `string` | `"Senden"` | Tooltip and accessible name of the mini-prompt's send button. |
-| `PromptPlaceholder` | `string` | `"Was soll die AI tun?"` | Placeholder and accessible name of the mini-prompt input. |
-| `AcceptLabel` | `string` | `"Übernehmen"` | Label of the accept chip. |
-| `RejectLabel` | `string` | `"Verwerfen"` | Label of the reject chip. |
+| `Texts` | `AiFieldTexts?` | `null` | Every human word the field renders or announces; `null` uses `AiFieldTexts.Default` (English). |
+| `TriggerLabel` | `string?` | `null` | Tooltip and accessible name of the trigger at rest. When set, wins over `Texts.Trigger`. |
+| `CancelLabel` | `string?` | `null` | Tooltip and accessible name of the trigger while a run can be cancelled. When set, wins over `Texts.Cancel`. |
+| `SendLabel` | `string?` | `null` | Tooltip and accessible name of the mini-prompt's send button. When set, wins over `Texts.Send`. |
+| `PromptPlaceholder` | `string?` | `null` | Placeholder and accessible name of the mini-prompt input. When set, wins over `Texts.PromptPlaceholder`. |
+| `AcceptLabel` | `string?` | `null` | Label of the accept chip. When set, wins over `Texts.Accept`. |
+| `RejectLabel` | `string?` | `null` | Label of the reject chip. When set, wins over `Texts.Reject`. |
+
+### Types
+
+`AiFieldTexts` — a `sealed record` with `init` members and a static `Default`,
+after `CommandPaletteTexts`. Translate with `AiFieldTexts.Default with { … }`.
+
+| Member | Default |
+|---|---|
+| `Trigger` | `"Write with AI"` |
+| `Cancel` | `"Cancel"` |
+| `Send` | `"Send"` |
+| `PromptPlaceholder` | `"What should the AI do?"` |
+| `Accept` | `"Accept"` |
+| `Reject` | `"Discard"` |
+| `Writing` | `"The AI is writing…"` (announced when a run starts) |
+| `Ready` | `"AI suggestion ready — accept or discard it."` |
+| `Accepted` | `"Suggestion accepted."` |
+| `Rejected` | `"Suggestion discarded."` (reject and cancel) |
+| `Failed` | `"The AI request failed."` |
 | `Disabled` | `bool` | `false` | Hides the affordance; the wrapped input renders unchanged. |
 | `Class` | `string?` | `null` | Extra classes merged onto the wrapper's own. |
 | `ChildContent` | `RenderFragment?` | `null` | The wrapped input. |
@@ -76,7 +97,7 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`. Requires
 - While a run is in flight or a suggestion is under review, the wrapper carries
   `.ai-field--on`.
 - The trigger is an icon-only ghost `DrylButton` with the `Sparkle` glyph,
-  wrapped in a `DrylTooltip`; its tooltip and `aria-label` are `TriggerLabel`.
+  wrapped in a `DrylTooltip`; its tooltip and `aria-label` are the trigger text.
 - `Disabled` renders no trigger and leaves the wrapped input unchanged.
 - Initially neither the review chips nor the mini-prompt are rendered.
 - The trigger and the mini-prompt are marked `data-aifield-ui`, so the bridge
@@ -102,7 +123,7 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`. Requires
 - A reply wrapped in one pair of double quotes or one fenced code block is
   unwrapped.
 - During the run the field is read-only and the trigger shows the `X` glyph
-  with `CancelLabel`.
+  with the cancel text.
 - Text is written into the field as it arrives, at most every 50 ms, and in full
   once the reply is complete.
 
@@ -137,10 +158,22 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`. Requires
   `OnError`.
 - The error message is cleared when the next run starts.
 
+### Words
+
+- Every word the field renders or announces of its own comes from `Texts`, or
+  from `AiFieldTexts.Default` when `Texts` is `null`; the defaults are English.
+- A label parameter that is set (`TriggerLabel`, `CancelLabel`, `SendLabel`,
+  `PromptPlaceholder`, `AcceptLabel`, `RejectLabel`) wins over its `Texts`
+  member; one left at `null` falls through to it.
+- The agent's instruction, its reply and the error message of a failed run are
+  not the field's words and are never translated.
+
 ### Accessibility
 
-- A visually hidden polite live region announces the run starting, the
-  suggestion being ready, its acceptance, rejection and failure.
+- A visually hidden polite live region announces the run starting
+  (`Texts.Writing`), the suggestion being ready (`Texts.Ready`), its acceptance
+  (`Texts.Accepted`), rejection or cancellation (`Texts.Rejected`) and failure
+  (`Texts.Failed`).
 - The trigger, the chips and the send button are native buttons, reachable by
   Tab.
 - The trigger keeps its accessible name in sync with its glyph.
@@ -162,12 +195,6 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`. Requires
 
 ## Recorded limits
 
-- **The default strings are German** (`TriggerLabel`, `CancelLabel`,
-  `SendLabel`, `PromptPlaceholder`, `AcceptLabel`, `RejectLabel` and the live
-  announcements), unlike every other default in the library. Changing them would
-  change what every existing consumer shows; recorded in
-  `ideas/I31 Proposed wherever the library waits for a decision.md` and left for
-  its own decision. The announcements have no parameter at all.
 - The field is located by selector, so a wrapped component that renders several
   text inputs is driven through its first.
 - The accepted value is read back from the field; a wrapped component that

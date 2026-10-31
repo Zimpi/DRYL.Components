@@ -167,6 +167,9 @@ through a callback the host would have to wire.
 - An explicit `Ai` value wins over the instance's state.
 - `Ai` left at `AiState.None` renders the instance's state, so the caller can
   drive the frame through `DialogOptions.Ai` and `IDrylDialogInstance.SetAi`.
+- The AI state is never taken from a surrounding `DrylAiScope`: a dialog renders
+  in the provider at layout root, outside page scopes, so its state comes from
+  the instance. Only the aura variant follows a scope.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
 - The frame renders the shared aura vocabulary — ring, glow, wash — rather than

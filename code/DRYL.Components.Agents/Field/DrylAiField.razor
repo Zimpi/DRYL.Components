@@ -13,7 +13,7 @@
     or rejects the suggestion.
 
     Usage (one line, zero wiring):
-      <DrylAiField Agent="agent" Instruction="Formuliere professioneller">
+      <DrylAiField Agent="agent" Instruction="Make it more professional">
           <DrylTextarea @bind-Value="mail.Body" />
       </DrylAiField>
 
@@ -40,12 +40,12 @@
                         <PanelContent>
                             <div class="ai-field-prompt" data-aifield-ui @onkeydown="HandlePromptKeyDown">
                                 <DrylInputText @bind-Value="_promptText"
-                                               Placeholder="@PromptPlaceholder"
-                                               AriaLabel="@PromptPlaceholder" />
-                                <DrylTooltip Text="@SendLabel">
+                                               Placeholder="@PromptText"
+                                               AriaLabel="@PromptText" />
+                                <DrylTooltip Text="@SendText">
                                     <DrylButton Variant="DrylButton.ButtonVariant.Primary"
                                                 Size="DrylButton.ButtonSize.Small"
-                                                AriaLabel="@SendLabel"
+                                                AriaLabel="@SendText"
                                                 LeadingIcon="ArrowUp"
                                                 OnClick="SubmitPromptAsync" />
                                 </DrylTooltip>
@@ -66,11 +66,11 @@
             <DrylButton Variant="DrylButton.ButtonVariant.Primary"
                         Size="DrylButton.ButtonSize.Small"
                         LeadingIcon="Check"
-                        OnClick="AcceptAsync">@AcceptLabel</DrylButton>
+                        OnClick="AcceptAsync">@AcceptText</DrylButton>
             <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                         Size="DrylButton.ButtonSize.Small"
                         LeadingIcon="X"
-                        OnClick="RejectAsync">@RejectLabel</DrylButton>
+                        OnClick="RejectAsync">@RejectText</DrylButton>
         </div>
     </DrylPresence>
 
@@ -85,7 +85,7 @@
     /// <summary>The agent that generates or transforms the field value.</summary>
     [Parameter, EditorRequired] public AIAgent Agent { get; set; } = default!;
 
-    /// <summary>Fixed instruction (e.g. "Formuliere professioneller"). Null opens the mini-prompt instead.</summary>
+    /// <summary>Fixed instruction (e.g. "Make it more professional"). Null opens the mini-prompt instead.</summary>
     [Parameter] public string? Instruction { get; set; }
 
     /// <summary>Always opens the mini-prompt; <see cref="Instruction"/> becomes the prefill.</summary>
@@ -97,23 +97,26 @@
     /// <summary>Optional session factory for session reuse. Default: a fresh session per invocation.</summary>
     [Parameter] public Func<CancellationToken, Task<AgentSession>>? SessionFactory { get; set; }
 
-    /// <summary>Tooltip and aria-label of the ✨ trigger.</summary>
-    [Parameter] public string TriggerLabel { get; set; } = "Mit AI ausfüllen";
+    /// <summary>Every human word the field renders or announces of its own. Defaults to <see cref="AiFieldTexts.Default"/>.</summary>
+    [Parameter] public AiFieldTexts? Texts { get; set; }
 
-    /// <summary>Tooltip and aria-label of the trigger while a run can be cancelled.</summary>
-    [Parameter] public string CancelLabel { get; set; } = "Abbrechen";
+    /// <summary>Tooltip and aria-label of the ✨ trigger. When set, wins over <see cref="AiFieldTexts.Trigger"/>.</summary>
+    [Parameter] public string? TriggerLabel { get; set; }
 
-    /// <summary>Tooltip and aria-label of the mini-prompt send button.</summary>
-    [Parameter] public string SendLabel { get; set; } = "Senden";
+    /// <summary>Tooltip and aria-label of the trigger while a run can be cancelled. When set, wins over <see cref="AiFieldTexts.Cancel"/>.</summary>
+    [Parameter] public string? CancelLabel { get; set; }
 
-    /// <summary>Placeholder of the mini-prompt input.</summary>
-    [Parameter] public string PromptPlaceholder { get; set; } = "Was soll die AI tun?";
+    /// <summary>Tooltip and aria-label of the mini-prompt send button. When set, wins over <see cref="AiFieldTexts.Send"/>.</summary>
+    [Parameter] public string? SendLabel { get; set; }
 
-    /// <summary>Label of the accept chip.</summary>
-    [Parameter] public string AcceptLabel { get; set; } = "Übernehmen";
+    /// <summary>Placeholder of the mini-prompt input. When set, wins over <see cref="AiFieldTexts.PromptPlaceholder"/>.</summary>
+    [Parameter] public string? PromptPlaceholder { get; set; }
 
-    /// <summary>Label of the reject chip.</summary>
-    [Parameter] public string RejectLabel { get; set; } = "Verwerfen";
+    /// <summary>Label of the accept chip. When set, wins over <see cref="AiFieldTexts.Accept"/>.</summary>
+    [Parameter] public string? AcceptLabel { get; set; }
+
+    /// <summary>Label of the reject chip. When set, wins over <see cref="AiFieldTexts.Reject"/>.</summary>
+    [Parameter] public string? RejectLabel { get; set; }
 
     /// <summary>Hides the affordance entirely; the wrapped input renders unchanged.</summary>
     [Parameter] public bool Disabled { get; set; }
@@ -158,6 +161,14 @@
 
     private bool UsesPrompt => Instruction is null || ShowPrompt;
 
+    private AiFieldTexts Words => Texts ?? AiFieldTexts.Default;
+    private string TriggerText => TriggerLabel ?? Words.Trigger;
+    private string CancelText => CancelLabel ?? Words.Cancel;
+    private string SendText => SendLabel ?? Words.Send;
+    private string PromptText => PromptPlaceholder ?? Words.PromptPlaceholder;
+    private string AcceptText => AcceptLabel ?? Words.Accept;
+    private string RejectText => RejectLabel ?? Words.Reject;
+
     private string RootCss => string.Join(' ',
         new[] { "ai-field", _phase != FieldPhase.Idle ? "ai-field--on" : null, Class }
             .Where(s => !string.IsNullOrWhiteSpace(s))!);
@@ -165,7 +176,7 @@
     private RenderFragment TriggerButton => __builder =>
     {
         var running = _phase == FieldPhase.Running;
-        var label = running ? CancelLabel : TriggerLabel;
+        var label = running ? CancelText : TriggerText;
         <DrylTooltip Text="@label">
             <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
                         Size="DrylButton.ButtonSize.Small"
@@ -229,7 +240,7 @@
         var ct = _cts.Token;
 
         SetAura(AiState.Thinking);
-        Announce("Die AI schreibt …");
+        Announce(Words.Writing);
         await module.InvokeVoidAsync("setBusy", _root, true);
 
         try
@@ -243,7 +254,7 @@
         }
         catch (OperationCanceledException)
         {
-            await RestoreAsync("Vorschlag verworfen.");
+            await RestoreAsync(Words.Rejected);
             await OnRejected.InvokeAsync();
         }
         catch (Exception ex)
@@ -285,7 +296,7 @@
         // The suggestion waits for the user's decision: it rests at Proposed until accepted
         // (→ Generated, the accept wave) or rejected (→ None, the graceful exit).
         SetAura(AiState.Proposed);
-        Announce("AI-Vorschlag bereit — übernehmen oder verwerfen.");
+        Announce(Words.Ready);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -311,7 +322,7 @@
     private async Task FailAsync(DrylRunError error)
     {
         _errorText = error.Message;
-        await RestoreAsync("Die AI-Anfrage ist fehlgeschlagen.");
+        await RestoreAsync(Words.Failed);
         await OnError.InvokeAsync(error);
     }
 
@@ -352,7 +363,7 @@
         // Accepting a proposal: the wrapped input plays the accept wave and the Generated
         // bloom, then its aura retires itself (AI-07).
         SetAura(AiState.Generated);
-        Announce("Vorschlag übernommen.");
+        Announce(Words.Accepted);
 
         var acceptedValue = _finalText;
         try
@@ -372,7 +383,7 @@
     private async Task RejectAsync()
     {
         if (_phase != FieldPhase.Review) return;
-        await RestoreAsync("Vorschlag verworfen.");
+        await RestoreAsync(Words.Rejected);
         await OnRejected.InvokeAsync();
     }
 

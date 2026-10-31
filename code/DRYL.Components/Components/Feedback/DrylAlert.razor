@@ -115,6 +115,9 @@
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
 
+    /// <summary>Resolved AI state: an explicit <see cref="Ai"/> wins, otherwise the surrounding <c>DrylAiScope</c>'s state.</summary>
+    private AiState EffectiveAi => AiScope.Resolve(Ai, Scope);
+
     /// <summary>Body content of the alert.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -136,10 +139,10 @@
     protected override void OnParametersSet()
     {
         // Re-anchor the wash element so the one-shot animation replays.
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated)
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated)
             _genTick++;
-        _prevAi = Ai;
-        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+        _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
 
         // Turning Dismissible off and on again brings a self-dismissed alert back, so a
         // host that never had a handler still has a way to show it without remounting.

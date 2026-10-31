@@ -5,7 +5,7 @@ namespace DRYL.Components.Agents;
 /// <summary>
 /// Builds the English model prompt for a <see cref="DrylAiField"/> invocation and cleans the reply.
 /// English template on purpose — models follow the "respond with ONLY the replacement" contract
-/// more reliably; the user-facing UI strings stay German.
+/// more reliably; the user-facing words come from <see cref="AiFieldTexts"/>.
 /// </summary>
 internal static class AiFieldPrompt
 {

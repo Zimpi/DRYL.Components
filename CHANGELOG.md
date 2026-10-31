@@ -14,6 +14,33 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.15.0] — 2026-10-31
+
+Agents 0.25.0 ships with it. A `DrylAiScope` now reaches the AI state of the components that only took its aura variant, and `DrylAiField` speaks English by default and can be translated.
+
+### Changed
+- `DrylStat`, `DrylTable`, `DrylCodeBlock`, `DrylImage`, `DrylTimelineItem`, `DrylAlert`, `DrylEmptyState`, `DrylProgress`, `DrylSkeleton`, `DrylSpinner`, `DrylFileUpload`, `DrylStep` — A component that leaves `Ai` at `AiState.None` now shows the state of a surrounding `DrylAiScope`, as `DrylAiScope` always promised. Until now these components took only the scope's aura variant and stayed dark inside an active scope. An explicit `Ai` still wins, and an inherited move into `Generated` plays the bloom once. If you placed one of them in a scope and relied on it staying plain, give it an explicit `Ai`, or wrap it in a nested `<DrylAiScope State="AiState.None">`, which forces AI off for its region — the same as for `DrylButton` or `DrylCard`.
+- `DrylAiScope` — For reference, the components that deliberately keep their own state inside a scope, each with its reason, are `DrylToolCall` and `DrylToolCallGroup` (a call's status is a fact about that call), `DrylCommandPalette` (its `Ai` mounts the AI result panel, which a scope would open empty), `DrylNotifications` and `DrylDialog` (they render at layout root, outside page scopes). Thirteen input-family components without a spec yet — among them `DrylInputNumber`, `DrylDatePicker`, `DrylSlider` — still take only the aura variant and gain the state when their spec is written.
+
+## [Agents 0.25.0] — 2026-10-31
+
+### Added
+- `AiFieldTexts` — Every word `DrylAiField` renders or announces of its own, in one record after `CommandPaletteTexts`: the trigger, cancel and send labels, the mini-prompt placeholder, the accept and reject chips, and the five screen-reader announcements (writing, ready, accepted, discarded, failed), which could not be changed at all until now. Pass it through the new `DrylAiField.Texts` parameter and replace only what you translate: `Texts="AiFieldTexts.Default with { Accept = "Übernehmen" }"`.
+
+### Changed
+- `DrylAiField` — **The default wording is now English**, like every other default in the library: "Write with AI", "Cancel", "Send", "What should the AI do?", "Accept", "Discard", and English announcements. `TriggerLabel`, `CancelLabel`, `SendLabel`, `PromptPlaceholder`, `AcceptLabel` and `RejectLabel` stay and win over `Texts` when set; their type is now `string?` and their default `null`, so code that assigns them keeps compiling. To keep the previous German wording, pass:
+
+  ```razor
+  <DrylAiField Agent="agent" Texts="@(AiFieldTexts.Default with
+  {
+      Trigger = "Mit AI ausfüllen", Cancel = "Abbrechen", Send = "Senden",
+      PromptPlaceholder = "Was soll die AI tun?", Accept = "Übernehmen", Reject = "Verwerfen",
+      Writing = "Die AI schreibt …", Ready = "AI-Vorschlag bereit — übernehmen oder verwerfen.",
+      Accepted = "Vorschlag übernommen.", Rejected = "Vorschlag verworfen.",
+      Failed = "Die AI-Anfrage ist fehlgeschlagen.",
+  })">
+  ```
+
 ## [3.14.0] — 2026-10-31
 
 Agents 0.24.0 ships with it. `AiState.Proposed` reaches the places that were still waiting for a decision without saying so.

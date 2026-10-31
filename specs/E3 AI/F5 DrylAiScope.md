@@ -73,6 +73,20 @@ put them on.
 - A descendant's own explicit `Ai` value wins over the scope's state.
 - A descendant whose `Ai` is `AiState.None` inherits the scope's state — `AiState.None`
   is the inherit case for a descendant, not an opt-out.
+- Every AI-aware descendant inherits the scope's state as well as its aura
+  variant, except the ones whose own spec says otherwise, each for a stated
+  reason: `DrylToolCall` and `DrylToolCallGroup` (a call's status is a fact about
+  that call), `DrylCommandPalette` (its `Ai` mounts the result panel),
+  `DrylNotifications` and `DrylDialog` (they render at layout root, outside page
+  scopes), and `DrylToast` (rendered by the notification host, it receives no
+  scope at all). `AiScopeInheritanceTests` holds the list; a component that
+  resolves only the variant and is not on it fails the test suite.
+- Thirteen components without a spec of their own still inherit only the
+  variant, recorded as debt in `ideas/I32 Every AI-aware component follows its scope.md`:
+  `DrylChipInput`, `DrylDatePicker`, `DrylTimePicker`, `DrylInputMask`,
+  `DrylInputNumber`, `DrylInputOtp`, `DrylInputPassword`, `DrylMultiSelect`,
+  `DrylRadioGroup`, `DrylRating`, `DrylSlider`, `DrylExpansion` and
+  `DrylChatComposer`. Each gains the state when its spec is written (`SPEC-01`).
 - A descendant's own explicit `Aura` value wins over the scope's variant.
 - A descendant with no `Aura` and a scope that pins none resolves to `AiAura.Comet`.
 

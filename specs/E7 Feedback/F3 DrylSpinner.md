@@ -37,7 +37,7 @@ size value being written twice.
 | `Variant` | `DrylSpinner.SpinnerVariant` | `SpinnerVariant.Ring` | Visual style. |
 | `Size` | `DrylSpinner.SpinnerSize` | `SpinnerSize.Medium` | Physical size. |
 | `Label` | `string?` | `null` | Accessible label. `null` uses a state-aware default. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state; also retimes the spinner's own loop. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state; also retimes the spinner's own loop. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the spinner's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -129,6 +129,9 @@ size value being written twice.
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The spinner renders the shared aura vocabulary — ring, comet, glow, wash —
   rather than a spinner-specific AI treatment (`AI-02`).
 - `AiState.Thinking` slows the spinner's own loop relative to its default.

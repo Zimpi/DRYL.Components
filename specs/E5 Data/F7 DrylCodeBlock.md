@@ -42,7 +42,7 @@ cancellable, so a rapid second press or a disposal never lands late.
 | `Language` | `string?` | `null` | Language label, and the highlighter's language selector. |
 | `ShowLineNumbers` | `bool` | `false` | Renders a leading gutter of 1-based line numbers. |
 | `Highlight` | `bool` | `true` | Highlights server-side. `false` renders encoded plain text. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the block's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -160,6 +160,9 @@ languages it understands are listed under "Highlighting" below.
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The component renders the shared aura vocabulary rather than a code-specific
   AI treatment (`AI-02`).
 - Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
