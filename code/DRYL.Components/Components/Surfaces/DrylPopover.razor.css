@@ -89,40 +89,123 @@
 /* Placement is computed in JS (dryl.popover) against the viewport — the
    placement modifier classes are kept as styling hooks only. */
 
-/* Entrance — the panel node is reused across opens, so the animation is bound
-   to the reveal state (data-dryl-positioned is (re)set by JS on each open) rather
-   than to the node mounting, otherwise it would only ever play once. */
-.popover-panel.is-open[data-dryl-positioned] {
-    animation: popover-in var(--dur-fast) var(--ease-out);
+
+/* Motion — the panel flows out of its trigger (I30).
+
+   The surface starts exactly on the trigger: dryl.popover's place() measures
+   both on every open and writes the start shape as two custom properties —
+   --popover-morph-from, the trigger's rectangle and radius as a clip inset of
+   the surface, and --popover-morph-y, the translate that lays the surface over
+   the trigger. Both are written once per placement and only read by the
+   keyframes below; nothing loops them. The surface then grows to its own size
+   on --ease-spring, so nothing scales and the text stays crisp.
+
+   The clip sits on whichever element carries the glass, and that is not a
+   matter of taste. A clip-path is a backdrop root: on .popover-panel it would
+   confine the frost of a consumer's own surface (Surface="false" — every input
+   dropdown) to the panel's own contents for the length of the morph, measured
+   in Chrome. So with Surface the panel morphs itself; without it, its child —
+   the consumer's surface — does.
+
+   The entrance is bound to the reveal state rather than to the node mounting:
+   the panel node is reused across opens and data-dryl-positioned is (re)set by
+   JS on each one, so the morph replays on every open.
+
+   The shadow comes last. The spring overshoots, which pushes the clip past the
+   surface's edge, and a clip there cuts the drop shadow off along a hard line —
+   in the light mode a grey slab under the panel for about 200 ms, measured.
+   With no shadow until the overshoot has settled there is nothing to cut.
+   popover-morph-shadow has no `to`, so it lands on whatever shadow the carrier
+   has: --shadow-lg here, the consumer's own on its surface. */
+.popover-panel--surface.is-open[data-dryl-positioned],
+.popover-panel:not(.popover-panel--surface).is-open[data-dryl-positioned] ::deep > * {
+    animation: popover-morph-in var(--dur-slow) var(--ease-spring),
+               popover-morph-shadow var(--dur-med) var(--ease-out) calc(var(--dur-slow) * 0.8) backwards;
 }
 
-@keyframes popover-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
+@keyframes popover-morph-shadow {
+    from { box-shadow: none; }
 }
 
-/* Exit — the surface itself fades out before the panel is unmounted and the
-   node is handed back to its anchor. .is-exiting is added by DrylPopover on
-   close and swaps animation-name, which is what restarts the animation on a
-   node that already played popover-in.
+@keyframes popover-morph-in {
+    from {
+        clip-path: var(--popover-morph-from, inset(0 round var(--r-md)));
+        transform: translateY(var(--popover-morph-y, 0px));
+    }
+    to {
+        clip-path: inset(0 round var(--r-md));
+        transform: translateY(0);
+    }
+}
 
-   presence-out-fade is the library's own exit keyframe (dryl.css), reused here
-   rather than grown into a popover-specific one — DESIGN-13. dryl.motion.onExit
-   listens for the presence-out prefix and reports the end back to C#.
+/* The content follows the surface out instead of lying over the trigger in
+   the first frames. data-dryl-morphing is set by JS for the length of the
+   morph only, so content that mounts later — a filtered list, the next month,
+   a ticked option — appears without replaying the fade. One level deeper
+   without Surface, because there the first level is the consumer's glass. */
+.popover-panel--surface[data-dryl-morphing] ::deep > *,
+.popover-panel:not(.popover-panel--surface)[data-dryl-morphing] ::deep > * > * {
+    animation: presence-in-fade calc(var(--dur-slow) * 0.6) var(--ease-out) calc(var(--dur-slow) * 0.35) backwards;
+}
 
-   forwards holds opacity at 0 for the frames between the animation ending and
-   the render that drops the visibility keys. pointer-events is not decoration:
-   for the length of the animation this is a full-size element on the
-   --z-popover layer that the user believes is already gone, and it must not
-   swallow the click they aim past it. */
+/* The trigger gives a short squeeze as the panel leaves it. Same attribute,
+   set on the anchor, so it plays once per open. */
+.popover-anchor[data-dryl-morphing] > .popover-trigger {
+    animation: popover-squeeze calc(var(--dur-slow) * 0.8) var(--ease-out);
+}
+
+@keyframes popover-squeeze {
+    30% { transform: scale(0.965, 0.94); }
+}
+
+/* Exit — the same path back into the trigger, before the panel is unmounted
+   and the node is handed back to its anchor. .is-exiting is added by
+   DrylPopover on close and swaps animation-name, which is what restarts the
+   animation on a node that already played the entrance. The content leaves
+   first; the surface fades only over the last stretch, once it already sits
+   on the trigger. dryl.motion.onExit listens for the popover-morph-out prefix
+   and reports the end back to C# — on the panel itself with Surface, from its
+   child without.
+
+   forwards holds the end state for the frames between the animation ending
+   and the render that drops the visibility keys. pointer-events is not
+   decoration: for the length of the animation this is a full-size element on
+   the --z-popover layer that the user believes is already gone, and it must
+   not swallow the click they aim past it. */
+.popover-panel--surface.is-open[data-dryl-positioned].is-exiting,
+.popover-panel:not(.popover-panel--surface).is-open[data-dryl-positioned].is-exiting ::deep > * {
+    animation: popover-morph-out var(--dur-med) var(--ease-in-out) forwards;
+}
 .popover-panel.is-open[data-dryl-positioned].is-exiting {
-    animation: presence-out-fade var(--dur-fast) var(--ease-out) forwards;
     pointer-events: none;
+}
+.popover-panel--surface.is-exiting ::deep > *,
+.popover-panel:not(.popover-panel--surface).is-exiting ::deep > * > * {
+    animation: presence-out-fade calc(var(--dur-med) * 0.5) var(--ease-out) forwards;
+}
+
+@keyframes popover-morph-out {
+    from {
+        clip-path: inset(0 round var(--r-md));
+        transform: translateY(0);
+        opacity: 1;
+    }
+    85% { opacity: 1; }
+    to {
+        clip-path: var(--popover-morph-from, inset(0 round var(--r-md)));
+        transform: translateY(var(--popover-morph-y, 0px));
+        opacity: 0;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .popover-panel.is-open[data-dryl-positioned] { animation: none; }
+    .popover-panel--surface.is-open[data-dryl-positioned],
+    .popover-panel:not(.popover-panel--surface).is-open[data-dryl-positioned] ::deep > *,
+    .popover-anchor[data-dryl-morphing] > .popover-trigger { animation: none; }
     /* No animation to wait for — dryl.motion.onExit resolves on the next frame,
        so the panel is still torn down through the same path. */
-    .popover-panel.is-open[data-dryl-positioned].is-exiting { animation: none; }
+    .popover-panel--surface.is-open[data-dryl-positioned].is-exiting,
+    .popover-panel:not(.popover-panel--surface).is-open[data-dryl-positioned].is-exiting ::deep > *,
+    .popover-panel.is-exiting ::deep > *,
+    .popover-panel.is-exiting ::deep > * > * { animation: none; }
 }

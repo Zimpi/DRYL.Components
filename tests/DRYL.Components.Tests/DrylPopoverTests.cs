@@ -244,6 +244,31 @@ public class DrylPopoverTests : BunitContext
         Assert.False(open);
     }
 
+    // I30: the morph runs on whatever carries the glass — the panel itself with
+    // Surface, the consumer's own surface inside it without, because a clip-path
+    // on the panel would cut that surface's frost off. The exit has to be
+    // listened for on the same element, or the popover only ever closes through
+    // its watchdog.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_exit_listens_for_the_morph_on_the_element_that_carries_the_glass(bool surface)
+    {
+        var cut = Render<DrylPopover>(ps => ps
+            .Add(p => p.Surface, surface)
+            .Add(p => p.TriggerContent, b => b.AddMarkupContent(0, "<button>open</button>"))
+            .Add(p => p.PanelContent, b => b.AddMarkupContent(0, "<div class=\"own-surface\">panel body</div>")));
+        cut.Find(TriggerSelector).Click();
+
+        cut.Find(TriggerSelector).Click();
+
+        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations["dryl.motion.onExit"]));
+        var options = JSInterop.Invocations["dryl.motion.onExit"].Single().Arguments[2]!;
+        object? Read(string name) => options.GetType().GetProperty(name)!.GetValue(options);
+        Assert.Equal("popover-morph-out", Read("name"));
+        Assert.Equal(surface, Read("self"));
+    }
+
     [Fact]
     public async Task An_old_browser_callback_cannot_finish_the_next_close()
     {

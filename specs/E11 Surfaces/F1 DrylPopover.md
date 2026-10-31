@@ -65,10 +65,11 @@ panel, so `data-dryl-positioned` is JS's alone.
 **Closing is two steps, not one, and the panel outlives `Open`.** A popover
 that is on screen does not drop its keys when it closes: it holds both of them,
 holds its content and its place under `<body>`, and adds `.is-exiting`, which
-swaps its `animation-name` to the library's own `presence-out-fade`. Only when
-that animation ends — reported back from `dryl.motion.onExit` — does the panel
-drop its keys, unmount its content and hand the node back to the anchor. So
-there is a window, one `--dur-fast` long, in which `Open` is already `false`
+swaps the morph out of the trigger for the morph back into it
+(`popover-morph-out`). Only when that animation ends — reported back from
+`dryl.motion.onExit` — does the panel drop its keys, unmount its content and
+hand the node back to the anchor. So there is a window, one `--dur-med` long,
+in which `Open` is already `false`
 and the panel is still there. Consumers see it: anything that reads the DOM
 immediately after a close finds the content still mounted.
 
@@ -79,7 +80,28 @@ arrives, because the failure it guards against — a dropped interop message, a
 host that runs no JS — would otherwise leave a full-size invisible element
 parked on the `--z-popover` layer. Re-opening during the window cancels the
 exit outright: the node never left `<body>`, so nothing is re-portalled, and
-dropping `.is-exiting` restarts the entrance from wherever the fade had reached.
+dropping `.is-exiting` restarts the morph out of the trigger.
+
+**The panel flows out of its trigger, and the morph sits on whatever carries
+the glass.** Every open, `dryl.popover`'s placement measures the trigger slot
+(`.popover-trigger`, not the anchor — a block-level anchor is as wide as its
+column while the button in it is not) and writes the start shape as two custom
+properties on the panel: `--popover-morph-from`, the trigger's rectangle and
+corner radius as a clip inset, and `--popover-morph-y`, the translate that lays
+the panel over the trigger. `popover-morph-in` grows the surface from that shape
+to its own on `--ease-spring`; `popover-morph-out` runs it back. Right and
+bottom are written against `100%` and the translate only from the trigger and
+the gap, so a panel whose content grew while open still leaves into its
+trigger. Which element morphs is not a choice: a `clip-path` is a backdrop root,
+so on `.popover-panel` it would cut off the frost of a consumer's own surface —
+measured in Chrome 156, the child's blur stops at the clipped parent's own
+contents. With `Surface` the panel morphs itself; with `Surface="false"`, which
+every input dropdown passes, its child — the consumer's surface — does. The
+content fade and the trigger squeeze hang off `data-dryl-morphing`, which JS
+sets on the panel and the anchor for the length of the morph only, so content
+rendered while open — a filtered list, the next month — never replays them.
+Decided in
+[`../../ideas/I30 A popover that flows out of its trigger.md`](../../ideas/I30%20A%20popover%20that%20flows%20out%20of%20its%20trigger.md).
 
 **Focus: the consumer decides whether it goes in, the popover decides where it
 comes back to.** The popover still moves focus nowhere on open. A consumer that
@@ -101,7 +123,7 @@ whole design: a user who clicked or tabbed elsewhere has already decided where
 focus belongs, and it is also what keeps this from fighting the consumers that
 restore focus themselves. By the time `DrylMenu` or a picker has returned focus
 to its own trigger, focus has left the panel and this does nothing. It happens
-at the *request* and not at the teardown, because `I4` put roughly `--dur-fast`
+at the *request* and not at the teardown, because the exit puts `--dur-med`
 between those two and a keyboard user should not wait it out.
 
 **The key policy on the panel node has two owners, and this component is now
@@ -514,14 +536,30 @@ no way to ask the panel to keep focus.
   the library does.
 - The component branches on no colour mode and writes no mode-assuming value:
   both modes come from the token set alone (`DESIGN-02`).
-- The panel animates in with `popover-in`, over `--dur-fast` with `--ease-out`.
+- The panel's surface opens from the trigger's rectangle and corner radius to
+  its own size with `popover-morph-in`, over `--dur-slow` with `--ease-spring`.
+- The morph's start shape is measured on the trigger slot, so a panel under a
+  block-level anchor still starts on the button rather than on the column.
+- A panel placed above its trigger morphs from the trigger's top edge.
+- The morph runs on the panel while `Surface` is `true`, and on the panel's
+  first child — the consumer's own surface — while `Surface` is `false`, so a
+  consumer's frost stays intact for the whole morph.
+- The panel's content fades in from about a third of the way through the morph,
+  so it never lies over the trigger.
+- The trigger squeezes briefly as the panel leaves it.
+- The content fade and the squeeze play on the open only: content rendered
+  while the panel is open — a filter, the next month, a ticked option — does
+  not replay them.
+- The surface's drop shadow fades in once the spring's overshoot has settled,
+  so the morph never cuts the shadow along a hard edge.
 - The entrance animation is bound to the reveal state rather than to the node
   mounting, so it replays on every open although the node is reused.
 - The entrance animation is suppressed under `prefers-reduced-motion: reduce`.
-- The panel animates out with `presence-out-fade`, over `--dur-fast` with
-  `--ease-out`.
-- The exit animation runs on the panel surface itself, so what the user sees
-  leaving is the glass and its content together.
+- The panel animates back into its trigger with `popover-morph-out`, over
+  `--dur-med` with `--ease-in-out`; the content fades out first, the surface
+  only over the last stretch.
+- The exit animation runs on the same element as the entrance, so what the
+  user sees leaving is the glass and its content together.
 - The exit animation holds the panel at its end state until the panel is
   unmounted, so no frame of it is repainted at full opacity.
 - The panel takes no pointer events while it is exiting, so a click aimed past
@@ -582,15 +620,27 @@ no way to ask the panel to keep focus.
   the fill and the shadow swap to the light set and the border resolves to that
   mode's `--line-strong`, with the frost unchanged in both — one identity, two
   palettes.
-- **Enter/exit animation** — enter: **yes**, `popover-in` bound to
-  `.is-open[data-dryl-positioned]` so it replays on every open. Exit: **yes**,
-  `presence-out-fade` bound to the same selector plus `.is-exiting`, which is
-  what restarts an animation on a node that has already played one. Both run
-  `--dur-fast` with `--ease-out` and both are suppressed under
-  `prefers-reduced-motion: reduce`. The exit reuses the library's existing
-  keyframe rather than adding a popover-specific one (`DESIGN-13`); the decision
-  to bind it here, and to treat that binding as extending the primitive rather
-  than as a one-off, is recorded in `I4`. `DESIGN-12` is satisfied without
+- **Enter/exit animation** — enter: **yes**, `popover-morph-in` bound to
+  `.is-open[data-dryl-positioned]` (on the panel with `Surface`, on its child
+  without) so it replays on every open, `--dur-slow` with `--ease-spring`.
+  Exit: **yes**, `popover-morph-out` bound to the same selector plus
+  `.is-exiting`, which is what restarts an animation on a node that has already
+  played one, `--dur-med` with `--ease-in-out`; `dryl.motion.onExit` matches the
+  `popover-morph-out` prefix, from the panel itself with `Surface` and bubbling
+  from the child without. Both are suppressed under
+  `prefers-reduced-motion: reduce`. The four keyframes — `popover-morph-in`,
+  `popover-morph-out`, `popover-morph-shadow` and `popover-squeeze` — are new
+  animations, signed off by the maintainer in `I30` (`DESIGN-10`); the content
+  fades reuse `presence-in-fade` and `presence-out-fade`. Measured on
+  2026-10-31 on `/components/popover`, `menu`, `notifications`, `multiselect`,
+  `autocomplete`, `datepicker` and `timepicker`: the clip and translate run from
+  the trigger to the panel and back, the portal is released after every exit,
+  a filter in the autocomplete does not replay the content fade, re-opening
+  during the exit leaves the panel open and whole, and reduced motion opens and
+  closes without animation; the date picker checked by eye in both modes,
+  frost intact during the morph. The earlier exit decision — binding an exit to
+  the surface itself rather than to its content — is recorded in `I4`.
+  `DESIGN-12` is satisfied without
   `DrylPresence`, which was tried, measured and rejected — it animates inside
   the surface, leaving the surface itself standing at full opacity.
 - **Keyboard and a11y** — the "Keyboard and accessibility" and "The trigger's
@@ -683,7 +733,7 @@ so the file is not mistaken for a finished job.
 
 - **The content outlives `Open` by the length of the exit.** This is the price
   of `DESIGN-12` being satisfied at all, and it is a real one: `Open` is the
-  public state, and for one `--dur-fast` after it reads `false` the panel is
+  public state, and for one `--dur-med` after it reads `false` the panel is
   still mounted, still under `<body>` and still painted. Nothing in the public
   API surfaces that window — a consumer who inspects the DOM straight after a
   close, or who counts rendered children, sees a popover that has not closed
