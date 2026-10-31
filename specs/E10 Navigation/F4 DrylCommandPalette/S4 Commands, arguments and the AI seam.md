@@ -45,6 +45,14 @@
 - With `Ai` other than `AiState.None`, an AI result panel with `AiContent`
   slides in below the list, and slides out when `Ai` returns to `AiState.None`.
 - The panel is named `CommandPaletteTexts.AiResult` and announced politely.
+- The panel reveals once (rise and fade over `--dur-slow`) on entering
+  `AiState.Generated` or `AiState.Proposed`.
+- Under `AiState.Proposed` the panel shows `AiContent` at rest; the palette shell
+  carries the resting `Proposed` aura and its description.
+- `AiState.Proposed` → `AiState.Generated` (an accepted proposal) does not replay
+  the panel's entrance: the content is already on screen, and the shell plays
+  the accept wave.
+- Under `prefers-reduced-motion: reduce` the panel does not animate its reveal.
 
 ### Texts
 

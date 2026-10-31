@@ -58,7 +58,26 @@ surface the AI merely touched once is not a proposal.
 older members are unchanged. A consumer's exhaustive `switch` over `AiState`
 gains an unhandled case — a compiler warning, not a break (`REL-01`, MINOR).
 
-*(`AiAura`, `AiScope` and `AuraLifecycle`: phase C. The behaviour of
+### `IDrylAiOperation`
+
+`code/DRYL.Components/Ai/IDrylAiOperation.cs` — the handle
+`IDrylAiActivityService.Begin(key, initial)` returns. Each member moves the
+operation's key to one state; disposing the handle settles the key back to
+`None`.
+
+| Member | Sets the key to |
+|---|---|
+| `Thinking()` | `Thinking` |
+| `Streaming()` | `Streaming` |
+| `Generated()` | `Generated`. The key rests there until the handle is disposed or a new operation begins, so the reveal can play. |
+| `Proposed()` | `Proposed`. The key rests there until the host resolves it — accept → `Generated()`, dismiss → disposing the handle. Added by `ideas/I31 Proposed wherever the library waits for a decision.md`. |
+| `Dispose()` | `None`. A second call does nothing. |
+
+`Proposed()` ships as a **default interface implementation that sets nothing**,
+so an implementer written before it keeps compiling (`REL-01`, MINOR); the
+library's own operation overrides it.
+
+*(`IDrylAiActivityService` itself, `AiAura`, `AiScope` and `AuraLifecycle`: phase C. The behaviour of
 `AuraLifecycle` under `Proposed` is specified with the aura it drives, in
 `specs/E3 AI/F7 DrylAuraElements.md`.)*
 

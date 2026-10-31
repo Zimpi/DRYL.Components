@@ -24,4 +24,18 @@ public interface IDrylAiOperation : IDisposable
     /// the operation is disposed or a new operation begins, so the reveal can play.
     /// </summary>
     void Generated();
+
+    /// <summary>
+    /// Mark the operation as proposed — the AI is done and a human has to accept or dismiss
+    /// what it produced. The state rests here until the host resolves it: call
+    /// <see cref="Generated"/> on accept, dispose the handle on dismiss. The library never
+    /// ends it by itself.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation does nothing, so an implementation written before this
+    /// member existed keeps compiling; the operation returned by
+    /// <see cref="IDrylAiActivityService.Begin(string, AiState)"/> sets the key to
+    /// <see cref="AiState.Proposed"/>.
+    /// </remarks>
+    void Proposed() { }
 }

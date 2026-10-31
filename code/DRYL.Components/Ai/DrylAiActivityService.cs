@@ -90,6 +90,7 @@ internal sealed class DrylAiActivityService : IDrylAiActivityService
         public void Thinking()  => _service.Set(Key, AiState.Thinking);
         public void Streaming() => _service.Set(Key, AiState.Streaming);
         public void Generated() => _service.Set(Key, AiState.Generated);
+        public void Proposed()  => _service.Set(Key, AiState.Proposed);
 
         public void Dispose()
         {

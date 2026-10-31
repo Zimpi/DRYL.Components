@@ -429,9 +429,16 @@
     opacity: 0.85;
 }
 
-.cmd-ai-panel.ai-generated {
+.cmd-ai-panel.ai-generated,
+.cmd-ai-panel.ai-proposed {
     opacity: 1;
     animation: cmd-ai-reveal var(--dur-slow) var(--ease-out);
+}
+
+/* An accepted proposal is already on screen: the shell's accept wave is the moment,
+   the panel does not replay its entrance. */
+.cmd-ai-panel.ai-generated.ai-accepted {
+    animation: none;
 }
 
 @keyframes cmd-ai-reveal {
@@ -538,7 +545,8 @@
         transition: none;
     }
 
-    .cmd-ai-panel.ai-generated {
+    .cmd-ai-panel.ai-generated,
+    .cmd-ai-panel.ai-proposed {
         animation: none;
     }
 

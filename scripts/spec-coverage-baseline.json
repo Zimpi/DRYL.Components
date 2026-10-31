@@ -6,7 +6,6 @@
     "code/DRYL.Components.Agents/Agents/DrylHandoffTrace.razor",
     "code/DRYL.Components.Agents/CommandPalette/DrylAiCommandPalette.razor",
     "code/DRYL.Components.Agents/Display/DrylAgentAttachments.razor",
-    "code/DRYL.Components.Agents/Field/DrylAiField.razor",
     "code/DRYL.Components.Agents/Generation/DrylAiBuild.razor",
     "code/DRYL.Components.Agents/Generation/DrylAiGenerate.razor",
     "code/DRYL.Components.Agents/Tools/DrylAskChoiceDialog.razor",

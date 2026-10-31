@@ -282,7 +282,9 @@
         await module.InvokeVoidAsync("setBusy", ct, _root, false);
 
         _phase = FieldPhase.Review;
-        SetAura(AiState.Generated);
+        // The suggestion waits for the user's decision: it rests at Proposed until accepted
+        // (→ Generated, the accept wave) or rejected (→ None, the graceful exit).
+        SetAura(AiState.Proposed);
         Announce("AI-Vorschlag bereit — übernehmen oder verwerfen.");
         await InvokeAsync(StateHasChanged);
     }
@@ -347,7 +349,9 @@
     {
         if (_phase != FieldPhase.Review) return;
         _phase = FieldPhase.Idle;
-        SetAura(AiState.None);
+        // Accepting a proposal: the wrapped input plays the accept wave and the Generated
+        // bloom, then its aura retires itself (AI-07).
+        SetAura(AiState.Generated);
         Announce("Vorschlag übernommen.");
 
         var acceptedValue = _finalText;

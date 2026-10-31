@@ -126,6 +126,10 @@ it once it is gone.
   `AiAura.Comet` variant (`AI-02`).
 - The aura follows `Run.State`, so it breathes while thinking and streaming.
 - Entering `AiState.Generated` replays the one-shot completion wash.
+- `AiState.Proposed` never arises: a `DrylCanvasRun` moves only between `None`,
+  `Streaming` and `Generated`, because the canvas applies the model's
+  operations as they arrive and has no accept-or-dismiss step. The canvas
+  therefore has no `Proposed` handling of its own (I31).
 - Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
   dissolves rather than snapping away.
 - The status pill is a `DrylAiIndicator` carrying `Run.State`.
