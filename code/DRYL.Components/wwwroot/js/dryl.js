@@ -812,6 +812,48 @@ window.dryl.popover = (() => {
 
         panel.style.top  = top + 'px';
         panel.style.left = left + 'px';
+
+        writeMorphStart(anchor, panel, top, left, ph, top >= a.bottom);
+    }
+
+    /* The start shape of the morph (I30): the trigger's rectangle and radius as
+     * a clip inset of the panel, plus the translate that lays the panel over
+     * the trigger. DrylPopover.razor.css reads both in popover-morph-in and
+     * popover-morph-out; nothing animates the properties themselves.
+     *
+     * Right and bottom are written against 100% rather than the panel's size,
+     * and the translate only from the trigger's height and the gap, so a panel
+     * whose content grows after it opened — a filter, the next month — still
+     * leaves into the trigger it came from without being re-measured.
+     *
+     * Measured on the trigger slot, not the anchor: the anchor is the
+     * consumer's to lay out, and a block-level one is as wide as its column
+     * while the button in it is not (measured on /components/popover). */
+    function writeMorphStart(anchor, panel, top, left, ph, below) {
+        const slot = anchor.querySelector('.popover-trigger') || anchor;
+        const a = slot.getBoundingClientRect();
+        const x = a.left - left;
+        const w = a.width;
+        const h = a.height;
+        const dy = below ? a.top - top : a.bottom - (top + ph);
+        const r = triggerRadius(slot);
+        const inset = below
+            ? `inset(0px calc(100% - ${x + w}px) calc(100% - ${h}px) ${x}px round ${r}px)`
+            : `inset(calc(100% - ${h}px) calc(100% - ${x + w}px) 0px ${x}px round ${r}px)`;
+        panel.style.setProperty('--popover-morph-from', inset);
+        panel.style.setProperty('--popover-morph-y', dy + 'px');
+    }
+
+    /* The trigger's corner radius. The trigger slot holds the consumer's own
+     * control, sometimes wrapped (DrylMenu's .menu-trigger), so walk down the
+     * single-child chain that fills the slot and take the first real radius. */
+    function triggerRadius(slot) {
+        let el = slot;
+        for (let i = 0; el && i < 4; i++, el = el.firstElementChild) {
+            const r = parseFloat(getComputedStyle(el).borderTopLeftRadius);
+            if (r > 0) return r;
+        }
+        return 0;
     }
 
     function open(anchor, panel, dotnetRef, opts) {
@@ -858,6 +900,24 @@ window.dryl.popover = (() => {
         // second visibility key and with it the animation that needed it.
         // Blazor renders no data-* attribute on the panel, so this one is ours.
         panel.setAttribute('data-dryl-positioned', '');
+
+        // Marks the length of the morph on the panel and on the anchor, so the
+        // content fade and the trigger squeeze play on the open alone — content
+        // rendered later must not replay them. Cleared when the morph ends (the
+        // event bubbles from the consumer's surface when that is what morphs),
+        // and in close() for a morph cut short. Reduced motion: no morph.
+        let onMorphEnd = null;
+        if (!window.dryl.reduced()) {
+            panel.setAttribute('data-dryl-morphing', '');
+            anchor.setAttribute('data-dryl-morphing', '');
+            onMorphEnd = (e) => {
+                if (!String(e.animationName).startsWith('popover-morph-in')) return;
+                panel.removeAttribute('data-dryl-morphing');
+                anchor.removeAttribute('data-dryl-morphing');
+            };
+            panel.addEventListener('animationend', onMorphEnd);
+            panel.addEventListener('animationcancel', onMorphEnd);
+        }
 
         // A panel that announces itself as a dialog is a container the user is
         // meant to work inside, and a portaled panel sits at the very end of
@@ -931,7 +991,7 @@ window.dryl.popover = (() => {
             document.addEventListener('pointerdown', onDocClick, true);
         }
 
-        state.set(anchor, { panel, onScroll, onResize, onDocClick, onAnchorTab, returnFocus,
+        state.set(anchor, { panel, onScroll, onResize, onDocClick, onAnchorTab, onMorphEnd, returnFocus,
                             trigger: claimTrigger(anchor, opts.role, true) });
     }
 
@@ -984,9 +1044,17 @@ window.dryl.popover = (() => {
         // Return the panel to its original slot (it is the anchor's last child)
         // and clear the styles/marker applied while portaled.
         s.panel.removeAttribute('data-dryl-positioned');
+        if (s.onMorphEnd) {
+            s.panel.removeEventListener('animationend', s.onMorphEnd);
+            s.panel.removeEventListener('animationcancel', s.onMorphEnd);
+        }
+        s.panel.removeAttribute('data-dryl-morphing');
+        anchor.removeAttribute('data-dryl-morphing');
         s.panel.style.top = '';
         s.panel.style.left = '';
         s.panel.style.width = '';
+        s.panel.style.removeProperty('--popover-morph-from');
+        s.panel.style.removeProperty('--popover-morph-y');
         // Symmetric with open() on purpose: this move resets the content's
         // scroll just as thoroughly, and a popover whose content the user
         // scrolled and then closed should re-open where they left it rather

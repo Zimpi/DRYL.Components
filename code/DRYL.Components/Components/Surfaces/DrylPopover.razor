@@ -117,7 +117,7 @@
     // Exit lifecycle. Between the close and the teardown the panel keeps
     // everything it had — content, both visibility keys, its place under
     // <body> — and only gains .is-exiting, which swaps its animation-name to
-    // presence-out-fade. _exitAttached makes the interop call once per exit;
+    // popover-morph-out. _exitAttached makes the interop call once per exit;
     // the watchdog finalizes the exit if animationend never arrives.
     private bool _exiting;
     private bool _exitAttached;
@@ -130,11 +130,12 @@
     private bool _lastOpen;
     private bool _disposed;
 
-    // The exit runs var(--dur-fast) (140ms). If its animationend is lost — a
+    // The exit runs var(--dur-med) (240ms). If its animationend is lost — a
     // dropped interop message, DOM churn, a test host that runs no JS at all —
     // the panel would stay mounted and portalled forever: an invisible,
     // full-size element on the --z-popover layer. Finalize regardless after
-    // this grace period. Same ratio as DrylDialogProvider's 600ms over 240ms.
+    // this grace period, which still leaves the morph back into the trigger
+    // its full length plus room for a slow frame.
     private static readonly TimeSpan ExitWatchdogTimeout = TimeSpan.FromMilliseconds(400);
 
     /// <summary>True while the panel's content belongs on screen: the popover is
@@ -219,7 +220,10 @@
         {
             _exitAttached = true;
             _exitRef = DotNetObjectReference.Create(new ExitCallback(this, generation));
-            try { await JS.InvokeVoidAsync("dryl.motion.onExit", _panel, _exitRef, new { name = "presence-out" }); }
+            // With Surface the panel morphs itself; without it, the consumer's
+            // own surface inside it does (a clip-path on the panel would cut
+            // that surface's frost off), so the end bubbles up from a child.
+            try { await JS.InvokeVoidAsync("dryl.motion.onExit", _panel, _exitRef, new { name = "popover-morph-out", self = Surface }); }
             catch (JSDisconnectedException) { /* circuit closing — the watchdog finishes it */ }
             catch (JSException) { /* element gone — the watchdog finishes it */ }
             catch (InvalidOperationException) { /* statically rendered */ }
@@ -244,14 +248,14 @@
         {
             // Re-opening during an exit: the node never left <body>, so there
             // is no second portal to open. Just call the exit off — dropping
-            // .is-exiting moves animation-name back to popover-in, which
-            // restarts the entrance from wherever the fade had got to.
+            // .is-exiting moves animation-name back to popover-morph-in, which
+            // restarts the morph out of the trigger.
             if (_exiting) CancelExit();
         }
         else if (_portaled)
         {
             // Hand focus back now, at the request, rather than when the portal
-            // is torn down: the exit animation puts --dur-fast between the two,
+            // is torn down: the exit animation puts --dur-med between the two,
             // and a keyboard user should not spend it holding focus on a panel
             // that is fading away. JS decides whether to act — it only returns
             // focus while focus is still inside the panel, which is what keeps
@@ -439,8 +443,8 @@
             // It follows Shown rather than Open: the surface has to stay visible
             // while it animates away, or there is nothing left to animate.
             if (Shown) parts.Add("is-open");
-            // Swaps the panel's animation-name from popover-in to
-            // presence-out-fade — see DrylPopover.razor.css.
+            // Swaps the morph from popover-morph-in to popover-morph-out —
+            // see DrylPopover.razor.css.
             if (_exiting) parts.Add("is-exiting");
             if (Surface) parts.Add("popover-panel--surface");
             if (MatchTriggerWidth) parts.Add("popover-panel--match");
