@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@inject IJSRuntime JS
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -22,37 +23,37 @@
     • Dismissible shows a dismiss button; OnDismiss delivers the callback.
     ───────────────────────────────────────────────────────── *@
 
-@*  Who owns the alert's lifetime decides how it is rendered.
+@*  Dismissing animates in every configuration, with no wrapper element: the alert
+    plays its own two-beat exit (dryl.motion.collapse) — it shrinks and fades where it
+    stands, then the space it held closes so whatever sits below glides up.
 
-    With an OnDismiss handler attached, the host owns it: the alert is rendered
-    plainly, exactly as it always has been, and dismissing is a request the host
-    answers by unmounting (and animating that itself).
+    Who owns the alert's lifetime decides what happens after the exit.
 
-    With no handler, nobody is listening and the button would otherwise be inert,
-    so the alert dismisses itself — and something that unmounts conditionally
-    animates out rather than blinking away (DESIGN-12). The DrylPresence wrapper
-    exists only in that configuration, so no alert that worked before gains an
-    element around it.
+    With an OnDismiss handler attached, the host owns it: the handler is raised once the
+    exit has played, and the host answers by unmounting. A host that keeps the alert
+    after all gets it back — the exit plays in reverse.
+
+    With no handler, nobody is listening and the button would otherwise be inert, so the
+    alert removes itself once the exit has played.
 *@
-@if (SelfDismisses)
+@if (!_selfDismissed)
 {
-    <DrylPresence Visible="!_selfDismissed" Transition="PresenceTransition.Fade">
-        @Surface
-    </DrylPresence>
-}
-else
-{
-    @Surface
-}
-
-@code {
-    private RenderFragment Surface => @<div class="@CssClass"
+    <div class="@CssClass"
          role="@AriaRole"
          aria-live="@AriaLive"
+         @ref="_root"
          @attributes="AdditionalAttributes">
 
         @* AI aura overlays — mounted while the aura is present (live or fading out) *@
         <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+
+        @* Ember layer — two glows in the Kind's tone drifting behind the content, and
+           the one-shot arrival wave that crosses the alert once when it mounts. *@
+        <div class="alert-ember" aria-hidden="true">
+            <span class="alert-ember-glow"></span>
+            <span class="alert-ember-glow"></span>
+            <span class="alert-wave"></span>
+        </div>
 
         @* Icon-Chip *@
         @if (!string.IsNullOrEmpty(ResolvedIcon))
@@ -84,8 +85,10 @@ else
                 <DrylIcon Name="X" Size="14" />
             </button>
         }
-    </div>;
+    </div>
+}
 
+@code {
     /// <summary>Semantic variant — drives the icon and the accent colour.</summary>
     [Parameter] public AlertKind Kind { get; set; } = AlertKind.Info;
 
@@ -126,12 +129,9 @@ else
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
     private bool _selfDismissed;
-
-    /// <summary>
-    /// True when the alert offers a dismiss button that nobody is listening to, and
-    /// therefore has to answer it itself.
-    /// </summary>
-    private bool SelfDismisses => Dismissible && !OnDismiss.HasDelegate;
+    private bool _leaving;      // the exit is playing; further presses are ignored
+    private bool _disposed;
+    private ElementReference _root;
 
     protected override void OnParametersSet()
     {
@@ -143,10 +143,14 @@ else
 
         // Turning Dismissible off and on again brings a self-dismissed alert back, so a
         // host that never had a handler still has a way to show it without remounting.
-        if (!Dismissible) _selfDismissed = false;
+        if (!Dismissible) _selfDismissed = _leaving = false;
     }
 
-    public void Dispose() => _aura.Dispose();
+    public void Dispose()
+    {
+        _disposed = true;
+        _aura.Dispose();
+    }
 
     private string? ResolvedIcon
     {
@@ -195,14 +199,37 @@ else
 
     private async Task HandleDismiss()
     {
+        if (_leaving) return;
+        _leaving = true;
+
+        await RunMotionAsync("dryl.motion.collapse");
+        if (_disposed) return;
+
         if (OnDismiss.HasDelegate)
         {
             await OnDismiss.InvokeAsync();
+            // Let the host's render land before asking whether the alert survived it.
+            await Task.Yield();
+            if (_disposed || !_leaving) return;
+
+            // The host kept the alert: give it back.
+            _leaving = false;
+            await RunMotionAsync("dryl.motion.restore");
             return;
         }
 
         // Nobody is listening. The button still has to do the obvious thing.
         _selfDismissed = true;
+    }
+
+    private async Task RunMotionAsync(string identifier)
+    {
+        // The exit is decoration: a lost circuit or a failed call must not stop the
+        // dismissal itself.
+        try { await JS.InvokeVoidAsync(identifier, _root); }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+        catch (InvalidOperationException) { }
     }
 
     /// <summary>Semantic variant of the alert.</summary>

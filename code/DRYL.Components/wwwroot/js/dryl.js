@@ -812,6 +812,48 @@ window.dryl.popover = (() => {
 
         panel.style.top  = top + 'px';
         panel.style.left = left + 'px';
+
+        writeMorphStart(anchor, panel, top, left, ph, top >= a.bottom);
+    }
+
+    /* The start shape of the morph (I30): the trigger's rectangle and radius as
+     * a clip inset of the panel, plus the translate that lays the panel over
+     * the trigger. DrylPopover.razor.css reads both in popover-morph-in and
+     * popover-morph-out; nothing animates the properties themselves.
+     *
+     * Right and bottom are written against 100% rather than the panel's size,
+     * and the translate only from the trigger's height and the gap, so a panel
+     * whose content grows after it opened — a filter, the next month — still
+     * leaves into the trigger it came from without being re-measured.
+     *
+     * Measured on the trigger slot, not the anchor: the anchor is the
+     * consumer's to lay out, and a block-level one is as wide as its column
+     * while the button in it is not (measured on /components/popover). */
+    function writeMorphStart(anchor, panel, top, left, ph, below) {
+        const slot = anchor.querySelector('.popover-trigger') || anchor;
+        const a = slot.getBoundingClientRect();
+        const x = a.left - left;
+        const w = a.width;
+        const h = a.height;
+        const dy = below ? a.top - top : a.bottom - (top + ph);
+        const r = triggerRadius(slot);
+        const inset = below
+            ? `inset(0px calc(100% - ${x + w}px) calc(100% - ${h}px) ${x}px round ${r}px)`
+            : `inset(calc(100% - ${h}px) calc(100% - ${x + w}px) 0px ${x}px round ${r}px)`;
+        panel.style.setProperty('--popover-morph-from', inset);
+        panel.style.setProperty('--popover-morph-y', dy + 'px');
+    }
+
+    /* The trigger's corner radius. The trigger slot holds the consumer's own
+     * control, sometimes wrapped (DrylMenu's .menu-trigger), so walk down the
+     * single-child chain that fills the slot and take the first real radius. */
+    function triggerRadius(slot) {
+        let el = slot;
+        for (let i = 0; el && i < 4; i++, el = el.firstElementChild) {
+            const r = parseFloat(getComputedStyle(el).borderTopLeftRadius);
+            if (r > 0) return r;
+        }
+        return 0;
     }
 
     function open(anchor, panel, dotnetRef, opts) {
@@ -858,6 +900,24 @@ window.dryl.popover = (() => {
         // second visibility key and with it the animation that needed it.
         // Blazor renders no data-* attribute on the panel, so this one is ours.
         panel.setAttribute('data-dryl-positioned', '');
+
+        // Marks the length of the morph on the panel and on the anchor, so the
+        // content fade and the trigger squeeze play on the open alone — content
+        // rendered later must not replay them. Cleared when the morph ends (the
+        // event bubbles from the consumer's surface when that is what morphs),
+        // and in close() for a morph cut short. Reduced motion: no morph.
+        let onMorphEnd = null;
+        if (!window.dryl.reduced()) {
+            panel.setAttribute('data-dryl-morphing', '');
+            anchor.setAttribute('data-dryl-morphing', '');
+            onMorphEnd = (e) => {
+                if (!String(e.animationName).startsWith('popover-morph-in')) return;
+                panel.removeAttribute('data-dryl-morphing');
+                anchor.removeAttribute('data-dryl-morphing');
+            };
+            panel.addEventListener('animationend', onMorphEnd);
+            panel.addEventListener('animationcancel', onMorphEnd);
+        }
 
         // A panel that announces itself as a dialog is a container the user is
         // meant to work inside, and a portaled panel sits at the very end of
@@ -931,7 +991,7 @@ window.dryl.popover = (() => {
             document.addEventListener('pointerdown', onDocClick, true);
         }
 
-        state.set(anchor, { panel, onScroll, onResize, onDocClick, onAnchorTab, returnFocus,
+        state.set(anchor, { panel, onScroll, onResize, onDocClick, onAnchorTab, onMorphEnd, returnFocus,
                             trigger: claimTrigger(anchor, opts.role, true) });
     }
 
@@ -984,9 +1044,17 @@ window.dryl.popover = (() => {
         // Return the panel to its original slot (it is the anchor's last child)
         // and clear the styles/marker applied while portaled.
         s.panel.removeAttribute('data-dryl-positioned');
+        if (s.onMorphEnd) {
+            s.panel.removeEventListener('animationend', s.onMorphEnd);
+            s.panel.removeEventListener('animationcancel', s.onMorphEnd);
+        }
+        s.panel.removeAttribute('data-dryl-morphing');
+        anchor.removeAttribute('data-dryl-morphing');
         s.panel.style.top = '';
         s.panel.style.left = '';
         s.panel.style.width = '';
+        s.panel.style.removeProperty('--popover-morph-from');
+        s.panel.style.removeProperty('--popover-morph-y');
         // Symmetric with open() on purpose: this move resets the content's
         // scroll just as thoroughly, and a popover whose content the user
         // scrolled and then closed should re-open where they left it rather
@@ -1943,6 +2011,167 @@ window.dryl.motion = (() => {
         if (s) { s.ro.disconnect(); _ind.delete(container); }
     }
 
+    /* ---- Sidebar glide (I29) ----------------------------------------
+     * navGlide(drawer) lays the drawer's one .nav-ink under the active nav
+     * row and lets it glide to the next. The ink lives in the scrolling
+     * region (.sidebar-content, or the drawer itself without slots), so it
+     * scrolls with the rows for free.
+     *
+     * NavLink owns the rows' `class`, so a class MutationObserver is the
+     * signal for navigation and for a group opening or closing. It places
+     * synchronously — before paint — or the new row would show its static
+     * pill for one frame. While a group's height transition runs, or the
+     * region resizes (the icon rail), the ink tracks frame by frame with its
+     * own transform transition off ("track"); otherwise it springs ("glide").
+     * All state lives in data-* attributes and inline style: Blazor rewrites
+     * `class` on its next render.
+     *
+     * The same pass drives the hover light: one delegated pointermove per
+     * drawer, mouse only, rAF-throttled, writing the pointer's offset into
+     * --nav-spot-x/y on the row it is over.
+     * ---------------------------------------------------------------- */
+    const _nav = new WeakMap(); // drawer -> state
+    const NAV_ROW = '.nav-item, .nav-section-link';
+
+    // Prefix matching can leave a parent route active beside its child
+    // ("components" and "components/button"); the longer href is the page.
+    function navTarget(host) {
+        let best = null, bestLen = -1;
+        for (const el of host.querySelectorAll('.nav-item.active, .nav-section-link.active')) {
+            const len = (el.getAttribute('href') || '').length;
+            if (len > bestLen) { best = el; bestLen = len; }
+        }
+        return best;
+    }
+
+    // A row inside a scroller of its own would drift away from an ink that
+    // scrolls with the host; such a row keeps its static active look.
+    function inNestedScroller(el, host) {
+        for (let n = el.parentElement; n && n !== host; n = n.parentElement) {
+            const o = getComputedStyle(n).overflowY;
+            if (o === 'auto' || o === 'scroll') return true;
+        }
+        return false;
+    }
+
+    function placeNav(s) {
+        const { host, ink } = s;
+        const target = navTarget(host);
+        if (s.target && s.target !== target) s.target.removeAttribute('data-nav-ink-target');
+        s.target = target;
+        if (!target || inNestedScroller(target, host)) {
+            target?.removeAttribute('data-nav-ink-target');
+            ink.style.opacity = '0';
+            return;
+        }
+        target.setAttribute('data-nav-ink-target', '');
+        // In a closed group the ink fades where it is and comes back when the
+        // group opens again.
+        if (target.closest('.nav-children:not(.is-open)')) { ink.style.opacity = '0'; return; }
+        const hr = host.getBoundingClientRect();
+        const r  = target.getBoundingClientRect();
+        ink.style.width     = r.width + 'px';
+        ink.style.height    = r.height + 'px';
+        ink.style.transform = 'translate(' + (r.left - hr.left + host.scrollLeft) + 'px,'
+                                           + (r.top - hr.top + host.scrollTop) + 'px)';
+        ink.style.opacity   = '1';
+    }
+
+    function navMode(s, mode) {
+        if (s.host.getAttribute('data-nav-ink') !== mode) s.host.setAttribute('data-nav-ink', mode);
+    }
+
+    // Follow every frame while something resizes, then hand back to the spring
+    // two quiet frames later.
+    function navTrack(s) {
+        navMode(s, 'track');
+        placeNav(s);
+        s.quiet = 0;
+        if (s.frame) return;
+        const tick = () => {
+            placeNav(s);
+            if (s.running.size || ++s.quiet < 2) { s.frame = requestAnimationFrame(tick); return; }
+            s.frame = 0;
+            navMode(s, 'glide');
+        };
+        s.frame = requestAnimationFrame(tick);
+    }
+
+    function navGlide(drawer) {
+        if (!drawer || drawer.nodeType !== 1) return;
+        const host = drawer.querySelector(':scope > .sidebar-content') || drawer;
+        const ink  = host.querySelector(':scope > .nav-ink');
+        const prev = _nav.get(drawer);
+        if (prev && prev.host === host && prev.ink === ink) return;
+        if (prev) disposeNavGlide(drawer);
+        if (!ink) return;
+
+        const s = { host, ink, target: null, running: new Set(), frame: 0, quiet: 0,
+                    spotFrame: 0, spotRow: null, spotX: 0, spotY: 0 };
+
+        s.mo = new MutationObserver(() => { if (!s.frame) placeNav(s); });
+        s.mo.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+
+        s.ro = new ResizeObserver(() => navTrack(s));
+        s.ro.observe(host);
+
+        s.run = (e) => {
+            if (e.propertyName !== 'grid-template-rows') return;
+            s.running.add(e.target);
+            navTrack(s);
+        };
+        s.end = (e) => {
+            if (e.propertyName !== 'grid-template-rows') return;
+            s.running.delete(e.target);
+        };
+        host.addEventListener('transitionrun', s.run);
+        host.addEventListener('transitionend', s.end);
+        host.addEventListener('transitioncancel', s.end);
+
+        s.move = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(NAV_ROW);
+            if (!row || !drawer.contains(row)) return;
+            s.spotRow = row; s.spotX = e.clientX; s.spotY = e.clientY;
+            if (s.spotFrame) return;
+            s.spotFrame = requestAnimationFrame(() => {
+                s.spotFrame = 0;
+                const r = s.spotRow.getBoundingClientRect();
+                s.spotRow.style.setProperty('--nav-spot-x', (s.spotX - r.left) + 'px');
+                s.spotRow.style.setProperty('--nav-spot-y', (s.spotY - r.top) + 'px');
+                if (!s.spotRow.hasAttribute('data-nav-spot')) s.spotRow.setAttribute('data-nav-spot', '');
+            });
+        };
+        drawer.addEventListener('pointermove', s.move, { passive: true });
+
+        s.drawer = drawer;
+        _nav.set(drawer, s);
+
+        // First placement without motion, so the ink does not fly in from the
+        // corner; the spring is armed a frame later. Late webfonts can still
+        // nudge the rows, so place once more when they are in.
+        navMode(s, 'place');
+        placeNav(s);
+        requestAnimationFrame(() => { if (_nav.get(drawer) === s && !s.frame) navMode(s, 'glide'); });
+        document.fonts?.ready.then(() => { if (_nav.get(drawer) === s) placeNav(s); });
+    }
+
+    function disposeNavGlide(drawer) {
+        const s = drawer && _nav.get(drawer);
+        if (!s) return;
+        _nav.delete(drawer);
+        s.mo.disconnect();
+        s.ro.disconnect();
+        s.host.removeEventListener('transitionrun', s.run);
+        s.host.removeEventListener('transitionend', s.end);
+        s.host.removeEventListener('transitioncancel', s.end);
+        drawer.removeEventListener('pointermove', s.move);
+        cancelAnimationFrame(s.frame);
+        cancelAnimationFrame(s.spotFrame);
+        s.target?.removeAttribute('data-nav-ink-target');
+        s.host.removeAttribute('data-nav-ink');
+    }
+
     /* ---- Reveal -----------------------------------------------------
      * A target counts as in view once `threshold` of it is visible OR it
      * fills `threshold` of the viewport. The ratio alone never fires on a
@@ -2250,7 +2479,80 @@ window.dryl.motion = (() => {
         el.__drylCount = { value: to, raf: requestAnimationFrame(step) };
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, observe, unobserve, autoFlip, stopAutoFlip, countUp };
+    /* ---- Collapse: an in-flow element leaving its place -------------
+     * collapse(el) plays a two-beat exit on an element that stays in the
+     * flow — first it shrinks, blurs and fades where it stands, then the
+     * space it held closes so its neighbours glide up rather than jump. The
+     * returned promise settles when the space is closed; the element keeps
+     * its collapsed end state (fill: forwards) until the caller unmounts it.
+     * The gap its flex/grid parent puts between it and a sibling closes too,
+     * via a negative margin, so nothing snaps on unmount.
+     *
+     * restore(el) plays the same exit backwards — for a host that answered a
+     * dismiss request by keeping the element after all.
+     *
+     * Duration is --dur-choreo (a multi-step one-shot), easing --ease-in-out.
+     * Reduced motion skips the movement and settles at once.
+     * ---------------------------------------------------------------- */
+    function tokenMs(name, fallback) {
+        const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms > 0 ? ms : fallback;
+    }
+
+    function collapse(el) {
+        if (!el || el.nodeType !== 1 || !el.isConnected || reduced()) return Promise.resolve();
+        if (el.__drylCollapse) return el.__drylCollapse.finished.then(() => {}, () => {});
+
+        const cs = getComputedStyle(el);
+        const parent = el.parentElement;
+        const pcs = parent ? getComputedStyle(parent) : null;
+        const hasSibling = !!(el.previousElementSibling || el.nextElementSibling);
+        let gap = 0;
+        if (pcs && hasSibling) {
+            const flexColumn = pcs.display.includes('flex') && pcs.flexDirection.startsWith('column');
+            if (flexColumn || pcs.display.includes('grid')) gap = parseFloat(pcs.rowGap) || 0;
+        }
+
+        const h = el.getBoundingClientRect().height;
+        const held = {
+            height: h + 'px',
+            paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom,
+            borderTopWidth: cs.borderTopWidth, borderBottomWidth: cs.borderBottomWidth,
+            marginBottom: cs.marginBottom
+        };
+        const gone = { opacity: 0, transform: 'scale(0.94) translateY(-4px)', filter: 'blur(6px)' };
+        const easing = getComputedStyle(document.documentElement).getPropertyValue('--ease-in-out').trim() || 'ease-in-out';
+
+        el.style.overflow = 'hidden';
+        el.style.minHeight = '0';
+        el.style.pointerEvents = 'none';
+        const animation = el.animate([
+            { offset: 0,    opacity: 1, transform: 'none', filter: 'blur(0)', ...held },
+            { offset: 0.45, ...gone, ...held },
+            { offset: 1,    ...gone,
+              height: '0px', paddingTop: '0px', paddingBottom: '0px',
+              borderTopWidth: '0px', borderBottomWidth: '0px',
+              marginBottom: `calc(${cs.marginBottom} - ${gap}px)` }
+        ], { duration: tokenMs('--dur-choreo', 900), easing, fill: 'forwards' });
+        el.__drylCollapse = animation;
+        return animation.finished.then(() => {}, () => {});
+    }
+
+    function restore(el) {
+        const animation = el?.__drylCollapse;
+        if (!animation) return;
+        el.__drylCollapse = null;
+        const clear = () => {
+            animation.cancel();
+            el.style.overflow = el.style.minHeight = el.style.pointerEvents = '';
+        };
+        if (reduced()) { clear(); return; }
+        animation.onfinish = clear;
+        animation.reverse();
+    }
+
+    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
 })();
 
 /* ──────────────────────────────────────────────────────────

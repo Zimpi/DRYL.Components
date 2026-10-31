@@ -14,6 +14,20 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.13.0] — 2026-10-31
+
+A visual refresh across the library.
+
+### Changed
+- `DrylStepper` — The stepper now shows progress as it moves. Horizontally, one glowing gradient ring glides to the active step instead of the ring jumping from circle to circle, and the connectors behind the active step fill with the accent gradient, one after another on a jump over several steps. The body leaves the way the user came from while the next one arrives from the direction of travel, so a step's body now also animates out. Vertically, the body unfolds directly under its own header with the rail running beside it, instead of below the whole track. Pending indicators use a solid hairline instead of a dashed border. The public API is unchanged; a completed step's connector stays `--success`.
+- `DrylAlert` — Alerts are alive. Two soft glows in the kind's tone drift behind the content, calmest for `Info`, `Success` and `Ai`, faster and brighter for `Warning` and `Danger`; the border carries a hint of the same tone. On mount a band of light sweeps from the icon across the alert and the icon chip springs in. Dismissing no longer just fades: the alert shrinks, blurs and fades where it stands, then the space it held closes so the content below glides up. This exit plays in every configuration, without a `DrylPresence` around the alert; with an `OnDismiss` handler the callback is now raised once the exit has played, and a host that keeps the alert gets it back. The self-dismissing configuration no longer wraps the alert in a `DrylPresence` element. Under `prefers-reduced-motion` the glows stand still and arrival and exit are skipped.
+- `DrylDrawer` / `DrylNavLink` / `DrylNavGroup` — The sidebar moves. The active row's highlight is now one shared glass pill that glides with a spring to the next page's row instead of jumping, follows a group as it opens or closes above it, fades out while its own group is closed and shrinks to the icon square on the collapsed rail. The glowing accent edge now sits inside the row; it used to hang outside and was clipped away by the scrolling content region. The active row's icon takes the accent colour, a soft accent light follows the mouse across a hovered row, and the scrolling region fades into the header and footer instead of being cut. When prefix matching leaves a parent route active beside its child, the pill marks the longer route. The public API is unchanged; a `DrylNavLink` outside a `DrylDrawer` keeps the static active look. Under `prefers-reduced-motion` the pill moves without travel and the hover light is off.
+- `DrylPopover` — The panel flows out of its trigger. It now opens from the trigger's exact shape and corner radius and grows with a spring to its own size, the content fading in on the way, while the trigger gives a short squeeze; closing runs the same path back into the trigger in 240 ms instead of fading. Every component built on the popover moves the same way: `DrylMenu`, `DrylSelect`, `DrylMultiSelect`, `DrylAutocomplete`, `DrylDatePicker`, `DrylTimePicker`, `DrylCitation`, `DrylNotifications`, `DrylCanvasWorkspace`'s version history and the agents package's `DrylAiField`. A consumer's own glass surface (`Surface="false"`) keeps its frost throughout, content rendered while the panel is open (a filter, the next month) does not replay the entrance, and the drop shadow arrives once the morph has settled. The public API is unchanged. Under `prefers-reduced-motion` the panel opens and closes without animation.
+
+### Added
+- `dryl.motion.navGlide(drawer)` / `dryl.motion.disposeNavGlide(drawer)` (JS) — The sidebar glide and hover light behind `DrylDrawer`.
+- `dryl.motion.collapse(el)` / `dryl.motion.restore(el)` (JS) — A two-beat exit for an in-flow element: shrink, blur and fade in place, then close its height and the gap of a flex or grid parent, so neighbours glide instead of jumping. `restore` plays it backwards. Uses `--dur-choreo` and `--ease-in-out`; reduced motion settles at once.
+
 ## [3.12.3] — 2026-10-30
 
 ### Fixed
