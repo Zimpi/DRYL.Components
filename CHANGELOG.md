@@ -14,6 +14,13 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [Agents 0.23.3] — 2026-10-31
+
+Agents-only release; the core package stays at 3.13.0.
+
+### Changed
+- `DRYL.Components.Agents` (Agents 0.23.3) — Minimum `Microsoft.Agents.AI` raised from 1.25.0 to 1.27.0. No API of this package changes; consumers pinned to 1.25.x need to move up with it.
+
 ## [3.13.0] — 2026-10-31
 
 A visual refresh across the library.
