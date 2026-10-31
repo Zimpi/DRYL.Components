@@ -154,7 +154,7 @@ entirely when it is not configured.
 | `Bordered` | `bool` | `true` | Renders the table on the library's card surface. |
 | `AriaLabel` | `string?` | `null` | Accessible label for the table. |
 | `PersistStateKey` | `string?` | `null` | Persists sort, filters, page, size, hidden columns, widths and order. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the table's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |

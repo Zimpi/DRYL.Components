@@ -54,7 +54,7 @@ image has one.
 | `ShowSkeleton` | `bool` | `true` | Shows the shimmer placeholder while loading. |
 | `Border` | `bool` | `false` | Outlines the frame. |
 | `Shadow` | `bool` | `false` | Lifts the frame. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state; also drives effects on the image itself. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state; also drives effects on the image itself. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Progress` | `int?` | `null` | 0–100 sharpen progress for `AiState.Streaming`. `null` runs it on a timer. |
 | `BlurDuration` | `int` | `2000` | Duration in ms of the timed sharpen. |
@@ -185,6 +185,9 @@ The four enums are nested in `DrylImage` and are therefore written qualified —
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The component renders the shared aura vocabulary — ring, comet, glow, wash —
   rather than an image-specific aura (`AI-02`).
 - The aura's markup is written out by the component rather than delegated to the

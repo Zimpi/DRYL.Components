@@ -45,7 +45,7 @@ component's ARIA, so nothing claims a number that does not exist.
 | `LabelText` | `string?` | `null` | Plain-text caption on the leading edge. |
 | `Label` | `RenderFragment?` | `null` | Custom caption; overrides `LabelText`. |
 | `AriaLabel` | `string?` | `null` | Accessible label for the bar. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the progress field's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -170,6 +170,9 @@ both, or neither.
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The bar renders the shared aura vocabulary — ring, comet, glow, wash — rather
   than a progress-specific AI treatment (`AI-02`).
 - The aura traces the track's pill shape rather than a rectangle around it.

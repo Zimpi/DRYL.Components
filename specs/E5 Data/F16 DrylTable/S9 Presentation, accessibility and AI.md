@@ -56,6 +56,9 @@
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The aura is rendered only on a bordered table, because a borderless one has no
   box for the ring and the glow to trace.
 - The component renders the shared aura vocabulary through the shared helper

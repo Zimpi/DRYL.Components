@@ -34,7 +34,7 @@ Namespace: `DRYL.Components`.
 | `Icon` | `string?` | `null` | Header indicator icon when completion/error state does not supply one. |
 | `StepState` | `StepState` | `StepState.Pending` | Progress appearance; `StepState.Active` does not override parent selection. |
 | `Disabled` | `bool` | `false` | Prevents activation through the header. |
-| `Ai` | `AiState` | `AiState.None` | This step's explicit AI activity, displayed on its header. |
+| `Ai` | `AiState` | `AiState.None` | This step's AI activity, displayed on its header. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Aura variant; null inherits the surrounding scope's variant, then falls back to `AiAura.Comet`. |
 | `ChildContent` | `RenderFragment?` | `null` | Body displayed by the parent when this declaration is active. |
 
@@ -88,9 +88,10 @@ in [`_Api.md`](_Api.md).
 - An unset `Aura` uses the surrounding scope's non-null aura variant.
 - With neither an explicit nor a scoped variant, the header uses
   `AiAura.Comet`.
-- A surrounding scope's AI state does not replace this component's `Ai` value;
-  only the aura variant is inherited by the current implementation.
-- A change to `Ai` requests a parent refresh.
+- A step that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state on its header; an explicit `Ai` wins over the scope.
+- A change to the resolved AI state — its own `Ai` or the scope's — requests a
+  parent refresh.
 - Non-`None` AI activity is rendered through the shared aura primitives on this
   step's header (`AI-02`).
 - AI activity is independent of whether the step is selected.
@@ -151,15 +152,11 @@ in [`_Api.md`](_Api.md).
   render follow registration order, which is not a promise to reconcile a
   dynamically reordered declaration tree. `Id` changes require a replacement
   declaration instance if a different identifier is needed.
-- **Partial change notification:** `OnParametersSet` compares `Ai`,
+- **Partial change notification:** `OnParametersSet` compares the resolved AI state,
   `StepState`, `Disabled`, `Label` and `Description`. It does not request a
   parent refresh solely for `Icon`, `Aura` or `ChildContent` changes. Those
   values can be observed on another parent render, but an immediate update is
   not guaranteed. I13 does not broaden this component's update contract.
-- **Scope state differs from other AI-aware controls:** `EffectiveAura` uses
-  `AiScope.ResolveAura`, but `AuraFx.Sync` receives `Ai` directly. Automatic
-  scope-state inheritance is not implemented; changing that behaviour needs
-  its own contract update.
 - **Announcements (`UX-04`):** the shared aura markup is decorative. Neither
   this declaration nor the parent's active-step live text announces changes to
   this step's AI state. The active-step announcement is not evidence that AI

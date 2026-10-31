@@ -45,7 +45,7 @@ The component is also the fallback surface of
 | `Dismissible` | `bool` | `false` | Renders a dismiss button. |
 | `OnDismiss` | `EventCallback` | — | Raised when the dismiss button is activated. |
 | `ChildContent` | `RenderFragment?` | `null` | Body content. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the alert's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the alert root. |
@@ -181,6 +181,9 @@ so a dismissal animates without the host wrapping the alert in anything.
 - `Ai` is independent of `Kind`: every combination of the two renders.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The alert renders the shared aura vocabulary — ring, comet, glow, wash —
   rather than an alert-specific AI treatment (`AI-02`).
 - While an aura is present the alert's own border recedes to `--accent-line`, so

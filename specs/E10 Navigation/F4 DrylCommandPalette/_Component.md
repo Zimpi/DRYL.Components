@@ -89,7 +89,7 @@ the `ComponentCatalog`.
 | `MaxResults` | `int` | `8` | Cap on registry commands per query; items are not capped. |
 | `HotKey` | `bool` | `true` | Enables the global Ctrl+K / ⌘K toggle. |
 | `Resolver` | `ICommandResolver?` | `null` | The AI seam for command suggestions. |
-| `Ai` | `AiState` | `AiState.None` | State of the AI result panel and shell aura. |
+| `Ai` | `AiState` | `AiState.None` | State of the AI result panel and shell aura. Never inherited from a `DrylAiScope`: a non-`None` value mounts the result panel, so a surrounding scope would open it empty. |
 | `Aura` | `AiAura?` | `null` | Aura variant; inherits a surrounding `DrylAiScope`. |
 | `AiContent` | `RenderFragment?` | `null` | Content of the AI result panel. |
 | `ChildContent` | `RenderFragment?` | `null` | Hosts `DrylCommand` children. |

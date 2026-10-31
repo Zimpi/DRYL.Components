@@ -39,7 +39,7 @@ with the aura and leaves with it.
 | `ChildContent` | `RenderFragment?` | `null` | Richer description content, rendered after `Description`. |
 | `ActionContent` | `RenderFragment?` | `null` | Call-to-action slot, typically buttons. |
 | `Size` | `EmptyStateSize` | `EmptyStateSize.Medium` | Overall size. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the empty state's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -124,6 +124,9 @@ markup.
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The empty state renders the shared aura vocabulary — ring, comet, glow, wash —
   rather than an empty-state-specific AI treatment (`AI-02`).
 - While an aura is present the root gains a `--glass-1` fill, a `--line` border

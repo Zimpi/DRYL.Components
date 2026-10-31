@@ -120,10 +120,13 @@
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
-    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the state and the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
+    /// <summary>Resolved AI state: an explicit <see cref="Ai"/> wins, otherwise the surrounding <c>DrylAiScope</c>'s state.</summary>
+    private AiState EffectiveAi => AiScope.Resolve(Ai, Scope);
 
     /// <summary>
     /// Accessible label announced to screen readers.
@@ -147,7 +150,7 @@
 
     // AiState.Proposed is rendered like None: a skeleton stands in for content that has not arrived,
     // so nothing on it waits for a human decision (I20).
-    private AiState Shown => Ai == AiState.Proposed ? AiState.None : Ai;
+    private AiState Shown => EffectiveAi == AiState.Proposed ? AiState.None : EffectiveAi;
 
     private AiState _prevAi;
     private int _genTick;

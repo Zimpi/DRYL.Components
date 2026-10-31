@@ -127,10 +127,13 @@
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
-    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the state and the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
+    /// <summary>Resolved AI state: an explicit <see cref="Ai"/> wins, otherwise the surrounding <c>DrylAiScope</c>'s state.</summary>
+    private AiState EffectiveAi => AiScope.Resolve(Ai, Scope);
 
     private readonly string _inputId = $"dryl-file-{Guid.NewGuid():N}";
 
@@ -145,9 +148,9 @@
 
     protected override void OnParametersSet()
     {
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
-        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

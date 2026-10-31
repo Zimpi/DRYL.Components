@@ -212,6 +212,9 @@ no `Ai` of its own.
   shared vocabulary treats the idle-but-engaged state.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- The AI state is never inherited from a surrounding `DrylAiScope`: the host
+  sits at layout root, and a page-wide scope must not light the whole stack.
+  Only the aura variant follows the scope.
 - A row's aura ring and glow are drawn inside the row's rounded bounds, so the
   scrolling list's straight edges cannot clip a glow into a square around a
   rounded card.

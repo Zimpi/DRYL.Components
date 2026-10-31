@@ -49,7 +49,7 @@ renders its own list from `FilesChanged` switches that list off with
 | `RemoveLabel` | `Func<string, string>?` | `null` | Builds a remove button's accessible name from the file name; `null` gives `"Remove {name}"`. |
 | `ShowFileList` | `bool` | `true` | Whether the component renders the list of selected files. |
 | `Disabled` | `bool` | `false` | Greys the zone out and makes it non-interactive. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state on the drop zone. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state on the drop zone. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 
 ## Acceptance Criteria
@@ -131,6 +131,9 @@ renders its own list from `FilesChanged` switches that list off with
   drop zone, echoing the zone's `--r-lg` radius (`AI-02`).
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - With the aura absent, the wrapper around the zone carries no class and no
   styling.
 - Entering `AiState.Generated` replays the one-shot completion wash.

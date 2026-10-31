@@ -589,4 +589,67 @@ public class DrylAiFieldTests : BunitContext
 
         Assert.Equal("Kürzen", cut.Find(".ai-field-prompt input").GetAttribute("value"));
     }
+
+    // ── I33: AiFieldTexts ───────────────────────────────────────────────────
+
+    [Fact]
+    public void The_defaults_are_English()
+    {
+        var cut = RenderField(Agent(new ScriptedChatClient("x")));
+
+        Assert.Equal("Write with AI", cut.Find(".ai-field-trigger button").GetAttribute("aria-label"));
+        Assert.DoesNotContain("Mit AI", cut.Markup);
+    }
+
+    [Fact]
+    public void Texts_translate_the_trigger()
+    {
+        var cut = RenderField(Agent(new ScriptedChatClient("x")), extra: ps =>
+            ps.Add(p => p.Texts, AiFieldTexts.Default with { Trigger = "Mit AI ausfüllen" }));
+
+        Assert.Equal("Mit AI ausfüllen", cut.Find(".ai-field-trigger button").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public void A_set_label_parameter_wins_over_Texts()
+    {
+        var cut = RenderField(Agent(new ScriptedChatClient("x")), extra: ps => ps
+            .Add(p => p.Texts, AiFieldTexts.Default with { Trigger = "From texts" })
+            .Add(p => p.TriggerLabel, "From parameter"));
+
+        Assert.Equal("From parameter", cut.Find(".ai-field-trigger button").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public async Task The_review_chips_and_announcement_come_from_Texts()
+    {
+        var cut = await RenderInReviewAsync(ps => ps.Add(p => p.Texts,
+            AiFieldTexts.Default with { Accept = "Übernehmen", Reject = "Verwerfen", Ready = "Bereit." }));
+
+        var chips = cut.FindAll(".ai-field-review button");
+        Assert.Contains("Übernehmen", chips[0].TextContent);
+        Assert.Contains("Verwerfen", chips[1].TextContent);
+        cut.WaitForAssertion(() => Assert.Equal("Bereit.", cut.Find(".ai-field-live").TextContent));
+    }
+
+    [Fact]
+    public async Task Accepting_announces_the_accepted_text()
+    {
+        var cut = await RenderInReviewAsync();
+
+        await cut.InvokeAsync(() => cut.FindAll(".ai-field-review button")[0].Click());
+
+        cut.WaitForAssertion(() => Assert.Equal(AiFieldTexts.Default.Accepted, cut.Find(".ai-field-live").TextContent));
+    }
+
+    [Fact]
+    public void Every_default_member_is_English_and_non_blank()
+    {
+        var d = AiFieldTexts.Default;
+        var all = new[] { d.Trigger, d.Cancel, d.Send, d.PromptPlaceholder, d.Accept, d.Reject,
+                          d.Writing, d.Ready, d.Accepted, d.Rejected, d.Failed };
+
+        Assert.All(all, t => Assert.False(string.IsNullOrWhiteSpace(t)));
+        Assert.All(all, t => Assert.DoesNotMatch("[äöüÄÖÜß]", t));
+    }
 }

@@ -40,7 +40,7 @@ contract: a consumer builds their own layout out of `skel`, `skel-circle` and
 | `Width` | `string?` | `null` | CSS width for `Line`. `null` fills the container. |
 | `Label` | `string?` | `null` | Accessible label. `null` uses a state-aware default. |
 | `ChildContent` | `RenderFragment?` | `null` | Layout for `SkeletonVariant.Custom`. |
-| `Ai` | `AiState` | `AiState.None` | Ambient AI state; also mutates the shimmer. |
+| `Ai` | `AiState` | `AiState.None` | Ambient AI state; also mutates the shimmer. `AiState.None` inherits a surrounding `DrylAiScope`. |
 | `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the skeleton's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
@@ -145,6 +145,9 @@ consumer's, not the library's.
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
 - The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
   otherwise.
+- A component that leaves `Ai` at `AiState.None` shows the surrounding
+  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
+  inherited move into it; an explicit `Ai` wins over the scope.
 - The skeleton renders the shared aura vocabulary — ring, comet, glow, wash —
   rather than a skeleton-specific AI treatment (`AI-02`).
 - The root gains a glass frame while an aura is present, so the rotating ring
