@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [3.13.0] — Unreleased
+## [3.13.0] — 2026-10-31
 
 A visual refresh across the library.
 
