@@ -1,7 +1,8 @@
 # Motion tokens for choreography and delay
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** `specs/E1 Foundation/_Api.md`
 
 ## Problem
 
@@ -163,6 +164,9 @@ parameter, a consumer-facing knob, and stays where it is. The fallback is droppe
 - 2026-08-11: `State` stays **`Ready`**, not `Adopted`, as with `I3`: `IDEA-07` reserves
   `Adopted` for an idea carried into specs, and the token surface is documented in
   `harness/tokens.md` until phase C fills `specs/E1 Foundation/_Api.md`.
+- 2026-10-31: **Adopted.** `specs/E1 Foundation/_Api.md` now documents the motion
+  token surface — the three new tokens beside the existing durations and easings —
+  under `## Token surface` → `### Motion`.
 
 ## Open Points
 

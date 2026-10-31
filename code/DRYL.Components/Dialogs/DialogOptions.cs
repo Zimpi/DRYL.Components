@@ -37,8 +37,8 @@ public sealed class DialogOptions
     /// (predecessor plays its exit while the successor enters). Off by default —
     /// opt in per call, and keep it consistent across every step of a chain (a
     /// mismatched flag on one step just falls back to the plain cross-fade for that
-    /// step). Falls back automatically in browsers without View Transition support,
-    /// during prerender, and when the user prefers reduced motion.
+    /// step). Falls back automatically during prerender, on a disconnected circuit,
+    /// and when the user prefers reduced motion.
     /// </summary>
     public bool AnimateHandoff { get; set; }
 

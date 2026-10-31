@@ -20,9 +20,10 @@ heading of the detail view is the whole contract — when the switch between the
 two runs inside a morph, the browser morphs position, size and opacity
 from one to the other.
 
-It is the generic form of something the library already does in two places:
-`DrylCard` accepts a `ViewTransitionName`, and a dialog opened from a card takes
-over that card's shape. `DrylMorph` makes the same treatment available to
+It is the generic form of something the library already does elsewhere — the
+dialog handoff, the table's row moves, the canvas going fullscreen. `DrylCard`
+used to carry its own `ViewTransitionName`; since 3.0.0 a card becomes a morph
+target by being wrapped in this hull. `DrylMorph` makes the same treatment available to
 anything — a list row, an image, a heading, a plain `div` — and is what those
 call sites express their own morph with.
 
@@ -31,7 +32,7 @@ The component supplies the **naming and the reporting** halves of the morph. The
 run the state change: the hull cannot see when other components have finished
 rendering, so it never claims to own the moment a transition begins. What it
 does own is the half that is easy to forget — reporting its render back, so the
-browser knows when the new view has reached the DOM. A consumer who uses
+engine knows when the new view has reached the DOM. A consumer who uses
 `DrylMorph` never writes `SignalRendered()`.
 
 The component renders one element and nothing else: no wrapper of its own
@@ -41,7 +42,8 @@ parent's layout; `As` exists so it can be the *right* element in a list, a table
 or an article rather than always a `div`.
 
 Everything the morph looks like — its duration, its easing, the `DepthGlass`
-merge — is the shared view-transition vocabulary in `dryl.css`. This component
+merge — is the shared morph vocabulary of `dryl.morph` and the motion tokens in
+`dryl.css`. This component
 adds no visual of its own and cannot be styled into a second one.
 
 ## Public API
@@ -98,8 +100,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   element in addition to the name.
 - `Style` set to `DepthGlass` renders the `data-dryl-morph-depth` marker attribute, so
   the JS bridge injects the merge filter the tier needs.
-- `Style` set to `Glide` renders neither `view-transition-class` nor
-  `data-dryl-morph-depth`.
+- `Style` set to `Glide` renders no `data-dryl-morph-depth`.
 - Neither marker is rendered while the element claims no name, so an inert hull
   costs nothing.
 

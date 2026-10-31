@@ -51,9 +51,9 @@
   same-document morph.
 - The morph is available only under the same constraints as reordering itself,
   minus the sort lock — a re-sort morphs too.
-- Every row carries a view-transition name while a morph mode is active, and
-  none when neither is, so the browser has stable per-row targets to glide
-  between.
+- Every row carries a morph name (`data-dryl-morph`) while a morph mode is
+  active, and none when neither is, so the morph engine has stable per-row
+  targets to glide between.
 - A row's transition name is derived from `RowIdSelector` when one is supplied
   and from the item's hash code otherwise.
 - The name is sanitised to a valid CSS identifier, so an item whose id contains
@@ -84,9 +84,10 @@
 ## Recorded gaps
 
 - **The hash-code fallback can collide.** Without a `RowIdSelector`, two rows
-  whose items share a hash code get the same view-transition name. A duplicate
-  name aborts the whole transition, so the symptom is not a wrong animation but
-  no animation at all, intermittently and without a message.
+  whose items share a hash code get the same morph name. The engine keeps one
+  starting position per name, so both rows glide in from wherever the last of
+  them stood — the symptom is a wrong animation, intermittently and without a
+  message.
 - **Reordering is drag-and-drop first.** The keyboard path exists and is
   labelled, which is more than most tables offer — but it is `Alt`+arrow on a
   grip the user has to find and focus first, and there is no announcement of the

@@ -146,7 +146,7 @@ Status: **binding** | Enforced: **review**
 
 If you think you need a new AI animation, color, gradient, or duration,
 propose adding it to `dryl.css` and ask the maintainer — same bar as
-`DESIGN-03`. The five `AiState` values map to the existing `.ai-aura*` and
+`DESIGN-03`. The six `AiState` values map to the existing `.ai-aura*` and
 `.ai-indicator` primitives (`AI-02`); do not extend that mapping with a
 one-off.
 

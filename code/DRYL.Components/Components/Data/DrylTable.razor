@@ -714,13 +714,13 @@
     [Parameter] public EventCallback<RowReorderEventArgs> OnRowReordered { get; set; }
 
     /// <summary>
-    /// Animates row reorder (drag / Alt+Arrow) and click-to-sort with a same-document
-    /// view transition: rows glide to their new position on the viscous easing instead
-    /// of snapping. Opt-in and additive — off by default. Requires a plain client-side
-    /// list (inactive when <see cref="Virtualize"/>, <see cref="GroupBy"/> or
-    /// <see cref="DataProvider"/> is set) and falls back to an instant, morph-free
-    /// update in browsers without the View Transition API, under
-    /// <c>prefers-reduced-motion</c>, and during prerender. Rows need a stable
+    /// Animates row reorder (drag / Alt+Arrow) and click-to-sort with a morph
+    /// (<see cref="DRYL.Components.Motion.IDrylMorph"/>): rows glide to their new position
+    /// on the viscous easing instead of snapping. Opt-in and additive — off by default.
+    /// Requires a plain client-side list (inactive when <see cref="Virtualize"/>,
+    /// <see cref="GroupBy"/> or <see cref="DataProvider"/> is set) and falls back to an
+    /// instant, morph-free update under <c>prefers-reduced-motion</c>, during prerender
+    /// and on a disconnected circuit. Rows need a stable
     /// identity for the morph — see <see cref="RowIdSelector"/>.
     /// </summary>
     [Parameter] public bool AnimateReorder { get; set; }
@@ -800,11 +800,11 @@
     /// <see cref="AiState.Generated"/> additionally make newly-inserted rows
     /// fade in with an accent flash so users can see what the model just added.
     /// On a plain client-side list (not <see cref="Virtualize"/>, <see cref="GroupBy"/>
-    /// or <see cref="DataProvider"/>) the insert is wrapped in a same-document view
-    /// transition, so the surrounding rows <em>glide</em> down to make room instead of
-    /// snapping. Rows need a stable identity for the morph — see <see cref="RowIdSelector"/>.
-    /// Falls back to the flash-only entry in browsers without the View Transition API,
-    /// under <c>prefers-reduced-motion</c>, and during prerender.
+    /// or <see cref="DataProvider"/>) the insert is wrapped in a morph, so the
+    /// surrounding rows <em>glide</em> down to make room instead of snapping. Rows need a
+    /// stable identity for the morph — see <see cref="RowIdSelector"/>. Falls back to the
+    /// flash-only entry under <c>prefers-reduced-motion</c>, during prerender and on a
+    /// disconnected circuit.
     /// </summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
@@ -926,7 +926,7 @@
     // so the grip is shown but disabled until the user clears the sort.
     private bool CanReorderNow => ReorderColumnVisible && _sort.Count == 0;
 
-    // View-transition morphs only make sense over a plain client-side list — the same
+    // Row morphs only make sense over a plain client-side list — the same
     // constraints as row reorder itself, minus the sort lock (sorting morphs too).
     private bool AnimateReorderActive =>
         AnimateReorder && !Virtualize && GroupBy is null && DataProvider is null;
@@ -934,8 +934,8 @@
     // Streaming inserts glide the same way: existing rows slide down to make room while
     // the freshly-added rows fade in, instead of the surrounding rows snapping into place.
     // Auto-on under AI streaming on a plain client list — no opt-in, mirroring the
-    // always-on CSS row-enter (.tbl-row--ai-enter). Falls back to that CSS when the
-    // browser can't do view transitions (dryl.viewTransition.start handles that).
+    // always-on CSS row-enter (.tbl-row--ai-enter). Falls back to that CSS alone when the
+    // morph cannot run (reduced motion, prerender, disconnected circuit).
     private bool StreamGlideActive =>
         (Ai == AiState.Streaming || Ai == AiState.Generated)
         && !Virtualize && GroupBy is null && DataProvider is null;
@@ -976,12 +976,12 @@
         return new string(buf);
     }
 
-    // Wraps a view mutation in a view transition when active; otherwise applies it
-    // directly. The service guarantees the mutation runs even if the JS side never
-    // calls back (prerender, disconnected circuit, test renderer). When a transition
-    // is already in flight (rapid successive streaming updates), the next mutation
-    // coalesces onto a direct apply rather than fighting the running morph — view
-    // transitions serialise, so overlapping starts would only skip anyway.
+    // Wraps a view mutation in a morph when active; otherwise applies it directly.
+    // The engine guarantees the mutation runs even if the JS side never calls back
+    // (prerender, disconnected circuit, test renderer). When a morph is already in
+    // flight (rapid successive streaming updates), the next mutation coalesces onto a
+    // direct apply rather than fighting the running morph — one engine measures one
+    // mutation at a time, so an overlapping start would lose its capture anyway.
     private async Task RunRowTransitionAsync(Func<Task> mutate)
     {
         if (!VtMorphActive || _rowMorphBusy)
@@ -1121,7 +1121,7 @@
         if (itemsChanged || _columnsDirty)
         {
             _columnsDirty = false;
-            // While streaming, wrap the rebuild in a view transition so newly-arrived
+            // While streaming, wrap the rebuild in a morph so newly-arrived
             // rows slide their neighbours down instead of snapping — but only when the
             // incoming Items actually carry rows we haven't rendered yet, so a fresh
             // reference with no new content doesn't pay for a no-op morph. Column-only
@@ -1143,7 +1143,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Tell an in-flight view transition that the mutated state reached the DOM
+        // Tell an in-flight morph that the mutated state reached the DOM
         // (no-op when none is running).
         _rowMorph?.SignalRendered();
 
@@ -1740,7 +1740,7 @@
     }
 
     // Optimistically reorders the displayed view so the move is reflected immediately
-    // (morphing via a view transition when AnimateReorder is active), then raises
+    // (morphing when AnimateReorder is active), then raises
     // OnRowReordered so the consumer can apply the same move to its backing collection.
     private async Task MoveRow(int from, int to)
     {

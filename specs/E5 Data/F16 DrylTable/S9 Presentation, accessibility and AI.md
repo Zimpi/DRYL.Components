@@ -95,7 +95,7 @@
 - An in-flight data-provider request is cancelled and its source disposed with
   the component.
 - The aura lifecycle's timer is disposed with the component.
-- The view-transition helper is disposed with the component.
+- The row morph engine is disposed with the component.
 - The column-resize helper is detached, and its object reference disposed, with
   the component.
 - Detaching is skipped when nothing was attached, and survives a disconnected
@@ -164,7 +164,7 @@
 - **Tests** — `tests/DRYL.Components.Tests/DrylTableTests.cs` guards row
   rendering, the sort cycle's first two steps, the selection callback, the two
   paging callbacks, the externally set page, and six aspects of the
-  view-transition naming — that names are absent by default, present under
+  morph naming — that names are absent by default, present under
   `AnimateReorder`, present under `AiState.Streaming`, absent under
   `AiState.None`, sanitised to a valid identifier and scoped per instance — plus
   that a drag reorder and a sort still work with the morph active. Fourteen

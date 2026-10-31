@@ -217,22 +217,58 @@ public class DrylAiFieldTests : BunitContext
         Assert.Contains("Hallo Welt", client.LastUserMessage);
     }
 
-    [Fact]
-    public void Aura_reaches_generated_on_review()
+    private IRenderedComponent<DrylAiField> RenderAuraField()
     {
         SetupSnapshot(new AiFieldSnapshot { Found = true, Value = "", SelStart = 0, SelEnd = 0 });
-        var cut = Render<DrylAiField>(ps => ps
+        return Render<DrylAiField>(ps => ps
             .Add(p => p.Agent, Agent(new ScriptedChatClient("Hi")))
             .Add(p => p.Instruction, "x")
             .AddChildContent<DrylTextarea>(tp => tp.Add(t => t.Value, "")));
+    }
+
+    [Fact]
+    public void Aura_rests_at_proposed_on_review()
+    {
+        var cut = RenderAuraField();
 
         cut.Find(".ai-field-trigger button").Click();
 
-        // DrylTextarea consumes the cascaded scope → wrapper gets ai-aura + ai-generated in review
+        // DrylTextarea consumes the cascaded scope → the suggestion awaits a decision (I31)
         cut.WaitForAssertion(() =>
         {
-            var wrapper = cut.Find(".textarea-wrapper");
-            Assert.Contains("ai-generated", wrapper.GetAttribute("class"));
+            var cls = cut.Find(".textarea-wrapper").GetAttribute("class");
+            Assert.Contains("ai-proposed", cls);
+            Assert.DoesNotContain("ai-generated", cls);
+        });
+    }
+
+    [Fact]
+    public async Task Accepting_moves_the_aura_from_proposed_to_generated()
+    {
+        var cut = RenderAuraField();
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+
+        await cut.InvokeAsync(() => cut.FindAll(".ai-field-review button")[0].Click());
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains("ai-generated", cut.Find(".textarea-wrapper").GetAttribute("class")));
+    }
+
+    [Fact]
+    public async Task Rejecting_a_proposal_takes_the_aura_out()
+    {
+        var cut = RenderAuraField();
+        await cut.InvokeAsync(() => cut.Find(".ai-field-trigger button").Click());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".ai-field-review")));
+
+        await cut.InvokeAsync(() => cut.FindAll(".ai-field-review button")[1].Click());
+
+        cut.WaitForAssertion(() =>
+        {
+            var cls = cut.Find(".textarea-wrapper").GetAttribute("class");
+            Assert.DoesNotContain("ai-proposed", cls);
+            Assert.DoesNotContain("ai-generated", cls);
         });
     }
 

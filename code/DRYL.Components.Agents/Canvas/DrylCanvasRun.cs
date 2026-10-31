@@ -73,7 +73,7 @@ public sealed class DrylCanvasRun : DrylRunBase
     }
 
     /// <summary>Reads and clears the "this spec swap was a view switch" flag — the workspace has
-    /// already run that morph, and two nested view transitions lose one of the mutations.</summary>
+    /// already run that morph, and two nested morphs lose one of the mutations.</summary>
     internal bool ConsumeSwapMorphSuppression()
     {
         var suppress = _suppressSwapMorph;

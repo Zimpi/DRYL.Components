@@ -327,7 +327,9 @@ ownership, not microphone hardware or provider audio quality.
   `DrylAiIndicator`, the composer and the collapsed button, so the assistant's
   state is felt in the corner without a label. A live voice session outranks the
   canvas run, because what the AI is doing then *is* what the voice is doing
-  (`AI-05`).
+  (`AI-05`). Neither source reaches `AiState.Proposed` — a `DrylCanvasRun` has no
+  accept-or-dismiss step and a voice session no approval — so the dock has no
+  `Proposed` handling of its own (I31).
 - **Demo page** — `Components/Pages/DemoCanvasDock.razor` in `DRYL.Website`, with
   the `Components/Examples/CanvasWorkspace/` examples beside it (`CODE-20`).
 - **`ComponentCatalog` entry** — "Canvas Dock" (`canvas-dock`, category

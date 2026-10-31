@@ -1,7 +1,11 @@
 # Component folder layout
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** `specs/E10 Navigation/F2 DrylStepper.md`, `specs/E10 Navigation/F3 DrylStep.md`,
+  `specs/E10 Navigation/F6 DrylNavGroup.md`, `specs/E10 Navigation/F7 DrylNavLink.md`,
+  `specs/E1 Foundation/F2 DrylPresence.md`, `specs/E6 Dialogs/F1 DrylDialog.md`,
+  `specs/E6 Dialogs/F2 DrylDialogProvider.md`
 
 ## Problem
 
@@ -182,6 +186,11 @@ names concrete paths, so a move afterwards means touching every spec it affects.
   moved. `IDEA-07` defines `Adopted` as "carried into specs" and requires the
   document to link at least one path under `specs/`. The component specs are
   written in phase C; this idea becomes `Adopted` then, not on implementation.
+- 2026-10-31: **Adopted.** Phase C has since written specs for seven of the moved
+  components, each filed under the category its new folder names (linked in
+  `## Meta`). That meets `IDEA-07`'s bar of at least one linked spec; the
+  remaining moved components (`DrylTabs`, `DrylTab`, the other providers) follow
+  in phase C without reopening this document.
 
 ## Open Points
 

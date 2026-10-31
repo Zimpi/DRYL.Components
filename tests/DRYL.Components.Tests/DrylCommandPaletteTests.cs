@@ -1,5 +1,6 @@
 using Bunit;
 using DRYL.Components;
+using Microsoft.AspNetCore.Components;
 
 namespace DRYL.Components.Tests;
 
@@ -123,5 +124,47 @@ public class DrylCommandPaletteTests : BunitContext
                 commands.Count == 0 ? null
                 : new CommandResolution(commands[0],
                     new Dictionary<string, object?> { ["status"] = "Paid" }, 0.9));
+    }
+
+    // ── AiState.Proposed on the result panel (I31) ──────────────────────────
+
+    private IRenderedComponent<DrylCommandPalette> RenderAi(AiState ai) =>
+        Render<DrylCommandPalette>(ps => ps
+            .Add(p => p.Open, true)
+            .Add(p => p.Ai, ai)
+            .Add(p => p.AiContent, (RenderFragment)(b => b.AddContent(0, "Suggestion"))));
+
+    [Fact]
+    public void Proposed_reveals_the_ai_panel()
+    {
+        var cut = RenderAi(AiState.Proposed);
+
+        var panel = cut.Find(".cmd-ai-panel");
+        Assert.Contains("ai-proposed", panel.GetAttribute("class"));
+        Assert.Contains("Suggestion", panel.TextContent);
+    }
+
+    [Fact]
+    public void Accepting_a_proposal_does_not_replay_the_panel_entrance()
+    {
+        var cut = RenderAi(AiState.Proposed);
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+
+        var cls = cut.Find(".cmd-ai-panel").GetAttribute("class");
+        Assert.Contains("ai-generated", cls);
+        Assert.Contains("ai-accepted", cls);
+    }
+
+    [Fact]
+    public void Generated_without_a_proposal_plays_the_entrance()
+    {
+        var cut = RenderAi(AiState.Thinking);
+
+        cut.Render(ps => ps.Add(p => p.Ai, AiState.Generated));
+
+        var cls = cut.Find(".cmd-ai-panel").GetAttribute("class");
+        Assert.Contains("ai-generated", cls);
+        Assert.DoesNotContain("ai-accepted", cls);
     }
 }

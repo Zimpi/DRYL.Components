@@ -355,6 +355,9 @@
     private bool    _reducedMotion;
 
     private AiState _prevAi  = AiState.None;
+    // An accepted proposal: the panel's content is already on screen, so Generated must not
+    // replay its entrance (I20, I31). Cleared once the state leaves Generated.
+    private bool _panelAccepted;
     private int     _genTick;
     private readonly AuraLifecycle _aura = new();
 
@@ -405,6 +408,8 @@
     {
         if (Ai == AiState.Generated && _prevAi != AiState.Generated)
             _genTick++;
+        if (Ai == AiState.Generated && _prevAi == AiState.Proposed) _panelAccepted = true;
+        else if (Ai != AiState.Generated) _panelAccepted = false;
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
 
@@ -1129,7 +1134,10 @@
             {
                 case AiState.Thinking:  parts.Add("ai-thinking");  break;
                 case AiState.Streaming: parts.Add("ai-streaming"); break;
-                case AiState.Generated: parts.Add("ai-generated"); break;
+                case AiState.Generated:
+                    parts.Add(_panelAccepted ? "ai-generated ai-accepted" : "ai-generated");
+                    break;
+                case AiState.Proposed:  parts.Add("ai-proposed");  break;
             }
             return string.Join(' ', parts);
         }

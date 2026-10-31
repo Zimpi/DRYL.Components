@@ -14,6 +14,25 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.14.0] — 2026-10-31
+
+Agents 0.24.0 ships with it. `AiState.Proposed` reaches the places that were still waiting for a decision without saying so.
+
+### Added
+- `IDrylAiOperation.Proposed()` — The handle `IDrylAiActivityService.Begin` returns can now move its key to `AiState.Proposed`, beside `Thinking()`, `Streaming()` and `Generated()`. Resolve it with `Generated()` on accept or by disposing the handle on dismiss. It ships as a default interface implementation that does nothing, so an existing implementation of the interface keeps compiling.
+
+### Changed
+- `DrylCommandPalette` — The AI result panel reveals under `AiState.Proposed` as it does under `Generated`, and an accepted proposal (`Proposed` → `Generated`) no longer replays the panel's entrance: the content is already on screen and the palette shell plays the accept wave.
+
+### Fixed
+- `DialogOptions.AnimateHandoff`, `DrylTable.AnimateReorder` and `DrylTable.Ai` — The XML documentation said these morphs fall back "in browsers without View Transition support". Since 3.0.0 every morph runs on `IDrylMorph` (FLIP), which needs no browser support of its own; the fallbacks are prerender, a disconnected circuit and `prefers-reduced-motion`, and the docs now say so. The comments in the library that still described morphs as view transitions are rewritten to match.
+
+## [Agents 0.24.0] — 2026-10-31
+
+### Changed
+- `DrylAiField` — A finished suggestion now rests at `AiState.Proposed` while it waits for the user, instead of `Generated`: the wrapped input shows the calm, still aurora edge and tells assistive technology that a decision is pending. Accepting moves it to `Generated`, so the accept wave and the bloom play when the user takes the suggestion rather than before; rejecting takes the aura out as before. A consumer that styled the review state through `.ai-generated` now finds `.ai-proposed` there.
+- `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.25.0 to 1.27.0. No API of this package changes; consumers pinned to 1.25.x need to move up with it.
+
 ## [3.13.0] — 2026-10-31
 
 A visual refresh across the library.

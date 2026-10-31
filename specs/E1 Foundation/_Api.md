@@ -58,13 +58,32 @@ surface the AI merely touched once is not a proposal.
 older members are unchanged. A consumer's exhaustive `switch` over `AiState`
 gains an unhandled case — a compiler warning, not a break (`REL-01`, MINOR).
 
-*(`AiAura`, `AiScope` and `AuraLifecycle`: phase C. The behaviour of
+### `IDrylAiOperation`
+
+`code/DRYL.Components/Ai/IDrylAiOperation.cs` — the handle
+`IDrylAiActivityService.Begin(key, initial)` returns. Each member moves the
+operation's key to one state; disposing the handle settles the key back to
+`None`.
+
+| Member | Sets the key to |
+|---|---|
+| `Thinking()` | `Thinking` |
+| `Streaming()` | `Streaming` |
+| `Generated()` | `Generated`. The key rests there until the handle is disposed or a new operation begins, so the reveal can play. |
+| `Proposed()` | `Proposed`. The key rests there until the host resolves it — accept → `Generated()`, dismiss → disposing the handle. Added by `ideas/I31 Proposed wherever the library waits for a decision.md`. |
+| `Dispose()` | `None`. A second call does nothing. |
+
+`Proposed()` ships as a **default interface implementation that sets nothing**,
+so an implementer written before it keeps compiling (`REL-01`, MINOR); the
+library's own operation overrides it.
+
+*(`IDrylAiActivityService` itself, `AiAura`, `AiScope` and `AuraLifecycle`: phase C. The behaviour of
 `AuraLifecycle` under `Proposed` is specified with the aura it drives, in
 `specs/E3 AI/F7 DrylAuraElements.md`.)*
 
 ## Motion primitives
 
-*(mostly phase C. The view-transition surface is documented here because
+*(mostly phase C. The morph surface is documented here because
 `DrylRouteTransition` and `DrylMorph` both depend on it and neither owns it.)*
 
 ### `DrylMorphStyle`
@@ -99,6 +118,31 @@ prefers reduced motion (which the engine checks before it animates anything).
 
 *(phase C — the consumer-overridable custom properties, cross-referenced to
 [`../../harness/tokens.md`](../../harness/tokens.md))*
+
+### Motion
+
+Declared once in the shared `:root` block of `wwwroot/dryl.css`; mode-neutral,
+so neither LIGHT-TOKEN-SET copy repeats them (`DESIGN-02`). A consumer may
+override any of them; the rules that bind their use are `DESIGN-10` and
+`harness/tokens.md`.
+
+| Token | Default | Contract |
+|---|---|---|
+| `--dur-fast` | `140ms` | Transition scale — hover, press. |
+| `--dur-med` | `240ms` | Transition scale — most colour and border changes. |
+| `--dur-slow` | `420ms` | Transition scale — layout shifts, entries, large reveals. |
+| `--dur-choreo` | `900ms` | One-shot, multi-beat choreography only; never on a `transition`. Not a fourth step of the scale. Added by `ideas/I2 Motion tokens for choreography and delay.md`. |
+| `--delay-short` | `200ms` | A beat's offset inside an `animation`/`transition` shorthand. Added by I2. |
+| `--delay-long` | `800ms` | A hold before something retires itself. Added by I2. |
+| `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Exits, fade-ins, default reveal. |
+| `--ease-in-out` | `cubic-bezier(0.65, 0, 0.35, 1)` | Layout shifts, content swaps. |
+| `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Toggles, indicator pings. |
+| `--ease-viscous` | `cubic-bezier(0.45, 0.05, 0.15, 1)` | Morph settle only (`DrylMorphStyle`). |
+
+There is no `linear` easing in the vocabulary (`DESIGN-10`). A stagger step
+multiplied by an index (`--reveal-step`) and `0s` are not delays in the sense of
+this table and stay outside it. `check-motion-tokens.mjs` enforces the
+duration and delay side.
 
 ## Presence and shared reduced motion (I13)
 

@@ -54,7 +54,7 @@ completion callback.
 ## `AiState` (shared)
 
 `AiState` is defined in `code/DRYL.Components/AiState.cs` with members `None`,
-`Active`, `Thinking`, `Streaming`, `Generated`. `Ai` defaults to `AiState.None`.
+`Active`, `Thinking`, `Streaming`, `Generated`, `Proposed`. `Ai` defaults to `AiState.None`.
 
 ## `AiAura` (shared)
 
