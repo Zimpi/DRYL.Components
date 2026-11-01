@@ -25,6 +25,8 @@ auf `origin/main`); Agents unverändert `0.25.0`. `74/131` Specs,
 | Umsetzung I34, inkl. `ToastOptions.Origin`, `ToastOptions.KeepInInbox`, `DrylButton.Element` | `c0ede80`, gemergt in `0594292` |
 | Fix: Fortschrittsbalken der übrigen Toasts starteten neu (`@key` in `DrylToastProvider`) | `c0ede80`, im Browser vorher/nachher gemessen |
 | Erste Specs für `DrylToast` (E11 F2) und `DrylToastProvider` (E1 F3) | `c0ede80` |
+| Fix: ein langsamer Leave-Reply verlor den Inbox-Eintrag (Watchdog 3 s, ohne Antwort wird abgelegt) | `dbf785a`, gemergt in `55d253f` |
+| Website-Demo I34: alle Button-Toasts mit `Origin`, neues Beispiel „From the bell“ | `DRYL.Website` `4436549`, gemergt in `ed243bd` auf `release/3.16.0` |
 | Idee I35: organische Spinner (Liquid, Goo, Bloom), umgesetzt in `DrylSpinner`, Spec und Tests | `ideas/I35 Organic spinners.md` (Adopted), `e7edcf3`, gemergt in `b4ffc2a`; Website-Demo auf `release/3.16.0` in `DRYL.Website` |
 
 Der Prototyp mit den drei Varianten liegt als Artifact „DRYL Toast-Morphs“
@@ -35,9 +37,9 @@ vor (claude.ai, privat).
 1. **Entscheidung des Product Owners:** Nur Toasts, die aus der Glocke kamen,
    kehren beim Ablaufen in die Inbox zurück (im Prototyp taten es alle). Siehe
    `## Decisions` in I34.
-2. **`DRYL.Website`:** Demo und `ComponentCatalog` für Toast-Ursprung und
-   Glocke nachziehen (`REL-04`) — das Repo war in dieser Sitzung nicht
-   verfügbar.
+2. **`DRYL.Website`:** I34-Demo erledigt (siehe oben). Die Website hat keine
+   Glocke in der TopBar; Toasts ohne Ursprung entfalten sich dort als Kapsel,
+   außer auf Seiten mit einer service-gebundenen `DrylNotifications`.
 3. **Kandidaten für eigene Ideen** (als Lücken in den Toast-Specs notiert):
    Fehler und Warnungen, die stehen bleiben, bis man sie schließt; doppelte
    Ansage durch verschachtelte Live-Regionen; `ToastOptions.PauseOnHover`
