@@ -96,6 +96,12 @@ into 3.16.0. The inbox hand-off is worth its own idea.
   an unread expired toast flies into the notification bell; a task toast morphs
   from "writing" to "ready"). Every variant lets neighbours glide (FLIP) and
   gives each toast its own countdown.
+- 2026-11-01 — Product Owner prefers variant C and asked what happens when a
+  toast has no origin (raised by an event, not a click). Tech Lead: without an
+  origin the toast should not fall back to A or to today's slide-in, but come
+  *out of* the bell it returns to on expiry — one path in and out. Where no
+  bell exists, it falls back to A's capsule at the host. Prototype extended
+  with an "Ereignis" button and a switch between the three fallbacks.
 
 ## Bug found on the way
 - Product Owner: when several toasts are open and the first expires, the
@@ -110,7 +116,14 @@ into 3.16.0. The inbox hand-off is worth its own idea.
   `release/3.16.0`.
 
 ## Open Points
-- Which variant (A, B, C or a mix)? Each needs `DESIGN-10` sign-off for its
+- Variant C chosen in principle — confirm the no-origin fallback (bell, else
+  capsule).
+- How a toast learns its origin: an explicit `ToastOptions.Origin`
+  (`ElementReference`), automatic capture of the last activated element in
+  `dryl.js`, or both?
+- How the toast finds the bell: does `DrylNotifications` register itself with
+  the toast service, and does an expired toast become a notification entry?
+- Superseded: Each needs `DESIGN-10` sign-off for its
   keyframes / Web Animations.
 - Should errors and warnings stay until closed?
 - `linear` on the countdown bar: a timer drawn eased would misstate the time
