@@ -14,6 +14,10 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.16.0] — 2026-11-01
+
+<!-- Collected on release/3.16.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
+
 ## [3.15.0] — 2026-10-31
 
 Agents 0.25.0 ships with it. A `DrylAiScope` now reaches the AI state of the components that only took its aura variant, and `DrylAiField` speaks English by default and can be translated.
