@@ -25,6 +25,7 @@ auf `origin/main`); Agents unverändert `0.25.0`. `74/131` Specs,
 | Umsetzung I34, inkl. `ToastOptions.Origin`, `ToastOptions.KeepInInbox`, `DrylButton.Element` | `c0ede80`, gemergt in `0594292` |
 | Fix: Fortschrittsbalken der übrigen Toasts starteten neu (`@key` in `DrylToastProvider`) | `c0ede80`, im Browser vorher/nachher gemessen |
 | Erste Specs für `DrylToast` (E11 F2) und `DrylToastProvider` (E1 F3) | `c0ede80` |
+| Idee I35: organische Spinner (Liquid, Goo, Bloom), umgesetzt in `DrylSpinner`, Spec und Tests | `ideas/I35 Organic spinners.md` (Adopted), `e7edcf3`, gemergt in `b4ffc2a`; Website-Demo auf `release/3.16.0` in `DRYL.Website` |
 
 Der Prototyp mit den drei Varianten liegt als Artifact „DRYL Toast-Morphs“
 vor (claude.ai, privat).
@@ -46,4 +47,4 @@ vor (claude.ai, privat).
    vor jeder Änderung dieser Sitzung.
 5. **Lokales Bauen:** Das Ubuntu-SDK 10.0.114 baut `DrylCommandPalette` nicht
    (`@section.Title` wird als Direktive gelesen). Mit SDK 10.0.403 (wie CI,
-   `10.0.x`) baut alles.
+   `10.0.x`) baut alles. Seit `e7edcf3` steht dort `@(section.Title)`, damit baut auch 10.0.114.

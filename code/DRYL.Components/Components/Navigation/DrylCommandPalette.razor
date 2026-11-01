@@ -186,7 +186,7 @@
                             {
                                 <div class="cmd-row cmd-category-row @(section.Leaving ? "is-leaving" : null)"
                                      data-cmd-key="@($"{HeaderKeyPrefix}{section.Key}")">
-                                    <div class="cmd-category" id="@headerId" aria-hidden="true">@section.Title</div>
+                                    <div class="cmd-category" id="@headerId" aria-hidden="true">@(section.Title)</div>
                                 </div>
                             }
 

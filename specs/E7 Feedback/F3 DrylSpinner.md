@@ -15,9 +15,12 @@ of wait they are in without reading a label.
 ## Description
 
 `DrylSpinner` is the smallest of the category's indicators: an inline-flex box
-sized by one token, holding one of three animations. `Ring` is a rotating
-gradient arc, `Dots` is a three-dot wave, `Pulse` is concentric rings expanding
-from a core.
+sized by one token, holding one of three organic animations (I35). `Ring` is
+**Liquid**, a torus that turns at constant speed while its outline wobbles and its
+wall breathes. `Dots` is **Goo**, three droplets that split from a core and fuse
+back into it. `Pulse` is **Bloom**, three translucent membranes that morph at
+unrelated periods around a breathing nucleus. The enum keeps its names, so the
+redesign changes no public API.
 
 Its distinguishing behaviour is that **the AI state changes the spinner's own
 rhythm, not only its aura.** Every other component in the category treats `Ai`
@@ -28,7 +31,9 @@ waiting in the same space.
 
 The size system is one custom property per size on the wrapper. Every child
 dimension derives from it, which is why a variant can change shape without any
-size value being written twice.
+size value being written twice. The rate system works the same way: every loop
+duration is a base value multiplied by one tempo property on the wrapper, which
+the AI state sets once.
 
 ## Public API
 
@@ -51,9 +56,12 @@ size value being written twice.
 - The root carries the modifier class of its `Variant`, one per value.
 - `SpinnerVariant.Ring` supplies the class for any value the switch does not
   match, so an unmapped value still renders a spinner.
-- `SpinnerVariant.Ring` renders one arc element.
-- `SpinnerVariant.Dots` renders exactly three dot elements.
-- `SpinnerVariant.Pulse` renders two ring elements and one core element.
+- `SpinnerVariant.Ring` renders one torus element inside a turning layer.
+- `SpinnerVariant.Dots` renders an inline SVG with one core and exactly three
+  droplet circles, grouped under a goo filter.
+- The goo filter is defined inside the spinner with an id unique to the
+  instance, so two spinners on one page never share or clash over a filter.
+- `SpinnerVariant.Pulse` renders three membrane elements and one core element.
 - The root is inline-flex, so a spinner sits on the text baseline row of a
   button or a label without breaking the line.
 - The root does not shrink when placed in a flex row that runs out of space.
@@ -65,11 +73,10 @@ size value being written twice.
 - Each `SpinnerSize` value sets its own size custom property on the root.
 - Every child dimension derives from that property, so no variant carries a
   second copy of a size value.
-- Each `SpinnerSize` value sets its own track thickness, so a small ring stays
+- The ring's wall thickness is a share of its own size, so a small ring stays
   proportionate rather than looking heavy.
-- `SpinnerVariant.Dots` renders as a pill wider than it is tall, so the aura
-  ring wraps a capsule rather than being cropped to a circle.
-- Every other variant renders inside a circle.
+- Every variant renders inside a square box with a circular outline, so the
+  aura ring wraps each of them the same way.
 
 ### Keyboard and accessibility
 
@@ -95,13 +102,16 @@ size value being written twice.
 - The spinner paints no surface of its own — no fill, no border, no frost — so
   it inherits whatever ground it is placed on and `DESIGN-06` has nothing to
   apply to.
-- `SpinnerVariant.Ring` draws its arc from `--accent-a` and `--accent-b`, with
-  the centre masked out so only the track is painted.
-- `SpinnerVariant.Dots` alternates its dots between `--accent-a` and
-  `--accent-b`.
-- `SpinnerVariant.Pulse` draws its rings from `--accent-a` and `--accent-b` and
-  its core from `--accent-grad`.
-- The accent appears as a thin arc, three small dots or a small core — never as
+- `SpinnerVariant.Ring` draws its torus from `--accent-a` and `--accent-b`,
+  fading to a translucent tail, with an off-centre hole masked out; a small
+  specular head in `--ai-core` rides the bright end.
+- `SpinnerVariant.Dots` fills its core from `--accent-a` and its droplets from
+  `--accent-a`, `--accent-b` and a mix of the two; a spark in `--ai-core` sits
+  on the core, outside the goo filter so it stays crisp.
+- `SpinnerVariant.Pulse` draws its membranes from `--accent-a`, `--accent-b`
+  and a mix of the two, its nucleus from `--ai-core` and its halo from a
+  translucent `--accent-a`.
+- The accent appears as a small indicator at most `--sp-6` across — never as
   the fill of a large surface (`DESIGN-08`).
 - The component branches on no color mode and holds no mode-assuming value, so
   the same markup serves light and dark (`DESIGN-02`).
@@ -109,10 +119,17 @@ size value being written twice.
 ### Motion
 
 - Every variant animates continuously while mounted.
-- `SpinnerVariant.Dots` staggers its three dots, so the wave reads as a sequence
-  rather than three things blinking together.
-- `SpinnerVariant.Pulse` staggers its two rings, so a second ring is always
-  mid-flight when the first expires.
+- `SpinnerVariant.Ring` turns on a layer of its own, separate from the morph,
+  so the rotation never brakes while the outline and the wall keep changing.
+- The ring's outline morph and its wall breathing swing back and forth at
+  periods unrelated to the rotation, so the motion does not visibly repeat.
+- `SpinnerVariant.Dots` staggers its three droplets by a third of the loop each,
+  so one is always leaving while another is merging back.
+- `SpinnerVariant.Pulse` gives its three membranes unrelated periods, so the
+  silhouette never repeats exactly.
+- Shape morphs (`border-radius`) are eased with `--ease-in-out` or
+  `--ease-viscous` and swing between two shapes rather than stepping through
+  several, so no morph stalls at a keyframe.
 - The looping durations are chosen for the rhythm each variant needs and are
   deliberately not `--dur-*`: that scale governs transitions and one-shots,
   while continuous motion is free of it (`DESIGN-10`).
@@ -122,7 +139,9 @@ size value being written twice.
   keyword (`DESIGN-10`).
 - Under `prefers-reduced-motion: reduce` every loop stops.
 - Under `prefers-reduced-motion: reduce` each variant is left in a legible
-  resting state rather than blank, so the indicator still reads as present.
+  resting state rather than blank, so the indicator still reads as present:
+  the ring keeps its torus, the droplets rest as a three-lobed drop, the
+  membranes rest as a layered blob.
 
 ### AI mode
 
@@ -144,6 +163,8 @@ size value being written twice.
   signal does not depend on which variant a consumer picked.
 - The rate change is carried by the animation's duration alone, so the spinner's
   geometry does not shift when the state changes.
+- The rate change is one tempo multiplier per state, set once on the root, so
+  the ratio between states is the same for every variant.
 - Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
   dissolves rather than snapping away.
 - Entering `AiState.Generated` replays the one-shot completion wash, every time
@@ -156,26 +177,28 @@ size value being written twice.
 
 ## Recorded gaps
 
-- **A dozen and a half loose loop durations.** `DESIGN-10` leaves the duration
-  of continuous motion free, so none of them is a violation — but three variants
-  times "default plus four AI states", with the pulse variant timing its rings
-  and its core separately, means sixteen hand-picked seconds values in
-  `DrylSpinner.razor.css` with nothing relating them to each other. A fifth
-  `AiState` would add three more the same way, and the ratios between "slower
-  while thinking" and "faster while streaming" differ per variant.
+- **Base loop durations are still hand-picked.** Since I35 the AI states share
+  one tempo multiplier, so a fifth `AiState` adds one value, not three. The base
+  periods of each variant (turn, morph, breathe, orbit, membranes) remain
+  chosen by eye, which `DESIGN-10` allows for continuous motion.
+- **Liquid's breathing wall needs `@property`.** A browser without it keeps the
+  hole still; the ring still turns and morphs.
 - **`AiState.Active` needs an extra class the shared helper does not emit.** The
   component appends `ai-active` itself, so the AI-state contract of this
   component is one class wider than the shared vocabulary. Anything reusing the
   helper alone would miss the `Active` rate cue.
-- **No tests of its own.** None of the criteria above is guarded by a test.
+- **Only structure is tested.** `DrylSpinnerTests` covers the elements per
+  variant, the unique filter id, the hidden moving parts and the size classes;
+  motion, rate and reduced-motion criteria remain a reviewer check.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
 - **Both color modes** — token-only colors, verified by
   `node scripts/check-light-sync.mjs` and
-  `node scripts/validate-light-contrast.mjs`. `--accent-a`, `--accent-b`,
-  `--accent-grad` and `--glow-accent` are the mode-dependent tokens; the
-  component defines no mode-specific rule.
+  `node scripts/validate-light-contrast.mjs`. `--accent-a`, `--accent-b` and
+  `--ai-core` are the mode-dependent tokens (`--ai-core` is near-white on dark,
+  a deep accent on light, so the nucleus reads on both); the component defines
+  no mode-specific rule.
 - **Enter/exit animation** — none of its own, and that is the written exception
   `DESIGN-11` allows: a spinner *is* an animation, mounted and unmounted by its
   host, which wraps it in `DrylPresence` when its appearance should be animated
