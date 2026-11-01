@@ -2,7 +2,7 @@
 
 ## Meta
 - **State:** Ready
-- **Specs:** `specs/E11 Surfaces/F9 DrylToast.md`,
+- **Specs:** `specs/E11 Surfaces/F2 DrylToast.md`,
   `specs/E1 Foundation/F3 DrylToastProvider.md`,
   `specs/E7 Feedback/F8 DrylNotifications.md` (the bell marker)
 - **Target release:** 3.16.0 (`release/3.16.0`, branch `feat/i34-toast-origin`)

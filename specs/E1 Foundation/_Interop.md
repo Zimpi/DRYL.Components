@@ -66,6 +66,8 @@ No website checkout or voice service credential is needed.
 | Service | Lifetime | Registered by | Used by |
 |---|---|---|---|
 | `IDrylMorph` | scoped | `AddDrylComponents()` | `DrylRouteTransition` — calls `BeginNavigation` from a location-changing handler. `DrylMorph` reports every render to the same instance, which is what completes a navigation's morph. |
+| `IDrylToastService` | scoped | `AddDrylComponents()` | `DrylToastProvider` subscribes to it; any code raises toasts through it. |
+| `IDrylNotificationService` | scoped | `AddDrylComponents()` | `DrylToastProvider` resolves it leniently and adds an entry when a bell-born toast returns into the bell. |
 
 *(the rest: phase C)*
 
@@ -81,3 +83,19 @@ releasing any in-flight wait first so a disposed circuit cannot leave a
 navigation blocked.
 
 *(the rest: phase C)*
+
+### `dryl.toast` (`F3 DrylToastProvider`)
+
+| Entry point | Called from | Does |
+|---|---|---|
+| `dryl.toast.attach(slot, dotnetRef, origin)` | `OnAfterRenderAsync`, once per new toast | Starts the timer (paused on hover), sets `data-dryl-entered`, plays the entry and returns how the toast came: `"origin"`, `"bell"` or `"capsule"`. |
+| `dryl.toast.leave(slot, intoInbox)` | When a toast's close is requested | Stops the timer, plays the leave — into the first visible `[data-dryl-inbox]` when `intoInbox` and such a bell exists, otherwise shrink-and-fade — closes the space, and returns `"inbox"` or `"plain"`. |
+| `dryl.toast.detach(slot)` | Before removal and on dispose | Clears the timer and the hover listeners. |
+
+Back into .NET: `ToastCallbacks.OnExpired`, through a `DotNetObjectReference`
+the provider disposes on detach. The bell marker `data-dryl-inbox` is written by
+`DrylNotifications` (`E7 Feedback/F8`).
+
+Cleanup (`CODE-05`): the timer lives on the slot's registration; `detach` and
+`leave` clear it, and a callback retained past `detach` checks the registration
+and stays inert (`tests/js/toast.test.mjs`).

@@ -29,7 +29,7 @@ Version: 3.16.0 (block already open on the release branch, `REL-01`).
 | # | Task | Files | Verification | Commit |
 |---|---|---|---|---|
 | 1 | Idea to `Ready` | `ideas/I34 A toast redesign.md` | `node scripts/check-harness-links.mjs` | `ideas: I34 Ready` |
-| 2 | Specs: first spec for each | `specs/E11 Surfaces/F9 DrylToast.md`, `specs/E1 Foundation/F3 DrylToastProvider.md`, `specs/E11 Surfaces/_Api.md`, `_Interop.md`, `specs/E1 Foundation/_Api.md`, `specs/E7 Feedback/F8 DrylNotifications.md` | `node scripts/check-spec-coverage.mjs` (meter rises 72 → 74) | with task 3 (`SPEC-01`) |
+| 2 | Specs: first spec for each | `specs/E11 Surfaces/F2 DrylToast.md`, `specs/E1 Foundation/F3 DrylToastProvider.md`, `specs/E11 Surfaces/_Api.md`, `_Interop.md`, `specs/E1 Foundation/_Api.md`, `specs/E7 Feedback/F8 DrylNotifications.md` | `node scripts/check-spec-coverage.mjs` (meter rises 72 → 74) | with task 3 (`SPEC-01`) |
 | 3 | Code: options, provider, bell marker, JS choreography, CSS, `@key` fix | `Toasts/ToastOptions.cs`, `Components/Providers/DrylToastProvider.razor`, `Components/Surfaces/DrylToast.razor`, `Components/Feedback/DrylNotifications.razor`, `wwwroot/js/dryl.js`, `wwwroot/dryl.css` | `dotnet build DRYL.slnx -c Release` | one commit with specs, tests, changelog |
 | 4 | Tests | `tests/DRYL.Components.Tests/DrylToastProviderTests.cs`, `tests/js/toast.test.mjs` | `dotnet test DRYL.slnx -c Release`, `node --test tests/js/*.test.mjs` | in task 3's commit |
 | 5 | Changelog in the open 3.16.0 block | `CHANGELOG.md` | review | in task 3's commit |

@@ -52,13 +52,11 @@
     "code/DRYL.Components/Components/Providers/DrylColorModeToggle.razor",
     "code/DRYL.Components/Components/Providers/DrylReconnectModal.razor",
     "code/DRYL.Components/Components/Providers/DrylThemeProvider.razor",
-    "code/DRYL.Components/Components/Providers/DrylToastProvider.razor",
     "code/DRYL.Components/Components/Surfaces/DrylCard.razor",
     "code/DRYL.Components/Components/Surfaces/DrylChat.razor",
     "code/DRYL.Components/Components/Surfaces/DrylChatComposer.razor",
     "code/DRYL.Components/Components/Surfaces/DrylDepthGlass.razor",
     "code/DRYL.Components/Components/Surfaces/DrylMarkdown.razor",
-    "code/DRYL.Components/Components/Surfaces/DrylMessage.razor",
-    "code/DRYL.Components/Components/Surfaces/DrylToast.razor"
+    "code/DRYL.Components/Components/Surfaces/DrylMessage.razor"
   ]
 }

@@ -1068,25 +1068,182 @@ window.dryl.popover = (() => {
 })();
 
 /* --------------------------------------------------------------
- * Toast — auto-dismiss timer and exit animation lifecycle.
+ * Toast — auto-dismiss timer, entry, leave (DrylToastProvider).
  *
  * Timer: setTimeout rather than CSS animationend, so that Blazor re-renders
  * (which may patch the .toast-progress element) cannot reset it. The hover
  * pause is handled explicitly via mouseenter/mouseleave on the stable slot
- * element.
+ * element, in lockstep with the CSS animation-play-state pause of the bar.
  *
- * Exit: event delegation on the slot (kept alive by Blazor via @key), since
- * animationend bubbles — more robust than a listener on the inner .toast div,
- * which Blazor patches whenever its classes change.
+ * Motion runs as Web Animations on the existing tokens (--dur-*, --ease-out,
+ * --ease-spring, and --ease-viscous for the shape morphs):
  *
- *   OnExpired       — fired by setTimeout after the duration.
- *   OnExitFinished  — fired when toast-out animationend bubbles to slot.
+ *   attach(slot, ref, origin) — takes the toast over and brings it in, and
+ *     answers how it came:
+ *       'origin'  — out of the origin element: the toast starts in that
+ *                   element's shape and place and morphs into its own;
+ *       'bell'    — no origin: out of the first visible [data-dryl-inbox]
+ *                   (a service-driven DrylNotifications bell) as a capsule
+ *                   around the icon, which flies in and unfolds;
+ *       'capsule' — no origin and no bell: the capsule unfolds in place.
+ *     Until attach sets data-dryl-entered on the slot the toast is hidden
+ *     (dryl.css), so the entry never starts from a flash of the final toast.
+ *   leave(slot, intoInbox) — plays the exit and closes the space the toast
+ *     held so its neighbours glide; resolves 'inbox' when the toast folded
+ *     into a capsule and flew into the bell, 'plain' when it shrank and
+ *     faded where it stood.
+ *   detach(slot) — drops the timer and listeners.
+ *
+ *   OnExpired — fired by setTimeout after the duration.
  * -------------------------------------------------------------- */
 window.dryl.toast = (() => {
-    function attach(slot, dotnetRef) {
-        if (!slot || slot.__drylToast) return;
+    const root = () => getComputedStyle(document.documentElement);
+    function tokenMs(name, fallback) {
+        const raw = root().getPropertyValue(name).trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms > 0 ? ms : fallback;
+    }
+    const easing = (name, fallback) => root().getPropertyValue(name).trim() || fallback;
+    const motion = () => ({
+        fast:    tokenMs('--dur-fast', 140),
+        med:     tokenMs('--dur-med', 240),
+        slow:    tokenMs('--dur-slow', 420),
+        choreo:  tokenMs('--dur-choreo', 900),
+        out:     easing('--ease-out', 'cubic-bezier(0.16, 1, 0.3, 1)'),
+        spring:  easing('--ease-spring', 'cubic-bezier(0.34, 1.56, 0.64, 1)'),
+        viscous: easing('--ease-viscous', 'cubic-bezier(0.45, 0.05, 0.15, 1)')
+    });
+    const reduced = () => window.dryl.reduced();
+
+    // An element counts only while it is laid out and at least partly on screen.
+    function onScreen(el) {
+        if (!el || el.nodeType !== 1 || !el.isConnected) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 &&
+            r.top < window.innerHeight && r.left < window.innerWidth;
+    }
+    function findBell() {
+        for (const el of document.querySelectorAll('[data-dryl-inbox]')) {
+            if (onScreen(el)) return el;
+        }
+        return null;
+    }
+
+    const radius = el => parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+    const full = toast => `inset(0px 0px 0px 0px round ${radius(toast)}px)`;
+    // The capsule: a circle around the icon chip (or the toast's first square
+    // when it has no icon), in the toast's own coordinates.
+    function capsule(toast) {
+        const t = toast.getBoundingClientRect();
+        const chip = toast.querySelector('.toast-icon-chip');
+        let cx, cy, r;
+        if (chip) {
+            const c = chip.getBoundingClientRect();
+            cx = c.left - t.left + c.width / 2;
+            cy = c.top - t.top + c.height / 2;
+            r = Math.max(c.width, c.height) / 2 + 7;
+        } else {
+            r = Math.min(t.height, 44) / 2;
+            cx = cy = r;
+        }
+        const clip = `inset(${cy - r}px ${Math.max(0, t.width - cx - r)}px ${Math.max(0, t.height - cy - r)}px ${cx - r}px round ${r}px)`;
+        return { cx, cy, clip };
+    }
+    const parts = toast => toast.querySelectorAll('.toast-content, .toast-close, .toast-progress');
+    // Fade-ins hold only before they start (fill: backwards), so a hidden
+    // progress bar (.is-hidden) is back under CSS control once they finish.
+    function fadeIn(toast, delay, m) {
+        parts(toast).forEach(p => p.animate([{ opacity: 0 }, { opacity: 1 }],
+            { duration: m.med, delay, easing: m.out, fill: 'backwards' }));
+    }
+    function fadeOut(toast, m) {
+        parts(toast).forEach(p => p.animate([{ opacity: 1 }, { opacity: 0 }],
+            { duration: m.fast, easing: m.out, fill: 'forwards' }));
+    }
+    function nudge(bell, m) {
+        bell.animate([
+            { transform: 'none' },
+            { transform: 'scale(0.86)', offset: 0.3 },
+            { transform: 'scale(1.1)', offset: 0.6 },
+            { transform: 'none' }
+        ], { duration: m.slow, easing: m.out });
+    }
+
+    function fromOrigin(toast, origin, m) {
+        const F = toast.getBoundingClientRect();
+        const B = origin.getBoundingClientRect();
+        const dx = B.left - F.left, dy = B.top - F.top;
+        const start = `inset(0px ${Math.max(0, F.width - B.width)}px ${Math.max(0, F.height - B.height)}px 0px round ${radius(origin)}px)`;
+        toast.animate([
+            { transform: `translate(${dx}px, ${dy}px)`, clipPath: start, opacity: 0.5 },
+            { transform: `translate(${dx * 0.15}px, ${dy * 0.35}px)`, clipPath: start, opacity: 1, offset: 0.45 },
+            { transform: 'none', clipPath: full(toast), opacity: 1 }
+        ], { duration: m.choreo, easing: m.viscous });
+        fadeIn(toast, m.choreo * 0.6, m);
+    }
+
+    // One continuous flight under a single curve — the waypoint bends the
+    // path but never stops it — then the capsule unfolds while it lands.
+    function fromBell(toast, bell, m) {
+        const cap = capsule(toast);
+        const F = toast.getBoundingClientRect(), B = bell.getBoundingClientRect();
+        const dx = (B.left + B.width / 2) - (F.left + cap.cx);
+        const dy = (B.top + B.height / 2) - (F.top + cap.cy);
+        toast.style.transformOrigin = `${cap.cx}px ${cap.cy}px`;
+        nudge(bell, m);
+        toast.animate([
+            { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 },
+            { transform: `translate(${dx * 0.3}px, ${dy * 0.55}px) scale(0.8)`, opacity: 1, offset: 0.4 },
+            { transform: 'none', opacity: 1 }
+        ], { duration: m.choreo, easing: m.out });
+        const unfoldAt = m.choreo * 0.55;
+        toast.animate([{ clipPath: cap.clip }, { clipPath: full(toast) }],
+            { duration: m.slow, delay: unfoldAt, easing: m.spring, fill: 'backwards' });
+        fadeIn(toast, unfoldAt + m.fast, m);
+    }
+
+    function fromCapsule(slot, toast, m) {
+        const cap = capsule(toast);
+        const host = slot.closest('.toast-host');
+        const has = c => !!host && host.classList.contains(c);
+        const center = has('is-top-center') || has('is-bottom-center');
+        const left = has('is-top-left') || has('is-bottom-left');
+        const from = center
+            ? `translateY(${has('is-top-center') ? -24 : 24}px) scale(0.5)`
+            : `translateX(${left ? -64 : 64}px) scale(0.5)`;
+        toast.style.transformOrigin = `${cap.cx}px ${cap.cy}px`;
+        toast.animate([
+            { clipPath: cap.clip, transform: from, opacity: 0, easing: m.out },
+            { clipPath: cap.clip, transform: 'none', opacity: 1, offset: 0.34, easing: m.spring },
+            { clipPath: full(toast), transform: 'none', opacity: 1 }
+        ], { duration: m.choreo });
+        fadeIn(toast, m.choreo * 0.42, m);
+    }
+
+    function enter(slot, toast, origin) {
+        const bell = onScreen(origin) ? null : findBell();
+        const kind = onScreen(origin) ? 'origin' : bell ? 'bell' : 'capsule';
+        slot.setAttribute('data-dryl-entered', '');
+        const m = motion();
+        if (reduced()) {
+            toast.animate([{ opacity: 0 }, { opacity: 1 }], { duration: m.med, easing: m.out });
+        } else if (kind === 'origin') {
+            fromOrigin(toast, origin, m);
+        } else if (kind === 'bell') {
+            fromBell(toast, bell, m);
+        } else {
+            fromCapsule(slot, toast, m);
+        }
+        return kind;
+    }
+
+    function attach(slot, dotnetRef, origin) {
+        if (!slot || slot.__drylToast) return null;
         const toast = slot.querySelector('.toast');
-        if (!toast) return;
+        if (!toast) return null;
+
+        const state = {};
+        slot.__drylToast = state;
 
         // Read the duration from the progress element's inline style.
         const progress = toast.querySelector('.toast-progress');
@@ -1101,12 +1258,13 @@ window.dryl.toast = (() => {
         }
 
         function startTimer() {
-            if (remaining <= 0) return;
+            if (remaining <= 0 || timerId !== null) return;
             startedAt = Date.now();
-            timerId   = setTimeout(
-                () => dotnetRef.invokeMethodAsync('OnExpired'),
-                remaining
-            );
+            timerId   = setTimeout(() => {
+                timerId = null;
+                if (slot.__drylToast !== state) return; // detached meanwhile
+                Promise.resolve(dotnetRef.invokeMethodAsync('OnExpired')).catch(() => {});
+            }, remaining);
         }
 
         function pauseTimer() {
@@ -1127,36 +1285,81 @@ window.dryl.toast = (() => {
             startTimer();
         }
 
-        // Exit detection via event delegation on the slot — animationend bubbles,
-        // and Blazor keeps the slot stable via @key.
-        const onSlotAnim = (e) => {
-            if (e.animationName === 'toast-out') {
-                clearTimeout(timerId);
-                timerId = null;
-                dotnetRef.invokeMethodAsync('OnExitFinished');
-            }
-        };
-        slot.addEventListener('animationend', onSlotAnim);
+        state.onMouseEnter = onMouseEnter;
+        state.onMouseLeave = onMouseLeave;
+        state.cancel = () => { clearTimeout(timerId); timerId = null; };
 
-        slot.__drylToast = {
-            onSlotAnim,
-            onMouseEnter,
-            onMouseLeave,
-            cancel: () => { clearTimeout(timerId); timerId = null; }
-        };
+        return enter(slot, toast, origin);
+    }
+
+    // The space the toast held closes, so the neighbours glide into it. The
+    // gap its flex parent puts beside it closes too, via a negative margin.
+    function closeSpace(slot, m) {
+        const host = slot.parentElement;
+        const hasSibling = !!(slot.previousElementSibling || slot.nextElementSibling);
+        const gap = host && hasSibling ? parseFloat(getComputedStyle(host).rowGap) || 0 : 0;
+        const h = slot.getBoundingClientRect().height;
+        slot.style.overflow = 'hidden';
+        return slot.animate([
+            { height: `${h}px`, marginBottom: '0px' },
+            { height: '0px', marginBottom: `${-gap}px` }
+        ], { duration: m.med, easing: m.out, fill: 'forwards' }).finished;
+    }
+
+    // Fold into the capsule, then fly it into the bell, which answers with a nudge.
+    async function intoBell(toast, bell, m) {
+        const cap = capsule(toast);
+        toast.style.transformOrigin = `${cap.cx}px ${cap.cy}px`;
+        fadeOut(toast, m);
+        await toast.animate([{ clipPath: full(toast) }, { clipPath: cap.clip }],
+            { duration: m.slow, easing: m.viscous, fill: 'forwards' }).finished;
+        const F = toast.getBoundingClientRect(), B = bell.getBoundingClientRect();
+        const dx = (B.left + B.width / 2) - (F.left + cap.cx);
+        const dy = (B.top + B.height / 2) - (F.top + cap.cy);
+        await toast.animate([
+            { transform: 'none', opacity: 1 },
+            { transform: `translate(${dx * 0.25}px, ${dy * 0.6}px) scale(0.75)`, opacity: 1, offset: 0.5 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 }
+        ], { duration: m.slow, easing: m.viscous, fill: 'forwards' }).finished;
+        nudge(bell, m);
+    }
+
+    async function leave(slot, intoInbox) {
+        slot?.__drylToast?.cancel();
+        const toast = slot?.querySelector('.toast');
+        const bell = intoInbox ? findBell() : null;
+        const outcome = bell ? 'inbox' : 'plain';
+        if (!toast || !slot.isConnected) return outcome;
+        const m = motion();
+        try {
+            if (reduced()) {
+                await toast.animate([{ opacity: 1 }, { opacity: 0 }],
+                    { duration: m.med, easing: m.out, fill: 'forwards' }).finished;
+                return outcome;
+            }
+            if (bell) {
+                await intoBell(toast, bell, m);
+            } else {
+                await toast.animate([
+                    { opacity: 1, transform: 'none', filter: 'blur(0)' },
+                    { opacity: 0, transform: 'scale(0.92) translateY(-6px)', filter: 'blur(3px)' }
+                ], { duration: m.med, easing: m.out, fill: 'forwards' }).finished;
+            }
+            await closeSpace(slot, m);
+        } catch (_) { /* an animation was cancelled — the toast is leaving anyway */ }
+        return outcome;
     }
 
     function detach(slot) {
         if (!slot || !slot.__drylToast) return;
-        const { onSlotAnim, onMouseEnter, onMouseLeave, cancel } = slot.__drylToast;
+        const { onMouseEnter, onMouseLeave, cancel } = slot.__drylToast;
         cancel();
-        slot.removeEventListener('animationend', onSlotAnim);
         slot.removeEventListener('mouseenter', onMouseEnter);
         slot.removeEventListener('mouseleave', onMouseLeave);
         delete slot.__drylToast;
     }
 
-    return { attach, detach };
+    return { attach, leave, detach };
 })();
 
 // ── Autocomplete helpers ──────────────────────────────────────────────────────
