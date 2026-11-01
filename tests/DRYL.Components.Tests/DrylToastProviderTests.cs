@@ -229,6 +229,22 @@ public class DrylToastProviderTests : BunitContext
     }
 
     [Fact]
+    public void A_bell_toast_is_filed_when_the_leave_reply_never_comes()
+    {
+        JSInterop.Setup<string?>(Attach, _ => true).SetResult(DrylToastProvider.FromBell);
+        JSInterop.Setup<string>(Leave, _ => true); // never answers
+        var cut = Render<DrylToastProvider>();
+        cut.Instance.LeaveWatchdogMs = 50;
+        _toasts.ShowInfo("Synced with the server.");
+        cut.WaitForAssertion(() => Assert.Single(JSInterop.Invocations[Attach]));
+
+        Expire(cut);
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".toast-slot")));
+        Assert.Single(_inbox.Notifications);
+    }
+
+    [Fact]
     public void A_toast_without_text_never_returns_into_the_inbox()
     {
         var cut = RenderProvider();

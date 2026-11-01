@@ -78,12 +78,13 @@
     internal const string FromOrigin = "origin", FromBell = "bell", FromCapsule = "capsule";
 
     /// <summary>What dryl.toast.leave reports: the toast flew into the bell, or it simply left.</summary>
-    internal const string LeftIntoInbox = "inbox";
+    internal const string LeftIntoInbox = "inbox", LeftPlain = "plain";
 
     // A leave is a capsule fold plus a flight (two --dur-slow) and the closing of its space
-    // (--dur-med). Past this, the toast is removed whether or not JS answered, so a lost
-    // reply can never leave a dead toast on screen.
-    private const int LeaveWatchdogMs = 1500;
+    // (--dur-med), about 1.1 s plus the round trip. Past this, the toast is removed whether
+    // or not JS answered, so a lost reply can never leave a dead toast on screen. Settable
+    // for tests only.
+    internal int LeaveWatchdogMs { get; set; } = 3000;
 
     internal sealed class Entry
     {
@@ -166,9 +167,11 @@
             catch (TaskCanceledException) { /* interop timed out */ }
         }
 
-        // The entry is filed only when the toast actually flew into a bell: with no bell left
-        // on screen, dryl.toast lets it leave in place and nothing lands in an inbox nobody sees.
-        if (intoInbox && outcome == LeftIntoInbox)
+        // dryl.toast answers "plain" only when no bell was left on screen to fly into; then
+        // nothing lands in an inbox nobody sees. Without an answer (a slow or lost reply) the
+        // toast is filed anyway: it came out of a bell, and losing the message is the worse
+        // failure.
+        if (intoInbox && outcome != LeftPlain)
         {
             FileInInbox(entry);
         }

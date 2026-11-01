@@ -120,13 +120,16 @@ root layout.
   keeps the toast's icon (or its variant's) and its AI state.
 - No entry is added when the bell is gone by the time the toast leaves; the
   toast then shrinks and fades in place.
+- When `dryl.toast` does not answer the leave in time, a toast that would have
+  returned into the bell is filed anyway — losing the message is the worse
+  failure.
 - A toast with an origin, a toast that unfolded as a capsule, a toast closed by
   the user or by code, and a toast with `KeepInInbox = false` never add an
   entry; they shrink, blur and fade in place.
 - After either leave, the space the toast held closes, so its neighbours glide
   into place instead of jumping.
 - A leaving toast takes no pointer input.
-- A toast is removed at the latest after the watchdog (1.5 s), whether or not
+- A toast is removed at the latest after the watchdog (3 s), whether or not
   `dryl.toast` answered.
 
 ### Reduced motion
