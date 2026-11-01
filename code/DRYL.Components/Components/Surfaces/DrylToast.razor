@@ -96,7 +96,8 @@
     /// any <c>DrylAiScope</c>, so the variant is set explicitly rather than inherited).</summary>
     [Parameter] public AiAura Aura { get; set; } = AiAura.Comet;
 
-    /// <summary>If true (set by the provider during exit), plays the exit animation.</summary>
+    /// <summary>If true, plays the shrink-and-fade exit animation inside a <c>.toast-host</c>. The
+    /// provider does not set it: <c>dryl.toast</c> plays the provider's leave.</summary>
     [Parameter] public bool IsLeaving { get; set; }
 
     /// <summary>Fired when the user clicks the close button.</summary>
@@ -123,16 +124,19 @@
         get
         {
             if (Icon is not null) return Icon.Length == 0 ? null : Icon;
-            return Variant switch
-            {
-                ToastVariant.Success => "Check",
-                ToastVariant.Warning => "Alert",
-                ToastVariant.Error   => "Alert",
-                ToastVariant.Info    => "Info",
-                _ => null
-            };
+            return DefaultIcon(Variant);
         }
     }
+
+    /// <summary>The icon a variant shows when no <see cref="Icon"/> is given.</summary>
+    internal static string? DefaultIcon(ToastVariant variant) => variant switch
+    {
+        ToastVariant.Success => "Check",
+        ToastVariant.Warning => "Alert",
+        ToastVariant.Error   => "Alert",
+        ToastVariant.Info    => "Info",
+        _ => null
+    };
 
     private string AriaRole => Variant == ToastVariant.Error || Variant == ToastVariant.Warning
         ? "alert"

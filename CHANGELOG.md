@@ -18,6 +18,19 @@ Version bump guide:
 
 <!-- Collected on release/3.16.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
 
+### Added
+- `ToastOptions.Origin` — The element a toast grows out of, typically the button whose click raised it: the toast starts in that element's shape and place and morphs into its place in the stack. Pass `DrylButton.Element`, or any `ElementReference`: `new ToastOptions { Origin = saveButton.Element }`.
+- `ToastOptions.KeepInInbox` — Defaults to `true`. Set it to `false` to keep a toast that came out of the notification bell out of the inbox when it expires.
+- `DrylButton.Element` — The rendered `button` element, for use as a toast's `Origin`.
+
+### Changed
+- `DrylToastProvider` — Toasts now arrive from where they belong. A toast without an `Origin` comes out of the notification bell of a service-driven `DrylNotifications`: a capsule around its icon leaves the bell, flies to its place and unfolds. With no bell on screen it unfolds from that capsule in place. Neighbours glide into the space a leaving toast frees instead of jumping. All of this runs on the existing motion tokens and falls back to a plain fade under `prefers-reduced-motion`.
+- `DrylToastProvider` — **A toast that came out of the bell and expires unread now flies back into the bell and is added to `IDrylNotificationService` as an unread entry**, so it is not lost. Toasts with an `Origin`, toasts closed by the user or by code, and toasts without text never are. If your app shows a `DrylNotifications` bell in service-driven mode and raises toasts without an origin that should not land in the inbox, set `KeepInInbox = false` on them.
+- `DrylNotifications` — In service-driven mode the bell carries `data-dryl-inbox`, the marker the toast provider uses to find it.
+
+### Fixed
+- `DrylToastProvider` — When the oldest of several toasts left, every toast after it was rebuilt and its countdown bar started over, although it still closed on time. Each toast now keeps its element, its bar and its timer.
+
 ## [3.15.0] — 2026-10-31
 
 Agents 0.25.0 ships with it. A `DrylAiScope` now reaches the AI state of the components that only took its aura variant, and `DrylAiField` speaks English by default and can be translated.

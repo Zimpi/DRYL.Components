@@ -29,7 +29,8 @@
         aria-label="@AriaLabel"
         aria-pressed="@AriaPressed"
         @onclick="HandleClick"
-        @attributes="AdditionalAttributes">
+        @attributes="AdditionalAttributes"
+        @ref="_element">
 
     <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
@@ -51,6 +52,14 @@
 </button>
 
 @code {
+    private ElementReference _element;
+
+    /// <summary>
+    /// The rendered <c>button</c> element — for example as the <see cref="Toasts.ToastOptions.Origin"/>
+    /// a toast grows out of. Valid after the first render.
+    /// </summary>
+    public ElementReference Element => _element;
+
     /// <summary>
     /// Visual style of the button. <see cref="ButtonVariant.Primary"/> is quiet at rest
     /// and expressive on hover; <see cref="ButtonVariant.Bold"/> is the filled accent

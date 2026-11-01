@@ -3338,6 +3338,15 @@ td.tbl-td-editing select {
 .toast-host.is-bottom-center { bottom: 0; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
 
 .toast-slot { pointer-events: auto; }
+.toast-slot.is-leaving { pointer-events: none; }
+
+/* Inside the provider, dryl.toast brings each toast in (out of its origin,
+   the notification bell, or an unfolding capsule) — so the toast carries no
+   CSS entrance of its own there, and stays hidden until dryl.toast has taken
+   it over and set data-dryl-entered, so the morph never starts from a flash
+   of the finished toast. A standalone DrylToast keeps the CSS entrance. */
+.toast-host .toast { animation: none; }
+.toast-host .toast-slot:not([data-dryl-entered]) > .toast { opacity: 0; }
 
 .toast {
   position: relative;
@@ -3365,7 +3374,7 @@ td.tbl-td-editing select {
   color: var(--fg);
   font-size: 13px;
   line-height: 1.45;
-  /* Direction-aware entrance is set further down per host position. */
+  /* Standalone entrance; inside .toast-host dryl.toast animates instead. */
   animation: toast-in-right var(--dur-slow) var(--ease-spring) both;
   transition:
     transform var(--dur-fast) var(--ease-out),
@@ -3400,40 +3409,17 @@ td.tbl-td-editing select {
 }
 
 /* Direction-aware entry — slide in from the edge nearest the anchor. */
-.toast-host.is-top-right .toast,
-.toast-host.is-bottom-right .toast { animation-name: toast-in-right; }
-
-.toast-host.is-top-left .toast,
-.toast-host.is-bottom-left .toast  { animation-name: toast-in-left; }
-
-.toast-host.is-top-center .toast    { animation-name: toast-in-top; }
-.toast-host.is-bottom-center .toast { animation-name: toast-in-bottom; }
-
 @keyframes toast-in-right {
   0%   { opacity: 0; transform: translateX(120%) scale(0.85); filter: blur(6px); }
   60%  { opacity: 1; transform: translateX(-3%)  scale(1.02); filter: blur(0); }
   100% { opacity: 1; transform: translateX(0)    scale(1);    filter: blur(0); }
 }
-@keyframes toast-in-left {
-  0%   { opacity: 0; transform: translateX(-120%) scale(0.85); filter: blur(6px); }
-  60%  { opacity: 1; transform: translateX(3%)    scale(1.02); filter: blur(0); }
-  100% { opacity: 1; transform: translateX(0)     scale(1);    filter: blur(0); }
-}
-@keyframes toast-in-top {
-  0%   { opacity: 0; transform: translateY(-110%) scale(0.9); filter: blur(6px); }
-  60%  { opacity: 1; transform: translateY(5%)    scale(1.02); filter: blur(0); }
-  100% { opacity: 1; transform: translateY(0)     scale(1);    filter: blur(0); }
-}
-@keyframes toast-in-bottom {
-  0%   { opacity: 0; transform: translateY(110%) scale(0.9); filter: blur(6px); }
-  60%  { opacity: 1; transform: translateY(-5%)  scale(1.02); filter: blur(0); }
-  100% { opacity: 1; transform: translateY(0)    scale(1);    filter: blur(0); }
-}
 
-/* Exit keyframes — single shared animation. JS listens for `toast-out`
-   animationend and tells .NET to drop the entry from the stack. The
-   actual exit *rule* is defined further down so it wins over the
-   direction-aware and ai-generated animation overrides. */
+/* Exit keyframes for a DrylToast whose IsLeaving is set by hand. The
+   provider no longer uses them: dryl.toast plays its leave (the same
+   shrink, blur and fade, or the flight into the bell). The exit *rule* is
+   defined further down so it wins over the host and ai-generated
+   animation overrides. */
 @keyframes toast-out {
   to { opacity: 0; transform: scale(0.92) translateY(-6px); filter: blur(3px); }
 }
@@ -3641,12 +3627,9 @@ td.tbl-td-editing select {
 /* The standard ai-generated translate would conflict with the entrance lift. */
 .toast.ai-aura.ai-generated { animation: none; }
 
-/* Exit animation — placed last with .toast-host scoping so the specificity
-   (0,3,0) matches the direction rules and the ai-generated override, and
-   source order makes this rule win. Without this, .toast.is-leaving (0,2,0)
-   would lose to those, the exit animation would never play, animationend
-   would never fire for `toast-out`, and the toast would sit on screen
-   forever — close button included. */
+/* Exit animation for a hand-set IsLeaving — placed last with .toast-host
+   scoping so the specificity (0,3,0) beats `.toast-host .toast` and the
+   ai-generated override, and source order makes this rule win. */
 .toast-host .toast.is-leaving {
   animation: toast-out var(--dur-med) var(--ease-out) forwards;
   pointer-events: none;

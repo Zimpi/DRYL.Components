@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Components;
+
 namespace DRYL.Components.Toasts;
 
 /// <summary>
@@ -51,4 +53,23 @@ public sealed class ToastOptions
 
     /// <summary>Optional extra CSS class applied to the toast container.</summary>
     public string? Class { get; set; }
+
+    /// <summary>
+    /// The element this toast grows out of — typically the button whose click raised it.
+    /// The toast takes that element's shape and position, then morphs into its place in the
+    /// stack. Leave it <c>null</c> for a toast nobody clicked for (a background job, a server
+    /// push): it then comes out of the notification bell of a service-driven
+    /// <see cref="DrylNotifications"/>, or, with no bell on screen, unfolds from a capsule
+    /// around its icon. An origin that is no longer on screen counts as none.
+    /// </summary>
+    public ElementReference? Origin { get; set; }
+
+    /// <summary>
+    /// If true (default), a toast that came out of the notification bell and expires unread
+    /// flies back into the bell and is added to <see cref="IDrylNotificationService"/> as an
+    /// unread entry, so it is not lost. Set false for an announcement that is only worth
+    /// seeing once. Has no effect on a toast with an <see cref="Origin"/>, on a toast closed
+    /// by the user or by code, or when no service-driven bell is on screen.
+    /// </summary>
+    public bool KeepInInbox { get; set; } = true;
 }
