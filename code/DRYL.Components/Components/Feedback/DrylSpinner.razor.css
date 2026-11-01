@@ -1,15 +1,16 @@
 ﻿/* ── DrylSpinner ─────────────────────────────────────────────
-   All dimensions reference tokens defined on the wrapper so they
-   cascade to every child without repeating the size values.
-   Continuous animation durations are NOT --dur-* (those are for
-   interaction transitions). Looping spinner durations are defined
-   here as intentional motion-design values.
+   Organic loading indicators (I35): Liquid (Ring), Goo (Dots) and
+   Bloom (Pulse). Every dimension derives from --sz on the wrapper.
+   Every loop duration is a base value multiplied by --spin-tempo,
+   which the AI state sets once on the wrapper — so the four rate
+   cues live in four declarations instead of one per variant.
+   Continuous motion is free of the --dur-* scale (DESIGN-10); the
+   one rotation runs on linear, which DESIGN-10 requires for it.
    ──────────────────────────────────────────────────────────── */
 
 .spinner-wrap {
-    /* Size tokens — overridden per size modifier */
-    --sz:      var(--sp-5);  /* Medium = 24 px */
-    --track-w: 2px;
+    --sz:         var(--sp-5);  /* Medium = 24 px */
+    --spin-tempo: 1;
 
     display:         inline-flex;
     align-items:     center;
@@ -21,140 +22,201 @@
     border-radius:   50%;
 }
 
-.spinner-wrap.sz-sm { --sz: var(--sp-4); --track-w: 1.5px; } /* 16 px */
-.spinner-wrap.sz-lg { --sz: var(--sp-6); --track-w: 3px;   } /* 32 px */
+.spinner-wrap.sz-sm { --sz: var(--sp-4); } /* 16 px */
+.spinner-wrap.sz-lg { --sz: var(--sp-6); } /* 32 px */
 
-/* Dots need a wider, pill-shaped container so the AI ring wraps a capsule */
-.spinner-wrap.v-dots {
-    width:         auto;
-    padding-inline: calc(var(--sz) * 0.25);
-    border-radius: var(--r-pill);
+/* AI rate cues: slower while thinking, faster while streaming, between for active */
+.spinner-wrap.ai-aura.ai-active    { --spin-tempo: 1.35; }
+.spinner-wrap.ai-aura.ai-thinking  { --spin-tempo: 1.9;  }
+.spinner-wrap.ai-aura.ai-streaming { --spin-tempo: 0.55; }
+
+.spinner-body {
+    position: absolute;
+    inset:    0;
 }
 
 
-/* ── Ring variant ─────────────────────────────────────────── */
+/* ── Ring → Liquid ──────────────────────────────────────────
+   A torus that turns at constant speed on its own layer, while
+   underneath its outline wobbles and its wall breathes. The hole
+   sits off-centre, so the heavy side travels round like liquid. */
 
-.spinner-ring {
-    width:         100%;
-    height:        100%;
-    border-radius: 50%;
-    /* Gradient arc: bright cyan tip → violet body → transparent tail */
+@property --dryl-spinner-hole { syntax: "<percentage>"; inherits: false; initial-value: 54%; }
+
+.spinner-liquid {
+    animation: dryl-spinner-turn calc(1.4s * var(--spin-tempo)) linear infinite;
+}
+
+.spinner-liquid-torus {
+    position:      absolute;
+    inset:         4%;
+    border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%;
     background: conic-gradient(
         from 0deg,
-        var(--accent-b)  0%,
-        var(--accent-a) 50%,
-        transparent     75%,
-        transparent    100%
+        var(--accent-b),
+        var(--accent-a) 42%,
+        color-mix(in srgb, var(--accent-a) 12%, transparent) 88%,
+        var(--accent-b)
     );
-    /* Mask punches out the centre, leaving only the track */
-    mask:         radial-gradient(farthest-side, transparent calc(100% - var(--track-w)), #fff calc(100% - var(--track-w) + 1px));
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--track-w)), #fff calc(100% - var(--track-w) + 1px));
-    animation: dryl-spin 0.9s linear infinite;
+    mask:         radial-gradient(circle at 55% 50%, transparent var(--dryl-spinner-hole), #fff calc(var(--dryl-spinner-hole) + 2%));
+    -webkit-mask: radial-gradient(circle at 55% 50%, transparent var(--dryl-spinner-hole), #fff calc(var(--dryl-spinner-hole) + 2%));
+    transform:    scale(0.96);
+    animation:
+        dryl-spinner-liquid-morph   calc(2.3s * var(--spin-tempo)) var(--ease-in-out) infinite alternate,
+        dryl-spinner-liquid-breathe calc(1.7s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
 }
 
-@keyframes dryl-spin { to { transform: rotate(360deg); } }
-
-/* Ring responds to AI state: slow breathing on Thinking, sprint on Streaming */
-.ai-aura.ai-active    .spinner-ring { animation-duration: 1.4s; }
-.ai-aura.ai-thinking  .spinner-ring { animation-duration: 2s; }
-.ai-aura.ai-streaming .spinner-ring { animation-duration: 0.6s; }
-.ai-aura.ai-generated .spinner-ring { animation: none; opacity: 0.55; }
-
-
-/* ── Dots variant ─────────────────────────────────────────── */
-
-.spinner-dots {
-    display:         flex;
-    gap:             var(--sp-1);
-    align-items:     center;
-    justify-content: center;
-}
-
-.spinner-dot {
-    width:         calc(var(--sz) * 0.28);
-    height:        calc(var(--sz) * 0.28);
+/* Specular head riding the bright end of the arc */
+.spinner-liquid-torus::after {
+    content:       "";
+    position:      absolute;
+    top:           6%;
+    left:          50%;
+    width:         18%;
+    height:        18%;
     border-radius: 50%;
-    animation:     dryl-dot-pulse 1.5s var(--ease-in-out) infinite;
+    background:    var(--ai-core);
+    filter:        blur(calc(var(--sz) * 0.03));
+    opacity:       0.85;
 }
 
-.spinner-dot:nth-child(1) { background: var(--accent-a); animation-delay: 0s;     }
-.spinner-dot:nth-child(2) { background: var(--accent-b); animation-delay: 0.24s;  }
-.spinner-dot:nth-child(3) { background: var(--accent-a); animation-delay: 0.48s;  }
+@keyframes dryl-spinner-turn { to { transform: rotate(360deg); } }
 
-@keyframes dryl-dot-pulse {
-    0%, 100% { transform: scale(0.5);  opacity: 0.35; }
-    45%      { transform: scale(1);    opacity: 1;    }
+@keyframes dryl-spinner-liquid-morph {
+    from { border-radius: 54% 46% 41% 59% / 46% 57% 43% 54%; transform: scale(0.92); }
+    to   { border-radius: 40% 60% 58% 42% / 58% 41% 60% 40%; transform: scale(1);    }
 }
 
-.ai-aura.ai-active    .spinner-dot { animation-duration: 2s;   }
-.ai-aura.ai-thinking  .spinner-dot { animation-duration: 2.6s; }
-.ai-aura.ai-streaming .spinner-dot { animation-duration: 0.85s; }
-.ai-aura.ai-generated .spinner-dot { animation: none; transform: scale(1); opacity: 1; }
+@keyframes dryl-spinner-liquid-breathe {
+    from { --dryl-spinner-hole: 46%; }
+    to   { --dryl-spinner-hole: 60%; }
+}
 
 
-/* ── Pulse variant ─────────────────────────────────────────── */
+/* ── Dots → Goo ─────────────────────────────────────────────
+   Three droplets leave a core, stretch away and are pulled back
+   in; the component's own SVG goo filter fuses them while they
+   touch. The drops are staggered by a third of the loop. */
 
-.spinner-pulse {
-    position: relative;
+.spinner-goo {
     width:    100%;
     height:   100%;
+    overflow: visible;
 }
 
-.spinner-pulse-ring {
+.spinner-goo circle {
+    transform-box:    view-box;
+    transform-origin: 24px 24px;
+}
+
+.spinner-goo-core {
+    fill:      var(--accent-a);
+    transform: scale(0.94);
+    animation: dryl-spinner-goo-core calc(1.8s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
+}
+
+.spinner-goo-drop {
+    animation: dryl-spinner-goo-orbit calc(2.7s * var(--spin-tempo)) var(--ease-in-out) infinite;
+}
+
+/* Resting positions — a three-lobed drop, shown when the loop is stopped */
+.spinner-goo-drop:nth-of-type(2) { fill: var(--accent-b); transform: rotate(0deg)   translateX(8px) scale(0.8); }
+.spinner-goo-drop:nth-of-type(3) { fill: var(--accent-a); transform: rotate(120deg) translateX(8px) scale(0.8); animation-delay: calc(-0.9s * var(--spin-tempo)); }
+.spinner-goo-drop:nth-of-type(4) { fill: color-mix(in srgb, var(--accent-a) 50%, var(--accent-b)); transform: rotate(240deg) translateX(8px) scale(0.8); animation-delay: calc(-1.8s * var(--spin-tempo)); }
+
+.spinner-goo-spark {
+    fill:      var(--ai-core);
+    opacity:   0.9;
+    transform: scale(0.94);
+    animation: dryl-spinner-goo-core calc(1.8s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
+}
+
+@keyframes dryl-spinner-goo-core {
+    from { transform: scale(0.82); }
+    to   { transform: scale(1.06); }
+}
+
+@keyframes dryl-spinner-goo-orbit {
+    0%   { transform: rotate(0deg)   translateX(2px)  scale(1);    }
+    45%  { transform: rotate(170deg) translateX(13px) scale(0.62); }
+    100% { transform: rotate(360deg) translateX(2px)  scale(1);    }
+}
+
+
+/* ── Pulse → Bloom ──────────────────────────────────────────
+   Three translucent membranes morph at unrelated periods, so the
+   silhouette never repeats exactly; a nucleus breathes inside and
+   a soft halo swells around it. */
+
+.spinner-bloom::before {
+    content:       "";
     position:      absolute;
-    inset:         0;
+    inset:         -18%;
     border-radius: 50%;
-    border:        1px solid;
-    opacity:       0;
-    animation:     dryl-pulse-ring 2.2s var(--ease-out) infinite;
+    background:    radial-gradient(closest-side, color-mix(in srgb, var(--accent-a) 30%, transparent), transparent);
+    opacity:       0.75;
+    animation:     dryl-spinner-bloom-halo calc(2.4s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
 }
 
-.spinner-pulse-ring:nth-child(1) { border-color: var(--accent-a); animation-delay: 0s;    }
-.spinner-pulse-ring:nth-child(2) { border-color: var(--accent-b); animation-delay: 0.75s; }
-
-.spinner-pulse-core {
+.spinner-bloom-membrane {
     position:      absolute;
-    top:           50%;
-    left:          50%;
-    width:         30%;
-    height:        30%;
+    inset:         12%;
+    opacity:       0.62;
+    border-radius: 58% 42% 52% 48% / 50% 54% 46% 50%;
+    transform:     scale(0.92);
+    animation:     dryl-spinner-bloom-morph calc(var(--membrane-period) * var(--spin-tempo)) var(--ease-viscous) infinite alternate;
+}
+
+.spinner-bloom-membrane:nth-child(1) { --membrane-period: 3.1s; background: var(--accent-a); }
+.spinner-bloom-membrane:nth-child(2) { --membrane-period: 3.9s; background: var(--accent-b); border-radius: 44% 56% 46% 54% / 55% 45% 55% 45%; animation-direction: alternate-reverse; animation-delay: calc(-1.2s * var(--spin-tempo)); }
+.spinner-bloom-membrane:nth-child(3) { --membrane-period: 2.5s; background: color-mix(in srgb, var(--accent-a) 55%, var(--accent-b)); border-radius: 52% 48% 60% 40% / 46% 52% 48% 54%; animation-delay: calc(-0.6s * var(--spin-tempo)); }
+
+.spinner-bloom-core {
+    position:      absolute;
+    inset:         37%;
     border-radius: 50%;
-    background:    var(--accent-grad);
-    box-shadow:    0 0 6px var(--accent-soft), 0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent);
-    transform:     translate(-50%, -50%);
-    animation:     dryl-pulse-core 2.2s var(--ease-in-out) infinite;
+    background:    var(--ai-core);
+    filter:        blur(calc(var(--sz) * 0.025));
+    animation:     dryl-spinner-bloom-core calc(1.6s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
 }
 
-@keyframes dryl-pulse-ring {
-    0%   { transform: scale(0.2); opacity: 0.9; }
-    100% { transform: scale(1);   opacity: 0;   }
+@keyframes dryl-spinner-bloom-morph {
+    0%   { border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; transform: rotate(0deg)   scale(0.84); }
+    50%  { border-radius: 40% 60% 38% 62% / 42% 61% 39% 58%; transform: rotate(160deg) scale(1.04); }
+    100% { border-radius: 55% 45% 66% 34% / 62% 36% 64% 38%; transform: rotate(300deg) scale(0.9);  }
 }
 
-@keyframes dryl-pulse-core {
-    0%, 100% { opacity: 0.6; }
-    50%      { opacity: 1;   }
+@keyframes dryl-spinner-bloom-core {
+    from { transform: scale(0.75); opacity: 0.7; }
+    to   { transform: scale(1.1);  opacity: 1;   }
 }
 
-.ai-aura.ai-active    .spinner-pulse-ring  { animation-duration: 3s; }
-.ai-aura.ai-active    .spinner-pulse-core  { box-shadow: var(--glow-accent); animation-duration: 3s; }
-.ai-aura.ai-thinking  .spinner-pulse-ring  { animation-duration: 3.6s; border-width: 1.5px; }
-.ai-aura.ai-thinking  .spinner-pulse-core  { box-shadow: var(--glow-accent); animation-duration: 1.4s; }
-.ai-aura.ai-streaming .spinner-pulse-ring  { animation-duration: 1.3s; }
-.ai-aura.ai-streaming .spinner-pulse-core  { animation-duration: 0.9s; }
-.ai-aura.ai-generated .spinner-pulse-ring  { animation: none; opacity: 0; }
-.ai-aura.ai-generated .spinner-pulse-core  { animation: none; opacity: 1; box-shadow: var(--glow-accent); transform: translate(-50%, -50%) scale(1); }
+@keyframes dryl-spinner-bloom-halo {
+    from { transform: scale(0.85); opacity: 0.5; }
+    to   { transform: scale(1.1);  opacity: 1;   }
+}
 
 
-/* ── Reduced motion ──────────────────────────────────────── */
+/* ── Settled: Generated and reduced motion ──────────────────
+   Every loop stops; each variant falls back to the resting shape
+   written on its base rule, so the indicator stays legible. */
+
+.spinner-wrap.ai-aura.ai-generated .spinner-liquid,
+.spinner-wrap.ai-aura.ai-generated .spinner-liquid-torus,
+.spinner-wrap.ai-aura.ai-generated .spinner-goo circle,
+.spinner-wrap.ai-aura.ai-generated .spinner-bloom::before,
+.spinner-wrap.ai-aura.ai-generated .spinner-bloom-membrane,
+.spinner-wrap.ai-aura.ai-generated .spinner-bloom-core { animation: none; }
+
+.spinner-wrap.ai-aura.ai-generated .spinner-body { opacity: 0.7; }
 
 @media (prefers-reduced-motion: reduce) {
-    .spinner-ring,
-    .spinner-dot,
-    .spinner-pulse-ring,
-    .spinner-pulse-core { animation: none; }
+    .spinner-liquid,
+    .spinner-liquid-torus,
+    .spinner-goo circle,
+    .spinner-bloom::before,
+    .spinner-bloom-membrane,
+    .spinner-bloom-core { animation: none; }
 
-    .spinner-ring                    { opacity: 0.7; }
-    .spinner-dot                     { opacity: 0.7; transform: scale(1); }
-    .spinner-pulse-ring:nth-child(1) { opacity: 0.45; transform: scale(0.75); }
-    .spinner-pulse-core              { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    .spinner-body { opacity: 0.85; }
 }
