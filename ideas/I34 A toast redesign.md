@@ -85,8 +85,33 @@ into 3.16.0. The inbox hand-off is worth its own idea.
 - 2026-11-01 — Product Owner: question the toasts and think about a redesign,
   as the first feature of the next minor release (3.16.0).
 
+- 2026-11-01 — Product Owner: the toasts already look good; the look stays.
+  What is missing is a small morph. Asked for three motion variants as a
+  browser prototype.
+- 2026-11-01 — Tech Lead: prototype with three motion variants on the
+  unchanged look — A *Capsule* (a pill around the icon unfolds into the card
+  and folds back), B *Deck* (newest in front, older ones recede into a stack,
+  hover fans it out and pauses every timer, an expired toast shrinks into its
+  progress line), C *Origin and bell* (grows out of the button that raised it,
+  an unread expired toast flies into the notification bell; a task toast morphs
+  from "writing" to "ready"). Every variant lets neighbours glide (FLIP) and
+  gives each toast its own countdown.
+
+## Bug found on the way
+- Product Owner: when several toasts are open and the first expires, the
+  other toasts' progress bars restart — visually only, they still close on
+  time. Tech Lead's likely cause: in `DrylToastProvider` the `@key` sits on the
+  `.toast-slot` div *inside* `CascadingValue`, while the loop's top-level item
+  is the `CascadingValue`, which Blazor diffs by position. Removing the first
+  entry hands each position its successor's content and rebuilds the DOM below
+  it; the JS timer in `dryl.toast` still holds the old slot, so the close stays
+  on time while the new bar starts from full. Fix: move `@key` onto
+  `CascadingValue`. Not yet verified in the browser; fix as its own branch into
+  `release/3.16.0`.
+
 ## Open Points
-- What bothers the Product Owner most in the screenshot — the look, the stack,
-  or what a toast can do?
-- Option A, B or C?
+- Which variant (A, B, C or a mix)? Each needs `DESIGN-10` sign-off for its
+  keyframes / Web Animations.
 - Should errors and warnings stay until closed?
+- `linear` on the countdown bar: a timer drawn eased would misstate the time
+  left — exception like the spinner, or not?
