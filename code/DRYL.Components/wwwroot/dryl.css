@@ -1239,7 +1239,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 /* ============== BADGES ============== */
+/* I38 "Puls & Zähler": the pill grows out of its leading mark on mount, a
+   kind change squishes it once and flashes a ring in the new tone, a dot on
+   Success/Warning/Danger beats in a tempo that matches the kind, and a Value
+   label rolls changed digits or lets the old word leave while the new rises. */
 .badge {
+  --badge-tone: var(--fg-muted);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1250,28 +1255,116 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.02em;
+  white-space: nowrap;
   border: 1px solid var(--line-strong);
   background: var(--glass-2);
   color: var(--fg-muted);
+  transition: background-color var(--dur-med) var(--ease-out),
+              border-color var(--dur-med) var(--ease-out),
+              color var(--dur-med) var(--ease-out);
+  animation: badge-grow var(--dur-slow) var(--ease-spring) backwards;
 }
 .badge-accent {
+  --badge-tone: var(--accent-fg);
   color: var(--accent-fg);
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
-.badge-success { color: var(--fg); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
-.badge-warning { color: var(--fg); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
-.badge-danger  { color: var(--fg); border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.badge-success { --badge-tone: var(--success); color: var(--fg); border-color: color-mix(in srgb, var(--success) 30%, transparent); background: color-mix(in srgb, var(--success) 10%, transparent); }
+.badge-warning { --badge-tone: var(--warning); color: var(--fg); border-color: color-mix(in srgb, var(--warning) 30%, transparent); background: color-mix(in srgb, var(--warning) 10%, transparent); }
+.badge-danger  { --badge-tone: var(--danger);  color: var(--fg); border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .badge-success.badge-dot::before { color: var(--success); }
 .badge-warning.badge-dot::before { color: var(--warning); }
 .badge-danger.badge-dot::before { color: var(--danger); }
 .badge-dot::before {
   content: '';
+  flex: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 8px currentColor;
+}
+/* The beat: calm for Success, quicker for Warning, a double beat for Danger.
+   Neutral and Accent dots rest. */
+.badge-success.badge-dot::before { animation: badge-beat-calm 3.2s var(--ease-in-out) infinite; }
+.badge-warning.badge-dot::before { animation: badge-beat-calm 1.8s var(--ease-in-out) infinite; }
+.badge-danger.badge-dot::before  { animation: badge-beat-heart 1.3s var(--ease-in-out) infinite; }
+
+/* A kind change: two identically drawn classes so each change restarts it. */
+.badge-kind-a { animation: badge-squish-a var(--dur-slow) var(--ease-spring), badge-ring-a var(--dur-choreo) var(--ease-out); }
+.badge-kind-b { animation: badge-squish-b var(--dur-slow) var(--ease-spring), badge-ring-b var(--dur-choreo) var(--ease-out); }
+
+/* The label. With Value the width follows the length in mono cells. */
+.badge-label {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  height: 100%;
+  animation: badge-rise var(--dur-med) var(--ease-out) var(--delay-short) both;
+}
+.badge-label-value {
+  width: calc(var(--badge-len, 0) * (1ch + 0.02em));
+  transition: width var(--dur-slow) var(--ease-spring);
+  animation: none;
+}
+.badge-word { display: inline-flex; }
+.badge-char {
+  display: inline-block;
+  animation: badge-rise var(--dur-med) var(--ease-out) both;
+  animation-delay: calc(var(--reveal-step) * var(--i, 0) + var(--delay-short));
+}
+.badge-word-in .badge-char { animation-delay: calc(var(--reveal-step) * var(--i, 0)); }
+.badge-word-out {
+  position: absolute;
+  inset: 0 auto 0 0;
+  align-items: center;
+  animation: badge-leave var(--dur-fast) var(--ease-out) both;
+}
+.badge-digit {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  height: 1.4em;
+  line-height: 1.4em;
+}
+.badge-digit-new, .badge-digit-old { display: block; }
+.badge-digit-old { position: absolute; inset: 0; }
+.badge-digit-up   .badge-digit-new { animation: badge-roll-in-up   var(--dur-slow) var(--ease-spring) both; }
+.badge-digit-up   .badge-digit-old { animation: badge-roll-out-up  var(--dur-slow) var(--ease-out) both; }
+.badge-digit-down .badge-digit-new { animation: badge-roll-in-down var(--dur-slow) var(--ease-spring) both; }
+.badge-digit-down .badge-digit-old { animation: badge-roll-out-down var(--dur-slow) var(--ease-out) both; }
+
+@keyframes badge-grow {
+  from { clip-path: inset(0 calc(100% - 2em) 0 0 round var(--r-pill)); }
+  to   { clip-path: inset(0 0 0 0 round var(--r-pill)); }
+}
+@keyframes badge-rise { from { opacity: 0; transform: translateY(50%); } to { opacity: 1; transform: none; } }
+@keyframes badge-leave { to { opacity: 0; transform: translateY(-60%); } }
+@keyframes badge-squish-a { 0%, 100% { transform: none; } 35% { transform: scale(1.08, 0.88); } }
+@keyframes badge-squish-b { 0%, 100% { transform: none; } 35% { transform: scale(1.08, 0.88); } }
+@keyframes badge-ring-a { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--badge-tone) 55%, transparent); } to { box-shadow: 0 0 0 9px transparent; } }
+@keyframes badge-ring-b { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--badge-tone) 55%, transparent); } to { box-shadow: 0 0 0 9px transparent; } }
+@keyframes badge-beat-calm {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 4px currentColor; }
+  50%      { transform: scale(1.3); box-shadow: 0 0 10px currentColor; }
+}
+@keyframes badge-beat-heart {
+  0%, 40%, 100% { transform: scale(1); }
+  12%           { transform: scale(1.45); }
+  26%           { transform: scale(1.2); }
+}
+@keyframes badge-roll-in-up    { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes badge-roll-out-up   { to { transform: translateY(-100%); opacity: 0; } }
+@keyframes badge-roll-in-down  { from { transform: translateY(-100%); } to { transform: none; } }
+@keyframes badge-roll-out-down { to { transform: translateY(100%); opacity: 0; } }
+
+/* Selectors match or beat the specificity of the rules they switch off. */
+@media (prefers-reduced-motion: reduce) {
+  .badge, .badge.badge-dot::before, .badge .badge-label, .badge .badge-char,
+  .badge .badge-digit .badge-digit-new, .badge .badge-digit .badge-digit-old { animation: none; }
+  .badge, .badge .badge-label-value { transition: none; }
+  .badge .badge-word-out, .badge .badge-digit .badge-digit-old { display: none; }
 }
 
 /* ============== UTILITIES ============== */

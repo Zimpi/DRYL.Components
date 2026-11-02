@@ -21,6 +21,14 @@ pill. `Dot` prefixes a small glowing status dot. For success, warning and danger
 the dot keeps the semantic color while the label uses the legible `--fg` token;
 neutral and accent dots follow the label. The mark supplements the visible text.
 
+The badge is alive (I38, "Puls & Zähler"). It grows out of its leading mark
+when it mounts. A change of `Kind` squishes the pill once and flashes a ring in
+the new tone. A dot on `Success`, `Warning` or `Danger` beats in a tempo that
+matches the kind, so a reader feels the state before reading it. A label set
+through `Value` animates when it changes: a number rolls only the digits that
+changed, a word leaves upward while the new one rises in, and the pill's width
+follows the label.
+
 The badge is not a control. It has no press, no dismiss and no link — anything
 that needs those is a `DrylChip` or a `DrylButton` instead.
 
@@ -31,7 +39,8 @@ that needs those is a `DrylChip` or a `DrylButton` instead.
 | `Kind` | `DrylBadge.BadgeKind` | `BadgeKind.Neutral` | Colour treatment. |
 | `Dot` | `bool` | `false` | Prefixes the label with a glowing dot in the badge's own colour. |
 | `Icon` | `string?` | `null` | `DrylIcon` name rendered before the label. |
-| `ChildContent` | `RenderFragment?` | `null` | The label. |
+| `Value` | `string?` | `null` | The label as text. Takes precedence over `ChildContent`; a change animates (digit roll or word swap) and the width follows. |
+| `ChildContent` | `RenderFragment?` | `null` | The label, when `Value` is unset. Its changes do not animate, because a `RenderFragment` cannot be compared. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the badge's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
@@ -53,7 +62,13 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 - `Dot` set adds the dot modifier class to the root.
 - `Icon` set renders one `DrylIcon` inside the root, before `ChildContent`.
 - `Icon` unset renders no icon element.
-- `ChildContent` is rendered inside the root.
+- `ChildContent` is rendered inside a label element in the root.
+- `Value` set renders the value instead of `ChildContent`.
+- `Value` set renders its text once in a visually hidden element, and its
+  animated label, split into per-character or per-digit elements, is
+  `aria-hidden`.
+- The `Value` label carries its length as `--badge-len`, written with the
+  invariant culture.
 - `Class` is merged onto the root's own classes rather than replacing them.
 - `AdditionalAttributes` are applied to the root.
 - The root is inline-flex, so a badge sits on the text row of a heading or a
@@ -69,6 +84,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `ChildContent` is the only thing it renders that a screen reader can read.
 - The dot is drawn by the stylesheet rather than by markup, so it contributes
   nothing to the accessible name.
+- With `Value`, the accessible name is the current value as one string; the
+  split animated copy and a leaving old value are hidden from assistive
+  technology.
 
 ### Appearance
 
@@ -98,6 +116,38 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 - The component branches on no color mode and holds no mode-assuming value, so
   the same markup serves light and dark (`DESIGN-02`).
 
+### Motion
+
+- On mount the pill grows out of its leading mark: a `clip-path` opens from the
+  left edge over `--dur-slow` on `--ease-spring`, and the label rises in after
+  `--delay-short` over `--dur-med` on `--ease-out`. With `Value`, its
+  characters rise one after another, each delayed by `--reveal-step` times its
+  index.
+- The first render never plays a kind change.
+- Every later change of `Kind` adds one of two identically drawn change classes,
+  alternating, so each change restarts the animation without JS: the pill
+  squishes once over `--dur-slow` on `--ease-spring`, and a ring in the new
+  tone (`--badge-tone`) flashes outward over `--dur-choreo` on `--ease-out`.
+  Fill, border and text glide to the new kind over `--dur-med`.
+- A re-render with an unchanged `Kind` or `Value` starts no animation.
+- A dot on `Success` beats calmly (3.2 s), on `Warning` quicker (1.8 s), on
+  `Danger` in a double beat (1.3 s), each on `--ease-in-out`, infinite.
+  Neutral and accent dots rest.
+- A `Value` change between two numbers (parsed with the invariant culture)
+  rolls only the changed digit columns, right-aligned: up over `--dur-slow` on
+  `--ease-spring` when the number grows, down when it shrinks. Unchanged
+  columns keep their element and do not move.
+- A `Value` change involving a non-number lets the old word leave upward over
+  `--dur-fast` while the new word's characters rise in.
+- The `Value` label's width is `--badge-len` monospace cells and transitions
+  over `--dur-slow` on `--ease-spring`, so the pill follows the label.
+- Conditional mounting is the consumer's: a badge that leaves wraps in
+  `DrylPresence` (`DESIGN-12`).
+- Under `prefers-reduced-motion: reduce` every badge animation and transition
+  is off, and leaving words and digits are not drawn; the new state shows at
+  once (`UX-06`). The rule's selectors match the specificity of the rules they
+  switch off.
+
 ### AI mode
 
 - The component takes no `Ai` parameter and renders no aura.
@@ -113,10 +163,12 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `6px` of gap, the `11px` type and the `6px` dot are written into the `.badge`
   rules in `dryl.css` with no token behind any of them, and the icon's size is a
   bare `11` passed from the component (`DESIGN-01`).
-- **Nothing is animated.** The badge has no enter, no exit and no transition,
-  and the dot that exists to say "live" does not move (`DESIGN-11`,
-  `DESIGN-12`). A status badge whose kind changes from `Success` to `Danger`
-  snaps between two colours.
+- **A `ChildContent` label does not animate its changes.** Only `Value` can be
+  compared between renders; a consumer who changes the text inside
+  `ChildContent` gets the kind change and the beat, but the label snaps.
+- **The `Value` width assumes monospace cells.** A label holding wide glyphs
+  (CJK, emoji) is wider than `--badge-len` cells and overflows the label box
+  into the pill's padding.
 - **`Icon` is not part of the accessible name.** The icon inside the badge is
   rendered without an `AriaLabel` and is therefore `aria-hidden`, which is right
   for decoration — but nothing stops a consumer from using the icon *as* the
@@ -132,20 +184,23 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `--fg-muted`, `--accent-soft`, `--accent-line`, `--accent-fg`, `--success`,
   `--warning` and `--danger` are the mode-dependent tokens; the component
   defines no mode-specific rule.
-- **Enter/exit animation** — **absent**, and recorded above as debt rather than
-  as an exception.
+- **Enter/exit animation** — enter, kind change, beat and value change as
+  under "Motion" (I38); exit through `DrylPresence` at the call site.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   substantive decision is that the badge claims no role, so it does not announce
   itself as something a user could act on.
 - **AI mode** — explicitly no, with the reason under "AI mode" above.
 - **Demo page** — `DRYL.Website/Components/Pages/DemoBadge.razor`, with the
-  examples `Components/Examples/Badge/Kinds.razor`, `.../Dots.razor` and
-  `.../Icons.razor`.
+  examples `Components/Examples/Badge/Kinds.razor`, `.../Dots.razor`,
+  `.../Icons.razor` and `.../Live.razor`.
 - **`ComponentCatalog`** — registered as `"Badge"` / `badges` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.
 - **Tests** — `tests/DRYL.Components.Tests/DrylBadgeTests.cs` guards the child
   content, the unmodified neutral pill, the four modifier classes, the dot
-  modifier and the attribute splat; the `Class` merge is guarded separately in
+  modifier and the attribute splat, and for I38 the alternating kind-change
+  class, `Value` precedence and its accessible copy, `--badge-len`, the digit
+  roll and its direction, the word swap, invariant parsing and that an
+  unchanged re-render starts nothing; the `Class` merge is guarded separately in
   `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The badge is the
   best-covered component in the category, and the file says so explicitly — it
   doubles as the worked example of how a DRYL component is bUnit-tested.
