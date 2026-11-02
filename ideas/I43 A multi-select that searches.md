@@ -1,7 +1,10 @@
 # A multi-select that searches
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** [`specs/E8 Inputs/F6 DrylMultiSelect.md`](../specs/E8%20Inputs/F6%20DrylMultiSelect.md),
+  [`specs/E8 Inputs/_Interop.md`](../specs/E8%20Inputs/_Interop.md),
+  [`specs/E11 Surfaces/_Interop.md`](../specs/E11%20Surfaces/_Interop.md)
 
 ## Problem
 

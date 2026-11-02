@@ -1,7 +1,7 @@
 # DrylMultiSelect
 
 ## Meta
-- **State:** Modified
+- **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylMultiSelect.razor
               code/DRYL.Components/Components/Inputs/DrylMultiSelect.razor.css
 
