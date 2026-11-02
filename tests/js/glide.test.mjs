@@ -158,3 +158,15 @@ test('release leaves no attribute, property, listener, observer or frame behind'
     assert.equal(f.observers.filter(o => o.live).length, 0);
     assert.equal(f.frames.size, 0);
 });
+
+test('a mouse moving again after the keyboard takes the ink back without a pointerover', () => {
+    const f = fixture();
+    f.document.activeElement = f.host.rows[0];
+    f.motion.glideScan(f.host); f.frame();
+    f.mouse('pointerover', f.host.rows[2]);
+    f.document.activeElement = f.host.rows[1];
+    f.host.emit('focusin', { target: f.host.rows[1] });
+    assert.equal(f.host.props.get('--glide-y'), '38px');
+    f.host.emit('pointermove', { target: f.host.rows[2], pointerType: 'mouse', clientX: 150 });
+    assert.equal(f.host.props.get('--glide-y'), '72px');
+});

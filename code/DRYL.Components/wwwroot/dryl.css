@@ -5269,14 +5269,14 @@ body.dryl-scroll-locked { overflow: hidden; }
 /* Without the ink (prerender, static SSR, before the panel is revealed) each
    row keeps its own fill; once dryl.motion.glideScan marks the panel
    data-glide, the ink is the fill and the rows only brighten (I38). */
-:not([data-glide]) > .menu-item:hover { background: var(--glass-2); }
+.menu-item:not([data-glide] .menu-item):hover { background: var(--glass-2); }
 .menu-item:hover { color: var(--fg); }
 .menu-item:focus-visible {
   outline: none;
   color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
-:not([data-glide]) > .menu-item:focus-visible { background: var(--glass-2); }
+.menu-item:not([data-glide] .menu-item):focus-visible { background: var(--glass-2); }
 .menu-item:disabled,
 .menu-item[disabled] {
   opacity: 0.4;
@@ -5288,8 +5288,8 @@ body.dryl-scroll-locked { overflow: hidden; }
 .menu-item--danger { color: var(--danger); }
 .menu-item--danger:hover,
 .menu-item--danger:focus-visible { color: var(--danger-fg); }
-:not([data-glide]) > .menu-item--danger:hover,
-:not([data-glide]) > .menu-item--danger:focus-visible {
+.menu-item--danger:not([data-glide] .menu-item):hover,
+.menu-item--danger:not([data-glide] .menu-item):focus-visible {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 

@@ -2471,6 +2471,9 @@ window.dryl.motion = (() => {
             if (e.pointerType !== 'mouse') return;
             const row = e.target.closest?.(s.rows);
             if (!row || !host.contains(row)) return;
+            // A mouse that moves again after the keyboard took the ink takes it
+            // back, even without crossing into a child element (pointerover).
+            if (row !== s.active && glideUsable(s, row)) { s.active = row; glidePlace(s, true); }
             s.row = row; s.px = e.clientX;
             if (s.frame) return;
             s.frame = requestAnimationFrame(() => {
@@ -2500,7 +2503,9 @@ window.dryl.motion = (() => {
             if (hl !== s.lastHl) { s.lastHl = hl; if (glideUsable(s, hl)) s.active = hl; }
             glidePlace(s, true);
         });
-        s.mo.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+        // characterData: rows keyed by index are rewritten in place as a query
+        // changes, which can change a row's height without any class change.
+        s.mo.observe(host, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
         s.ro = new ResizeObserver(() => glidePlace(s, false));
         s.ro.observe(host);
 
