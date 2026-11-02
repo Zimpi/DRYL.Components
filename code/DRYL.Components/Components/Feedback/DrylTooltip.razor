@@ -14,6 +14,8 @@
           <DrylButton Variant="ButtonVariant.Danger" LeadingIcon="X">Delete</DrylButton>
       </DrylTooltip>
 
+      <DrylTooltip Text="Bold" Delay="TimeSpan.FromMilliseconds(500)"> … </DrylTooltip>
+
     The bubble is rendered by dryl.js into <body> (a fixed-position
     portal), so it can never be clipped by an ancestor's overflow or
     backdrop-filter (glass cards, app bars). A single delegated
@@ -21,6 +23,11 @@
     interop. Placement is a preference: when the preferred side has
     no viewport room (e.g. Top inside the app bar), the bubble flips
     to the opposite side automatically.
+
+    The bubble opens as a thread: a hairline grows out of the trigger
+    and the bubble unfolds from its tip. While a bubble is open, or
+    has only just closed, the next trigger skips its Delay and the
+    same bubble glides there instead of opening again.
 
     The bubble is purely decorative (aria-hidden): interactive
     triggers carry their own aria-label (rule 2.11), which reads the
@@ -30,6 +37,7 @@
 <span class="tt-wrap @Class"
       data-tt="@Text"
       data-tt-placement="@PlacementValue"
+      data-tt-delay="@DelayValue"
       @attributes="AdditionalAttributes">
     @ChildContent
 </span>
@@ -44,6 +52,14 @@
     /// </summary>
     [Parameter] public TooltipPlacement Placement { get; set; } = TooltipPlacement.Top;
 
+    /// <summary>
+    /// How long the pointer or focus has to stay on the trigger before the bubble
+    /// opens. Defaults to <see cref="TimeSpan.Zero"/> (opens at once). Skipped
+    /// while another tooltip is open or has only just closed, so moving along a
+    /// toolbar waits once and then follows the pointer. Negative values count as zero.
+    /// </summary>
+    [Parameter] public TimeSpan Delay { get; set; } = TimeSpan.Zero;
+
     /// <summary>The element that triggers the tooltip on hover/focus.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -53,6 +69,10 @@
 
     /// <summary>Extra CSS class(es) merged onto the tooltip wrapper's own classes.</summary>
     [Parameter] public string? Class { get; set; }
+
+    private string? DelayValue => Delay > TimeSpan.Zero
+        ? ((long)Math.Round(Delay.TotalMilliseconds)).ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : null;
 
     private string PlacementValue => Placement switch
     {

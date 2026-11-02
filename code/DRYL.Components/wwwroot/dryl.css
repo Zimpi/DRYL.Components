@@ -4248,27 +4248,108 @@ body.dryl-scroll-locked { overflow: hidden; }
 .tt-wrap { display: inline-flex; }
 /* The bubble lives as a body-level portal (see dryl.tooltip in dryl.js) so it
    escapes ancestor overflow/backdrop-filter clipping; the JS flips the
-   preferred placement when the viewport has no room on that side. */
+   preferred placement when the viewport has no room on that side.
+   "Faden" (I37): a hairline thread grows out of the trigger, the bubble
+   unfolds from its tip as a pill that settles into a card, and an accent edge
+   draws last. .tt-portal carries the geometry and glides from trigger to
+   trigger while open; .tt-shape is the unfolding surface; --tt-ax/--tt-ay is
+   the anchor on the edge facing the trigger, --tt-gap the thread's length. */
+@property --tt-ax { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --tt-ay { syntax: "<length>"; inherits: true; initial-value: 0px; }
 .tt-portal {
   position: fixed;
+  left: 0;
+  top: 0;
   z-index: 9000;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11px;
+  pointer-events: none;
+  color: var(--fg);
+  transition: transform var(--dur-med) var(--ease-in-out),
+              width var(--dur-med) var(--ease-in-out),
+              height var(--dur-med) var(--ease-in-out),
+              --tt-ax var(--dur-med) var(--ease-in-out),
+              --tt-ay var(--dur-med) var(--ease-in-out);
+}
+.tt-portal.tt-snap,
+.tt-portal.tt-snap * { transition: none; }
+.tt-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
   white-space: nowrap;
+  border: 1px solid transparent;
+}
+.tt-measure {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.tt-shape {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   background: var(--panel-solid);
   border: 1px solid var(--line-strong);
-  color: var(--fg);
-  pointer-events: none;
+  border-radius: var(--r-pill);
   box-shadow: var(--shadow-md);
+  transform-origin: var(--tt-ax) var(--tt-ay);
+  transform: scale(0.18, 0.12);
   opacity: 0;
-  transform: translateY(4px);
-  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  transition: transform var(--dur-fast) var(--ease-in-out),
+              opacity var(--dur-fast) var(--ease-out),
+              border-radius var(--dur-fast) var(--ease-in-out);
 }
-.tt-portal.from-below { transform: translateY(-4px); }
-.tt-portal.is-open { opacity: 1; transform: translateY(0); }
+.tt-shape .tt-text {
+  position: absolute;
+  inset: -1px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+/* The accent edge: along the bottom, or along the top when the bubble sits below. */
+.tt-shape::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 1px;
+  background: var(--accent-grad);
+  transform: scaleX(0);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.tt-portal[data-place="bottom"] .tt-shape::before { top: 0; bottom: auto; }
+.tt-stem {
+  position: absolute;
+  background: var(--accent-grad);
+  box-shadow: var(--glow-accent);
+  transition: transform var(--dur-fast) var(--ease-in-out);
+}
+.tt-portal[data-place="top"] .tt-stem    { width: 1px; height: var(--tt-gap); left: var(--tt-ax); top: 100%;    transform-origin: 50% 100%; transform: scaleY(0); }
+.tt-portal[data-place="bottom"] .tt-stem { width: 1px; height: var(--tt-gap); left: var(--tt-ax); bottom: 100%; transform-origin: 50% 0%;   transform: scaleY(0); }
+.tt-portal[data-place="left"] .tt-stem   { height: 1px; width: var(--tt-gap); top: var(--tt-ay);  left: 100%;   transform-origin: 100% 50%; transform: scaleX(0); }
+.tt-portal[data-place="right"] .tt-stem  { height: 1px; width: var(--tt-gap); top: var(--tt-ay);  right: 100%;  transform-origin: 0% 50%;   transform: scaleX(0); }
+
+/* Open: thread first, then the bubble unfolds on a beat, then text and edge. */
+.tt-portal.is-open .tt-stem { transform: none; transition: transform var(--dur-fast) var(--ease-out); }
+.tt-portal.is-open .tt-shape {
+  transform: none;
+  opacity: 1;
+  border-radius: var(--r-sm);
+  transition: transform var(--dur-med) var(--ease-spring) var(--delay-short),
+              opacity var(--dur-fast) var(--ease-out) var(--delay-short),
+              border-radius var(--dur-med) var(--ease-out) var(--delay-short);
+}
+.tt-portal.is-open .tt-shape .tt-text { opacity: 1; transition: opacity var(--dur-med) var(--ease-out) var(--delay-short); }
+.tt-portal.is-open .tt-shape::before { transform: none; transition: transform var(--dur-slow) var(--ease-out) var(--delay-short); }
+
 @media (prefers-reduced-motion: reduce) {
-  .tt-portal { transition: none; }
+  .tt-portal,
+  .tt-portal * { transition: none !important; }
 }
 
 /* Alert */

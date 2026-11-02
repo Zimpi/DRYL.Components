@@ -3256,58 +3256,127 @@ window.dryl.theme = {
  * any ancestor overflow/backdrop-filter clipping (glass cards, app
  * bars); the preferred placement flips when the viewport has no
  * room on that side. Purely decorative (aria-hidden) — triggers
- * carry their own aria-label.
+ * carry their own aria-label. Opens after the wrap's data-tt-delay
+ * (ms) unless a bubble is open or has only just closed; then the
+ * one bubble glides to the new trigger instead of reopening.
  * -------------------------------------------------------------- */
 window.dryl.tooltip = (() => {
-    const GAP = 8, PAD = 4;
-    let bubble = null;
-    let current = null;
+    const PAD = 4;
+    let bubble = null, text = null, measurer = null;
+    let current = null;     // the wrap the bubble shows (or is waiting to show)
+    let open = false;       // the bubble is visible
+    let openTimer = 0;      // pending Delay
+    let leaveTimer = 0;     // grace before a left bubble closes, so a neighbour can take it over
+    let warmUntil = 0;      // until then a new trigger skips its Delay
 
+    const root = () => getComputedStyle(document.documentElement);
+    function tokenMs(name, fallback) {
+        const raw = root().getPropertyValue(name).trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms >= 0 ? ms : fallback;
+    }
+    function tokenPx(name, fallback) {
+        const px = parseFloat(root().getPropertyValue(name));
+        return isFinite(px) ? px : fallback;
+    }
+    const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // The bubble: geometry on .tt-portal (it glides), the unfolding surface on
+    // .tt-shape, the thread on .tt-stem. One per page, reused by every tooltip.
     function ensureBubble() {
         if (bubble && bubble.isConnected) return bubble;
         bubble = document.createElement('div');
-        bubble.className = 'tt-portal';
+        bubble.className = 'tt-portal tt-snap';
         bubble.setAttribute('aria-hidden', 'true');
+        bubble.innerHTML = '<span class="tt-stem"></span><span class="tt-shape"><span class="tt-text"></span></span>';
+        text = bubble.querySelector('.tt-text');
+        measurer = document.createElement('span');
+        measurer.className = 'tt-text tt-measure';
+        measurer.setAttribute('aria-hidden', 'true');
         document.body.appendChild(bubble);
+        document.body.appendChild(measurer);
         return bubble;
     }
 
-    function place(wrap) {
-        if (!wrap.isConnected) return hide();
-        const b = ensureBubble();
-        b.textContent = wrap.getAttribute('data-tt') || '';
-        if (!b.textContent) return hide();
-
-        // Measure invisibly at the final size, then position and reveal.
-        b.classList.remove('is-open');
-        b.style.top = '0px'; b.style.left = '-9999px';
+    function geometry(wrap, label) {
+        measurer.textContent = label;
+        const bw = Math.ceil(measurer.offsetWidth), bh = Math.ceil(measurer.offsetHeight);
+        const gap = tokenPx('--sp-3', 12);
         const tr = wrap.getBoundingClientRect();
-        const bw = b.offsetWidth, bh = b.offsetHeight;
         const vw = window.innerWidth, vh = window.innerHeight;
         let placement = wrap.getAttribute('data-tt-placement') || 'top';
 
         // Flip when the preferred side has no room.
-        if (placement === 'top'    && tr.top - bh - GAP < PAD)        placement = 'bottom';
-        else if (placement === 'bottom' && tr.bottom + bh + GAP > vh - PAD) placement = 'top';
-        else if (placement === 'left'   && tr.left - bw - GAP < PAD)        placement = 'right';
-        else if (placement === 'right'  && tr.right + bw + GAP > vw - PAD)  placement = 'left';
+        if (placement === 'top'    && tr.top - bh - gap < PAD)        placement = 'bottom';
+        else if (placement === 'bottom' && tr.bottom + bh + gap > vh - PAD) placement = 'top';
+        else if (placement === 'left'   && tr.left - bw - gap < PAD)        placement = 'right';
+        else if (placement === 'right'  && tr.right + bw + gap > vw - PAD)  placement = 'left';
 
+        const cx = tr.left + tr.width / 2, cy = tr.top + tr.height / 2;
         let top, left;
         switch (placement) {
-            case 'bottom': top = tr.bottom + GAP;            left = tr.left + tr.width / 2 - bw / 2; break;
-            case 'left':   top = tr.top + tr.height / 2 - bh / 2; left = tr.left - bw - GAP;         break;
-            case 'right':  top = tr.top + tr.height / 2 - bh / 2; left = tr.right + GAP;             break;
-            default:       top = tr.top - bh - GAP;          left = tr.left + tr.width / 2 - bw / 2; break;
+            case 'bottom': top = tr.bottom + gap;   left = cx - bw / 2;          break;
+            case 'left':   top = cy - bh / 2;       left = tr.left - bw - gap;   break;
+            case 'right':  top = cy - bh / 2;       left = tr.right + gap;       break;
+            default:       top = tr.top - bh - gap; left = cx - bw / 2;          break;
         }
         // Clamp into the viewport.
         left = Math.max(PAD, Math.min(left, vw - bw - PAD));
         top  = Math.max(PAD, Math.min(top, vh - bh - PAD));
 
-        b.style.top = top + 'px';
-        b.style.left = left + 'px';
-        b.classList.toggle('from-below', placement === 'bottom');
-        // Reveal on the next frame so the enter transition runs.
-        requestAnimationFrame(() => { if (current === wrap && wrap.isConnected) b.classList.add('is-open'); });
+        // The anchor: where the thread meets the bubble, on the edge facing the
+        // trigger, aimed at the trigger's centre even when the bubble was clamped.
+        const r = Math.min(bw, bh) / 2;
+        const ax = placement === 'left' ? bw : placement === 'right' ? 0 : Math.max(r, Math.min(cx - left, bw - r));
+        const ay = placement === 'top' ? bh : placement === 'bottom' ? 0 : Math.max(r, Math.min(cy - top, bh - r));
+        return { placement, top, left, bw, bh, ax, ay, gap };
+    }
+
+    function apply(g) {
+        const s = bubble.style;
+        bubble.dataset.place = g.placement;
+        s.width = g.bw + 'px';
+        s.height = g.bh + 'px';
+        s.transform = `translate3d(${g.left}px, ${g.top}px, 0)`;
+        s.setProperty('--tt-ax', g.ax + 'px');
+        s.setProperty('--tt-ay', g.ay + 'px');
+        s.setProperty('--tt-gap', g.gap + 'px');
+    }
+
+    function place(wrap) {
+        if (!wrap.isConnected) return hide();
+        ensureBubble();
+        const label = wrap.getAttribute('data-tt') || '';
+        if (!label) return hide();
+        const g = geometry(wrap, label);
+
+        if (open) {
+            // Glide: the open bubble travels to the new trigger and takes its
+            // size there; the text cross-fades instead of the bubble reopening.
+            bubble.classList.remove('tt-snap');
+            apply(g);
+            if (text.textContent !== label) {
+                text.textContent = label;
+                if (!reduced() && text.animate) {
+                    text.animate([{ opacity: 0 }, { opacity: 1 }],
+                        { duration: tokenMs('--dur-med', 240), easing: root().getPropertyValue('--ease-out').trim() || 'ease-out' });
+                }
+            }
+            return;
+        }
+
+        // First open: place it closed and without transitions, then reveal on
+        // the next frame so the thread grows and the bubble unfolds.
+        bubble.classList.add('tt-snap');
+        bubble.classList.remove('is-open');
+        text.textContent = label;
+        apply(g);
+        void bubble.offsetWidth;
+        bubble.classList.remove('tt-snap');
+        open = true;
+        requestAnimationFrame(() => {
+            if (current === wrap && open && wrap.isConnected) bubble.classList.add('is-open');
+        });
     }
 
     // A trigger inside a morph target that is still travelling has no place
@@ -3321,17 +3390,50 @@ window.dryl.tooltip = (() => {
             a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity);
     }
 
-    function show(wrap) {
-        if (current === wrap) return;
-        if (inFlight(wrap)) { if (current) hide(); return; }
-        current = wrap;
-        place(wrap);
+    function delayOf(wrap) {
+        const ms = parseInt(wrap.getAttribute('data-tt-delay') || '0', 10);
+        return isFinite(ms) && ms > 0 ? ms : 0;
     }
 
-    function hide() {
+    function show(wrap) {
+        clearTimeout(leaveTimer); leaveTimer = 0;
+        if (current === wrap) return;
+        if (inFlight(wrap)) { hide(); return; }
+        clearTimeout(openTimer); openTimer = 0;
+        current = wrap;
+        const delay = delayOf(wrap);
+        const warm = open || performance.now() < warmUntil;
+        if (warm || delay === 0) { place(wrap); return; }
+        // A scroll that ends under a resting pointer must not cancel the wait,
+        // so the timer survives it — and opens only if the trigger is still
+        // under the pointer or holds focus when it fires.
+        openTimer = setTimeout(() => {
+            openTimer = 0;
+            if (current === wrap && (wrap.matches(':hover') || wrap.contains(document.activeElement))) place(wrap);
+        }, delay);
+    }
+
+    // The pointer or focus left the current trigger: close after a short
+    // grace, so a neighbour reached within it takes the open bubble over.
+    function leave() {
+        clearTimeout(openTimer); openTimer = 0;
         current = null;
+        if (!open) return;
+        clearTimeout(leaveTimer);
+        leaveTimer = setTimeout(() => close(true), tokenMs('--dur-fast', 140));
+    }
+
+    function close(warm) {
+        clearTimeout(openTimer); openTimer = 0;
+        clearTimeout(leaveTimer); leaveTimer = 0;
+        warmUntil = warm && open ? performance.now() + tokenMs('--delay-short', 200) : 0;
+        current = null;
+        open = false;
         if (bubble) bubble.classList.remove('is-open');
     }
+
+    // Immediate and cold: the next trigger waits its Delay again.
+    function hide() { close(false); }
 
     function wrapFrom(e) {
         return e.target instanceof Element ? e.target.closest('[data-tt]') : null;
@@ -3341,26 +3443,27 @@ window.dryl.tooltip = (() => {
         window.__drylTooltipBound = true;
         document.addEventListener('pointerover', e => {
             const w = wrapFrom(e);
-            if (w) show(w); else if (current) hide();
+            if (w) show(w); else if (current) leave();
         }, true);
-        // Hide when the pointer leaves the current wrap — including the case
-        // where the trigger is removed from the DOM mid-hover (Blazor
-        // re-render): a detached node fires no pointerover, but pointerout
-        // does fire on the way out, and the isConnected guard in place()
-        // covers programmatic removal.
+        // Leaving the current wrap — including the case where the trigger is
+        // removed from the DOM mid-hover (Blazor re-render): a detached node
+        // fires no pointerover, but pointerout does fire on the way out, and
+        // the isConnected guard in place() covers programmatic removal.
         document.addEventListener('pointerout', e => {
             if (!current) return;
             const to = e.relatedTarget;
-            if (!(to instanceof Element) || to.closest('[data-tt]') !== current) hide();
+            if (!(to instanceof Element) || to.closest('[data-tt]') !== current) leave();
         }, true);
         document.addEventListener('focusin', e => {
             const w = wrapFrom(e);
             if (w) show(w);
         }, true);
-        document.addEventListener('focusout', () => hide(), true);
+        document.addEventListener('focusout', () => leave(), true);
         document.addEventListener('pointerdown', () => hide(), true);
-        window.addEventListener('scroll', () => hide(), true);
-        window.addEventListener('resize', () => hide());
+        // An open bubble would stand at a stale position; a pending one is
+        // placed from the trigger's rect when it fires, so it may keep waiting.
+        window.addEventListener('scroll', () => { if (open) hide(); }, true);
+        window.addEventListener('resize', () => { if (open) hide(); });
     }
 
     return { hide };

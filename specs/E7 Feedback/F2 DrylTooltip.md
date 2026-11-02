@@ -3,19 +3,21 @@
 ## Meta
 - **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Feedback/DrylTooltip.razor
+- **Idea:** [`ideas/I37 A morphing tooltip with an open delay.md`](../../ideas/I37%20A%20morphing%20tooltip%20with%20an%20open%20delay.md)
 
 ## User Story
 
 As a Blazor developer, I want to wrap any trigger in a tooltip and get a bubble
 that appears on hover and on keyboard focus, never gets clipped by the glass
 card it sits in, and costs nothing per instance, so that I can label a toolbar
-full of icon buttons without thinking about portals, positioning or interop.
+full of icon buttons without thinking about portals, positioning or interop —
+and, with a delay, without every bubble flashing up as the pointer passes.
 
 ## Description
 
 `DrylTooltip` is a wrapper, not a bubble. It renders one inline element around
-`ChildContent` and states two facts on it as data attributes: the text, and the
-preferred side. Everything else — creating the bubble, measuring it, flipping
+`ChildContent` and states up to three facts on it as data attributes: the text,
+the preferred side and, when set, the open delay. Everything else — creating the bubble, measuring it, flipping
 it, revealing it, hiding it — is done by delegated document listeners that are
 installed once per page, and are specified in [`_Interop.md`](_Interop.md).
 
@@ -35,6 +37,7 @@ pointer. A tooltip is therefore never the only place a label exists.
 |---|---|---|---|
 | `Text` | `string` | `string.Empty` | Bubble text. `[EditorRequired]`. |
 | `Placement` | `DrylTooltip.TooltipPlacement` | `TooltipPlacement.Top` | Preferred side of the trigger. |
+| `Delay` | `TimeSpan` | `TimeSpan.Zero` | How long pointer or focus stays on the trigger before the bubble opens. Skipped while the bubble is warm. |
 | `ChildContent` | `RenderFragment?` | `null` | The trigger. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the wrapper's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the wrapper. |
@@ -53,6 +56,9 @@ omission — see the cross-cutting evidence below.
 - Each `TooltipPlacement` value maps to its own placement string.
 - `TooltipPlacement.Top` supplies the placement string for any value the switch
   does not match.
+- The wrapper carries `Delay` in whole milliseconds, culture-invariant, in its
+  delay data attribute when `Delay` is greater than zero.
+- The wrapper carries no delay attribute when `Delay` is zero or negative.
 - The wrapper displays inline, so wrapping a trigger does not change the
   trigger's position in a row.
 - `Class` is merged onto the wrapper's own classes rather than replacing them.
@@ -62,17 +68,35 @@ omission — see the cross-cutting evidence below.
 
 ### The bubble
 
-- A bubble appears when the pointer enters the wrapper or anything inside it.
-- A bubble appears when focus moves into the wrapper, so a keyboard user reaches
-  the same information as a pointer user.
+- A bubble appears when the pointer enters the wrapper or anything inside it,
+  once the wrapper's delay has passed.
+- A bubble appears when focus moves into the wrapper, once the wrapper's delay
+  has passed, so a keyboard user reaches the same information as a pointer user.
+- No bubble appears when pointer or focus leaves the wrapper before its delay
+  has passed.
+- A wrapper without a delay opens its bubble at once.
+- The bubble is **warm** while it is open and for `--delay-short` after it
+  closed: a wrapper reached while the bubble is warm skips its delay.
+- When pointer or focus moves to another wrapper while the bubble is open, the
+  same bubble glides to the new wrapper and takes its size there, over
+  `--dur-med` with `--ease-in-out`; the text cross-fades instead of the bubble
+  closing and reopening.
+- After pointer or focus leaves a wrapper the bubble stays for `--dur-fast`
+  before it closes, so the gap between two neighbouring triggers does not close
+  it.
 - The bubble shows the wrapper's current `Text`.
 - No bubble appears when `Text` is empty.
-- The bubble hides when the pointer leaves the wrapper.
-- The bubble hides when focus leaves the wrapper.
-- The bubble hides on pointer-down, so it does not linger over the thing the
+- The bubble hides when the pointer leaves the wrapper and reaches no other.
+- The bubble hides when focus leaves the wrapper and reaches no other.
+- The bubble hides at once on pointer-down, so it does not linger over the thing the
   user just clicked.
-- The bubble hides on scroll and on viewport resize, rather than staying at a
-  stale position.
+- The bubble hides at once on scroll and on viewport resize, rather than staying
+  at a stale position.
+- A hide on pointer-down, scroll or resize leaves the bubble cold: the next
+  wrapper waits its delay again.
+- A scroll or resize while a delay is still running does not cancel it: the
+  bubble opens when the delay ends, if pointer or focus is still on the wrapper
+  then, placed from the wrapper's position at that moment.
 - The bubble hides when its trigger is removed from the DOM while hovered.
 - No bubble opens for a trigger inside a `[data-dryl-morph]` target while that
   target's morph is running: the trigger slid under a cursor that stood still,
@@ -91,6 +115,9 @@ omission — see the cross-cutting evidence below.
 - The bubble is clamped into the viewport on both axes after placement, so it is
   never partly off-screen.
 - The bubble is centred on the trigger along the axis it is not offset on.
+- The bubble sits `--sp-3` away from the trigger.
+- The bubble's anchor — the point on its edge facing the trigger — is aimed at
+  the trigger's centre, also when the bubble was clamped.
 - The bubble is measured before it is revealed, so it is never seen at an
   intermediate position.
 
@@ -114,21 +141,35 @@ omission — see the cross-cutting evidence below.
   literal color (`DESIGN-01`).
 - The bubble is a floating surface on an opaque fill — `--panel-solid` — and
   therefore carries no frost, the case `DESIGN-07` reserves for an opaque ground.
-- The bubble's border is `--line-strong` and its elevation is `--shadow-md`.
+- The bubble's border is `--line-strong`, its elevation is `--shadow-md` and its
+  open radius is `--r-sm`.
+- The bubble's padding is `--sp-2` by `--sp-3`.
 - The bubble's text is `--fg` and does not wrap, so a short label stays on one
   line.
+- A thread — a 1px line in `--accent-grad` with `--glow-accent` — connects the
+  trigger to the bubble's anchor, across the `--sp-3` gap.
+- A 1px `--accent-grad` edge runs along the bubble's bottom edge, or along its
+  top edge when the bubble sits below the trigger.
+  Both accents are lines, never a fill (`DESIGN-08`).
 - The bubble branches on no color mode and holds no mode-assuming value, so the
   same bubble serves light and dark (`DESIGN-02`).
 
 ### Motion
 
-- The bubble fades and lifts in over `--dur-fast` with `--ease-out`.
-- The bubble lifts from below when it is placed above the trigger, and from
-  above when it is placed below, so the motion points away from what it labels.
-- The bubble fades out over the same duration when it hides, rather than
-  disappearing instantly.
-- Both transitions are switched off under `prefers-reduced-motion: reduce`,
-  leaving the bubble fully readable.
+- The bubble opens as a thread ("Faden"), in three beats:
+  1. the thread grows out of the trigger towards the anchor over `--dur-fast`
+     with `--ease-out`;
+  2. after `--delay-short`, the bubble unfolds from the anchor — from a small
+     pill to its full size, its radius settling from `--r-pill` to `--r-sm` —
+     over `--dur-med` with `--ease-spring`, and its text fades in;
+  3. the accent edge draws out from the centre over `--dur-slow`.
+- The bubble is measured and placed before it is revealed, without transitions,
+  so it never travels in from a previous position on a first open.
+- The bubble and the thread fold back over `--dur-fast` when the bubble hides,
+  rather than disappearing instantly.
+- Every transition — the open, the close and the glide — is switched off under
+  `prefers-reduced-motion: reduce`, leaving the bubble fully readable. The delay
+  still applies.
 
 ## Recorded gaps
 
@@ -136,19 +177,18 @@ omission — see the cross-cutting evidence below.
   icon-only control and gives it no label of its own ships a control that is
   unnamed for screen-reader and touch users. The component cannot detect this;
   it is documented in the component's usage comment and stated here.
-- **No open delay.** The bubble appears on the first `pointerover`, so moving
-  the pointer across a toolbar flashes every bubble on the way. A delay would be
-  a new motion value and therefore a maintainer decision (`DESIGN-10`).
 - **No touch affordance.** Touch fires no `pointerover` that stays, so a tooltip
   is effectively pointer- and keyboard-only.
 - **`Text` is `[EditorRequired]` but defaults to `string.Empty`**, so omitting
   it is a compiler warning rather than an error, and the component silently
   renders no bubble.
-- **The bubble's padding, radius and font size are literals** in
-  `code/DRYL.Components/wwwroot/dryl.css`, not tokens. Colors, shadows,
-  durations and easings are tokens. Recorded as debt, not as compliance.
-- **No tests of its own.** None of the criteria above is guarded by a test; the
-  flip, the clamp and the hide-on-removal path are verified in the browser only.
+- **The bubble's font size and weight are literals** in
+  `code/DRYL.Components/wwwroot/dryl.css` — DRYL has no type-scale tokens.
+  Padding, radius, colors, shadows, durations and easings are tokens.
+- **The bubble is tested in the browser only.** `DrylTooltipTests` guards the
+  wrapper's structure criteria; the delay timer, the warm window, the glide,
+  the flip, the clamp and the hide-on-removal path live in `dryl.tooltip` and
+  are verified in the browser.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -157,8 +197,8 @@ omission — see the cross-cutting evidence below.
   `node scripts/validate-light-contrast.mjs`. `--panel-solid` and
   `--line-strong` are the mode-dependent tokens; the component defines no
   mode-specific rule.
-- **Enter/exit animation** — both present, on the bubble: a fade-and-lift in,
-  and a fade out driven by the same transition. The wrapper itself has nothing
+- **Enter/exit animation** — both present, on the bubble: the thread choreography
+  in, the fold back out, and a glide between triggers. The wrapper itself has nothing
   to animate.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   substantive decision is that the tooltip opens on focus as well as on hover,
