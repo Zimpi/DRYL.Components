@@ -44,6 +44,11 @@ Version bump guide:
 - `DrylToastProvider` — When the oldest of several toasts left, every toast after it was rebuilt and its countdown bar started over, although it still closed on time. Each toast now keeps its element, its bar and its timer.
 - `DrylCommandPalette` — A category header no longer stops some Razor compiler versions from building the library: its title is now written as an explicit expression, so `@section` is not read as the `@section` directive.
 
+## [Agents 0.25.1] — 2026-11-02
+
+### Fixed
+- `DrylAiField` — The review chips and the "ready" announcement now appear in the same render. Until now the chips showed up one render early, while the screen-reader live region still read `Texts.Writing`, and the announcement followed a moment later.
+
 ## [3.15.0] — 2026-10-31
 
 Agents 0.25.0 ships with it. A `DrylAiScope` now reaches the AI state of the components that only took its aura variant, and `DrylAiField` speaks English by default and can be translated.
