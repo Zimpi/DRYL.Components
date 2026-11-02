@@ -22,6 +22,7 @@
 .multiselect-trigger:hover { border-color: var(--line-hover); }
 
 .multiselect-trigger:focus,
+.multiselect-trigger:focus-within,
 .multiselect-trigger.select--open {
     border-color: var(--accent-line);
     background: var(--glass-2);
@@ -39,6 +40,84 @@
 
 .multiselect-placeholder {
     color: var(--fg-dim);
+}
+
+/* ── Search mode (I43) ───────────────────────────────────── */
+
+/* The trigger becomes a chip input: the chips, then a text field that
+   takes the rest of the line and wraps under them when it runs out. */
+.multiselect-trigger--search {
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    cursor: text;
+}
+
+.multiselect-trigger--search .multiselect-chips {
+    flex: 0 1 auto;
+}
+
+/* The field draws nothing of its own; the trigger's :focus-within
+   treatment is its focus ring. */
+.multiselect-search {
+    flex: 1 1 calc(var(--sp-8) + var(--sp-4));
+    min-width: calc(var(--sp-8) + var(--sp-4));
+    padding: var(--sp-1) 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+}
+
+.multiselect-search::placeholder { color: var(--fg-dim); }
+
+.multiselect-search:disabled { cursor: not-allowed; }
+
+/* Backspace in an empty field marks the last chip before removing it. */
+.chip,
+.chip-overflow {
+    transition: box-shadow   var(--dur-fast) var(--ease-out),
+                background   var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out);
+}
+
+.chip--armed {
+    border-color: var(--accent-line);
+    background: color-mix(in srgb, var(--accent-a) 18%, transparent);
+    color: var(--fg);
+    box-shadow: 0 0 0 1px var(--accent-line);
+}
+
+/* Filtered rows stay mounted and collapse their track; the list ink
+   follows the rows below while the track moves (dryl.motion). */
+.multiselect-row {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--dur-med) var(--ease-out),
+                opacity            var(--dur-fast) var(--ease-out);
+}
+
+.multiselect-row.is-filtered {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+.multiselect-row-clip {
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* The part of a label that matches the query. */
+.multiselect-match {
+    background: none;
+    color: var(--accent-fg);
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .multiselect-row,
+    .chip,
+    .chip-overflow { transition: none; }
 }
 
 /* ── States ──────────────────────────────────────────────── */
@@ -90,8 +169,8 @@
 .select-option.is-highlighted { color: var(--fg); }
 
 /* Static fill only without the ink (I38). */
-.select-panel:not([data-glide]) > .select-option:hover,
-.select-panel:not([data-glide]) > .select-option.is-highlighted { background: var(--glass-2); }
+.select-panel:not([data-glide]) .select-option:hover,
+.select-panel:not([data-glide]) .select-option.is-highlighted { background: var(--glass-2); }
 
 /* Selected rows get a permanent accent tint so checked state reads
    at a glance without only relying on the checkbox. */
@@ -100,7 +179,7 @@
     background: color-mix(in srgb, var(--accent-a) 8%, transparent);
 }
 
-.select-panel:not([data-glide]) > .select-option.is-selected.is-highlighted {
+.select-panel:not([data-glide]) .select-option.is-selected.is-highlighted {
     background: color-mix(in srgb, var(--accent-a) 15%, transparent);
 }
 

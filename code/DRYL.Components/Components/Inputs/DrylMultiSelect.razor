@@ -26,9 +26,15 @@
           ];
       }
 
+    Searchable="true" (idea I43) turns the trigger into a chip input:
+    typing opens the list and filters it, the matching text is marked,
+    filtered rows collapse but stay mounted.
+
     The panel stays open while selecting; use Escape or Tab to close.
     Keyboard: ArrowDown/Up navigate, Space/Enter toggle highlighted,
-    Escape/Tab closes.
+    Escape/Tab closes. In search mode Space types, Backspace in an empty
+    field marks and then removes the last chip, and Escape clears the
+    query before it closes.
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
@@ -44,55 +50,71 @@
                  TriggerTogglesOpen="false"
                  Surface="false"
                  CloseOnEscape="false"
-                 OnClose="ResetHighlight">
+                 OnClose="HandleClosed">
         <TriggerContent>
             <div class="@WrapperCssClass">
                 <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
-                @* Trigger *@
-                <div id="@_triggerId"
-                     @ref="_trigger"
-                     class="@TriggerCssClass"
-                     tabindex="@(Disabled ? -1 : 0)"
-                     role="combobox"
-                     aria-haspopup="listbox"
-                     aria-expanded="@(_isOpen ? "true" : "false")"
-                     aria-controls="@_listboxId"
-                     aria-activedescendant="@ActiveDescendant"
-                     aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
-                     aria-describedby="@(ShowHelper ? _helperId : null)"
-                     @onclick="Toggle"
-                     @onkeydown="HandleKeyDown">
+                @if (Searchable)
+                {
+                    @* Search mode: the div keeps the look and the click; the text
+                       field is the combobox and holds focus throughout. *@
+                    <div @ref="_trigger"
+                         class="@TriggerCssClass"
+                         @onclick="HandleSearchTriggerClick">
+                        @if (SelectedValues.Count > 0)
+                        {
+                            @Chips
+                        }
+                        <input @ref="_searchInput"
+                               id="@_triggerId"
+                               type="text"
+                               class="multiselect-search"
+                               value="@_query"
+                               data-dryl-input
+                               placeholder="@SearchFieldPlaceholder"
+                               disabled="@Disabled"
+                               autocomplete="off"
+                               autocorrect="off"
+                               spellcheck="false"
+                               role="combobox"
+                               aria-autocomplete="list"
+                               aria-haspopup="listbox"
+                               aria-expanded="@(_isOpen ? "true" : "false")"
+                               aria-controls="@_listboxId"
+                               aria-activedescendant="@ActiveDescendant"
+                               aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                               aria-describedby="@(ShowHelper ? _helperId : null)"
+                               @oninput="HandleSearchInput"
+                               @onkeydown="HandleSearchKeyDown" />
+                    </div>
+                }
+                else
+                {
+                    <div id="@_triggerId"
+                         @ref="_trigger"
+                         class="@TriggerCssClass"
+                         tabindex="@(Disabled ? -1 : 0)"
+                         role="combobox"
+                         aria-haspopup="listbox"
+                         aria-expanded="@(_isOpen ? "true" : "false")"
+                         aria-controls="@_listboxId"
+                         aria-activedescendant="@ActiveDescendant"
+                         aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                         aria-describedby="@(ShowHelper ? _helperId : null)"
+                         @onclick="Toggle"
+                         @onkeydown="HandleKeyDown">
 
-                    @if (SelectedValues.Count == 0)
-                    {
-                        <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? "Select options…")</span>
-                    }
-                    else
-                    {
-                        <div class="multiselect-chips">
-                            @foreach (var val in VisibleChips)
-                            {
-                                var v = val;
-                                var lbl = _items.FirstOrDefault(i => i.Value == v)?.Label ?? v;
-                                <span class="chip">
-                                    <span class="chip-text">@lbl</span>
-                                    <button type="button" class="chip-remove"
-                                            tabindex="-1"
-                                            aria-label="@($"Remove {lbl}")"
-                                            @onclick:stopPropagation="true"
-                                            @onclick="() => RemoveValue(v)">
-                                        <DrylIcon Name="X" Size="10" />
-                                    </button>
-                                </span>
-                            }
-                            @if (OverflowCount > 0)
-                            {
-                                <span class="chip-overflow">+@OverflowCount</span>
-                            }
-                        </div>
-                    }
-                </div>
+                        @if (SelectedValues.Count == 0)
+                        {
+                            <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? "Select options…")</span>
+                        }
+                        else
+                        {
+                            @Chips
+                        }
+                    </div>
+                }
             </div>
         </TriggerContent>
         <PanelContent>
@@ -108,30 +130,35 @@
                 {
                     <div class="select-empty">No options</div>
                 }
+                else if (Searchable)
+                {
+                    @* Every option stays mounted; a filtered row collapses its
+                       track and leaves the accessibility tree. *@
+                    for (int i = 0; i < _items.Count; i++)
+                    {
+                        var idx = i;
+                        var listed = _listed.Contains(idx);
+                        <div class="@(listed ? "multiselect-row" : "multiselect-row is-filtered")"
+                             role="none"
+                             inert="@(!listed)"
+                             aria-hidden="@(listed ? null : "true")"
+                             @key="idx">
+                            <div class="multiselect-row-clip" role="none">
+                                @Option(idx)
+                            </div>
+                        </div>
+                    }
+                    <DrylPresence Visible="_matches.Count == 0"
+                                  Transition="PresenceTransition.Fade"
+                                  Speed="PresenceSpeed.Fast">
+                        <div class="select-empty" aria-live="polite">@EmptyText</div>
+                    </DrylPresence>
+                }
                 else
                 {
                     for (int i = 0; i < _items.Count; i++)
                     {
-                        var item  = _items[i];
-                        var idx   = i;
-                        var isHl  = idx == _highlightedIndex;
-                        var isSel = SelectedValues.Contains(item.Value);
-
-                        <div id="@($"msopt-{_triggerId}-{idx}")"
-                             role="option"
-                             class="@OptionCss(isHl, isSel)"
-                             aria-selected="@(isSel ? "true" : "false")"
-                             @onclick="() => ToggleItem(item)"
-                             @onmouseenter="() => _highlightedIndex = idx"
-                             @onmousedown:preventDefault
-                             @key="idx">
-                            <input type="checkbox" class="checkbox multiselect-check"
-                                   checked="@isSel"
-                                   tabindex="-1"
-                                   @onclick:stopPropagation="true"
-                                   @onchange="() => ToggleItem(item)" />
-                            <span>@item.Label</span>
-                        </div>
+                        @Option(i)
                     }
                 }
             </div>
@@ -181,22 +208,52 @@
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
+    /// <summary>
+    /// Turns the trigger into a chip input: typing opens the list and filters it over the
+    /// options' labels, and the matching text is marked.
+    /// </summary>
+    [Parameter] public bool Searchable { get; set; }
+
+    /// <summary>Placeholder of the search field while values are picked; <c>null</c> gives <c>Search…</c>.</summary>
+    [Parameter] public string? SearchPlaceholder { get; set; }
+
+    /// <summary>
+    /// Filter replacing the default case-insensitive <c>Contains</c> on <see cref="SelectItem.Label"/>.
+    /// Receives the trimmed, non-empty query and all items.
+    /// </summary>
+    [Parameter] public Func<string, IEnumerable<SelectItem>, IEnumerable<SelectItem>>? SearchFunc { get; set; }
+
+    /// <summary>Text of an open list whose query matches no option.</summary>
+    [Parameter] public string EmptyText { get; set; } = "No results";
+
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
+    private static readonly string[] SearchKeys = ["ArrowUp", "ArrowDown", "Enter"];
 
     private readonly string _triggerId = $"dryl-msel-{Guid.NewGuid():N}";
     private readonly string _listboxId = $"dryl-msel-lb-{Guid.NewGuid():N}";
     private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
 
     private List<SelectItem> _items = [];
+    // Indices into _items that the query lists, in order; the highlight is a
+    // position in this list. Without search every item is listed.
+    private List<int> _matches = [];
+    private HashSet<int> _listed = [];
     private bool _isOpen;
     private int _highlightedIndex = -1;
+    private string _query = string.Empty;
+    private bool _chipArmed;
 
     private DrylPopover? _popover;
     private ElementReference _trigger;
+    private ElementReference _searchInput;
+    private ElementReference? _keynavElement;
+    private bool _keynavSearch;
     private bool _attached;
+    private bool _disposed;
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
@@ -207,30 +264,151 @@
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
         _items = Items?.ToList() ?? [];
+        if (!Searchable && _query.Length > 0) { _query = string.Empty; _chipArmed = false; }
+        ComputeMatches();
+        if (_highlightedIndex >= _matches.Count) _highlightedIndex = _matches.Count - 1;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _attached) return;
+        if (_disposed) return;
         // Suppress the browser's default page-scroll for the navigation keys so
-        // HandleKeyDown can move the option highlight. Tab/Enter/Escape stay live.
+        // the key handlers can move the option highlight. The search field
+        // passes its own list: its caret keys stay native, and Enter never
+        // submits a surrounding form. Re-attached if Searchable changes.
+        if (_attached && _keynavSearch == Searchable) return;
         try
         {
-            await JS.InvokeVoidAsync("dryl.keynav.attach", _trigger);
+            if (_keynavElement is { } previous)
+                await JS.InvokeVoidAsync("dryl.keynav.detach", previous);
+            var target = Searchable ? _searchInput : _trigger;
+            if (Searchable)
+                await JS.InvokeVoidAsync("dryl.keynav.attach", target, SearchKeys);
+            else
+                await JS.InvokeVoidAsync("dryl.keynav.attach", target);
+            _keynavElement = target;
+            _keynavSearch = Searchable;
             _attached = true;
         }
         catch (JSDisconnectedException) { /* circuit closing during prerender — ignore */ }
     }
 
+    private RenderFragment Chips => __builder =>
+    {
+        var visible = SelectedValues.Take(MaxVisibleChips).ToList();
+        var armOverflow = _chipArmed && SelectedValues.Count > MaxVisibleChips;
+        <div class="multiselect-chips">
+            @for (int c = 0; c < visible.Count; c++)
+            {
+                var v = visible[c];
+                var lbl = _items.FirstOrDefault(i => i.Value == v)?.Label ?? v;
+                var armed = _chipArmed && !armOverflow && c == visible.Count - 1;
+                <span class="@(armed ? "chip chip--armed" : "chip")" @key="v">
+                    <span class="chip-text">@lbl</span>
+                    <button type="button" class="chip-remove"
+                            tabindex="-1"
+                            aria-label="@($"Remove {lbl}")"
+                            @onmousedown:preventDefault
+                            @onclick:stopPropagation="true"
+                            @onclick="() => RemoveValue(v)">
+                        <DrylIcon Name="X" Size="10" />
+                    </button>
+                </span>
+            }
+            @if (SelectedValues.Count > MaxVisibleChips)
+            {
+                <span class="@(armOverflow ? "chip-overflow chip--armed" : "chip-overflow")">+@(SelectedValues.Count - MaxVisibleChips)</span>
+            }
+        </div>
+    };
+
+    private RenderFragment Option(int idx) => __builder =>
+    {
+        var item  = _items[idx];
+        var isHl  = _highlightedIndex >= 0 && _highlightedIndex < _matches.Count && _matches[_highlightedIndex] == idx;
+        var isSel = SelectedValues.Contains(item.Value);
+
+        <div id="@OptionId(idx)"
+             role="option"
+             class="@OptionCss(isHl, isSel)"
+             aria-selected="@(isSel ? "true" : "false")"
+             @onclick="() => ToggleItem(item)"
+             @onmouseenter="() => HighlightItem(idx)"
+             @onmousedown:preventDefault
+             @key="idx">
+            <input type="checkbox" class="checkbox multiselect-check"
+                   checked="@isSel"
+                   tabindex="-1"
+                   @onclick:stopPropagation="true"
+                   @onchange="() => ToggleItem(item)" />
+            <span>@LabelContent(item.Label)</span>
+        </div>
+    };
+
+    /// <summary>The label, with the first occurrence of the query wrapped in a mark.</summary>
+    private RenderFragment LabelContent(string label) => __builder =>
+    {
+        var q = TrimmedQuery;
+        var at = Searchable && q.Length > 0 ? label.IndexOf(q, StringComparison.OrdinalIgnoreCase) : -1;
+        if (at < 0)
+        {
+            @label
+        }
+        else
+        {
+            @(label[..at])<mark class="multiselect-match">@(label.Substring(at, q.Length))</mark>@(label[(at + q.Length)..])
+        }
+    };
+
+    private string TrimmedQuery => _query.Trim();
+
+    private void ComputeMatches()
+    {
+        var q = TrimmedQuery;
+        if (!Searchable || q.Length == 0)
+        {
+            _matches = Enumerable.Range(0, _items.Count).ToList();
+        }
+        else
+        {
+            var found = SearchFunc is null
+                ? _items.Where(i => i.Label.Contains(q, StringComparison.OrdinalIgnoreCase))
+                : SearchFunc(q, _items);
+            var keep = new HashSet<SelectItem>(found);
+            _matches = Enumerable.Range(0, _items.Count).Where(i => keep.Contains(_items[i])).ToList();
+        }
+        _listed = [.. _matches];
+    }
+
     private void Toggle()
     {
         if (Disabled) return;
-        _isOpen = !_isOpen;
+        if (_isOpen) CloseList();
+        else { _isOpen = true; _highlightedIndex = -1; }
+    }
+
+    private void OpenList()
+    {
+        if (_isOpen) return;
+        _isOpen = true;
+        _highlightedIndex = _matches.Count > 0 ? 0 : -1;
+    }
+
+    private void CloseList()
+    {
+        _isOpen = false;
         _highlightedIndex = -1;
+        _chipArmed = false;
+        if (_query.Length > 0)
+        {
+            _query = string.Empty;
+            ComputeMatches();
+        }
     }
 
     private async Task ToggleItem(SelectItem item)
     {
+        _chipArmed = false;
         var current = new List<string>(SelectedValues);
         if (current.Contains(item.Value))
             current.Remove(item.Value);
@@ -242,14 +420,21 @@
 
     private async Task RemoveValue(string value)
     {
+        _chipArmed = false;
         var current = new List<string>(SelectedValues);
         current.Remove(value);
         await SelectedValuesChanged.InvokeAsync(current.AsReadOnly());
     }
 
+    private void HighlightItem(int itemIndex)
+    {
+        var pos = _matches.IndexOf(itemIndex);
+        if (pos >= 0) _highlightedIndex = pos;
+    }
+
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        var count = _items.Count;
+        var count = _matches.Count;
         switch (e.Key)
         {
             case "ArrowDown":
@@ -269,36 +454,117 @@
             case "Enter":
             case " ":
                 if (_isOpen && _highlightedIndex >= 0 && _highlightedIndex < count)
-                    await ToggleItem(_items[_highlightedIndex]);
+                    await ToggleItem(_items[_matches[_highlightedIndex]]);
                 else if (!_isOpen)
                     _isOpen = true;
                 break;
 
             case "Escape":
             case "Tab":
-                _isOpen = false;
-                _highlightedIndex = -1;
+                CloseList();
+                break;
+        }
+    }
+
+    private async Task HandleSearchTriggerClick()
+    {
+        if (Disabled) return;
+        OpenList();
+        try { await _searchInput.FocusAsync(); }
+        catch (JSDisconnectedException) { /* circuit gone — ignore */ }
+    }
+
+    private async Task HandleSearchInput(ChangeEventArgs e)
+    {
+        if (Disabled) return;
+        _query = e.Value?.ToString() ?? string.Empty;
+        _chipArmed = false;
+        ComputeMatches();
+        _isOpen = true;
+        _highlightedIndex = _matches.Count > 0 ? 0 : -1;
+        await ScrollHighlightedIntoView();
+    }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (Disabled) return;
+        var count = _matches.Count;
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _chipArmed = false;
+                if (!_isOpen) { OpenList(); break; }
+                if (count > 0) _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
+                await ScrollHighlightedIntoView();
+                break;
+
+            case "ArrowUp":
+                _chipArmed = false;
+                if (_isOpen && _highlightedIndex > 0)
+                {
+                    _highlightedIndex--;
+                    await ScrollHighlightedIntoView();
+                }
+                break;
+
+            case "Enter":
+                _chipArmed = false;
+                if (!_isOpen) OpenList();
+                else if (_highlightedIndex >= 0 && _highlightedIndex < count)
+                    await ToggleItem(_items[_matches[_highlightedIndex]]);
+                break;
+
+            case "Escape":
+                _chipArmed = false;
+                if (_query.Length > 0)
+                {
+                    _query = string.Empty;
+                    ComputeMatches();
+                    _highlightedIndex = _isOpen && _matches.Count > 0 ? 0 : -1;
+                }
+                else
+                {
+                    CloseList();
+                }
+                break;
+
+            case "Tab":
+                CloseList();
+                break;
+
+            case "Backspace":
+                if (_query.Length > 0 || SelectedValues.Count == 0) { _chipArmed = false; break; }
+                if (_chipArmed)
+                    await RemoveValue(SelectedValues[^1]);
+                else
+                    _chipArmed = true;
+                break;
+
+            default:
+                _chipArmed = false;
                 break;
         }
     }
 
     private async Task ScrollHighlightedIntoView()
     {
-        if (_popover is not null)
-            await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _popover.PanelElement, _highlightedIndex);
+        if (_popover is null || _highlightedIndex < 0 || _highlightedIndex >= _matches.Count) return;
+        // Every option stays mounted, so the helper's index is the item index.
+        await JS.InvokeVoidAsync("dryl.autocomplete.scrollOptionIntoView", _popover.PanelElement, _matches[_highlightedIndex]);
     }
 
     /// <summary>Called by DrylPopover when it closes itself (click-outside).</summary>
-    private void ResetHighlight() => _highlightedIndex = -1;
+    private void HandleClosed() => CloseList();
 
-    private IEnumerable<string> VisibleChips =>
-        SelectedValues.Take(MaxVisibleChips);
-
-    private int OverflowCount =>
-        Math.Max(0, SelectedValues.Count - MaxVisibleChips);
+    private string OptionId(int itemIndex) => $"msopt-{_triggerId}-{itemIndex}";
 
     private string? ActiveDescendant =>
-        _isOpen && _highlightedIndex >= 0 ? $"msopt-{_triggerId}-{_highlightedIndex}" : null;
+        _isOpen && _highlightedIndex >= 0 && _highlightedIndex < _matches.Count
+            ? OptionId(_matches[_highlightedIndex])
+            : null;
+
+    private string SearchFieldPlaceholder =>
+        SelectedValues.Count == 0 ? Placeholder ?? "Select options…" : SearchPlaceholder ?? "Search…";
 
     private string WrapperCssClass
     {
@@ -315,6 +581,7 @@
         get
         {
             var c = "multiselect-trigger";
+            if (Searchable) c += " multiselect-trigger--search";
             if (_isOpen)   c += " select--open";
             if (Disabled)  c += " select--disabled";
             if (State == InputState.Error)   c += " input-error";
@@ -335,9 +602,10 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         _aura.Dispose();
-        if (!_attached) return;
-        try { await JS.InvokeVoidAsync("dryl.keynav.detach", _trigger); }
+        if (!_attached || _keynavElement is not { } el) return;
+        try { await JS.InvokeVoidAsync("dryl.keynav.detach", el); }
         catch (JSDisconnectedException) { /* circuit already gone — ignore */ }
         catch (JSException) { /* element/listener already gone — ignore */ }
     }
