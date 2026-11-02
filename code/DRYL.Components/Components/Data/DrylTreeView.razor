@@ -71,6 +71,7 @@
         if (firstRender)
         {
             await JS.InvokeVoidAsync("dryl.tree.attach", _root);
+            await JS.InvokeVoidAsync("dryl.motion.treeGlide", _root);
             _attached = true;
         }
     }
@@ -116,11 +117,34 @@
 
     internal bool IsSelected(DrylTreeNode node) => ReferenceEquals(_selectedNode, node);
 
-    // The single roving-tabindex target. Defaults to the first visible node.
+    // The single roving-tabindex target. Defaults to the first visible node. A node
+    // inside a closed folder cannot take focus, so its folder stands in for it.
     internal bool IsFocusTarget(DrylTreeNode node)
     {
-        var target = _focusedNode ?? _selectedNode ?? VisibleNodes().FirstOrDefault();
+        var target = _focusedNode ?? _selectedNode;
+        target = target is null ? VisibleNodes().FirstOrDefault() : Shown(target);
         return ReferenceEquals(target, node);
+    }
+
+    // The node itself, or its outermost closed ancestor.
+    private static DrylTreeNode Shown(DrylTreeNode node)
+    {
+        var shown = node;
+        for (var p = node.ParentNode; p is not null; p = p.ParentNode)
+            if (!p.IsExpanded) shown = p;
+        return shown;
+    }
+
+    // A folder closed around the focused node takes the focus over: the node is
+    // about to be hidden, and a hidden element cannot hold focus.
+    internal async Task ReclaimFocusAsync(DrylTreeNode folder)
+    {
+        for (var p = _focusedNode?.ParentNode; p is not null; p = p.ParentNode)
+        {
+            if (!ReferenceEquals(p, folder)) continue;
+            await FocusNodeAsync(folder);
+            return;
+        }
     }
 
     internal async Task SelectAsync(DrylTreeNode node)
@@ -177,7 +201,11 @@
     public async ValueTask DisposeAsync()
     {
         if (!_attached) return;
-        try { await JS.InvokeVoidAsync("dryl.tree.detach", _root); }
+        try
+        {
+            await JS.InvokeVoidAsync("dryl.motion.disposeTreeGlide", _root);
+            await JS.InvokeVoidAsync("dryl.tree.detach", _root);
+        }
         catch (JSDisconnectedException) { /* circuit closing */ }
         catch (JSException) { /* element gone */ }
         catch (InvalidOperationException) { /* statically rendered */ }
