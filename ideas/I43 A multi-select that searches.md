@@ -29,7 +29,11 @@ An opt-in search on the existing component, no new component. The list filters
 as the user types; toggling an entry works exactly as today (the panel stays
 open, the selection is a list of values).
 
-Where the user types is the main open question — three options:
+Where the user types is the main open question — three options. A and B are
+prototyped side by side in the artifact
+`https://claude.ai/artifact/UtU9G388EjcmX2LBYCReL1`, with two switches for the
+open points on row motion (collapse and fade, or instant) and matched-text
+highlighting:
 
 - **A — Search in the panel.** Opening the list puts a search field at the top
   of the panel and moves focus into it. The trigger keeps its chips unchanged.
