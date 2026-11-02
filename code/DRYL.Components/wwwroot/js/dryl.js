@@ -1940,15 +1940,20 @@ window.dryl.chat = (() => {
  *   Tab, Enter and Escape are left untouched so focus can still
  *   leave the widget and activation/dismissal work normally.
  *   Used by DrylTreeView (alias dryl.tree) and DrylSelect.
+ *   An optional key list replaces the default set for one element:
+ *   DrylMultiSelect's search field passes ['ArrowUp', 'ArrowDown',
+ *   'Enter'], so its caret keys stay native and Enter never submits
+ *   a surrounding form.
  * ────────────────────────────────────────────────────────── */
 window.dryl.keynav = (() => {
     const _map = new WeakMap();
     const navKeys = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
-    function attach(el) {
+    function attach(el, keys) {
         if (!el) return;
         detach(el);
-        const onKey = (e) => { if (navKeys.has(e.key)) e.preventDefault(); };
+        const set = Array.isArray(keys) ? new Set(keys) : navKeys;
+        const onKey = (e) => { if (set.has(e.key)) e.preventDefault(); };
         el.addEventListener('keydown', onKey);
         _map.set(el, { onKey });
     }
@@ -2572,6 +2577,32 @@ window.dryl.motion = (() => {
         s.ro = new ResizeObserver(() => glidePlace(s, false));
         s.ro.observe(host);
 
+        // A DrylMultiSelect row collapsing under a search (I43) moves every row
+        // below it for the length of its track transition, and nothing above
+        // fires while it does. Re-place every frame until each one has ended.
+        s.tracks = 0;
+        s.follow = 0;
+        const isTrack = (e) => e.target !== host && e.propertyName === 'grid-template-rows';
+        const followFrame = () => {
+            s.follow = 0;
+            if (_glide.get(host) !== s || s.tracks <= 0) return;
+            glidePlace(s, false);
+            s.follow = requestAnimationFrame(followFrame);
+        };
+        s.trackRun = (e) => {
+            if (!isTrack(e)) return;
+            s.tracks++;
+            if (!s.follow) s.follow = requestAnimationFrame(followFrame);
+        };
+        s.trackEnd = (e) => {
+            if (!isTrack(e)) return;
+            s.tracks = Math.max(0, s.tracks - 1);
+            if (s.tracks === 0) glidePlace(s, false);
+        };
+
+        host.addEventListener('transitionrun', s.trackRun);
+        host.addEventListener('transitionend', s.trackEnd);
+        host.addEventListener('transitioncancel', s.trackEnd);
         host.addEventListener('pointerover', s.over);
         host.addEventListener('pointermove', s.move, { passive: true });
         host.addEventListener('pointerleave', s.leave);
@@ -2596,8 +2627,12 @@ window.dryl.motion = (() => {
         host.removeEventListener('pointermove', s.move);
         host.removeEventListener('pointerleave', s.leave);
         host.removeEventListener('focusin', s.focus);
+        host.removeEventListener('transitionrun', s.trackRun);
+        host.removeEventListener('transitionend', s.trackEnd);
+        host.removeEventListener('transitioncancel', s.trackEnd);
         cancelAnimationFrame(s.arm);
         cancelAnimationFrame(s.frame);
+        cancelAnimationFrame(s.follow);
         for (const a of ['data-glide', 'data-glide-on', 'data-glide-tone', 'data-glide-spot']) host.removeAttribute(a);
         for (const p of ['--glide-x', '--glide-y', '--glide-w', '--glide-h', '--glide-spot-x']) host.style.removeProperty(p);
     }

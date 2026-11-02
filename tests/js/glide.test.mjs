@@ -170,3 +170,41 @@ test('a mouse moving again after the keyboard takes the ink back without a point
     f.host.emit('pointermove', { target: f.host.rows[2], pointerType: 'mouse', clientX: 150 });
     assert.equal(f.host.props.get('--glide-y'), '72px');
 });
+
+test('a row track collapsing under a search keeps the ink on its row every frame (I43)', () => {
+    const f = fixture();
+    f.host.rows[2].classes.add('is-highlighted');
+    f.motion.glideScan(f.host); f.frame();
+    assert.equal(f.host.props.get('--glide-y'), '72px');
+
+    // Row 1 collapses: its track starts moving, and row 2 rises with it.
+    const wrapper = f.host.rows[1];
+    f.host.emit('transitionrun', { target: wrapper, propertyName: 'grid-template-rows' });
+    f.host.emit('transitionrun', { target: wrapper, propertyName: 'opacity' });
+    f.host.rows[2].offsetTop = 55; f.frame();
+    assert.equal(f.host.props.get('--glide-y'), '55px');
+    f.host.rows[2].offsetTop = 38; f.frame();
+    assert.equal(f.host.props.get('--glide-y'), '38px');
+
+    f.host.emit('transitionend', { target: wrapper, propertyName: 'opacity' });
+    assert.ok(f.frames.size > 0, 'an unrelated property does not end the follow');
+    f.host.emit('transitionend', { target: wrapper, propertyName: 'grid-template-rows' });
+    f.frame(); f.frame();
+    assert.equal([...f.frames.keys()].length, 0, 'no frame is scheduled once every track has ended');
+    assert.equal(f.host.props.get('--glide-y'), '38px');
+});
+
+test('a cancelled track ends the follow, and release cancels a running one', () => {
+    const f = fixture();
+    f.host.rows[0].classes.add('is-highlighted');
+    f.motion.glideScan(f.host); f.frame();
+    f.host.emit('transitionrun', { target: f.host.rows[1], propertyName: 'grid-template-rows' });
+    f.host.emit('transitioncancel', { target: f.host.rows[1], propertyName: 'grid-template-rows' });
+    f.frame(); f.frame();
+    assert.equal(f.frames.size, 0);
+
+    f.host.emit('transitionrun', { target: f.host.rows[1], propertyName: 'grid-template-rows' });
+    f.motion.glideRelease(f.host);
+    assert.equal(f.frames.size, 0);
+    assert.equal(f.host.count(), 0);
+});
