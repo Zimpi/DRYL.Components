@@ -82,4 +82,17 @@ public class DrylExpansionTests : BunitContext
         Assert.NotNull(body.GetAttribute("inert"));
         Assert.NotEmpty(body.QuerySelectorAll("button"));
     }
+
+    [Fact]
+    public void Body_follows_the_header_and_renders_no_style_for_the_seam_script_to_lose()
+    {
+        // dryl.expansion finds the body as the header's next sibling and writes
+        // --seam-x and --spot-x inline. A style rendered by Blazor would overwrite both.
+        var cut = Render<DrylExpansion>(ps => ps.Add(p => p.Title, "Panel"));
+
+        var header = cut.Find("button.expansion-header");
+        Assert.True(header.NextElementSibling!.ClassList.Contains("expansion-body"));
+        Assert.Null(header.GetAttribute("style"));
+        Assert.Null(header.NextElementSibling.GetAttribute("style"));
+    }
 }

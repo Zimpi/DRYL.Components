@@ -28,7 +28,6 @@
     "code/DRYL.Components/Components/Layout/DrylAspectRatio.razor",
     "code/DRYL.Components/Components/Layout/DrylContainer.razor",
     "code/DRYL.Components/Components/Layout/DrylDivider.razor",
-    "code/DRYL.Components/Components/Layout/DrylExpansion.razor",
     "code/DRYL.Components/Components/Layout/DrylGrid.razor",
     "code/DRYL.Components/Components/Layout/DrylLayout.razor",
     "code/DRYL.Components/Components/Layout/DrylList.razor",
