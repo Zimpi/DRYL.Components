@@ -292,11 +292,15 @@
         await module.InvokeVoidAsync("write", ct, _root, _finalText);
         await module.InvokeVoidAsync("setBusy", ct, _root, false);
 
+        // One render enters Review: the chips, the Proposed aura and the Ready announcement
+        // land together. SetAura/Announce would each render on their own, showing the chips
+        // for a frame while the live region still says Writing. This continuation runs on
+        // the agent stream's thread, so that late second render could arrive at any time.
         _phase = FieldPhase.Review;
         // The suggestion waits for the user's decision: it rests at Proposed until accepted
         // (→ Generated, the accept wave) or rejected (→ None, the graceful exit).
-        SetAura(AiState.Proposed);
-        Announce(Words.Ready);
+        _aura = AiState.Proposed;
+        _live = Words.Ready;
         await InvokeAsync(StateHasChanged);
     }
 

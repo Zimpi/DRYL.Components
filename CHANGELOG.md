@@ -75,6 +75,7 @@ Version bump guide:
 - `DrylAiCommandPalette` — `Placeholder` and `EmptyText` no longer default to German words. Left unset, the palette now shows the same English defaults as `DrylCommandPalette` ("Search commands…", "No results"). If you relied on the German defaults, set them: `<DrylAiCommandPalette Placeholder="Befehl suchen…" EmptyText="Keine Treffer" />`.
 
 ### Fixed
+- `DrylAiField` — The review chips and the "ready" announcement now appear in the same render. Until now the chips showed up one render early, while the screen-reader live region still read `Texts.Writing`, and the announcement followed a moment later.
 - `DrylAgentError`, `DrylAgentUsage` — When you pass a fresh run, the alert and the usage row now slide and fade out. Before, they vanished at once and the exit animation played on an empty element.
 
 ## [3.16.0] — 2026-11-02
