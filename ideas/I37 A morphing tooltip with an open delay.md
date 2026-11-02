@@ -1,7 +1,8 @@
 # A morphing tooltip with an open delay
 
 ## Meta
-- **State:** Draft
+- **State:** Adopted
+- **Specs:** `specs/E7 Feedback/F2 DrylTooltip.md`, `specs/E7 Feedback/_Interop.md`
 
 ## Problem
 
@@ -76,11 +77,16 @@ behaviour change and differ only in the open morph:
 
 ## Decisions
 - 2026-11-02: A delay becomes configurable per tooltip (Product Owner).
+- 2026-11-02: Variant **C — Faden** is built (Product Owner: "Variante C. Das
+  isses."). A and B are dropped.
+- 2026-11-02: `Delay` is a `TimeSpan` and defaults to `TimeSpan.Zero`, so
+  3.15 pages keep opening at once; a page opts in (Tech Lead default, the
+  Product Owner's go-ahead to build covered it).
+- 2026-11-02: The warm-up is engine behaviour, not a parameter. Its window is
+  `--delay-short`, the leave grace `--dur-fast`, the gap `--sp-3` — all read
+  from tokens, so the engine names no literal timing.
+- 2026-11-02: The unfold waits `--delay-short` after the thread starts
+  (`DESIGN-10` allows only the two delay tokens), and the glide uses
+  `--ease-in-out` rather than `--ease-viscous`, which is scoped to `IDrylMorph`.
 
 ## Open Points
-- Which variant — A Tropfen, B Linse or C Faden? Tech Lead recommends **B**:
-  closest to DRYL's glass identity and within `DESIGN-06` without an exception.
-- Default `Delay`: `0` (3.15-compatible) or 400–500 ms (better default, but
-  changes every existing page)?
-- Warm-up: always on as an engine behaviour (recommended), or a parameter?
-- `Delay` type: `TimeSpan` (recommended) or `int` milliseconds?
