@@ -27,7 +27,8 @@ them; they do not themselves register an integration or generate field text.
 
 `dryl.keynav` prevents native defaults for `ArrowUp`, `ArrowDown`,
 `ArrowLeft`, `ArrowRight`, `Home` and `End`; it leaves `Tab`, `Enter`,
-`Escape` and Space untouched. Select itself handles only the up/down arrows,
+`Escape` and Space untouched. An optional second argument, an array of key
+names, replaces that set for the element it is attached to. Select itself handles only the up/down arrows,
 `Enter`, Space, `Escape` and `Tab`. Suppression is therefore wider than its
 implemented navigation, and Space can still scroll the page. The helper uses
 a `WeakMap`, replaces an existing handler on repeated attachment, and permits
@@ -68,7 +69,15 @@ are applied through `InvokeAsync`, never written from the pool thread.
 `DrylMultiSelect` uses the same three entry points as Select:
 `dryl.keynav.attach` on its trigger after the first render, `dryl.keynav.detach`
 from `DisposeAsync`, and `dryl.autocomplete.scrollOptionIntoView` while the
-highlight moves.
+highlight moves. With `Searchable` the focusable element is the search text
+field, and it attaches with a key list:
+`dryl.keynav.attach(field, ['ArrowUp', 'ArrowDown', 'Enter'])`. The list
+replaces the default navigation keys for that element only, so the field keeps
+its caret keys and `Enter` never submits a surrounding form. Since every option
+stays mounted, the scroll helper's index is the option's index in `Items`.
+While a filtered row's `grid-template-rows` track transitions, the list ink
+(`E11 Surfaces/_Interop.md`) re-places itself every frame, so it stays on the
+row it covers instead of landing where the row was before the list moved.
 
 `DrylTimePicker` uses three entry points of `dryl.timepicker`:
 

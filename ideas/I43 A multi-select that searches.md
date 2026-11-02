@@ -1,7 +1,7 @@
 # A multi-select that searches
 
 ## Meta
-- **State:** Draft
+- **State:** Ready
 
 ## Problem
 
@@ -52,12 +52,12 @@ highlighting:
   test and keep in sync. Not recommended for the first step.
 
 ## Scope
-- **In scope (proposed):** an opt-in switch; client-side filtering over the
+- **In scope:** an opt-in switch; client-side filtering over the
   `Label`s (case-insensitive `Contains`, overridable); keyboard and pointer on
   the filtered list; selected entries stay listed and checked while they match;
   an empty-result text; the placeholder of the search field; a first spec for
   `DrylMultiSelect` (it has none).
-- **Out of scope (proposed):** server-side search (`ItemsProvider`), creating
+- **Out of scope:** server-side search (`ItemsProvider`), creating
   new entries from the query (the I16 path for the multi-select), grouping,
   "select all matches". Each can follow as its own idea.
 - **Moved into scope by decision (2026-11-02):** highlighting the matched part
@@ -76,7 +76,7 @@ highlighting:
   (next free feature number), and its line in
   `scripts/spec-coverage-baseline.json` is removed. `E8 Inputs/_Api.md` gains
   the new parameters.
-- **Public API (proposed, additive → MINOR, fits 3.16.0):** `Searchable`
+- **Public API (additive → MINOR, fits 3.16.0):** `Searchable`
   (`bool`, default `false`), `SearchPlaceholder` (`string?`), `SearchFunc`
   (`Func<string, IEnumerable<SelectItem>, IEnumerable<SelectItem>>?`, same shape
   as `DrylAutocomplete.SearchFunc`), `EmptyText` (`string`, default
@@ -99,11 +99,22 @@ highlighting:
   that matches on something else, a row without such an occurrence is shown
   unmarked (Tech Lead).
 
+- 2026-11-02: Opt-in **`Searchable`**, default `false`; the keyboard as
+  prototyped (the query stays after a toggle and clears on close; Backspace in
+  an empty field marks, then removes the last chip; Escape clears, then
+  closes); the out-of-scope list stands for 3.16.0. Confirmed by the Product
+  Owner together with the final summary ("Ja mach. Setz um").
+- 2026-11-02: The surrounding `div` keeps the trigger's look and click; in
+  search mode the `input` takes over `role="combobox"`, the id the label points
+  to, and every `aria-*` the trigger carried. Its click opens a closed list and
+  leaves an open one open, so placing the caret never closes it (Tech Lead).
+- 2026-11-02: `Enter` toggles and `Space` types in search mode. `dryl.keynav`
+  learns a key list, so the field keeps its caret keys and `Enter` never submits
+  a surrounding form (Tech Lead).
+- 2026-11-02: Rows sit in a `role="none"` track wrapper only in search mode; a
+  filtered row is `inert` and `aria-hidden`. The list ink re-places itself every
+  frame while such a track moves, so it stays on its row (Tech Lead).
+
 ## Open Points
-- Opt-in `Searchable` (default `false`) rather than searchable by default
-  (Tech Lead recommendation) — awaiting Product Owner confirmation.
-- Keyboard details as prototyped: the query stays after a toggle and clears on
-  close; Backspace in an empty field first marks the last chip, then removes
-  it; Escape first clears the query, then closes — awaiting confirmation.
-- Remaining out-of-scope list (server search, creating entries, grouping,
-  "select all matches") — awaiting confirmation that none belongs in 3.16.0.
+
+*(none)*
