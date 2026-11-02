@@ -10,14 +10,14 @@ a unit of implementation (`SPEC-03`).
 
 **Partial by design, and this is the honest state of it.** The category holds
 eight components — `DrylPopover`, `DrylCard`, `DrylChat`, `DrylChatComposer`,
-`DrylDepthGlass`, `DrylMarkdown`, `DrylMessage` and `DrylToast`. Exactly one of
-them has a spec today (`F1 DrylPopover.md`), and only what that component owns
-or touches is written below. `MessageRole` in
+`DrylDepthGlass`, `DrylMarkdown`, `DrylMessage` and `DrylToast`. Two of
+them have a spec today (`F1 DrylPopover.md`, `F2 DrylToast.md`), and only what
+those components own or touch is written below. `MessageRole` in
 `code/DRYL.Components/Components/Surfaces/MessageRole.cs` is the category's other
 public type and is deliberately **not** documented here: it belongs to
 `DrylMessage`, which has no spec yet, and a member list written without the spec
 that pins its behaviour would be a second source of truth from the day it was
-written. The remaining seven components are open, not covered.
+written. The remaining six components are open, not covered.
 
 ## `PopoverPlacement`
 
@@ -42,6 +42,19 @@ restated here.
 A value outside the four members — reachable only by casting an out-of-range
 integer — is treated as `BottomStart`, because both the placement token handed
 to JS and the panel's modifier class fall through to the bottom-start case.
+
+## `ToastVariant`
+
+Top-level in `code/DRYL.Components/Toasts/ToastVariant.cs`, namespace
+`DRYL.Components.Toasts`; owned by `F2 DrylToast.md`.
+
+| Member | Notes |
+|---|---|
+| `Default` | No icon, no tint. The default of `DrylToast.Variant` and `ToastOptions.Variant`. |
+| `Success` | `Check` icon, `--success` tint, polite. |
+| `Warning` | `Alert` icon, `--warning` tint, assertive. |
+| `Error` | `Alert` icon, `--danger` tint, assertive. |
+| `Info` | `Info` icon, `--info` tint, polite. |
 
 ## Enums this category uses but does not own
 

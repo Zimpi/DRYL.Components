@@ -161,6 +161,69 @@ window.dryl.spotlight = {
 };
 
 /* --------------------------------------------------------------
+ * Expansion — the pointer's side of DrylExpansion's seam (I42). The
+ * click writes where the seam starts (--seam-x on the body) and the
+ * mouse where the hover light sits (--spot-x on the header). Both are
+ * delegated from the document, so a panel needs no interop of its own
+ * and there is nothing to dispose. Blazor renders no style on either
+ * element, so what is written here survives its renders.
+ * -------------------------------------------------------------- */
+window.dryl.expansion = (() => {
+    const HEADER = '.expansion-header';
+    let lit = null, frame = 0, x = 0;
+
+    function headerFrom(e) {
+        return e.target instanceof Element ? e.target.closest(HEADER) : null;
+    }
+
+    function move(e) {
+        x = e.clientX;
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            if (!lit) return;
+            lit.style.setProperty('--spot-x', (x - lit.getBoundingClientRect().left) + 'px');
+            if (!lit.hasAttribute('data-spot')) lit.setAttribute('data-spot', '');
+        });
+    }
+
+    function release() {
+        if (!lit) return;
+        lit.removeEventListener('pointermove', move);
+        lit.removeEventListener('pointerleave', release);
+        lit.removeAttribute('data-spot');
+        lit = null;
+    }
+
+    function over(e) {
+        if (e.pointerType !== 'mouse') return;
+        const header = headerFrom(e);
+        if (!header || header === lit) return;
+        release();
+        lit = header;
+        lit.addEventListener('pointermove', move, { passive: true });
+        lit.addEventListener('pointerleave', release);
+    }
+
+    // A click from the keyboard (detail 0) has no point: the seam starts in the middle.
+    function click(e) {
+        const header = headerFrom(e);
+        const body = header?.nextElementSibling;
+        if (!body) return;
+        const left = body.getBoundingClientRect().left;
+        body.style.setProperty('--seam-x', e.detail > 0 ? (e.clientX - left) + 'px' : '50%');
+    }
+
+    if (!window.__drylExpansionBound) {
+        window.__drylExpansionBound = true;
+        document.addEventListener('pointerover', over, { capture: true, passive: true });
+        document.addEventListener('click', click, true);
+    }
+
+    return { release };
+})();
+
+/* --------------------------------------------------------------
  * Download — client-side file download via a Blob URL. Used by
  * DrylTable's CSV export. No npm: builds a Blob, clicks a transient
  * <a download>, then revokes the URL. The C# caller is responsible for
@@ -974,6 +1037,10 @@ window.dryl.popover = (() => {
             pendingFocus();
         }
 
+        // Menus and option lists get the gliding ink (I38). After the focus
+        // above, so the ink starts on the row that already has it.
+        window.dryl.motion?.glideScan(panel);
+
         // Capture-phase scroll catches scrolling in any ancestor container.
         const onScroll = () => reposition();
         const onResize = () => reposition();
@@ -1032,6 +1099,7 @@ window.dryl.popover = (() => {
         // start of the exit, because the panel is still on screen and still
         // keyboard-reachable while it fades.
         drylPanelKeys.uninstall(s.panel);
+        window.dryl.motion?.glideRelease(s.panel);
 
         // Last resort for the focus return. The normal path is releaseFocus,
         // called from C# the moment the close is requested, so the user is not
@@ -1068,25 +1136,182 @@ window.dryl.popover = (() => {
 })();
 
 /* --------------------------------------------------------------
- * Toast — auto-dismiss timer and exit animation lifecycle.
+ * Toast — auto-dismiss timer, entry, leave (DrylToastProvider).
  *
  * Timer: setTimeout rather than CSS animationend, so that Blazor re-renders
  * (which may patch the .toast-progress element) cannot reset it. The hover
  * pause is handled explicitly via mouseenter/mouseleave on the stable slot
- * element.
+ * element, in lockstep with the CSS animation-play-state pause of the bar.
  *
- * Exit: event delegation on the slot (kept alive by Blazor via @key), since
- * animationend bubbles — more robust than a listener on the inner .toast div,
- * which Blazor patches whenever its classes change.
+ * Motion runs as Web Animations on the existing tokens (--dur-*, --ease-out,
+ * --ease-spring, and --ease-viscous for the shape morphs):
  *
- *   OnExpired       — fired by setTimeout after the duration.
- *   OnExitFinished  — fired when toast-out animationend bubbles to slot.
+ *   attach(slot, ref, origin) — takes the toast over and brings it in, and
+ *     answers how it came:
+ *       'origin'  — out of the origin element: the toast starts in that
+ *                   element's shape and place and morphs into its own;
+ *       'bell'    — no origin: out of the first visible [data-dryl-inbox]
+ *                   (a service-driven DrylNotifications bell) as a capsule
+ *                   around the icon, which flies in and unfolds;
+ *       'capsule' — no origin and no bell: the capsule unfolds in place.
+ *     Until attach sets data-dryl-entered on the slot the toast is hidden
+ *     (dryl.css), so the entry never starts from a flash of the final toast.
+ *   leave(slot, intoInbox) — plays the exit and closes the space the toast
+ *     held so its neighbours glide; resolves 'inbox' when the toast folded
+ *     into a capsule and flew into the bell, 'plain' when it shrank and
+ *     faded where it stood.
+ *   detach(slot) — drops the timer and listeners.
+ *
+ *   OnExpired — fired by setTimeout after the duration.
  * -------------------------------------------------------------- */
 window.dryl.toast = (() => {
-    function attach(slot, dotnetRef) {
-        if (!slot || slot.__drylToast) return;
+    const root = () => getComputedStyle(document.documentElement);
+    function tokenMs(name, fallback) {
+        const raw = root().getPropertyValue(name).trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms > 0 ? ms : fallback;
+    }
+    const easing = (name, fallback) => root().getPropertyValue(name).trim() || fallback;
+    const motion = () => ({
+        fast:    tokenMs('--dur-fast', 140),
+        med:     tokenMs('--dur-med', 240),
+        slow:    tokenMs('--dur-slow', 420),
+        choreo:  tokenMs('--dur-choreo', 900),
+        out:     easing('--ease-out', 'cubic-bezier(0.16, 1, 0.3, 1)'),
+        spring:  easing('--ease-spring', 'cubic-bezier(0.34, 1.56, 0.64, 1)'),
+        viscous: easing('--ease-viscous', 'cubic-bezier(0.45, 0.05, 0.15, 1)')
+    });
+    const reduced = () => window.dryl.reduced();
+
+    // An element counts only while it is laid out and at least partly on screen.
+    function onScreen(el) {
+        if (!el || el.nodeType !== 1 || !el.isConnected) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 &&
+            r.top < window.innerHeight && r.left < window.innerWidth;
+    }
+    function findBell() {
+        for (const el of document.querySelectorAll('[data-dryl-inbox]')) {
+            if (onScreen(el)) return el;
+        }
+        return null;
+    }
+
+    const radius = el => parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+    const full = toast => `inset(0px 0px 0px 0px round ${radius(toast)}px)`;
+    // The capsule: a circle around the icon chip (or the toast's first square
+    // when it has no icon), in the toast's own coordinates.
+    function capsule(toast) {
+        const t = toast.getBoundingClientRect();
+        const chip = toast.querySelector('.toast-icon-chip');
+        let cx, cy, r;
+        if (chip) {
+            const c = chip.getBoundingClientRect();
+            cx = c.left - t.left + c.width / 2;
+            cy = c.top - t.top + c.height / 2;
+            r = Math.max(c.width, c.height) / 2 + 7;
+        } else {
+            r = Math.min(t.height, 44) / 2;
+            cx = cy = r;
+        }
+        const clip = `inset(${cy - r}px ${Math.max(0, t.width - cx - r)}px ${Math.max(0, t.height - cy - r)}px ${cx - r}px round ${r}px)`;
+        return { cx, cy, clip };
+    }
+    const parts = toast => toast.querySelectorAll('.toast-content, .toast-close, .toast-progress');
+    // Fade-ins hold only before they start (fill: backwards), so a hidden
+    // progress bar (.is-hidden) is back under CSS control once they finish.
+    function fadeIn(toast, delay, m) {
+        parts(toast).forEach(p => p.animate([{ opacity: 0 }, { opacity: 1 }],
+            { duration: m.med, delay, easing: m.out, fill: 'backwards' }));
+    }
+    function fadeOut(toast, m) {
+        parts(toast).forEach(p => p.animate([{ opacity: 1 }, { opacity: 0 }],
+            { duration: m.fast, easing: m.out, fill: 'forwards' }));
+    }
+    function nudge(bell, m) {
+        bell.animate([
+            { transform: 'none' },
+            { transform: 'scale(0.86)', offset: 0.3 },
+            { transform: 'scale(1.1)', offset: 0.6 },
+            { transform: 'none' }
+        ], { duration: m.slow, easing: m.out });
+    }
+
+    function fromOrigin(toast, origin, m) {
+        const F = toast.getBoundingClientRect();
+        const B = origin.getBoundingClientRect();
+        const dx = B.left - F.left, dy = B.top - F.top;
+        const start = `inset(0px ${Math.max(0, F.width - B.width)}px ${Math.max(0, F.height - B.height)}px 0px round ${radius(origin)}px)`;
+        toast.animate([
+            { transform: `translate(${dx}px, ${dy}px)`, clipPath: start, opacity: 0.5 },
+            { transform: `translate(${dx * 0.15}px, ${dy * 0.35}px)`, clipPath: start, opacity: 1, offset: 0.45 },
+            { transform: 'none', clipPath: full(toast), opacity: 1 }
+        ], { duration: m.choreo, easing: m.viscous });
+        fadeIn(toast, m.choreo * 0.6, m);
+    }
+
+    // One continuous flight under a single curve — the waypoint bends the
+    // path but never stops it — then the capsule unfolds while it lands.
+    function fromBell(toast, bell, m) {
+        const cap = capsule(toast);
+        const F = toast.getBoundingClientRect(), B = bell.getBoundingClientRect();
+        const dx = (B.left + B.width / 2) - (F.left + cap.cx);
+        const dy = (B.top + B.height / 2) - (F.top + cap.cy);
+        toast.style.transformOrigin = `${cap.cx}px ${cap.cy}px`;
+        nudge(bell, m);
+        toast.animate([
+            { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 },
+            { transform: `translate(${dx * 0.3}px, ${dy * 0.55}px) scale(0.8)`, opacity: 1, offset: 0.4 },
+            { transform: 'none', opacity: 1 }
+        ], { duration: m.choreo, easing: m.out });
+        const unfoldAt = m.choreo * 0.55;
+        toast.animate([{ clipPath: cap.clip }, { clipPath: full(toast) }],
+            { duration: m.slow, delay: unfoldAt, easing: m.spring, fill: 'backwards' });
+        fadeIn(toast, unfoldAt + m.fast, m);
+    }
+
+    function fromCapsule(slot, toast, m) {
+        const cap = capsule(toast);
+        const host = slot.closest('.toast-host');
+        const has = c => !!host && host.classList.contains(c);
+        const center = has('is-top-center') || has('is-bottom-center');
+        const left = has('is-top-left') || has('is-bottom-left');
+        const from = center
+            ? `translateY(${has('is-top-center') ? -24 : 24}px) scale(0.5)`
+            : `translateX(${left ? -64 : 64}px) scale(0.5)`;
+        toast.style.transformOrigin = `${cap.cx}px ${cap.cy}px`;
+        toast.animate([
+            { clipPath: cap.clip, transform: from, opacity: 0, easing: m.out },
+            { clipPath: cap.clip, transform: 'none', opacity: 1, offset: 0.34, easing: m.spring },
+            { clipPath: full(toast), transform: 'none', opacity: 1 }
+        ], { duration: m.choreo });
+        fadeIn(toast, m.choreo * 0.42, m);
+    }
+
+    function enter(slot, toast, origin) {
+        const bell = onScreen(origin) ? null : findBell();
+        const kind = onScreen(origin) ? 'origin' : bell ? 'bell' : 'capsule';
+        slot.setAttribute('data-dryl-entered', '');
+        const m = motion();
+        if (reduced()) {
+            toast.animate([{ opacity: 0 }, { opacity: 1 }], { duration: m.med, easing: m.out });
+        } else if (kind === 'origin') {
+            fromOrigin(toast, origin, m);
+        } else if (kind === 'bell') {
+            fromBell(toast, bell, m);
+        } else {
+            fromCapsule(slot, toast, m);
+        }
+        return kind;
+    }
+
+    function attach(slot, dotnetRef, origin) {
+        if (!slot || slot.__drylToast) return null;
         const toast = slot.querySelector('.toast');
-        if (!toast) return;
+        if (!toast) return null;
+
+        const state = {};
+        slot.__drylToast = state;
 
         // Read the duration from the progress element's inline style.
         const progress = toast.querySelector('.toast-progress');
@@ -1101,12 +1326,13 @@ window.dryl.toast = (() => {
         }
 
         function startTimer() {
-            if (remaining <= 0) return;
+            if (remaining <= 0 || timerId !== null) return;
             startedAt = Date.now();
-            timerId   = setTimeout(
-                () => dotnetRef.invokeMethodAsync('OnExpired'),
-                remaining
-            );
+            timerId   = setTimeout(() => {
+                timerId = null;
+                if (slot.__drylToast !== state) return; // detached meanwhile
+                Promise.resolve(dotnetRef.invokeMethodAsync('OnExpired')).catch(() => {});
+            }, remaining);
         }
 
         function pauseTimer() {
@@ -1127,36 +1353,81 @@ window.dryl.toast = (() => {
             startTimer();
         }
 
-        // Exit detection via event delegation on the slot — animationend bubbles,
-        // and Blazor keeps the slot stable via @key.
-        const onSlotAnim = (e) => {
-            if (e.animationName === 'toast-out') {
-                clearTimeout(timerId);
-                timerId = null;
-                dotnetRef.invokeMethodAsync('OnExitFinished');
-            }
-        };
-        slot.addEventListener('animationend', onSlotAnim);
+        state.onMouseEnter = onMouseEnter;
+        state.onMouseLeave = onMouseLeave;
+        state.cancel = () => { clearTimeout(timerId); timerId = null; };
 
-        slot.__drylToast = {
-            onSlotAnim,
-            onMouseEnter,
-            onMouseLeave,
-            cancel: () => { clearTimeout(timerId); timerId = null; }
-        };
+        return enter(slot, toast, origin);
+    }
+
+    // The space the toast held closes, so the neighbours glide into it. The
+    // gap its flex parent puts beside it closes too, via a negative margin.
+    function closeSpace(slot, m) {
+        const host = slot.parentElement;
+        const hasSibling = !!(slot.previousElementSibling || slot.nextElementSibling);
+        const gap = host && hasSibling ? parseFloat(getComputedStyle(host).rowGap) || 0 : 0;
+        const h = slot.getBoundingClientRect().height;
+        slot.style.overflow = 'hidden';
+        return slot.animate([
+            { height: `${h}px`, marginBottom: '0px' },
+            { height: '0px', marginBottom: `${-gap}px` }
+        ], { duration: m.med, easing: m.out, fill: 'forwards' }).finished;
+    }
+
+    // Fold into the capsule, then fly it into the bell, which answers with a nudge.
+    async function intoBell(toast, bell, m) {
+        const cap = capsule(toast);
+        toast.style.transformOrigin = `${cap.cx}px ${cap.cy}px`;
+        fadeOut(toast, m);
+        await toast.animate([{ clipPath: full(toast) }, { clipPath: cap.clip }],
+            { duration: m.slow, easing: m.viscous, fill: 'forwards' }).finished;
+        const F = toast.getBoundingClientRect(), B = bell.getBoundingClientRect();
+        const dx = (B.left + B.width / 2) - (F.left + cap.cx);
+        const dy = (B.top + B.height / 2) - (F.top + cap.cy);
+        await toast.animate([
+            { transform: 'none', opacity: 1 },
+            { transform: `translate(${dx * 0.25}px, ${dy * 0.6}px) scale(0.75)`, opacity: 1, offset: 0.5 },
+            { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 }
+        ], { duration: m.slow, easing: m.viscous, fill: 'forwards' }).finished;
+        nudge(bell, m);
+    }
+
+    async function leave(slot, intoInbox) {
+        slot?.__drylToast?.cancel();
+        const toast = slot?.querySelector('.toast');
+        const bell = intoInbox ? findBell() : null;
+        const outcome = bell ? 'inbox' : 'plain';
+        if (!toast || !slot.isConnected) return outcome;
+        const m = motion();
+        try {
+            if (reduced()) {
+                await toast.animate([{ opacity: 1 }, { opacity: 0 }],
+                    { duration: m.med, easing: m.out, fill: 'forwards' }).finished;
+                return outcome;
+            }
+            if (bell) {
+                await intoBell(toast, bell, m);
+            } else {
+                await toast.animate([
+                    { opacity: 1, transform: 'none', filter: 'blur(0)' },
+                    { opacity: 0, transform: 'scale(0.92) translateY(-6px)', filter: 'blur(3px)' }
+                ], { duration: m.med, easing: m.out, fill: 'forwards' }).finished;
+            }
+            await closeSpace(slot, m);
+        } catch (_) { /* an animation was cancelled — the toast is leaving anyway */ }
+        return outcome;
     }
 
     function detach(slot) {
         if (!slot || !slot.__drylToast) return;
-        const { onSlotAnim, onMouseEnter, onMouseLeave, cancel } = slot.__drylToast;
+        const { onMouseEnter, onMouseLeave, cancel } = slot.__drylToast;
         cancel();
-        slot.removeEventListener('animationend', onSlotAnim);
         slot.removeEventListener('mouseenter', onMouseEnter);
         slot.removeEventListener('mouseleave', onMouseLeave);
         delete slot.__drylToast;
     }
 
-    return { attach, detach };
+    return { attach, leave, detach };
 })();
 
 // ── Autocomplete helpers ──────────────────────────────────────────────────────
@@ -2172,6 +2443,360 @@ window.dryl.motion = (() => {
         s.host.removeAttribute('data-nav-ink');
     }
 
+    /* ---- List glide (I38) -------------------------------------------
+     * The drawer's ink (I29) for menus and option lists. A host is a menu
+     * panel ([role="menu"], rows [role="menuitem"]) or any element marked
+     * data-dryl-glide="<row selector>" (the listbox of DrylSelect,
+     * DrylMultiSelect and DrylAutocomplete, each column of DrylTimePicker).
+     * dryl.popover calls glideScan(panel) once the panel is revealed and
+     * glideRelease(panel) when it closes, so no component wires anything.
+     *
+     * The ink is the host's own ::before and the hover light its ::after —
+     * pseudo-elements, because Blazor owns the host's children and a foreign
+     * node between a menu and its menuitems breaks the role pair. JS writes
+     * only data-glide* attributes and --glide-* custom properties on the
+     * host; Blazor renders neither.
+     *
+     * The ink covers the row the user acted on last: the row under the mouse,
+     * the focused row (DrylMenu's arrow keys move real focus) or the row the
+     * component marks .is-highlighted (the listboxes' arrow keys). When the
+     * mouse leaves it falls back to focus, then to the highlight, and fades
+     * when there is neither. Geometry comes from the offsetParent chain, not
+     * from getBoundingClientRect: the popover opens with a scale morph, and a
+     * measured rect would bake that scale into the ink.
+     * ---------------------------------------------------------------- */
+    const _glide = new Map(); // host -> state
+    const GLIDE_ENABLED = ':not([disabled]):not([aria-disabled="true"])';
+
+    function glideRows(host) {
+        const sel = host.getAttribute('data-dryl-glide') || '[role="menuitem"]';
+        return sel + GLIDE_ENABLED;
+    }
+
+    function glideOffset(row, host) {
+        let x = 0, y = 0;
+        for (let n = row; n && n !== host; n = n.offsetParent) { x += n.offsetLeft; y += n.offsetTop; }
+        return { x, y };
+    }
+
+    function glideUsable(s, row) {
+        return !!row && row.isConnected && s.host.contains(row) && row.matches(s.rows) && row.offsetWidth > 0;
+    }
+
+    function glideFallback(s) {
+        const active = document.activeElement;
+        if (active && active !== s.host && s.host.contains(active)) {
+            const row = active.closest?.(s.rows);
+            if (glideUsable(s, row)) return row;
+        }
+        const hl = s.host.querySelector('.is-highlighted');
+        return glideUsable(s, hl) ? hl : null;
+    }
+
+    function glideMode(s, mode) {
+        if (s.host.getAttribute('data-glide') !== mode) s.host.setAttribute('data-glide', mode);
+    }
+
+    function glidePlace(s, animate) {
+        const { host } = s;
+        if (!glideUsable(s, s.active)) s.active = glideFallback(s);
+        const row = s.active;
+        if (!row) { host.removeAttribute('data-glide-on'); return; }
+        const was = host.hasAttribute('data-glide-on');
+        glideMode(s, animate && was && !reduced() ? 'glide' : 'place');
+        const { x, y } = glideOffset(row, host);
+        host.style.setProperty('--glide-x', x + 'px');
+        host.style.setProperty('--glide-y', y + 'px');
+        host.style.setProperty('--glide-w', row.offsetWidth + 'px');
+        host.style.setProperty('--glide-h', row.offsetHeight + 'px');
+        if (row.classList.contains('menu-item--danger')) host.setAttribute('data-glide-tone', 'danger');
+        else host.removeAttribute('data-glide-tone');
+        if (!was) host.setAttribute('data-glide-on', '');
+        // A placement arms the spring a frame later, so the next move glides.
+        if (host.getAttribute('data-glide') === 'place') {
+            cancelAnimationFrame(s.arm);
+            s.arm = requestAnimationFrame(() => { if (_glide.get(host) === s) glideMode(s, 'glide'); });
+        }
+    }
+
+    function glideAttach(host) {
+        if (_glide.has(host)) return;
+        const s = { host, rows: glideRows(host), active: null, lastHl: null, arm: 0, frame: 0, px: 0, row: null };
+
+        s.over = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(s.rows);
+            if (!row || !host.contains(row) || row === s.active) return;
+            s.active = row;
+            glidePlace(s, true);
+        };
+        s.move = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(s.rows);
+            if (!row || !host.contains(row)) return;
+            // A mouse that moves again after the keyboard took the ink takes it
+            // back, even without crossing into a child element (pointerover).
+            if (row !== s.active && glideUsable(s, row)) { s.active = row; glidePlace(s, true); }
+            s.row = row; s.px = e.clientX;
+            if (s.frame) return;
+            s.frame = requestAnimationFrame(() => {
+                s.frame = 0;
+                const r = s.row.getBoundingClientRect();
+                const scale = s.row.offsetWidth ? r.width / s.row.offsetWidth : 1;
+                host.style.setProperty('--glide-spot-x', ((s.px - r.left) / (scale || 1)) + 'px');
+                if (!host.hasAttribute('data-glide-spot')) host.setAttribute('data-glide-spot', '');
+            });
+        };
+        s.leave = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            host.removeAttribute('data-glide-spot');
+            s.active = glideFallback(s);
+            glidePlace(s, true);
+        };
+        s.focus = (e) => {
+            const row = e.target.closest?.(s.rows);
+            if (!glideUsable(s, row) || row === s.active) return;
+            s.active = row;
+            glidePlace(s, true);
+        };
+        // Blazor moves .is-highlighted on the listboxes' arrow keys and
+        // re-renders rows as an autocomplete query changes.
+        s.mo = new MutationObserver(() => {
+            const hl = host.querySelector('.is-highlighted');
+            if (hl !== s.lastHl) { s.lastHl = hl; if (glideUsable(s, hl)) s.active = hl; }
+            glidePlace(s, true);
+        });
+        // characterData: rows keyed by index are rewritten in place as a query
+        // changes, which can change a row's height without any class change.
+        s.mo.observe(host, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+        s.ro = new ResizeObserver(() => glidePlace(s, false));
+        s.ro.observe(host);
+
+        host.addEventListener('pointerover', s.over);
+        host.addEventListener('pointermove', s.move, { passive: true });
+        host.addEventListener('pointerleave', s.leave);
+        host.addEventListener('focusin', s.focus);
+        _glide.set(host, s);
+
+        // data-glide from the start: it is what hands the rows' static fill
+        // over to the ink, even before there is a row to cover.
+        glideMode(s, 'place');
+        s.lastHl = host.querySelector('.is-highlighted');
+        s.active = glideFallback(s);
+        glidePlace(s, false);
+    }
+
+    function glideDetach(host) {
+        const s = _glide.get(host);
+        if (!s) return;
+        _glide.delete(host);
+        s.mo.disconnect();
+        s.ro.disconnect();
+        host.removeEventListener('pointerover', s.over);
+        host.removeEventListener('pointermove', s.move);
+        host.removeEventListener('pointerleave', s.leave);
+        host.removeEventListener('focusin', s.focus);
+        cancelAnimationFrame(s.arm);
+        cancelAnimationFrame(s.frame);
+        for (const a of ['data-glide', 'data-glide-on', 'data-glide-tone', 'data-glide-spot']) host.removeAttribute(a);
+        for (const p of ['--glide-x', '--glide-y', '--glide-w', '--glide-h', '--glide-spot-x']) host.style.removeProperty(p);
+    }
+
+    function glideHosts(panel) {
+        const hosts = panel.matches('[role="menu"], [data-dryl-glide]') ? [panel] : [];
+        return hosts.concat(Array.from(panel.querySelectorAll('[data-dryl-glide]')));
+    }
+
+    // Content can render after the reveal (DrylTimePicker's columns arrive
+    // a render later), so the panel is watched for hosts until it closes.
+    const _glidePanels = new Map(); // panel -> MutationObserver
+
+    function glideScan(panel) {
+        if (!panel || panel.nodeType !== 1) return;
+        const scan = () => { for (const host of glideHosts(panel)) glideAttach(host); };
+        scan();
+        if (_glidePanels.has(panel)) return;
+        const mo = new MutationObserver(scan);
+        mo.observe(panel, { subtree: true, childList: true });
+        _glidePanels.set(panel, mo);
+    }
+
+    function glideRelease(panel) {
+        if (!panel || panel.nodeType !== 1) return;
+        _glidePanels.get(panel)?.disconnect();
+        _glidePanels.delete(panel);
+        for (const host of [..._glide.keys()]) if (host === panel || panel.contains(host) || !host.isConnected) glideDetach(host);
+    }
+
+    /* ---- Tree glide (I41) --------------------------------------------
+     * treeGlide(root) lays the ink under the selected row of a DrylTreeView
+     * and runs the accent thread to it: one elbow per level, from the top of
+     * each group on the way down to the row on the path. A selection inside a
+     * closed folder hands the ink to the outermost closed folder, empty
+     * (data-tree-ink-retreat), and the ink comes back when the folder opens.
+     *
+     * The rows' `class` is the signal, as in navGlide. When the selection or
+     * the covered folder changes, the ink springs ("glide"); when a folder
+     * moves a row the ink already covers, it follows frame by frame ("track").
+     * Geometry comes from the offsetParent chain: a tree can sit in a popover
+     * that opens with a scale morph, and a stagger moves the rows' contents
+     * but never their boxes. All state lives in data-* attributes and inline
+     * custom properties: Blazor rewrites `class` on its next render.
+     * ---------------------------------------------------------------- */
+    const _tree = new WeakMap(); // root -> state
+    const TREE_ROW = '.tree-row';
+
+    function treeTarget(host) {
+        const selected = host.querySelector(TREE_ROW + '.is-selected');
+        if (!selected) return null;
+        let shown = selected;
+        for (let fold = selected.closest('.tree-fold:not(.is-open)'); fold && host.contains(fold);
+             fold = fold.parentElement?.closest('.tree-fold:not(.is-open)')) {
+            shown = fold.parentElement.querySelector(':scope > ' + TREE_ROW);
+        }
+        return shown;
+    }
+
+    function treePath(s, target) {
+        const groups = new Set(), rows = new Set();
+        for (let row = target; row;) {
+            const group = row.parentElement?.closest('.tree-group');
+            if (!group || !s.host.contains(group)) break;
+            groups.add(group);
+            group.style.setProperty('--tree-thread', (row.offsetTop + row.offsetHeight / 2) + 'px');
+            group.setAttribute('data-tree-path', '');
+            row = group.closest('.tree-fold').parentElement.querySelector(':scope > ' + TREE_ROW);
+            row.setAttribute('data-tree-path', '');
+            rows.add(row);
+        }
+        for (const group of s.groups) {
+            if (groups.has(group)) continue;
+            group.removeAttribute('data-tree-path');
+            group.style.setProperty('--tree-thread', '0px');
+        }
+        for (const row of s.rows) if (!rows.has(row)) row.removeAttribute('data-tree-path');
+        s.groups = groups;
+        s.rows = rows;
+    }
+
+    function treePlace(s) {
+        const { host } = s;
+        const target = s.target = treeTarget(host);
+        if (!target) { host.removeAttribute('data-tree-ink-on'); treePath(s, null); return; }
+        const { x, y } = glideOffset(target, host);
+        host.style.setProperty('--tree-ink-x', x + 'px');
+        host.style.setProperty('--tree-ink-y', y + 'px');
+        host.style.setProperty('--tree-ink-w', target.offsetWidth + 'px');
+        host.style.setProperty('--tree-ink-h', target.offsetHeight + 'px');
+        host.setAttribute('data-tree-ink-on', '');
+        if (target.classList.contains('is-selected')) host.removeAttribute('data-tree-ink-retreat');
+        else host.setAttribute('data-tree-ink-retreat', '');
+        treePath(s, target);
+    }
+
+    function treeMode(s, mode) {
+        if (s.host.getAttribute('data-tree-ink') !== mode) s.host.setAttribute('data-tree-ink', mode);
+    }
+
+    function treeTrack(s) {
+        treeMode(s, 'track');
+        treePlace(s);
+        s.quiet = 0;
+        if (s.frame) return;
+        const tick = () => {
+            treePlace(s);
+            if (s.running.size || ++s.quiet < 2) { s.frame = requestAnimationFrame(tick); return; }
+            s.frame = 0;
+            treeMode(s, 'glide');
+        };
+        s.frame = requestAnimationFrame(tick);
+    }
+
+    function treeGlide(root) {
+        if (!root || root.nodeType !== 1 || _tree.has(root)) return;
+        const s = { host: root, target: null, groups: new Set(), rows: new Set(), running: new Set(),
+                    frame: 0, quiet: 0, arm: 0, hold: 0, holdNext: 0, width: root.offsetWidth,
+                    spotFrame: 0, spotRow: null, spotX: 0, spotY: 0 };
+
+        s.mo = new MutationObserver(() => {
+            // A new target springs, and a fold's transition in the same change
+            // must not hand it over to the frame-by-frame track.
+            if (treeTarget(root) !== s.target) {
+                cancelAnimationFrame(s.hold);
+                cancelAnimationFrame(s.holdNext);
+                s.hold = requestAnimationFrame(() => {
+                    s.holdNext = requestAnimationFrame(() => { s.hold = 0; s.holdNext = 0; });
+                });
+                if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; }
+                treeMode(s, 'glide');
+                treePlace(s);
+            } else if (!s.frame) treePlace(s);
+        });
+        s.mo.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+
+        s.ro = new ResizeObserver(() => {
+            if (root.offsetWidth === s.width) return;
+            s.width = root.offsetWidth;
+            treeTrack(s);
+        });
+        s.ro.observe(root);
+
+        s.run = (e) => {
+            if (e.propertyName !== 'grid-template-rows') return;
+            s.running.add(e.target);
+            if (!s.hold) treeTrack(s);
+        };
+        s.end = (e) => {
+            if (e.propertyName !== 'grid-template-rows') return;
+            s.running.delete(e.target);
+        };
+        root.addEventListener('transitionrun', s.run);
+        root.addEventListener('transitionend', s.end);
+        root.addEventListener('transitioncancel', s.end);
+
+        s.move = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(TREE_ROW);
+            if (!row || !root.contains(row)) return;
+            s.spotRow = row; s.spotX = e.clientX; s.spotY = e.clientY;
+            if (s.spotFrame) return;
+            s.spotFrame = requestAnimationFrame(() => {
+                s.spotFrame = 0;
+                const r = s.spotRow.getBoundingClientRect();
+                const scale = s.spotRow.offsetWidth ? r.width / s.spotRow.offsetWidth : 1;
+                s.spotRow.style.setProperty('--tree-spot-x', ((s.spotX - r.left) / (scale || 1)) + 'px');
+                s.spotRow.style.setProperty('--tree-spot-y', ((s.spotY - r.top) / (scale || 1)) + 'px');
+                if (!s.spotRow.hasAttribute('data-tree-spot')) s.spotRow.setAttribute('data-tree-spot', '');
+            });
+        };
+        root.addEventListener('pointermove', s.move, { passive: true });
+        _tree.set(root, s);
+
+        // First placement without motion; the spring is armed a frame later, and
+        // late webfonts can still nudge the rows.
+        treeMode(s, 'place');
+        treePlace(s);
+        s.arm = requestAnimationFrame(() => { if (_tree.get(root) === s && !s.frame) treeMode(s, 'glide'); });
+        document.fonts?.ready.then(() => { if (_tree.get(root) === s) treePlace(s); });
+    }
+
+    function disposeTreeGlide(root) {
+        const s = root && _tree.get(root);
+        if (!s) return;
+        _tree.delete(root);
+        s.mo.disconnect();
+        s.ro.disconnect();
+        root.removeEventListener('transitionrun', s.run);
+        root.removeEventListener('transitionend', s.end);
+        root.removeEventListener('transitioncancel', s.end);
+        root.removeEventListener('pointermove', s.move);
+        for (const id of [s.frame, s.spotFrame, s.arm, s.hold, s.holdNext]) cancelAnimationFrame(id);
+        for (const group of s.groups) { group.removeAttribute('data-tree-path'); group.style.removeProperty('--tree-thread'); }
+        for (const row of s.rows) row.removeAttribute('data-tree-path');
+        for (const a of ['data-tree-ink', 'data-tree-ink-on', 'data-tree-ink-retreat']) root.removeAttribute(a);
+        for (const p of ['--tree-ink-x', '--tree-ink-y', '--tree-ink-w', '--tree-ink-h']) root.style.removeProperty(p);
+    }
+
     /* ---- Reveal -----------------------------------------------------
      * A target counts as in view once `threshold` of it is visible OR it
      * fills `threshold` of the viewport. The ratio alone never fires on a
@@ -2552,7 +3177,7 @@ window.dryl.motion = (() => {
         animation.reverse();
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
+    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, glideScan, glideRelease, treeGlide, disposeTreeGlide, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
 })();
 
 /* ──────────────────────────────────────────────────────────
@@ -3053,58 +3678,127 @@ window.dryl.theme = {
  * any ancestor overflow/backdrop-filter clipping (glass cards, app
  * bars); the preferred placement flips when the viewport has no
  * room on that side. Purely decorative (aria-hidden) — triggers
- * carry their own aria-label.
+ * carry their own aria-label. Opens after the wrap's data-tt-delay
+ * (ms) unless a bubble is open or has only just closed; then the
+ * one bubble glides to the new trigger instead of reopening.
  * -------------------------------------------------------------- */
 window.dryl.tooltip = (() => {
-    const GAP = 8, PAD = 4;
-    let bubble = null;
-    let current = null;
+    const PAD = 4;
+    let bubble = null, text = null, measurer = null;
+    let current = null;     // the wrap the bubble shows (or is waiting to show)
+    let open = false;       // the bubble is visible
+    let openTimer = 0;      // pending Delay
+    let leaveTimer = 0;     // grace before a left bubble closes, so a neighbour can take it over
+    let warmUntil = 0;      // until then a new trigger skips its Delay
 
+    const root = () => getComputedStyle(document.documentElement);
+    function tokenMs(name, fallback) {
+        const raw = root().getPropertyValue(name).trim();
+        const ms = raw.endsWith('ms') ? parseFloat(raw) : raw.endsWith('s') ? parseFloat(raw) * 1000 : NaN;
+        return isFinite(ms) && ms >= 0 ? ms : fallback;
+    }
+    function tokenPx(name, fallback) {
+        const px = parseFloat(root().getPropertyValue(name));
+        return isFinite(px) ? px : fallback;
+    }
+    const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // The bubble: geometry on .tt-portal (it glides), the unfolding surface on
+    // .tt-shape, the thread on .tt-stem. One per page, reused by every tooltip.
     function ensureBubble() {
         if (bubble && bubble.isConnected) return bubble;
         bubble = document.createElement('div');
-        bubble.className = 'tt-portal';
+        bubble.className = 'tt-portal tt-snap';
         bubble.setAttribute('aria-hidden', 'true');
+        bubble.innerHTML = '<span class="tt-stem"></span><span class="tt-shape"><span class="tt-text"></span></span>';
+        text = bubble.querySelector('.tt-text');
+        measurer = document.createElement('span');
+        measurer.className = 'tt-text tt-measure';
+        measurer.setAttribute('aria-hidden', 'true');
         document.body.appendChild(bubble);
+        document.body.appendChild(measurer);
         return bubble;
     }
 
-    function place(wrap) {
-        if (!wrap.isConnected) return hide();
-        const b = ensureBubble();
-        b.textContent = wrap.getAttribute('data-tt') || '';
-        if (!b.textContent) return hide();
-
-        // Measure invisibly at the final size, then position and reveal.
-        b.classList.remove('is-open');
-        b.style.top = '0px'; b.style.left = '-9999px';
+    function geometry(wrap, label) {
+        measurer.textContent = label;
+        const bw = Math.ceil(measurer.offsetWidth), bh = Math.ceil(measurer.offsetHeight);
+        const gap = tokenPx('--sp-3', 12);
         const tr = wrap.getBoundingClientRect();
-        const bw = b.offsetWidth, bh = b.offsetHeight;
         const vw = window.innerWidth, vh = window.innerHeight;
         let placement = wrap.getAttribute('data-tt-placement') || 'top';
 
         // Flip when the preferred side has no room.
-        if (placement === 'top'    && tr.top - bh - GAP < PAD)        placement = 'bottom';
-        else if (placement === 'bottom' && tr.bottom + bh + GAP > vh - PAD) placement = 'top';
-        else if (placement === 'left'   && tr.left - bw - GAP < PAD)        placement = 'right';
-        else if (placement === 'right'  && tr.right + bw + GAP > vw - PAD)  placement = 'left';
+        if (placement === 'top'    && tr.top - bh - gap < PAD)        placement = 'bottom';
+        else if (placement === 'bottom' && tr.bottom + bh + gap > vh - PAD) placement = 'top';
+        else if (placement === 'left'   && tr.left - bw - gap < PAD)        placement = 'right';
+        else if (placement === 'right'  && tr.right + bw + gap > vw - PAD)  placement = 'left';
 
+        const cx = tr.left + tr.width / 2, cy = tr.top + tr.height / 2;
         let top, left;
         switch (placement) {
-            case 'bottom': top = tr.bottom + GAP;            left = tr.left + tr.width / 2 - bw / 2; break;
-            case 'left':   top = tr.top + tr.height / 2 - bh / 2; left = tr.left - bw - GAP;         break;
-            case 'right':  top = tr.top + tr.height / 2 - bh / 2; left = tr.right + GAP;             break;
-            default:       top = tr.top - bh - GAP;          left = tr.left + tr.width / 2 - bw / 2; break;
+            case 'bottom': top = tr.bottom + gap;   left = cx - bw / 2;          break;
+            case 'left':   top = cy - bh / 2;       left = tr.left - bw - gap;   break;
+            case 'right':  top = cy - bh / 2;       left = tr.right + gap;       break;
+            default:       top = tr.top - bh - gap; left = cx - bw / 2;          break;
         }
         // Clamp into the viewport.
         left = Math.max(PAD, Math.min(left, vw - bw - PAD));
         top  = Math.max(PAD, Math.min(top, vh - bh - PAD));
 
-        b.style.top = top + 'px';
-        b.style.left = left + 'px';
-        b.classList.toggle('from-below', placement === 'bottom');
-        // Reveal on the next frame so the enter transition runs.
-        requestAnimationFrame(() => { if (current === wrap && wrap.isConnected) b.classList.add('is-open'); });
+        // The anchor: where the thread meets the bubble, on the edge facing the
+        // trigger, aimed at the trigger's centre even when the bubble was clamped.
+        const r = Math.min(bw, bh) / 2;
+        const ax = placement === 'left' ? bw : placement === 'right' ? 0 : Math.max(r, Math.min(cx - left, bw - r));
+        const ay = placement === 'top' ? bh : placement === 'bottom' ? 0 : Math.max(r, Math.min(cy - top, bh - r));
+        return { placement, top, left, bw, bh, ax, ay, gap };
+    }
+
+    function apply(g) {
+        const s = bubble.style;
+        bubble.dataset.place = g.placement;
+        s.width = g.bw + 'px';
+        s.height = g.bh + 'px';
+        s.transform = `translate3d(${g.left}px, ${g.top}px, 0)`;
+        s.setProperty('--tt-ax', g.ax + 'px');
+        s.setProperty('--tt-ay', g.ay + 'px');
+        s.setProperty('--tt-gap', g.gap + 'px');
+    }
+
+    function place(wrap) {
+        if (!wrap.isConnected) return hide();
+        ensureBubble();
+        const label = wrap.getAttribute('data-tt') || '';
+        if (!label) return hide();
+        const g = geometry(wrap, label);
+
+        if (open) {
+            // Glide: the open bubble travels to the new trigger and takes its
+            // size there; the text cross-fades instead of the bubble reopening.
+            bubble.classList.remove('tt-snap');
+            apply(g);
+            if (text.textContent !== label) {
+                text.textContent = label;
+                if (!reduced() && text.animate) {
+                    text.animate([{ opacity: 0 }, { opacity: 1 }],
+                        { duration: tokenMs('--dur-med', 240), easing: root().getPropertyValue('--ease-out').trim() || 'ease-out' });
+                }
+            }
+            return;
+        }
+
+        // First open: place it closed and without transitions, then reveal on
+        // the next frame so the thread grows and the bubble unfolds.
+        bubble.classList.add('tt-snap');
+        bubble.classList.remove('is-open');
+        text.textContent = label;
+        apply(g);
+        void bubble.offsetWidth;
+        bubble.classList.remove('tt-snap');
+        open = true;
+        requestAnimationFrame(() => {
+            if (current === wrap && open && wrap.isConnected) bubble.classList.add('is-open');
+        });
     }
 
     // A trigger inside a morph target that is still travelling has no place
@@ -3118,17 +3812,50 @@ window.dryl.tooltip = (() => {
             a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity);
     }
 
-    function show(wrap) {
-        if (current === wrap) return;
-        if (inFlight(wrap)) { if (current) hide(); return; }
-        current = wrap;
-        place(wrap);
+    function delayOf(wrap) {
+        const ms = parseInt(wrap.getAttribute('data-tt-delay') || '0', 10);
+        return isFinite(ms) && ms > 0 ? ms : 0;
     }
 
-    function hide() {
+    function show(wrap) {
+        clearTimeout(leaveTimer); leaveTimer = 0;
+        if (current === wrap) return;
+        if (inFlight(wrap)) { hide(); return; }
+        clearTimeout(openTimer); openTimer = 0;
+        current = wrap;
+        const delay = delayOf(wrap);
+        const warm = open || performance.now() < warmUntil;
+        if (warm || delay === 0) { place(wrap); return; }
+        // A scroll that ends under a resting pointer must not cancel the wait,
+        // so the timer survives it — and opens only if the trigger is still
+        // under the pointer or holds focus when it fires.
+        openTimer = setTimeout(() => {
+            openTimer = 0;
+            if (current === wrap && (wrap.matches(':hover') || wrap.contains(document.activeElement))) place(wrap);
+        }, delay);
+    }
+
+    // The pointer or focus left the current trigger: close after a short
+    // grace, so a neighbour reached within it takes the open bubble over.
+    function leave() {
+        clearTimeout(openTimer); openTimer = 0;
         current = null;
+        if (!open) return;
+        clearTimeout(leaveTimer);
+        leaveTimer = setTimeout(() => close(true), tokenMs('--dur-fast', 140));
+    }
+
+    function close(warm) {
+        clearTimeout(openTimer); openTimer = 0;
+        clearTimeout(leaveTimer); leaveTimer = 0;
+        warmUntil = warm && open ? performance.now() + tokenMs('--delay-short', 200) : 0;
+        current = null;
+        open = false;
         if (bubble) bubble.classList.remove('is-open');
     }
+
+    // Immediate and cold: the next trigger waits its Delay again.
+    function hide() { close(false); }
 
     function wrapFrom(e) {
         return e.target instanceof Element ? e.target.closest('[data-tt]') : null;
@@ -3138,26 +3865,27 @@ window.dryl.tooltip = (() => {
         window.__drylTooltipBound = true;
         document.addEventListener('pointerover', e => {
             const w = wrapFrom(e);
-            if (w) show(w); else if (current) hide();
+            if (w) show(w); else if (current) leave();
         }, true);
-        // Hide when the pointer leaves the current wrap — including the case
-        // where the trigger is removed from the DOM mid-hover (Blazor
-        // re-render): a detached node fires no pointerover, but pointerout
-        // does fire on the way out, and the isConnected guard in place()
-        // covers programmatic removal.
+        // Leaving the current wrap — including the case where the trigger is
+        // removed from the DOM mid-hover (Blazor re-render): a detached node
+        // fires no pointerover, but pointerout does fire on the way out, and
+        // the isConnected guard in place() covers programmatic removal.
         document.addEventListener('pointerout', e => {
             if (!current) return;
             const to = e.relatedTarget;
-            if (!(to instanceof Element) || to.closest('[data-tt]') !== current) hide();
+            if (!(to instanceof Element) || to.closest('[data-tt]') !== current) leave();
         }, true);
         document.addEventListener('focusin', e => {
             const w = wrapFrom(e);
             if (w) show(w);
         }, true);
-        document.addEventListener('focusout', () => hide(), true);
+        document.addEventListener('focusout', () => leave(), true);
         document.addEventListener('pointerdown', () => hide(), true);
-        window.addEventListener('scroll', () => hide(), true);
-        window.addEventListener('resize', () => hide());
+        // An open bubble would stand at a stale position; a pending one is
+        // placed from the trigger's rect when it fires, so it may keep waiting.
+        window.addEventListener('scroll', () => { if (open) hide(); }, true);
+        window.addEventListener('resize', () => { if (open) hide(); });
     }
 
     return { hide };

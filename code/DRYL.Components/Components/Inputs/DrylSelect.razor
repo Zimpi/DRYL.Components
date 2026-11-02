@@ -68,6 +68,7 @@
             <div id="@_listboxId"
                  role="listbox"
                  class="select-panel"
+                 data-dryl-glide="[role=option]"
                  aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
 
                 @if (_items.Count == 0)

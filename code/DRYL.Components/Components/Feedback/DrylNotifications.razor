@@ -27,8 +27,12 @@
              class="@(string.IsNullOrWhiteSpace(Class) ? "notif-anchor" : $"notif-anchor {Class}")"
              @attributes="AdditionalAttributes">
     <TriggerContent>
+        @* data-dryl-inbox marks the bell a service-driven toast can come out of and return
+           into. Only in service-driven mode: that is where an entry the toast provider adds
+           to IDrylNotificationService actually shows up behind this bell. *@
         <button type="button"
                 class="notif-bell @(_open ? "is-active" : null)"
+                data-dryl-inbox="@(IsInbox ? "" : null)"
                 aria-label="@BellAriaLabel"
                 aria-haspopup="dialog"
                 aria-expanded="@(_open ? "true" : "false")">
@@ -196,6 +200,8 @@
 
     // Service-driven unless the consumer supplied an explicit Items list.
     private bool Controlled => Items is not null;
+
+    private bool IsInbox => !Controlled && _service is not null;
 
     private IReadOnlyList<DrylNotification> Current =>
         Items ?? _service?.Notifications ?? Array.Empty<DrylNotification>();

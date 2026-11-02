@@ -44,11 +44,27 @@ appended to `document.body`, `position: fixed`, reused by every tooltip and
 never removed. It escapes ancestor `overflow` and `backdrop-filter` clipping —
 the reason a tooltip inside a glass card or an app bar is visible at all.
 
-Placement is resolved in JS, not in CSS: the routine measures the bubble
-off-screen, flips to the opposite side when the preferred one has no viewport
-room, and finally clamps the result into the viewport on both axes. The bubble
-is revealed on the next animation frame so its enter transition runs rather than
-being skipped.
+Placement is resolved in JS, not in CSS: the routine measures the label in a
+hidden twin of the bubble's text (`.tt-measure`), flips to the opposite side
+when the preferred one has no viewport room, and finally clamps the result into
+the viewport on both axes. It writes the bubble's size and position as inline
+styles and the anchor — the point on the edge facing the trigger — as
+`--tt-ax`/`--tt-ay`; `data-place` on the bubble names the resolved side. A first
+open is written without transitions and revealed on the next animation frame,
+so its enter choreography runs rather than being skipped.
+
+Timing is the engine's other job. A wrapper's `data-tt-delay` (whole ms) arms
+one timer; leaving the wrapper before it fires cancels it. An open bubble is
+**warm**, and stays warm for `--delay-short` after it closed: a wrapper reached
+while warm skips its delay, and if the bubble is still open it glides there —
+the geometry transitions on `.tt-portal`, the text cross-fades. Leaving a
+wrapper closes the bubble only after `--dur-fast`, which is what lets the gap
+between two toolbar buttons hand the bubble over instead of closing it. Every
+length and duration the engine uses is read from the tokens (`--sp-3`,
+`--dur-fast`, `--dur-med`, `--delay-short`, `--ease-out`). Pointer-down, scroll,
+resize and `hide()` close an open bubble at once and cold. A running delay
+survives a scroll or resize; when it fires, the bubble opens only if the wrapper
+still matches `:hover` or holds focus.
 
 `dryl.tooltip` exposes exactly one function, `hide()`. Nothing in the library
 calls it; it exists so an application that moves content under a stationary
@@ -97,7 +113,9 @@ taken in `OnInitialized` only in service-driven mode, and the disposal is
 null-safe for controlled mode where it was never taken.
 
 `DrylTooltip` and `DrylErrorBoundary` implement no disposal and need none:
-neither holds a timer, a subscription or a JS reference. `DrylErrorBoundary`
+neither holds a timer, a subscription or a JS reference. The tooltip's open and
+leave timers live in the page-level `dryl.tooltip` engine, one of each per page,
+and are cleared on every hide. `DrylErrorBoundary`
 forwards `Ai` and `Aura` to the `DrylAlert` it renders, and that alert disposes
 its own aura lifecycle.
 

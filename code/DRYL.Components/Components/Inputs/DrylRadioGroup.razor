@@ -63,16 +63,18 @@
     /// <summary>If true, all radio buttons in the group are disabled.</summary>
     [Parameter] public bool Disabled { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border and glow around the group.</summary>
+    /// <summary>AI ambient state — controls the gradient border and glow around the group. Leave it at <see cref="AiState.None"/> to follow a surrounding <c>DrylAiScope</c>.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
-    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); supplies the state and the aura variant when the group sets neither.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, Scope);
+
+    private AiState EffectiveAi => AiScope.Resolve(Ai, Scope);
 
     private readonly string _groupName = $"dryl-rg-{Guid.NewGuid():N}";
     private readonly string _helperId  = $"dryl-help-{Guid.NewGuid():N}";
@@ -92,9 +94,9 @@
     protected override void OnParametersSet()
     {
         base.OnParametersSet();
-        if (Ai == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Ai;
-        _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
 
         _context = new RadioGroupContext<TValue>(
             CurrentValue,

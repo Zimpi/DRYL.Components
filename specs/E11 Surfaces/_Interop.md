@@ -4,15 +4,17 @@ The JS interop surface this category uses, the DI services it registers, and the
 cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
-**Partial by design.** Of the category's eight components only `DrylPopover` has
-a spec (`F1 DrylPopover.md`), and only its interop is documented below.
+**Partial by design.** Of the category's eight components `DrylPopover` and
+`DrylToast` have a spec (`F1 DrylPopover.md`, `F2 DrylToast.md`), and only their
+interop is documented below.
 `DrylCard`, `DrylChat`, `DrylChatComposer` and `DrylDepthGlass` also inject
 `IJSRuntime` and call `dryl.*` entry points of their own — `dryl.depthglass.*`,
 `dryl.spotlight.*` and `dryl.chat.*` — and none of that is written here yet;
-`DrylMarkdown`, `DrylMessage` and `DrylToast` inject no `IJSRuntime` at all, but
-`DrylToast`'s lifecycle is driven from `dryl.toast` through its provider. Those
-seven are open, not covered, and the sections below are not a complete account of
-the category.
+`DrylMarkdown`, `DrylMessage` and `DrylToast` inject no `IJSRuntime` at all.
+`DrylToast`'s timer and motion are driven from `dryl.toast` through its
+provider, documented in `E1 Foundation/_Interop.md`. The six components without
+a spec are open, not covered, and the sections below are not a complete account
+of the category.
 
 ## Interop
 
@@ -29,6 +31,15 @@ attaches `window.dryl`, and the component calls into it by name.
 | `dryl.popover.close(anchor)` | `OnAfterRenderAsync` when the rendered state is closed, and from `DisposeAsync` | Removes those three listeners, sets a claimed `aria-expanded` back to `false`, drops an unapplied focus request, clears the inline placement styles and `data-dryl-positioned`, and returns the panel node to its anchor, again carrying its content's scroll positions across the move. |
 
 `opts` carries `placement`, `matchWidth`, `closeOnOutside` and `role`.
+
+**The list ink (I38).** `dryl.popover.open` calls `dryl.motion.glideScan(panel)`
+after the reveal and any pending focus; `dryl.popover.close` calls
+`dryl.motion.glideRelease(panel)`. No component calls either directly.
+
+| Entry point | Does |
+|---|---|
+| `dryl.motion.glideScan(panel)` | Attaches the ink to every host in the panel — the panel itself when it is a `[role="menu"]` (rows `[role="menuitem"]`), and every element carrying `data-dryl-glide="<row selector>"` (`DrylSelect`, `DrylMultiSelect`, `DrylAutocomplete`, each `DrylTimePicker` column). Watches the panel for hosts that render later. Per host: a `MutationObserver` on `class` and children (the listboxes' `.is-highlighted`, an autocomplete's re-rendered rows), a `ResizeObserver`, and `pointerover`/`pointermove`/`pointerleave`/`focusin` listeners; mouse only. Writes `data-glide`, `data-glide-on`, `data-glide-tone`, `data-glide-spot` and `--glide-x/y/w/h`, `--glide-spot-x` — attributes Blazor never renders. |
+| `dryl.motion.glideRelease(panel)` | Disconnects the panel watcher and every host's observers and listeners, cancels pending frames and removes every attribute and property written above (`CODE-05`). |
 
 **Back into .NET.** `DrylPopover` hands `dryl.popover.open` a
 `DotNetObjectReference<DrylPopover>`; the outside-press listener calls

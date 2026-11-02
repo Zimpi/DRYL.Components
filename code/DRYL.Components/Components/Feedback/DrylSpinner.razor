@@ -1,12 +1,15 @@
-@namespace DRYL.Components
+﻿@namespace DRYL.Components
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
     DrylSpinner — compact loading indicator.
 
-    Variants : Ring  — smooth conic-gradient arc
-               Dots  — three-dot sequential wave
-               Pulse — expanding concentric rings
+    Variants : Ring  — Liquid: a turning torus whose outline wobbles
+                       and whose wall breathes
+               Dots  — Goo: three droplets that split from a core
+                       and fuse back into it
+               Pulse — Bloom: three morphing membranes around a
+                       breathing nucleus
 
     Sizes    : Small | Medium | Large
 
@@ -31,23 +34,38 @@
 
     @if (Variant == SpinnerVariant.Dots)
     {
-        <div class="spinner-dots">
-            <span class="spinner-dot"></span>
-            <span class="spinner-dot"></span>
-            <span class="spinner-dot"></span>
+        <div class="spinner-body" aria-hidden="true">
+            <svg class="spinner-goo" viewBox="0 0 48 48" focusable="false">
+                <defs>
+                    <filter id="@_gooId" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="blur" />
+                        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" />
+                    </filter>
+                </defs>
+                <g filter="@($"url(#{_gooId})")">
+                    <circle class="spinner-goo-core" cx="24" cy="24" r="10" />
+                    <circle class="spinner-goo-drop" cx="24" cy="24" r="7" />
+                    <circle class="spinner-goo-drop" cx="24" cy="24" r="7" />
+                    <circle class="spinner-goo-drop" cx="24" cy="24" r="7" />
+                </g>
+                <circle class="spinner-goo-spark" cx="21.5" cy="21" r="3" />
+            </svg>
         </div>
     }
     else if (Variant == SpinnerVariant.Pulse)
     {
-        <div class="spinner-pulse">
-            <span class="spinner-pulse-ring"></span>
-            <span class="spinner-pulse-ring"></span>
-            <span class="spinner-pulse-core"></span>
+        <div class="spinner-body spinner-bloom" aria-hidden="true">
+            <span class="spinner-bloom-membrane"></span>
+            <span class="spinner-bloom-membrane"></span>
+            <span class="spinner-bloom-membrane"></span>
+            <span class="spinner-bloom-core"></span>
         </div>
     }
     else
     {
-        <div class="spinner-ring"></div>
+        <div class="spinner-body spinner-liquid" aria-hidden="true">
+            <span class="spinner-liquid-torus"></span>
+        </div>
     }
 
 </div>
@@ -93,6 +111,9 @@
     // AiState.Proposed is rendered like None: a spinner reports work in progress,
     // so nothing on it waits for a human decision (I20).
     private AiState Shown => EffectiveAi == AiState.Proposed ? AiState.None : EffectiveAi;
+
+    // Each instance owns its goo filter, so two spinners on a page never share one id.
+    private readonly string _gooId = $"dryl-spinner-goo-{Guid.NewGuid():N}";
 
     private AiState _prevAi;
     private int _genTick;
@@ -147,7 +168,10 @@
         }
     }
 
-    /// <summary>Visual style of the spinner.</summary>
+    /// <summary>
+    /// Visual style of the spinner. <see cref="Ring"/> renders the Liquid torus,
+    /// <see cref="Dots"/> the Goo droplets, <see cref="Pulse"/> the Bloom membranes.
+    /// </summary>
     public enum SpinnerVariant { Ring, Dots, Pulse }
 
     /// <summary>Display size of the spinner.</summary>

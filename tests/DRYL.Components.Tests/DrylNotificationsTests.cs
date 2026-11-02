@@ -86,6 +86,36 @@ public class DrylNotificationsTests : BunitContext
         Assert.Equal(0, service.UnreadCount);
     }
 
+    // ── The bell a toast can come out of (I34) ──────────────────────────────
+
+    [Fact]
+    public void Service_driven_bell_is_marked_as_the_toast_inbox()
+    {
+        Services.AddScoped<IDrylNotificationService, TestNotificationService>();
+
+        var cut = Render<DrylNotifications>();
+
+        Assert.True(cut.Find(".notif-bell").HasAttribute("data-dryl-inbox"));
+    }
+
+    [Fact]
+    public void Controlled_bell_is_not_marked_as_the_toast_inbox()
+    {
+        Services.AddScoped<IDrylNotificationService, TestNotificationService>();
+
+        var cut = RenderControlled([Unread()]);
+
+        Assert.False(cut.Find(".notif-bell").HasAttribute("data-dryl-inbox"));
+    }
+
+    [Fact]
+    public void Bell_without_a_service_is_not_marked_as_the_toast_inbox()
+    {
+        var cut = Render<DrylNotifications>();
+
+        Assert.False(cut.Find(".notif-bell").HasAttribute("data-dryl-inbox"));
+    }
+
     [Fact]
     public void Renders_an_empty_inbox_when_no_service_is_registered()
     {

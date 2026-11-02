@@ -78,6 +78,7 @@ selectors.
 | `Aura` | `AiAura?` | `null` | Inherited from `DrylAiAware`. Pins the aura variant; `null` inherits the scope, ultimately `AiAura.Comet`. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the button's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the `button` element. |
+| `Element` | `ElementReference` | — | Read-only property, not a parameter: the rendered `button` element, valid after the first render. What a caller hands to `ToastOptions.Origin` so a toast grows out of this button. |
 
 Nested enums: `DrylButton.ButtonVariant` (`Primary`, `Secondary`, `Ghost`,
 `Danger`, `Bold`) and `DrylButton.ButtonSize` (`Small`, `Medium`, `Large`).
@@ -90,6 +91,7 @@ icon-only mode is entered by omitting `ChildContent`.
 ### Content and composition
 
 - The component renders exactly one `button` element as its root.
+- `Element` refers to that root `button` after the first render.
 - The component renders `ChildContent` as the button's label.
 - The component renders a leading `DrylIcon` when `LeadingIcon` is set and
   `Loading` is `false`.

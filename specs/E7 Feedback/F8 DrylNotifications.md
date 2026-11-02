@@ -96,6 +96,11 @@ no `Ai` of its own.
   `MaxBadgeCount`.
 - The bell reflects the panel's open state with a modifier class.
 - Activating the bell opens the panel, and activating it again closes it.
+- In service-driven mode with a service resolved, the bell carries
+  `data-dryl-inbox`: the marker `DrylToastProvider` finds to bring a toast
+  without an origin out of the bell and to return an expired one into it
+  (I34). A controlled bell, or one without a service, carries no marker — an
+  entry the toast provider adds to the service would not appear behind it.
 
 ### The panel
 

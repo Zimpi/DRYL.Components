@@ -6,7 +6,8 @@ part of the data contract the 1.0 freeze binds.
 **Source folder:** `code/DRYL.Components/Components/Inputs/`
 
 This reference covers the shared contracts used by `DrylInputText`,
-`DrylTextarea` and `DrylSelect`. Other Inputs types remain phase-C work. It has
+`DrylTextarea` and `DrylSelect`; `DrylMultiSelect` uses `SelectItem` and
+`InputState` with the same meaning, and `DrylTimePicker` uses `InputState`. Other Inputs types remain phase-C work. It has
 no `Meta` block and claims no component (`SPEC-03`).
 
 ## `InputState`
@@ -87,6 +88,25 @@ It uses the same `InputState`, validation-message and `AiState`/`AiAura`
 contracts as the fields above. Its own parameters, including the creation path
 (`OnCreate`, `CreateLabel`) and the status texts (`EmptyText`, `LoadingText`),
 are listed in [`F5 DrylAutocomplete.md`](F5%20DrylAutocomplete.md).
+
+## `InputBase<bool>` — `DrylCheckbox`, `DrylToggle`
+
+`DrylCheckbox` and `DrylToggle` inherit `InputBase<bool>`. `Value`,
+`ValueChanged` and `ValueExpression` are typed `bool`; each component supplies
+`() => Value` when no expression is given, so simple binding works outside an
+`EditForm`. A native `change` event writes the new state through
+`CurrentValue`. Parsing from a string accepts `bool.TryParse` and treats any
+other text as `false` without a parsing error. Neither component shows
+validation messages, a helper or an `aria-invalid` state of its own.
+`AdditionalAttributes` are applied to the native input. Both render their label
+row with the shared `.choice` / `.choice-label` classes and mark a user change
+with `data-touched` (idea I39); see
+[`F8 DrylCheckbox.md`](F8%20DrylCheckbox.md) and
+[`F11 DrylToggle.md`](F11%20DrylToggle.md).
+
+`DrylRadioGroup<TValue>` inherits `InputBase<TValue>` and takes part in
+validation like the text fields; see
+[`F9 DrylRadioGroup.md`](F9%20DrylRadioGroup.md).
 
 ## AI state and aura inheritance
 

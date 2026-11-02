@@ -3,7 +3,7 @@
 @using System.Globalization
 
 @*  ─────────────────────────────────────────────────────────
-    DrylProgress — linear progress bar.
+    DrylProgress — linear progress bar, drawn as a row of glass cells.
 
     Usage:
       <DrylProgress Value="64" ShowLabel="true" />
@@ -11,8 +11,10 @@
       <DrylProgress Indeterminate="true" />
       <DrylProgress Value="42" Ai="AiState.Streaming" />
 
-    The fill width is driven by an inline style; the AI aura ring is
-    hosted on a wrapper so it is not clipped by the track's overflow.
+    The track is a row of glass cells (one per unit when Max is a whole
+    number from 1 to 12, otherwise 20). One gradient runs across every
+    cell; the leading lit cell is filled partially. Each cell clips its own
+    fill, so the AI aura on the wrapper is never clipped.
     ───────────────────────────────────────────────────────── *@
 
 <div class="progress-field @Class" @attributes="AdditionalAttributes">
@@ -40,12 +42,17 @@
         <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
         <div class="@TrackCssClass"
+             style="@TrackStyle"
              role="progressbar"
              aria-valuemin="0"
              aria-valuemax="@Max.ToString(CultureInfo.InvariantCulture)"
              aria-valuenow="@AriaValueNow"
              aria-label="@AriaLabel">
-            <div class="@BarCssClass" style="@BarStyle"></div>
+            @for (var i = 0; i < CellCount; i++)
+            {
+                var cell = i;
+                <span class="@CellCssClass(cell)" style="@CellStyle(cell)"></span>
+            }
         </div>
     </div>
 </div>
@@ -107,8 +114,30 @@
     private int _genTick;
     private readonly AuraLifecycle _aura = new();
 
+    // Cell bookkeeping. _units is how many cells the current value fills (fractional);
+    // _fromUnits is what it filled before the last change, so the newly filled cells
+    // can stagger outward from the previous leading edge. Both start at zero, so a
+    // freshly mounted bar fills in from the left.
+    private double _units;
+    private double _fromUnits;
+
+    /// <summary>The number of cells the row is drawn with.</summary>
+    internal const int DefaultCellCount = 20;
+
+    private int CellCount =>
+        Max >= 1 && Max <= 12 && Math.Abs(Max - Math.Round(Max)) < 1e-9
+            ? (int)Math.Round(Max)
+            : DefaultCellCount;
+
     protected override void OnParametersSet()
     {
+        var units = Percent / 100 * CellCount;
+        if (Math.Abs(units - _units) > 1e-9)
+        {
+            _fromUnits = _units;
+            _units = units;
+        }
+
         if (Shown == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = Shown;
         _aura.Sync(Shown, () => InvokeAsync(StateHasChanged));
@@ -135,8 +164,36 @@
     private string? AriaValueNow =>
         Indeterminate ? null : ClampedValue.ToString(CultureInfo.InvariantCulture);
 
-    private string? BarStyle =>
-        Indeterminate ? null : FormattableString.Invariant($"width: {Percent:0.##}%");
+    private bool IsComplete => !Indeterminate && Percent >= 100;
+
+    private string TrackStyle => FormattableString.Invariant($"--n: {CellCount}");
+
+    // How much of cell i is filled, 0..1.
+    private double CellFill(int i) => Math.Round(Math.Clamp(_units - i, 0, 1), 3);
+
+    // Index of the leading lit cell, or -1 when nothing is lit.
+    private int LeadIndex => _units <= 0 ? -1 : Math.Min(CellCount - 1, (int)Math.Ceiling(_units) - 1);
+
+    // Stagger order of cell i in the current change: 0 for the first cell that
+    // changes, counting outward from the previous leading edge.
+    private int StaggerOrder(int i) =>
+        _units >= _fromUnits
+            ? Math.Max(0, i - (int)Math.Floor(_fromUnits))
+            : Math.Max(0, (int)Math.Ceiling(_fromUnits) - 1 - i);
+
+    private string CellStyle(int i) =>
+        FormattableString.Invariant($"--i: {i}; --k: {StaggerOrder(i)}; --f: {CellFill(i):0.###}");
+
+    private string CellCssClass(int i)
+    {
+        if (Indeterminate) return "progress-cell";
+        var f = CellFill(i);
+        var parts = new List<string>(4) { "progress-cell" };
+        if (f > 0) parts.Add("is-lit");
+        if (f >= 1) parts.Add("is-full");
+        if (i == LeadIndex && !IsComplete) parts.Add("is-lead");
+        return string.Join(' ', parts);
+    }
 
     private bool ShowLabelRow =>
         Label is not null
@@ -160,17 +217,15 @@
             var parts = new List<string> { "progress" };
             if (Size == ProgressSize.Small) parts.Add("progress--sm");
             else if (Size == ProgressSize.Large) parts.Add("progress--lg");
+            switch (Variant)
+            {
+                case ProgressVariant.Success: parts.Add("progress--success"); break;
+                case ProgressVariant.Warning: parts.Add("progress--warning"); break;
+                case ProgressVariant.Danger:  parts.Add("progress--danger");  break;
+            }
             if (Indeterminate) parts.Add("progress--indeterminate");
+            if (IsComplete) parts.Add("progress--complete");
             return string.Join(' ', parts);
         }
     }
-
-    private string BarCssClass =>
-        "progress-bar " + Variant switch
-        {
-            ProgressVariant.Success => "progress-bar--success",
-            ProgressVariant.Warning => "progress-bar--warning",
-            ProgressVariant.Danger  => "progress-bar--danger",
-            _ => string.Empty
-        };
 }

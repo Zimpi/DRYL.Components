@@ -19,6 +19,7 @@
            value="@ValueAsString"
            checked="@IsChecked"
            disabled="@IsDisabled"
+           data-touched="@_touched"
            @onchange="HandleChange" />
     <span class="radio-control"></span>
     @if (!string.IsNullOrEmpty(Label))
@@ -49,8 +50,12 @@
     private string LabelCssClass =>
         IsDisabled ? "radio radio--disabled" : "radio";
 
+    // Set when the user picks this option; the glow pulse plays only from then on.
+    private bool _touched;
+
     private async Task HandleChange()
     {
+        _touched = true;
         if (Context is not null && Value is not null)
             await Context.OnChange.InvokeAsync(Value);
     }

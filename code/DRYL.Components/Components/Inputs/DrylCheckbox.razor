@@ -8,26 +8,28 @@
       <DrylCheckbox @bind-Value="model.AcceptTerms">I accept the terms</DrylCheckbox>
       <DrylCheckbox @bind-Value="model.HotReload" Label="Enable hot-reload" />
 
-    The check glyph scales in with a spring easing on toggle.
+    The accent fill springs up from the centre and the check draws itself left
+    to right; after a user change the box sends one glow pulse (data-touched).
     ───────────────────────────────────────────────────────── *@
 
-<label class="row" style="cursor: pointer; user-select: none;">
+<label class="@RowCssClass">
     <input id="@_id"
            type="checkbox"
            class="checkbox"
            checked="@CurrentValue"
            @onchange="HandleChange"
            disabled="@Disabled"
+           data-touched="@_touched"
            aria-label="@(ChildContent is null && string.IsNullOrEmpty(Label) ? AriaLabel : null)"
            @attributes="AdditionalAttributes" />
 
     @if (ChildContent is not null)
     {
-        <span style="font-size: 13px; color: var(--fg-muted);">@ChildContent</span>
+        <span class="choice-label">@ChildContent</span>
     }
     else if (!string.IsNullOrEmpty(Label))
     {
-        <span style="font-size: 13px; color: var(--fg-muted);">@Label</span>
+        <span class="choice-label">@Label</span>
     }
 </label>
 
@@ -46,6 +48,11 @@
 
     private readonly string _id = $"dryl-check-{Guid.NewGuid():N}";
 
+    // Set by the first user change; the glow pulse plays only from then on, never on first render.
+    private bool _touched;
+
+    private string RowCssClass => Disabled ? "row choice choice--disabled" : "row choice";
+
     public override Task SetParametersAsync(ParameterView parameters)
     {
         parameters.SetParameterProperties(this);
@@ -54,8 +61,11 @@
         return base.SetParametersAsync(parameters);
     }
 
-    private void HandleChange(ChangeEventArgs e) =>
+    private void HandleChange(ChangeEventArgs e)
+    {
+        _touched = true;
         CurrentValue = (bool)(e.Value ?? false);
+    }
 
     protected override bool TryParseValueFromString(
         string? value,

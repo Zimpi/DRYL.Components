@@ -156,3 +156,47 @@ visible at its settled position. The dialog/backdrop and all Comet/Aurora
 state/pseudo-element combinations likewise stop moving; static state cues remain
 usable. Preference changes during an exit still permit its removal. No new
 animation, duration, easing or token is added by I13.
+
+## Toasts (`F3 DrylToastProvider`)
+
+All in namespace `DRYL.Components.Toasts`, under `code/DRYL.Components/Toasts/`;
+registered by `AddDrylComponents()`. Behaviour is pinned in
+[`F3 DrylToastProvider.md`](F3%20DrylToastProvider.md).
+
+### `IDrylToastService` (scoped)
+
+| Member | Notes |
+|---|---|
+| `Show(string message, ToastOptions? options = null)` | Shows a toast; returns its `IDrylToastReference`. |
+| `ShowSuccess` / `ShowWarning` / `ShowError` / `ShowInfo(string message, string? title = null, ToastOptions? options = null)` | Set `Variant` (and `Title` when given) on the options, then `Show`. |
+| `Show<TComponent>(ToastParameters? parameters = null, ToastOptions? options = null)` | Renders `TComponent` as the body. |
+| `CloseAll()` | Closes every visible toast. |
+| `OnToastAdded`, `OnToastCloseRequested`, `OnToastUpdated` | Events the provider subscribes to. |
+
+### `IDrylToastReference` / `IDrylToastInstance`
+
+`Id`, `Close()`, `SetAi(AiState)`; the reference adds `OnClosed` (raised once,
+after removal), the cascaded instance adds `Options`, `Message` and `Ai`.
+
+### `ToastOptions`
+
+| Member | Type | Default | Notes |
+|---|---|---|---|
+| `Variant` | `ToastVariant` | `Default` | See `E11 Surfaces/_Api.md`. |
+| `Title` | `string?` | `null` | |
+| `Duration` | `int` | `5000` | Milliseconds; `0` never expires. |
+| `ShowCloseButton` | `bool` | `true` | |
+| `PauseOnHover` | `bool` | `true` | Documented, but not read: hovering always pauses. Pre-existing. |
+| `ShowProgress` | `bool` | `true` | |
+| `Ai` | `AiState` | `None` | |
+| `Icon` | `string?` | `null` | Empty string: no icon. |
+| `Class` | `string?` | `null` | |
+| `Origin` | `ElementReference?` | `null` | Added in 3.16.0 (I34). The element the toast grows out of; `null` means it comes out of the bell, or unfolds as a capsule. `DrylButton.Element` is the usual value. |
+| `KeepInInbox` | `bool` | `true` | Added in 3.16.0 (I34). Lets a bell-born toast that expires return into the inbox. |
+
+### `ToastParameters` and `ToastPosition`
+
+`ToastParameters` is a name-to-value bag for `Show<TComponent>`: indexer,
+`Add`, `Contains`, `Count`, `ToDictionary()`; a `null` value removes the name.
+`ToastPosition`: `TopRight`, `TopLeft`, `TopCenter`, `BottomRight`,
+`BottomLeft`, `BottomCenter`.

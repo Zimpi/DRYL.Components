@@ -1,6 +1,7 @@
 @namespace DRYL.Components
 @using DRYL.Components.Toasts
 @inject IDrylToastService ToastService
+@inject IServiceProvider Services
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 
@@ -12,16 +13,32 @@
 
     It subscribes to IDrylToastService, renders the active stack
     inside a fixed anchor, cascades IDrylToastInstance to custom
-    toast bodies, and hands the auto-dismiss timer to JS so the
-    CSS animation-play-state hover pause stays in lockstep with
-    the actual close.
+    toast bodies, and hands each toast to dryl.toast, which owns
+    the auto-dismiss timer (in lockstep with the CSS hover pause)
+    and the motion:
+
+      • entry — out of ToastOptions.Origin; without one, out of the
+        bell of a service-driven DrylNotifications; without a bell,
+        unfolding from a capsule around the icon;
+      • leave — a toast that came out of the bell and expires unread
+        flies back into it and becomes an inbox entry; every other
+        leave shrinks and fades. Either way the space then closes, so
+        the neighbours glide instead of jumping.
     ───────────────────────────────────────────────────────── *@
 
 <div class="@HostCssClass" aria-live="polite">
     @foreach (var entry in _entries)
     {
-        <CascadingValue Value="@((IDrylToastInstance)entry.Reference)" IsFixed="false">
-            <div class="toast-slot" @ref="entry.ElementRef" @key="entry.Reference.Id">
+        @* The key sits on the loop's top-level item. On the inner div it would key nothing:
+           Blazor diffs the CascadingValue siblings by position, so removing the first toast
+           rebuilt every toast after it — and restarted their progress bars. *@
+        <CascadingValue Value="@((IDrylToastInstance)entry.Reference)" IsFixed="false" @key="entry.Reference.Id">
+            @* data-dryl-entered is set by dryl.toast once it has taken the toast over; until then
+               the toast is hidden so its entry morph starts from nothing. It is rendered from C#
+               only when that hand-off failed, so a toast can never stay invisible. *@
+            <div class="@(entry.IsLeaving ? "toast-slot is-leaving" : "toast-slot")"
+                 data-dryl-entered="@(entry.RevealWithoutMotion ? "" : null)"
+                 @ref="entry.ElementRef">
                 @if (entry.Reference.BodyType is not null)
                 {
                     <DrylToast Variant="entry.Reference.Options.Variant"
@@ -31,7 +48,6 @@
                                ShowCloseButton="entry.Reference.Options.ShowCloseButton"
                                ShowProgress="entry.Reference.Options.ShowProgress"
                                Ai="entry.Reference.Ai"
-                               IsLeaving="entry.IsLeaving"
                                OnClose="@(() => RequestClose(entry))">
                         <DynamicComponent Type="@entry.Reference.BodyType"
                                           Parameters="@entry.Reference.BodyParameters" />
@@ -47,7 +63,6 @@
                                ShowCloseButton="entry.Reference.Options.ShowCloseButton"
                                ShowProgress="entry.Reference.Options.ShowProgress"
                                Ai="entry.Reference.Ai"
-                               IsLeaving="entry.IsLeaving"
                                OnClose="@(() => RequestClose(entry))" />
                 }
             </div>
@@ -59,6 +74,18 @@
     /// <summary>Anchor position for the toast stack. Default: BottomRight.</summary>
     [Parameter] public ToastPosition Position { get; set; } = ToastPosition.BottomRight;
 
+    /// <summary>How dryl.toast brought a toast in. Mirrors the strings dryl.toast.attach returns.</summary>
+    internal const string FromOrigin = "origin", FromBell = "bell", FromCapsule = "capsule";
+
+    /// <summary>What dryl.toast.leave reports: the toast flew into the bell, or it simply left.</summary>
+    internal const string LeftIntoInbox = "inbox", LeftPlain = "plain";
+
+    // A leave is a capsule fold plus a flight (two --dur-slow) and the closing of its space
+    // (--dur-med), about 1.1 s plus the round trip. Past this, the toast is removed whether
+    // or not JS answered, so a lost reply can never leave a dead toast on screen. Settable
+    // for tests only.
+    internal int LeaveWatchdogMs { get; set; } = 3000;
+
     internal sealed class Entry
     {
         public DrylToastReference Reference { get; init; } = default!;
@@ -66,12 +93,20 @@
         public DotNetObjectReference<ToastCallbacks>? DotNetRef;
         public bool Attached;
         public bool IsLeaving;
+        public bool Expired;
+        public bool RevealWithoutMotion;
+        public string? EnteredFrom;
     }
 
     private readonly List<Entry> _entries = new();
+    private IDrylNotificationService? _inbox;
 
     protected override void OnInitialized()
     {
+        // Resolved leniently: without AddDrylComponents() there is no inbox to file into,
+        // and an expired toast simply leaves.
+        _inbox = Services.GetService(typeof(IDrylNotificationService)) as IDrylNotificationService;
+
         ToastService.OnToastAdded          += OnAdded;
         ToastService.OnToastCloseRequested += OnCloseRequested;
         ToastService.OnToastUpdated        += OnUpdated;
@@ -108,33 +143,119 @@
     {
         if (entry.IsLeaving) return;
         entry.IsLeaving = true;
-        // Guaranteed fallback: remove from the DOM after the exit animation
-        // (--dur-med 240ms plus a buffer). Should animationend fail to bubble to the
-        // slot for any reason, this path is what cleans up.
-        _ = InvokeAsync(async () =>
+        _ = InvokeAsync(() => LeaveAsync(entry));
+    }
+
+    private async Task LeaveAsync(Entry entry)
+    {
+        StateHasChanged();
+
+        var intoInbox = ReturnsToInbox(entry);
+        string? outcome = null;
+        if (entry.Attached)
         {
-            StateHasChanged();
-            await Task.Delay(300);
-            await FinalizeRemoval(entry);
+            try
+            {
+                var leave = JS.InvokeAsync<string>("dryl.toast.leave", entry.ElementRef, intoInbox).AsTask();
+                if (await Task.WhenAny(leave, Task.Delay(LeaveWatchdogMs)) == leave)
+                {
+                    outcome = await leave;
+                }
+            }
+            catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (JSException) { /* interop failed — remove without motion */ }
+            catch (TaskCanceledException) { /* interop timed out */ }
+        }
+
+        // dryl.toast answers "plain" only when no bell was left on screen to fly into; then
+        // nothing lands in an inbox nobody sees. Without an answer (a slow or lost reply) the
+        // toast is filed anyway: it came out of a bell, and losing the message is the worse
+        // failure.
+        if (intoInbox && outcome != LeftPlain)
+        {
+            FileInInbox(entry);
+        }
+
+        await FinalizeRemoval(entry);
+    }
+
+    /// <summary>
+    /// What came out of the bell goes back into it: only a toast that entered from the bell,
+    /// expired rather than being closed, carries text and was not opted out returns there.
+    /// </summary>
+    private bool ReturnsToInbox(Entry entry) =>
+        _inbox is not null
+        && entry.Expired
+        && entry.EnteredFrom == FromBell
+        && entry.Reference.Options.KeepInInbox
+        && InboxTitle(entry) is not null;
+
+    private static string? InboxTitle(Entry entry)
+    {
+        var title = entry.Reference.Options.Title;
+        if (!string.IsNullOrWhiteSpace(title)) return title;
+        return string.IsNullOrWhiteSpace(entry.Reference.Message) ? null : entry.Reference.Message;
+    }
+
+    private void FileInInbox(Entry entry)
+    {
+        var options = entry.Reference.Options;
+        var title = InboxTitle(entry);
+        if (_inbox is null || title is null) return;
+
+        var hasTitle = !string.IsNullOrWhiteSpace(options.Title);
+        _inbox.Add(new DrylNotification
+        {
+            Title   = title,
+            Message = hasTitle && !string.IsNullOrWhiteSpace(entry.Reference.Message) ? entry.Reference.Message : null,
+            Icon    = !string.IsNullOrEmpty(options.Icon) ? options.Icon : DrylToast.DefaultIcon(options.Variant),
+            Ai      = entry.Reference.Ai
         });
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        foreach (var entry in _entries.Where(e => !e.Attached).ToList())
+        var revealed = false;
+        foreach (var entry in _entries.Where(e => !e.Attached && !e.RevealWithoutMotion).ToList())
         {
             entry.DotNetRef = DotNetObjectReference.Create(new ToastCallbacks(this, entry));
             try
             {
-                await JS.InvokeVoidAsync("dryl.toast.attach", entry.ElementRef, entry.DotNetRef);
+                entry.EnteredFrom = await JS.InvokeAsync<string?>(
+                    "dryl.toast.attach", entry.ElementRef, entry.DotNetRef, entry.Reference.Options.Origin);
                 entry.Attached = true;
             }
             catch (JSDisconnectedException) { /* circuit gone */ }
+            catch (Exception ex) when (ex is JSException or TaskCanceledException)
+            {
+                // dryl.toast never took the toast over: show it without motion rather than
+                // leave it hidden. Its timer is then C#'s job.
+                entry.DotNetRef.Dispose();
+                entry.DotNetRef = null;
+                entry.RevealWithoutMotion = true;
+                revealed = true;
+                StartFallbackTimer(entry);
+            }
         }
+        if (revealed) StateHasChanged();
+    }
+
+    private void StartFallbackTimer(Entry entry)
+    {
+        var duration = entry.Reference.Options.Duration;
+        if (duration <= 0) return;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(duration);
+            if (entry.IsLeaving || !_entries.Contains(entry)) return;
+            entry.Expired = true;
+            entry.Reference.Close();
+        });
     }
 
     private async Task FinalizeRemoval(Entry entry)
     {
+        if (!_entries.Contains(entry)) return;
         await DetachInterop(entry);
         _entries.Remove(entry);
         DrylToastService? svc = ToastService as DrylToastService;
@@ -150,6 +271,7 @@
             await JS.InvokeVoidAsync("dryl.toast.detach", entry.ElementRef);
         }
         catch (JSDisconnectedException) { /* circuit gone */ }
+        catch (JSException) { /* element already gone */ }
         entry.DotNetRef?.Dispose();
         entry.DotNetRef = null;
         entry.Attached = false;
@@ -186,8 +308,8 @@
     }
 
     /// <summary>
-    /// Tiny bridge object exposed to JS so the toast interop can notify .NET when
-    /// auto-dismiss fires or the exit animation finishes.
+    /// Tiny bridge object exposed to JS so the toast interop can tell .NET when the
+    /// auto-dismiss timer ran out.
     /// </summary>
     internal sealed class ToastCallbacks
     {
@@ -206,14 +328,9 @@
             if (_entry.IsLeaving) return Task.CompletedTask;
             return _provider.InvokeAsync(() =>
             {
+                _entry.Expired = true;
                 _entry.Reference.Close();
             });
-        }
-
-        [JSInvokable]
-        public Task OnExitFinished()
-        {
-            return _provider.InvokeAsync(() => _provider.FinalizeRemoval(_entry));
         }
     }
 }

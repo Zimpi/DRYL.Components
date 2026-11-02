@@ -1,18 +1,99 @@
+/* A closed fold takes no room and nothing in it can take focus; an open fold inherits,
+   so an open subfolder of a closed folder stays hidden too. The track carries
+   the height; the clip is what lets it reach zero. */
+.tree-fold {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition: grid-template-rows var(--dur-med) var(--ease-in-out),
+                visibility var(--dur-med) var(--ease-out);
+}
+
+.tree-fold.is-open {
+    grid-template-rows: 1fr;
+    visibility: inherit;
+    transition: grid-template-rows var(--dur-slow) var(--ease-out);
+}
+
+.tree-clip {
+    min-height: 0;
+    overflow: hidden;
+}
+
 .tree-group {
+    /* Reset per group: the thread length written to a group must not inherit into the groups nested in it. */
+    --tree-thread: 0px;
+    position: relative;
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
 }
 
-/* An explicit `display` overrides the `hidden` attribute's UA display:none,
-   so collapsed groups must opt back into hiding here. */
-.tree-group[hidden] {
-    display: none;
+.tree-fold.is-open > .tree-clip > .tree-group {
+    opacity: 1;
+    transition: opacity var(--dur-med) var(--ease-out);
+}
+
+/* The guide line under the folder's chevron draws itself as the folder opens. */
+.tree-group::before,
+.tree-group::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: calc(var(--sp-3) + var(--tree-parent-depth, 0) * 18px + var(--sp-2));
+    z-index: 1;
+    pointer-events: none;
+}
+
+.tree-group::before {
+    bottom: var(--sp-1);
+    width: 1px;
+    background: var(--line-strong);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform var(--dur-med) var(--ease-in-out);
+}
+
+.tree-fold.is-open > .tree-clip > .tree-group::before {
+    transform: scaleY(1);
+    transition: transform var(--dur-slow) var(--ease-out);
+}
+
+/* The thread (I41): an accent elbow per level, from the group's top to the row on
+   the path to the selection. dryl.motion.treeGlide writes its length into
+   --tree-thread and marks the group data-tree-path. Without script it never shows. */
+.tree-group::after {
+    --thread: color-mix(in srgb, var(--accent-a), var(--accent-b) min(var(--tree-parent-depth, 0) * 28%, 100%));
+    width: var(--sp-2);
+    height: var(--tree-thread, 0px);
+    border-left: 1px solid var(--thread);
+    border-bottom: 1px solid var(--thread);
+    border-bottom-left-radius: var(--r-xs);
+    filter: drop-shadow(0 0 var(--sp-1) var(--thread));
+    opacity: 0;
+}
+
+.tree-group[data-tree-path]::after {
+    opacity: 1;
+}
+
+.tree[data-tree-ink="glide"] .tree-group::after {
+    transition: height var(--dur-slow) var(--ease-out),
+                opacity var(--dur-med) var(--ease-out);
+}
+
+.tree[data-tree-ink="track"] .tree-group::after {
+    transition: opacity var(--dur-med) var(--ease-out);
 }
 
 .tree-row {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     display: flex;
     align-items: center;
     gap: var(--sp-2);
@@ -24,7 +105,8 @@
     user-select: none;
     outline: none;
     transition: background var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
+                color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .tree-row:hover {
@@ -32,13 +114,72 @@
     color: var(--fg);
 }
 
+/* Inset, because the fold's clip would cut an outer ring off at the edges. */
 .tree-row:focus-visible {
-    box-shadow: 0 0 0 2px var(--accent-soft);
+    box-shadow: inset 0 0 0 2px var(--accent-line);
 }
 
 .tree-row.is-selected {
     background: var(--accent-soft);
     color: var(--fg);
+}
+
+.tree-row[data-tree-path] {
+    color: var(--fg);
+}
+
+li[aria-disabled="true"] > .tree-row {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* The ink draws the selection, so the row gives up its own fill. */
+.tree[data-tree-ink] .tree-row.is-selected {
+    background: transparent;
+}
+
+.tree[data-tree-ink] .tree-row:hover {
+    background: var(--glass-1);
+}
+
+/* The hover light: mouse only, moved by transform. */
+.tree-row::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--sp-8) * -1);
+    top: calc(var(--sp-8) * -1);
+    z-index: -1;
+    width: calc(var(--sp-8) * 2);
+    height: calc(var(--sp-8) * 2);
+    border-radius: 50%;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--accent-a) 32%, transparent), transparent);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(var(--tree-spot-x, 0px), var(--tree-spot-y, 0px));
+    transition: opacity var(--dur-med) var(--ease-out);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .tree-row[data-tree-spot]:hover::after {
+        opacity: 1;
+    }
+}
+
+/* Children slide out of the guide line, one after another; the seventh and every
+   later row land together, as the height finishes (half a step, six steps, plus
+   --dur-med makes --dur-slow). Only a fold the user opened carries is-entering, so
+   a tree that renders open just stands there. The row's contents move, not the
+   row: its box stays still, and the ink can measure it. */
+.tree-fold.is-entering > .tree-clip > .tree-group > li > .tree-row > * {
+    animation: tree-row-enter var(--dur-med) var(--ease-out) both;
+    animation-delay: calc(min(var(--tree-i, 0), 6) * var(--reveal-step) / 2);
+}
+
+@keyframes tree-row-enter {
+    from {
+        opacity: 0;
+        transform: translateX(calc(var(--sp-2) * -1));
+    }
 }
 
 .tree-toggle,
@@ -55,21 +196,26 @@
     color: var(--fg-dim);
     border-radius: var(--r-xs);
     cursor: pointer;
-    transition: transform var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
+    transition: color var(--dur-fast) var(--ease-out);
 }
 
 .tree-toggle:hover {
     color: var(--fg);
 }
 
-.tree-toggle.is-open {
+.tree-chevron {
+    display: inline-flex;
+    transition: transform var(--dur-med) var(--ease-spring);
+}
+
+.tree-chevron.is-open {
     transform: rotate(90deg);
 }
 
 .tree-icon {
     display: inline-flex;
     color: var(--fg-dim);
+    transition: color var(--dur-med) var(--ease-out);
 }
 
 .tree-row.is-selected .tree-icon {
@@ -81,4 +227,22 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tree-fold,
+    .tree-fold.is-open,
+    .tree-group,
+    .tree-fold.is-open > .tree-clip > .tree-group,
+    .tree-group::before,
+    .tree-fold.is-open > .tree-clip > .tree-group::before,
+    .tree[data-tree-ink] .tree-group::after,
+    .tree-chevron,
+    .tree-row::after {
+        transition: none;
+    }
+
+    .tree-fold.is-entering > .tree-clip > .tree-group > li > .tree-row > * {
+        animation: none;
+    }
 }

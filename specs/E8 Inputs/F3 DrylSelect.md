@@ -158,7 +158,20 @@ combobox, not a native `select` element.
 - The open panel matches the trigger width through `DrylPopover`.
 - The floating list surface uses `--panel-float` with `--glass-fx-float`.
 - The list's border, radius and shadow use `--line-strong`, `--r-md` and `--shadow-lg`.
-- Highlighted option text uses `--fg` over `--glass-2`.
+- The listbox carries `data-dryl-glide="[role=option]"`, which makes it a
+  list-ink host (idea I38; `E11 Surfaces/_Interop.md`).
+- The list is inset by `--sp-1` on every side and options are rounded with
+  `--r-sm`, so the ink sits inside the list's radius.
+- While the ink is active, the option under the mouse or the highlighted
+  option — whichever the user acted on last — is covered by the ink.
+- While the ink is active, options draw no hover or highlight fill of their
+  own; the covered option's text uses `--fg`.
+- The ink glides between options on `--dur-slow` / `--ease-spring` and appears
+  without travel when it was hidden.
+- A soft accent light follows the mouse inside the covered option.
+- Without the ink (no script), a highlighted or hovered option uses `--fg` over
+  `--glass-2`.
+- Under `prefers-reduced-motion` the ink moves without a transition.
 - A selected option displays the existing small accent dot.
 - Option hover/highlight transitions use `--dur-fast` with `--ease-out`.
 - The panel enters through the shared popover's entrance behavior.

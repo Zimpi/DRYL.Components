@@ -1,15 +1,20 @@
 @namespace DRYL.Components
+@using System.Globalization
 
 @*  ─────────────────────────────────────────────────────────
-    DrylBadge — small status pill.
+    DrylBadge — small status pill that is alive (I40).
 
     Usage:
       <DrylBadge Kind="BadgeKind.Success" Dot>Healthy</DrylBadge>
       <DrylBadge Kind="BadgeKind.Accent">v0.2.0</DrylBadge>
-      <DrylBadge>Neutral</DrylBadge>
+      <DrylBadge Kind="BadgeKind.Accent" Value="@openReviews.ToString()" />
 
-    Use <c>Dot</c> for live/status indicators. The dot glows in the
-    badge's foreground color.
+    The pill grows out of its leading mark on mount. A change of Kind
+    squishes it once and flashes a ring in the new color. A Dot on Success,
+    Warning or Danger beats in a tempo that matches the kind. A label set
+    through Value animates when it changes: numbers roll only the digits
+    that changed, words rise in while the old word leaves, and the pill's
+    width follows the label.
     ───────────────────────────────────────────────────────── *@
 
 <span class="@CssClass" @attributes="AdditionalAttributes">
@@ -17,20 +22,65 @@
     {
         <DrylIcon Name="@Icon" Size="11" />
     }
-    @ChildContent
+    @if (Value is not null)
+    {
+        <span class="visually-hidden">@Value</span>
+        <span class="badge-label badge-label-value" style="@LengthStyle" aria-hidden="true">
+            @if (_roll is not null)
+            {
+                @for (var i = 0; i < _roll.Length; i++)
+                {
+                    var column = _roll[i];
+                    <span @key="column.Key" class="@column.Css">
+                        <span class="badge-digit-new">@column.Next</span>
+                        @if (column.Previous is not null)
+                        {
+                            <span class="badge-digit-old">@column.Previous</span>
+                        }
+                    </span>
+                }
+            }
+            else
+            {
+                <span @key="_valueRev" class="@WordCss">
+                    @for (var i = 0; i < _value!.Length; i++)
+                    {
+                        <span class="badge-char" style="@CharStyle(i)">@CharText(_value[i])</span>
+                    }
+                </span>
+                @if (_previous is not null)
+                {
+                    <span @key="-_valueRev" class="badge-word badge-word-out">@_previous</span>
+                }
+            }
+        </span>
+    }
+    else
+    {
+        <span class="badge-label">@ChildContent</span>
+    }
 </span>
 
 @code {
-    /// <summary>Color treatment of the badge.</summary>
+    /// <summary>Color treatment of the badge. A change after the first render squishes the pill once and flashes a ring in the new color.</summary>
     [Parameter] public BadgeKind Kind { get; set; } = BadgeKind.Neutral;
 
-    /// <summary>If true, prefixes the label with a glowing dot.</summary>
+    /// <summary>If true, prefixes the label with a glowing dot. On Success, Warning and Danger the dot beats in a tempo that matches the kind.</summary>
     [Parameter] public bool Dot { get; set; }
 
     /// <summary>Optional icon name shown before the label.</summary>
     [Parameter] public string? Icon { get; set; }
 
-    /// <summary>Badge content.</summary>
+    /// <summary>
+    /// The label as text. When set it takes precedence over <see cref="ChildContent"/>,
+    /// and a change animates: if the old and the new value are both numbers, only the
+    /// digits that changed roll (up when the number grows, down when it shrinks);
+    /// otherwise the old label leaves upward while the new one rises in. The pill's
+    /// width follows the label's length.
+    /// </summary>
+    [Parameter] public string? Value { get; set; }
+
+    /// <summary>Badge content. Ignored when <see cref="Value"/> is set.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     /// <summary>Pass-through HTML attributes.</summary>
@@ -39,6 +89,106 @@
 
     /// <summary>Extra CSS class(es) merged onto the badge's own classes.</summary>
     [Parameter] public string? Class { get; set; }
+
+    private bool _initialized;
+    private BadgeKind _kind;
+    private int _kindRev;
+
+    private string? _value;
+    private string? _previous;
+    private int _valueRev;
+    private RollColumn[]? _roll;
+
+    protected override void OnParametersSet()
+    {
+        if (!_initialized)
+        {
+            _initialized = true;
+            _kind = Kind;
+            _value = Value;
+            return;
+        }
+
+        if (Kind != _kind)
+        {
+            _kind = Kind;
+            _kindRev++;
+        }
+
+        if (!string.Equals(Value, _value, StringComparison.Ordinal))
+        {
+            var previous = _value;
+            _value = Value;
+            _valueRev++;
+            _roll = null;
+            _previous = null;
+
+            if (previous is not null && Value is not null)
+            {
+                _roll = BuildRoll(previous, Value, _valueRev);
+                if (_roll is null)
+                {
+                    _previous = previous;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// One column of the rolling number: the character now shown, the one it
+    /// replaced (null when the column did not change) and the roll direction.
+    /// </summary>
+    private sealed record RollColumn(string Key, string Next, string? Previous, string Css);
+
+    /// <summary>
+    /// Right-aligns both values and compares them column by column. Returns null
+    /// when either value is not a number, so a word change takes the word path.
+    /// A column that changed gets a key carrying the revision, so Blazor mounts a
+    /// fresh element and the roll plays; an unchanged column keeps its element.
+    /// </summary>
+    private static RollColumn[]? BuildRoll(string previous, string next, int rev)
+    {
+        if (!TryNumber(previous, out var a) || !TryNumber(next, out var b))
+        {
+            return null;
+        }
+
+        var direction = b >= a ? "badge-digit-up" : "badge-digit-down";
+        var width = Math.Max(previous.Length, next.Length);
+        var before = previous.PadLeft(width);
+        var after = next.PadLeft(width);
+        var columns = new List<RollColumn>(width);
+
+        for (var i = 0; i < width; i++)
+        {
+            if (after[i] == ' ')
+            {
+                continue;
+            }
+
+            // Keyed from the right, so "9" → "10" keeps the units column in place.
+            var position = width - i;
+            var changed = before[i] != after[i];
+            columns.Add(new RollColumn(
+                changed ? FormattableString.Invariant($"c{position}-r{rev}") : FormattableString.Invariant($"c{position}"),
+                after[i].ToString(),
+                changed ? (before[i] == ' ' ? string.Empty : before[i].ToString()) : null,
+                changed ? $"badge-digit {direction}" : "badge-digit"));
+        }
+
+        return columns.ToArray();
+    }
+
+    private static bool TryNumber(string text, out decimal number) =>
+        decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out number);
+
+    private string LengthStyle => FormattableString.Invariant($"--badge-len: {_value?.Length ?? 0}");
+
+    private static string CharStyle(int index) => FormattableString.Invariant($"--i: {index}");
+
+    private static string CharText(char c) => c == ' ' ? " " : c.ToString();
+
+    private string WordCss => _valueRev > 0 ? "badge-word badge-word-in" : "badge-word";
 
     private string CssClass
     {
@@ -53,7 +203,10 @@
                 _ => string.Empty
             };
             var dot = Dot ? "badge-dot" : string.Empty;
-            return string.Join(' ', new[] { "badge", kind, dot, Class }
+            // Alternating between two identically drawn classes restarts the
+            // kind-change animation on every change without JS.
+            var change = _kindRev == 0 ? string.Empty : (_kindRev % 2 == 1 ? "badge-kind-a" : "badge-kind-b");
+            return string.Join(' ', new[] { "badge", kind, dot, change, Class }
                                  .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }

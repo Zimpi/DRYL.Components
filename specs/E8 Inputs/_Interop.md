@@ -5,7 +5,9 @@ cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
 This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect`,
-`DrylFileUpload` and `DrylAutocomplete`.
+`DrylFileUpload`, `DrylAutocomplete`, `DrylMultiSelect` and `DrylTimePicker`.
+The list ink of the four list inputs (I38) is driven by `DrylPopover`, not by
+the components; it is documented in `../E11 Surfaces/_Interop.md`.
 The category's remaining components are still phase-C work.
 
 ## Interop
@@ -62,6 +64,19 @@ component as `OnClose`, which is where a pending query is committed when
 `OnCreate` is set. The create option's enter/exit belongs to `DrylPresence`
 (`dryl.motion.onExit`, E1). The search runs on the thread pool; its results
 are applied through `InvokeAsync`, never written from the pool thread.
+
+`DrylMultiSelect` uses the same three entry points as Select:
+`dryl.keynav.attach` on its trigger after the first render, `dryl.keynav.detach`
+from `DisposeAsync`, and `dryl.autocomplete.scrollOptionIntoView` while the
+highlight moves.
+
+`DrylTimePicker` uses three entry points of `dryl.timepicker`:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.timepicker.scrollToActive(panel)` | After an open, scrolls each column to its staged cell. |
+| `dryl.timepicker.focusPanel(panel)` | After an open, moves focus into the panel once the popover reveals it. |
+| `dryl.timepicker.restoreFocus(panel, input)` | After a close, hands focus back to the field while it is still inside the closing panel; answers whether it moved focus. |
 
 ## Services
 
