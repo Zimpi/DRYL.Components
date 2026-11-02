@@ -2565,6 +2565,175 @@ window.dryl.motion = (() => {
         for (const host of [..._glide.keys()]) if (host === panel || panel.contains(host) || !host.isConnected) glideDetach(host);
     }
 
+    /* ---- Tree glide (I41) --------------------------------------------
+     * treeGlide(root) lays the ink under the selected row of a DrylTreeView
+     * and runs the accent thread to it: one elbow per level, from the top of
+     * each group on the way down to the row on the path. A selection inside a
+     * closed folder hands the ink to the outermost closed folder, empty
+     * (data-tree-ink-retreat), and the ink comes back when the folder opens.
+     *
+     * The rows' `class` is the signal, as in navGlide. When the selection or
+     * the covered folder changes, the ink springs ("glide"); when a folder
+     * moves a row the ink already covers, it follows frame by frame ("track").
+     * Geometry comes from the offsetParent chain: a tree can sit in a popover
+     * that opens with a scale morph, and a stagger moves the rows' contents
+     * but never their boxes. All state lives in data-* attributes and inline
+     * custom properties: Blazor rewrites `class` on its next render.
+     * ---------------------------------------------------------------- */
+    const _tree = new WeakMap(); // root -> state
+    const TREE_ROW = '.tree-row';
+
+    function treeTarget(host) {
+        const selected = host.querySelector(TREE_ROW + '.is-selected');
+        if (!selected) return null;
+        let shown = selected;
+        for (let fold = selected.closest('.tree-fold:not(.is-open)'); fold && host.contains(fold);
+             fold = fold.parentElement?.closest('.tree-fold:not(.is-open)')) {
+            shown = fold.parentElement.querySelector(':scope > ' + TREE_ROW);
+        }
+        return shown;
+    }
+
+    function treePath(s, target) {
+        const groups = new Set(), rows = new Set();
+        for (let row = target; row;) {
+            const group = row.parentElement?.closest('.tree-group');
+            if (!group || !s.host.contains(group)) break;
+            groups.add(group);
+            group.style.setProperty('--tree-thread', (row.offsetTop + row.offsetHeight / 2) + 'px');
+            group.setAttribute('data-tree-path', '');
+            row = group.closest('.tree-fold').parentElement.querySelector(':scope > ' + TREE_ROW);
+            row.setAttribute('data-tree-path', '');
+            rows.add(row);
+        }
+        for (const group of s.groups) {
+            if (groups.has(group)) continue;
+            group.removeAttribute('data-tree-path');
+            group.style.setProperty('--tree-thread', '0px');
+        }
+        for (const row of s.rows) if (!rows.has(row)) row.removeAttribute('data-tree-path');
+        s.groups = groups;
+        s.rows = rows;
+    }
+
+    function treePlace(s) {
+        const { host } = s;
+        const target = s.target = treeTarget(host);
+        if (!target) { host.removeAttribute('data-tree-ink-on'); treePath(s, null); return; }
+        const { x, y } = glideOffset(target, host);
+        host.style.setProperty('--tree-ink-x', x + 'px');
+        host.style.setProperty('--tree-ink-y', y + 'px');
+        host.style.setProperty('--tree-ink-w', target.offsetWidth + 'px');
+        host.style.setProperty('--tree-ink-h', target.offsetHeight + 'px');
+        host.setAttribute('data-tree-ink-on', '');
+        if (target.classList.contains('is-selected')) host.removeAttribute('data-tree-ink-retreat');
+        else host.setAttribute('data-tree-ink-retreat', '');
+        treePath(s, target);
+    }
+
+    function treeMode(s, mode) {
+        if (s.host.getAttribute('data-tree-ink') !== mode) s.host.setAttribute('data-tree-ink', mode);
+    }
+
+    function treeTrack(s) {
+        treeMode(s, 'track');
+        treePlace(s);
+        s.quiet = 0;
+        if (s.frame) return;
+        const tick = () => {
+            treePlace(s);
+            if (s.running.size || ++s.quiet < 2) { s.frame = requestAnimationFrame(tick); return; }
+            s.frame = 0;
+            treeMode(s, 'glide');
+        };
+        s.frame = requestAnimationFrame(tick);
+    }
+
+    function treeGlide(root) {
+        if (!root || root.nodeType !== 1 || _tree.has(root)) return;
+        const s = { host: root, target: null, groups: new Set(), rows: new Set(), running: new Set(),
+                    frame: 0, quiet: 0, arm: 0, hold: 0, holdNext: 0, width: root.offsetWidth,
+                    spotFrame: 0, spotRow: null, spotX: 0, spotY: 0 };
+
+        s.mo = new MutationObserver(() => {
+            // A new target springs, and a fold's transition in the same change
+            // must not hand it over to the frame-by-frame track.
+            if (treeTarget(root) !== s.target) {
+                cancelAnimationFrame(s.hold);
+                cancelAnimationFrame(s.holdNext);
+                s.hold = requestAnimationFrame(() => {
+                    s.holdNext = requestAnimationFrame(() => { s.hold = 0; s.holdNext = 0; });
+                });
+                if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; }
+                treeMode(s, 'glide');
+                treePlace(s);
+            } else if (!s.frame) treePlace(s);
+        });
+        s.mo.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+
+        s.ro = new ResizeObserver(() => {
+            if (root.offsetWidth === s.width) return;
+            s.width = root.offsetWidth;
+            treeTrack(s);
+        });
+        s.ro.observe(root);
+
+        s.run = (e) => {
+            if (e.propertyName !== 'grid-template-rows') return;
+            s.running.add(e.target);
+            if (!s.hold) treeTrack(s);
+        };
+        s.end = (e) => {
+            if (e.propertyName !== 'grid-template-rows') return;
+            s.running.delete(e.target);
+        };
+        root.addEventListener('transitionrun', s.run);
+        root.addEventListener('transitionend', s.end);
+        root.addEventListener('transitioncancel', s.end);
+
+        s.move = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(TREE_ROW);
+            if (!row || !root.contains(row)) return;
+            s.spotRow = row; s.spotX = e.clientX; s.spotY = e.clientY;
+            if (s.spotFrame) return;
+            s.spotFrame = requestAnimationFrame(() => {
+                s.spotFrame = 0;
+                const r = s.spotRow.getBoundingClientRect();
+                const scale = s.spotRow.offsetWidth ? r.width / s.spotRow.offsetWidth : 1;
+                s.spotRow.style.setProperty('--tree-spot-x', ((s.spotX - r.left) / (scale || 1)) + 'px');
+                s.spotRow.style.setProperty('--tree-spot-y', ((s.spotY - r.top) / (scale || 1)) + 'px');
+                if (!s.spotRow.hasAttribute('data-tree-spot')) s.spotRow.setAttribute('data-tree-spot', '');
+            });
+        };
+        root.addEventListener('pointermove', s.move, { passive: true });
+        _tree.set(root, s);
+
+        // First placement without motion; the spring is armed a frame later, and
+        // late webfonts can still nudge the rows.
+        treeMode(s, 'place');
+        treePlace(s);
+        s.arm = requestAnimationFrame(() => { if (_tree.get(root) === s && !s.frame) treeMode(s, 'glide'); });
+        document.fonts?.ready.then(() => { if (_tree.get(root) === s) treePlace(s); });
+    }
+
+    function disposeTreeGlide(root) {
+        const s = root && _tree.get(root);
+        if (!s) return;
+        _tree.delete(root);
+        s.mo.disconnect();
+        s.ro.disconnect();
+        root.removeEventListener('transitionrun', s.run);
+        root.removeEventListener('transitionend', s.end);
+        root.removeEventListener('transitioncancel', s.end);
+        root.removeEventListener('pointermove', s.move);
+        for (const id of [s.frame, s.spotFrame, s.arm, s.hold, s.holdNext]) cancelAnimationFrame(id);
+        for (const group of s.groups) { group.removeAttribute('data-tree-path'); group.style.removeProperty('--tree-thread'); }
+        for (const row of s.rows) row.removeAttribute('data-tree-path');
+        for (const a of ['data-tree-ink', 'data-tree-ink-on', 'data-tree-ink-retreat']) root.removeAttribute(a);
+        for (const p of ['--tree-ink-x', '--tree-ink-y', '--tree-ink-w', '--tree-ink-h']) root.style.removeProperty(p);
+    }
+
     /* ---- Reveal -----------------------------------------------------
      * A target counts as in view once `threshold` of it is visible OR it
      * fills `threshold` of the viewport. The ratio alone never fires on a
@@ -2945,7 +3114,7 @@ window.dryl.motion = (() => {
         animation.reverse();
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, glideScan, glideRelease, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
+    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, glideScan, glideRelease, treeGlide, disposeTreeGlide, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
 })();
 
 /* ──────────────────────────────────────────────────────────

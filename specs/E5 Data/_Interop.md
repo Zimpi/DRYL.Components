@@ -24,6 +24,7 @@ renders, measure a table, suppress a browser default, and write a file.
 | `dryl.clipboard.copy` | `DrylCodeBlock` | Writes the code to the clipboard. Returns whether it succeeded. |
 | `dryl.motion.countUp` | `DrylStat` | Tweens the value span's text toward the rendered value. |
 | `dryl.tree.attach` / `dryl.tree.detach` | `DrylTreeView` | Suppresses the browser's default scroll for the navigation keys. |
+| `dryl.motion.treeGlide` / `dryl.motion.disposeTreeGlide` | `DrylTreeView` | Lays the ink under the selected row and runs the accent thread to it. |
 | `dryl.table.initColumnResize` / `dryl.table.disposeColumnResize` | `DrylTable` | Pointer-driven column resizing; calls back into `OnColumnResized`. |
 | `dryl.table.focusGrip` | `DrylTable` | Moves focus onto a row's drag grip after a keyboard reorder. |
 | `dryl.table.focusHeader` | `DrylTable` | Moves focus onto a header after a keyboard column move. |
@@ -47,6 +48,16 @@ alone, so focus can still leave the widget and activation still works.
 It moves no focus and knows nothing about trees. All of `DrylTreeView`'s
 keyboard behaviour is C#; this call only stops the browser from competing with
 it.
+
+### `dryl.motion.treeGlide` reads the rows' `class`
+
+The engine takes no arguments beyond the root and is called once: a
+`MutationObserver` on `class` tells it when `is-selected` or a fold's `is-open`
+moves, so `DrylTreeNode` never calls into JavaScript. It writes only `data-tree-*`
+attributes and `--tree-*` custom properties, none of which Blazor renders; a
+`--tree-thread` written to a group's `style` survives because Blazor rewrites that
+attribute only when `--tree-parent-depth` changes, and a group's depth never does.
+Releasing the tree removes every one of them (`CODE-05`).
 
 ### `DrylStat`'s tween never changes what the DOM says
 

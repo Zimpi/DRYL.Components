@@ -1,7 +1,61 @@
 .tree {
+    position: relative;
+    isolation: isolate;
     list-style: none;
     margin: 0;
     padding: var(--sp-2);
     display: flex;
     flex-direction: column;
+}
+
+/* The ink (I41). dryl.motion.treeGlide writes the covered row's offset and size
+   into --tree-ink-x/y/w/h and says what the ink may do in data-tree-ink: "place"
+   (first placement, no motion), "glide" (the selection moved: spring travel) or
+   "track" (a folder is moving the row: frame by frame). It is the root's ::before,
+   because a tree's children are its treeitems. Without script none of this exists
+   and the selected row keeps its static fill. */
+.tree[data-tree-ink]::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    width: var(--tree-ink-w, 0px);
+    height: var(--tree-ink-h, 0px);
+    border-radius: var(--r-sm);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent-a) 18%, transparent), color-mix(in srgb, var(--accent-b) 4%, transparent));
+    box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px color-mix(in srgb, var(--accent-a) 15%, transparent);
+    transform: translate(var(--tree-ink-x, 0px), var(--tree-ink-y, 0px));
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tree[data-tree-ink-on]::before {
+    opacity: 1;
+}
+
+/* The selection sits inside a closed folder: the ink rests on the folder, empty. */
+.tree[data-tree-ink-retreat]::before {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.tree[data-tree-ink="place"]::before,
+.tree[data-tree-ink="track"]::before {
+    transition: opacity var(--dur-med) var(--ease-out);
+}
+
+.tree[data-tree-ink="glide"]::before {
+    transition: transform var(--dur-slow) var(--ease-spring),
+                width var(--dur-slow) var(--ease-spring),
+                height var(--dur-med) var(--ease-out),
+                opacity var(--dur-med) var(--ease-out),
+                background var(--dur-med) var(--ease-out),
+                box-shadow var(--dur-med) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tree[data-tree-ink]::before {
+        transition: none;
+    }
 }

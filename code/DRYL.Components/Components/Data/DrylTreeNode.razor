@@ -14,7 +14,7 @@
     aria-disabled="@(Disabled ? "true" : null)">
 
     <div class="@RowCssClass"
-         style="--tree-depth: @Depth"
+         style="--tree-depth: @Depth; --tree-i: @_siblingIndex"
          tabindex="@(Tree!.IsFocusTarget(this) ? "0" : "-1")"
          @ref="_row"
          @onclick="OnRowClick"
@@ -22,9 +22,11 @@
 
         @if (IsParent)
         {
-            <span class="tree-toggle @(IsExpanded ? "is-open" : null)"
+            <span class="tree-toggle"
                   @onclick="ToggleExpand" @onclick:stopPropagation="true" aria-hidden="true">
-                <DrylIcon Name="ChevronRight" Size="14" />
+                <span class="tree-chevron @(IsExpanded ? "is-open" : null)">
+                    <DrylIcon Name="ChevronRight" Size="14" />
+                </span>
             </span>
         }
         else
@@ -42,11 +44,15 @@
 
     @if (ChildContent is not null)
     {
-        <ul class="tree-group" role="group" hidden="@(!IsExpanded)">
-            <CascadingValue Value="this" IsFixed="true">
-                @ChildContent
-            </CascadingValue>
-        </ul>
+        <div class="@FoldCssClass">
+            <div class="tree-clip">
+                <ul class="tree-group" role="group" style="--tree-parent-depth: @Depth">
+                    <CascadingValue Value="this" IsFixed="true">
+                        @ChildContent
+                    </CascadingValue>
+                </ul>
+            </div>
+        </div>
     }
 </li>
 
@@ -78,6 +84,8 @@
     private ElementReference _row;
     private bool _expanded;
     private bool _expandedParam;
+    private bool _entering;
+    private int _siblingIndex;
 
     internal DrylTreeNode? ParentNode => Parent;
     internal bool IsExpanded => _expanded;
@@ -88,6 +96,7 @@
             throw new InvalidOperationException("DrylTreeNode must be placed inside a DrylTreeView.");
         _expanded = Expanded;
         _expandedParam = Expanded;
+        _siblingIndex = Tree.ChildrenOf(Parent).Count();
         Tree.Register(this);
     }
 
@@ -101,6 +110,7 @@
         {
             _expandedParam = Expanded;
             _expanded = Expanded;
+            _entering = Expanded;
         }
     }
 
@@ -120,6 +130,15 @@
 
     private string RowCssClass => Selected ? "tree-row is-selected" : "tree-row";
 
+    // is-entering appears only when a fold opens after its first render, so a tree
+    // that renders open does not play its stagger.
+    private string FoldCssClass => (_expanded, _entering) switch
+    {
+        (true, true) => "tree-fold is-open is-entering",
+        (true, false) => "tree-fold is-open",
+        _ => "tree-fold"
+    };
+
     internal ValueTask FocusRowAsync() => _row.FocusAsync();
 
     /// <summary>Re-render this node — called by the view when selection or focus moves.</summary>
@@ -138,8 +157,10 @@
         // Update internal state only — never _expandedParam — so a follow-up parent
         // re-render (via NotifyChanged) does not revert the toggle in OnParametersSet.
         _expanded = value;
+        _entering = value;
         if (ExpandedChanged.HasDelegate) await ExpandedChanged.InvokeAsync(value);
         Tree!.NotifyChanged();
+        if (!value) await Tree.ReclaimFocusAsync(this);
         StateHasChanged();
     }
 

@@ -36,6 +36,12 @@ scrolling the page when the navigation keys are pressed, so the component's own
 key handler can move focus instead. The tree's `keydown` handling itself is
 Blazor's.
 
+A second interop call draws the selection (idea I41). The selected row is marked
+by the same gliding ink as the active row in `DrylDrawer`, and an accent thread
+runs to it from the root through every level, so a deep tree shows where the
+selection sits. Both live on the root and on the groups, as pseudo-elements,
+because a tree's children have to be its treeitems.
+
 ## Public API
 
 | Member | Type | Default | Purpose |
@@ -95,6 +101,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   every other carries `-1`.
 - The focus target defaults to the focused node, then the selected node, then
   the first visible node.
+- A focus target inside a closed folder gives way to its outermost closed
+  folder, so the tree keeps a tab stop that can take focus.
+- Closing a folder around the focused node moves focus to that folder.
 - `ArrowDown` moves focus to the next visible node.
 - `ArrowUp` moves focus to the previous visible node.
 - `Home` moves focus to the first visible node.
@@ -112,8 +121,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ### Interop and cleanup
 
-- The key-suppression handler is attached once, on the first render.
-- The handler is detached when the component is disposed.
+- The key-suppression handler and the ink are attached once, on the first render.
+- Both are released when the component is disposed, and a released tree keeps no
+  listener, observer, attribute or custom property of the ink's.
 - Detaching is skipped entirely when nothing was ever attached, so a statically
   rendered tree does not attempt interop while being torn down.
 - Detaching survives a disconnected circuit, a missing element and a static
@@ -129,16 +139,39 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
 
 ### Appearance
 
-- The component renders no colour of its own and therefore names no literal
-  colour (`DESIGN-01`); the colours belong to the nodes.
+- Every colour the component renders comes from a token; it names no literal
+  colour (`DESIGN-01`).
 - The tree paints no surface of its own — no fill, no border, no frost — so it
   inherits whatever ground it is placed on and `DESIGN-06` has nothing to apply
   to.
-- The component renders no accent, so `DESIGN-08` has nothing to apply to.
+- The selected row is covered by one ink, drawn as a gradient from `--accent-a`
+  and `--accent-b` with a 1 px `--accent-line` edge; the accent never fills a
+  large surface (`DESIGN-08`).
+- While the selection sits inside a closed folder, the ink rests on the outermost
+  closed folder as an empty `--accent-line` frame, so the row that holds the
+  selection stays visible.
+- Without script the ink does not exist and the selected row keeps its static
+  fill.
 - The component uses its own isolated stylesheet rather than adding to the
   global one.
 - The component branches on no color mode and holds no mode-assuming value, so
   the same markup serves light and dark (`DESIGN-02`).
+
+### Motion
+
+- The ink is placed without travel on the first render.
+- When the selection moves, or the covered folder changes, the ink springs to the
+  new row on `--dur-slow` with `--ease-spring`.
+- When a folder opening or closing moves the covered row, the ink follows it frame
+  by frame, and the spring takes over again once the fold has stopped.
+- A selection inside a folder that opens gets the ink back as the folder opens.
+- Moving the selection, or a folder opening above it, resizes each level's thread
+  on `--dur-slow` with `--ease-out`; a thread that leaves the path withdraws to
+  nothing and fades.
+- `prefers-reduced-motion: reduce` moves the ink and the threads without a
+  transition (`UX-06`).
+- The ink measures through the `offsetParent` chain, so a tree inside a popover
+  that opens with a scale morph does not bake the scale into the ink.
 
 ### AI mode
 
@@ -174,14 +207,11 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `Space` and nothing else.
 - **No expand-all or collapse-all key.** The pattern's `*` on a level, and the
   `ArrowLeft`-to-root behaviour on a root node, are not implemented.
-- **Nothing about the view is animated.** The rows transition their colours and
-  the chevron rotates — both the node's — but expanding a subtree shows and
-  hides it instantly, with no height or opacity transition and no `DrylPresence`
-  (`DESIGN-11`, `DESIGN-12`). Expansion is the tree's main gesture.
-- **No tests of its own.** None of the criteria above is guarded by a test —
-  not the visible-node walk, not the roving `tabindex`, not the pre-selection by
-  value, and not the interop attach/detach pair, which is the part with a
-  known-recurring prerender failure mode in this repository.
+- **The keyboard walk has no test of its own.**
+  `tests/DRYL.Components.Tests/DrylTreeViewTests.cs` guards the focus fallback, the
+  pre-selection by value and the attach/release pair, and
+  `tests/js/tree-glide.test.mjs` guards the ink and the thread. The arrow keys'
+  visible-node walk is still only checked in the browser.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -189,8 +219,9 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `node scripts/check-light-sync.mjs` and
   `node scripts/validate-light-contrast.mjs` have nothing of its own to check;
   the mode-dependent tokens are the nodes'.
-- **Enter/exit animation** — **absent**, and recorded above as debt rather than
-  as an exception.
+- **Enter/exit animation** — the view has none to run: nodes stay mounted, and a
+  closed fold is hidden, not removed, so `DESIGN-12` has nothing to wrap. The
+  fold's motion is the node's (`F21`); the ink and the thread are under "Motion".
 - **Keyboard and a11y** — the "Focus and keyboard" and "Keyboard and
   accessibility" criteria above. This is the category's most substantial
   keyboard implementation: a real roving `tabindex` over a real visible-node
@@ -198,6 +229,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   the expand-all keys — is recorded above.
 - **AI mode** — explicitly no, with the reason under "AI mode" above.
 - **Demo page** — `DRYL.Website/Components/Pages/DemoTreeView.razor`, with the
-  example `Components/Examples/TreeView/Files.razor`.
+  example `Components/Examples/TreeView/Files.razor`, which opens deep enough to
+  show the thread.
 - **`ComponentCatalog`** — registered as `"Tree View"` / `tree` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.
