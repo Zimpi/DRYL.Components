@@ -28,6 +28,7 @@ auf `origin/main`); Agents unverändert `0.25.0`. `74/131` Specs,
 | Fix: ein langsamer Leave-Reply verlor den Inbox-Eintrag (Watchdog 3 s, ohne Antwort wird abgelegt) | `dbf785a`, gemergt in `55d253f` |
 | Website-Demo I34: alle Button-Toasts mit `Origin`, neues Beispiel „From the bell“ | `DRYL.Website` `4436549`, gemergt in `ed243bd` auf `release/3.16.0` |
 | Idee I35: organische Spinner (Liquid, Goo, Bloom), umgesetzt in `DrylSpinner`, Spec und Tests | `ideas/I35 Organic spinners.md` (Adopted), `e7edcf3`, gemergt in `b4ffc2a`; Website-Demo auf `release/3.16.0` in `DRYL.Website` |
+| Idee I36: Glaszellen für `DrylProgress` (Variante B aus dem Prototyp „DRYL Progress-Varianten“), Spec, Tests, Website-Demo mit neuem Beispiel „Steps“ | `ideas/I36 Glass cells for the progress bar.md` (Adopted), Plan `docs/2026-11-02-i36-progress-cells-plan.md`; `DRYL.Website` auf `release/3.16.0` |
 
 Der Prototyp mit den drei Varianten liegt als Artifact „DRYL Toast-Morphs“
 vor (claude.ai, privat).

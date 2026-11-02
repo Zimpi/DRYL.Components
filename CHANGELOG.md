@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [3.16.0] — 2026-11-01
+## [3.16.0] — 2026-11-02
 
 <!-- Collected on release/3.16.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
 
@@ -28,6 +28,7 @@ Version bump guide:
 - `DrylToastProvider` — **A toast that came out of the bell and expires unread now flies back into the bell and is added to `IDrylNotificationService` as an unread entry**, so it is not lost. Toasts with an `Origin`, toasts closed by the user or by code, and toasts without text never are. If your app shows a `DrylNotifications` bell in service-driven mode and raises toasts without an origin that should not land in the inbox, set `KeepInInbox = false` on them.
 - `DrylNotifications` — In service-driven mode the bell carries `data-dryl-inbox`, the marker the toast provider uses to find it.
 - `DrylSpinner` — The three variants are redrawn as organic, morphing shapes. `Ring` is now **Liquid**: a torus that turns at constant speed while its outline wobbles and its wall breathes. `Dots` is now **Goo**: three droplets that split from a core and fuse back into it through an SVG goo filter. `Pulse` is now **Bloom**: three translucent membranes that morph around a breathing nucleus. The enum names stay as they are, so no code changes. `Dots` no longer renders as a wide pill but in the same square box as the other variants. If you sized a container around the old capsule, check it. The AI rate cues (slower while `Thinking`, faster while `Streaming`, in between while `Active`) now use one shared tempo per state, so every variant changes speed in the same ratio. `Generated` and `prefers-reduced-motion: reduce` still stop every loop and leave a resting shape.
+- `DrylProgress` — The bar is now a row of glass cells. One gradient runs across all cells, they fill one after another, and the leading cell fills partially, so the value stays exact. Cells that fill spring up once, staggered from the previous leading edge, and a fresh bar fills in from the left. The leading cell breathes while the bar stands still, and the row flashes once at 100 %. `Indeterminate` now rolls a wave of light through the cells. When `Max` is a whole number from 1 to 12, every unit gets its own cell, so `Value="3" Max="5"` lights three of five cells; any other scale uses 20 cells. `Success`, `Warning` and `Danger` now paint a gradient within their hue instead of a flat color. The parameters are unchanged. The fill no longer renders a `width` style, and the `progress-bar` classes are gone. If your CSS or tests targeted them, use `.progress-cell` and its `--f` fill fraction instead. `prefers-reduced-motion: reduce` stops every animation and shows the indeterminate bar as a fully lit row.
 
 ### Fixed
 - `DrylToastProvider` — When the oldest of several toasts left, every toast after it was rebuilt and its countdown bar started over, although it still closed on time. Each toast now keeps its element, its bar and its timer.

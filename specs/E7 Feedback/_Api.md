@@ -76,9 +76,9 @@ Color treatment of a `DrylProgress` fill. Namespace-level.
 | Member | Notes |
 |---|---|
 | `Accent` | The default of `DrylProgress.Variant`. The accent gradient. |
-| `Success` | The `--success` semantic. |
-| `Warning` | The `--warning` semantic. |
-| `Danger` | The `--danger` semantic. |
+| `Success` | The `--success` semantic, as a gradient within its hue. |
+| `Warning` | The `--warning` semantic, as a gradient within its hue. |
+| `Danger` | The `--danger` semantic, as a gradient within its hue. |
 
 `Accent` is the only member that maps to no modifier class of its own — it is
 the unmodified bar. The three others each add one.

@@ -15,30 +15,37 @@ of the arithmetic or the ARIA myself.
 
 ## Description
 
-`DrylProgress` is a track with a fill, optionally preceded by a label row that
+`DrylProgress` is a row of glass cells, optionally preceded by a label row that
 carries a caption on the leading edge and the percentage on the trailing one.
+One gradient runs across every cell, so the row reads as one bar broken into
+glass; the cells fill one after another and the leading lit cell is filled
+partially, so the bar keeps the precision of a continuous fill (I36).
 `Value` is expressed on the consumer's own scale — three of five steps is
 `Value="3" Max="5"` — and the component derives the percentage, clamps it and
 formats it.
 
-Two structural decisions are worth naming. The percentage is computed and
-rendered with `InvariantCulture`, because a fill width of `33,33%` is not a CSS
-length and would silently collapse the bar under a German locale; there is a
-regression test for exactly that. And the AI aura is hosted on a wrapper
-*around* the track rather than on the track itself, because the track clips its
-own overflow to keep the fill inside its rounded ends — an aura painted there
-would be cut off at the same edge.
+When `Max` is a whole number from 1 to 12, every unit is a cell — three of
+five steps lights three of five cells. Any other scale is drawn on 20 cells.
 
-`Indeterminate` replaces the fill with a sweep and removes the value from the
-component's ARIA, so nothing claims a number that does not exist.
+Two structural decisions are worth naming. Every number written into the
+markup — the cell fill fraction, the cell count — is formatted with
+`InvariantCulture`, because a fill of `0,333` is not a CSS number and would
+silently empty the cell under a German locale; there is a regression test for
+exactly that. And each cell clips its own fill, so the track itself clips
+nothing and the AI aura, hosted on a wrapper around the track, is never cut
+off.
+
+`Indeterminate` replaces the fill with a wave of light rolling through the
+cells and removes the value from the component's ARIA, so nothing claims a
+number that does not exist.
 
 ## Public API
 
 | Member | Type | Default | Purpose |
 |---|---|---|---|
 | `Value` | `double` | `0` | Current value, on the consumer's scale. |
-| `Max` | `double` | `100` | Upper bound of that scale. |
-| `Indeterminate` | `bool` | `false` | Shows a sweep instead of a fill. |
+| `Max` | `double` | `100` | Upper bound of that scale. A whole number from 1 to 12 also sets the number of cells. |
+| `Indeterminate` | `bool` | `false` | Shows a rolling wave instead of a fill. |
 | `Variant` | `ProgressVariant` | `ProgressVariant.Accent` | Color treatment of the fill. |
 | `Size` | `ProgressSize` | `ProgressSize.Medium` | Track thickness. |
 | `ShowLabel` | `bool` | `false` | Shows the percentage on the trailing edge of the label row. |
@@ -74,10 +81,14 @@ both, or neither.
   is `false`.
 - The caption sits on the leading edge and the percentage on the trailing edge
   of the label row.
-- The track wraps the fill and clips it, so the fill cannot spill past the
-  track's rounded ends.
-- The aura host sits outside the track, so the aura is not clipped by that
-  same rule.
+- The track is a row of cells. When `Max` is a whole number from 1 to 12 it
+  has `Max` cells; otherwise it has 20.
+- The track carries its cell count, and every cell carries its index, so one
+  gradient can be laid across the whole row.
+- Each cell clips its own fill, so the fill cannot spill past the cell's
+  rounded ends.
+- The track clips nothing, and the aura host sits outside it, so the aura is
+  not clipped.
 - `Class` is merged onto the root's own classes rather than replacing them.
 - `AdditionalAttributes` are applied to the root.
 
@@ -88,17 +99,20 @@ both, or neither.
 - A `Value` below zero renders as an empty bar rather than a negative fill.
 - A `Max` of zero or below renders as an empty bar and throws nothing.
 - The percentage in the label row is rounded to whole percent.
-- The fill's width keeps two decimal places, so a long bar does not visibly
-  quantise.
+- Cells fill in order from the leading edge. Every cell below the value is
+  full, the cell the value falls in is filled by the fraction it covers, and
+  every cell after it is empty.
+- A cell's fill fraction keeps three decimal places, so the leading cell does
+  not visibly quantise.
 - Both are formatted with the invariant culture, so a locale whose decimal
-  separator is a comma still produces a valid CSS length and a stable label.
+  separator is a comma still produces a valid CSS number and a stable label.
 
 ### Variants and size
 
 - Each `ProgressVariant` value renders its own fill treatment.
 - `ProgressVariant.Accent` is the unmodified fill and adds no modifier class.
-- `ProgressVariant.Success`, `Warning` and `Danger` each derive their fill from
-  the matching semantic token.
+- `ProgressVariant.Success`, `Warning` and `Danger` each paint a gradient that
+  starts at the matching semantic token and stays within its hue.
 - Each `ProgressSize` value renders its own track thickness.
 - `ProgressSize.Medium` is the unmodified track and adds no modifier class.
 - The track's height is the only thing `Size` changes, so a caption's type size
@@ -106,12 +120,14 @@ both, or neither.
 
 ### Indeterminate
 
-- `Indeterminate` replaces the fixed fill with a sweep that traverses the track.
+- `Indeterminate` lights no cell by value; a wave of light rolls through the
+  cells instead.
+- `Indeterminate` never renders the bar as complete, whatever `Value` is.
 - `Indeterminate` renders no percentage, even when `ShowLabel` is `true`.
 - `Indeterminate` still renders the label row when a caption is supplied, so a
   bar can say what it is working on without claiming how far along it is.
-- Switching from indeterminate to determinate stops the sweep and shows the
-  fill.
+- Switching from indeterminate to determinate stops the wave and shows the
+  filled cells.
 
 ### Keyboard and accessibility
 
@@ -123,7 +139,7 @@ both, or neither.
 - A `Value` above `Max` is reported as `Max`, so the bar never announces more
   than the scale it was given.
 - A `Value` below zero is reported as zero.
-- The reported value, the rendered percentage and the fill's width are derived
+- The reported value, the rendered percentage and the cells' fill are derived
   from the same clamped number, so what is drawn and what is announced cannot
   disagree.
 - An indeterminate bar carries no current value, so assistive technology
@@ -138,11 +154,12 @@ both, or neither.
 
 - Every color the component renders comes from a token; the component names no
   literal color (`DESIGN-01`).
-- The track paints `--glass-2` and the accent fill paints `--accent-grad`.
-- The fill carries a glow derived from its own color rather than a second
-  surface (`DESIGN-08`).
-- The track and the fill are `--r-pill`, so a partially filled bar has rounded
-  ends on both sides.
+- Each cell paints `--glass-2` with a 1px `--line` edge, and the accent fill
+  is a gradient from `--accent-a` to `--accent-b` laid across the whole row.
+- A lit cell carries a glow derived from the fill's own color rather than a
+  second surface (`DESIGN-08`).
+- Cells are `--r-pill`, so a partially filled cell has rounded ends on both
+  sides; cells are spaced by `--sp-1`.
 - The component paints no frost: the track is a small in-flow element on
   whatever ground it sits, and `DESIGN-07` reserves frost for surfaces that can
   show it.
@@ -155,15 +172,25 @@ both, or neither.
 
 ### Motion
 
-- A change of `Value` animates the fill's width over `--dur-slow` with
-  `--ease-out`, so progress glides rather than jumping.
-- The indeterminate sweep animates continuously while mounted.
-- The indeterminate sweep animates its position by transform rather than by
-  width, so it stays on the compositor.
-- The indeterminate bar carries no width transition, so the sweep is not fought
-  by the determinate glide.
-- Under `prefers-reduced-motion: reduce` the indeterminate sweep stops and the
-  bar rests as a full track, so a busy state is still visible without motion.
+- A cell's fill grows and shrinks by transform over `--dur-med` with
+  `--ease-out`, so it stays on the compositor.
+- A change of `Value` staggers the cells it changes by `--reveal-step`,
+  counting outward from the previous leading edge — forward when the value
+  rises, backward when it falls. A render that does not change the value
+  keeps the stagger it had.
+- A freshly mounted bar starts from an empty row, so its cells fill in from
+  the left.
+- A cell that becomes full springs up once over `--dur-slow` on
+  `--ease-spring`, after its stagger delay.
+- The leading lit cell breathes continuously while the bar is determinate and
+  not complete.
+- A bar that reaches its maximum is marked complete and flashes once across
+  the row over `--dur-choreo`, staggered by `--reveal-step` per cell.
+- The indeterminate wave animates continuously while mounted, staggered by
+  `--reveal-step` per cell, and carries no fill transition.
+- Under `prefers-reduced-motion: reduce` every transition and animation stops,
+  and the indeterminate bar rests as a fully lit row, so a busy state is still
+  visible without motion.
 
 ### AI mode
 
@@ -204,27 +231,34 @@ both, or neither.
   a track's thickness is not covered by a token today. Recorded as debt, not as
   compliance.
 - **The label row's type sizes are literals** in the same file.
-- **The indeterminate sweep's width and travel are literals**, so its rhythm
-  cannot be retuned from a token.
-- **Most of its criteria are unguarded.** Tested today: the reported value and
-  its clamping in `tests/DRYL.Components.Tests/DrylProgressTests.cs`, the
-  invariant-culture fill width in
-  `tests/DRYL.Components.Tests/GlobalizationTests.cs`, and the class merge in
-  `tests/DRYL.Components.Tests/ClassMergeTests.cs`. The label row, the variants,
-  the sizes and the indeterminate rendering are not.
+- **The cell rhythm's literals.** The breathing and wave loop periods, the
+  pop height, the flash brightness and the wave's resting opacity are
+  literals in `code/DRYL.Components/wwwroot/dryl.css`; continuous loops are
+  outside the duration scale (`DESIGN-10`), but they cannot be retuned from a
+  token. The lit cell's glow radius is a literal, as the bar's glow was.
+- **The cell count is not configurable.** A scale other than 1–12 whole units
+  always draws 20 cells, however wide or narrow the bar is.
+- **The motion is unguarded by tests.** Tested: the reported value and its
+  clamping, the cell count, the fill order and partial leading cell, the
+  leading and complete markers, the stagger order, the variants, the sizes,
+  the label row and the indeterminate rendering in
+  `tests/DRYL.Components.Tests/DrylProgressTests.cs`; the invariant-culture
+  fill fraction in `tests/DRYL.Components.Tests/GlobalizationTests.cs`; the
+  class merge in `tests/DRYL.Components.Tests/ClassMergeTests.cs`. What the
+  CSS does with those markers is checked by eye only.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
 - **Both color modes** — token-only colors, verified by
   `node scripts/check-light-sync.mjs` and
-  `node scripts/validate-light-contrast.mjs`. `--glass-2`, `--accent-grad` and
+  `node scripts/validate-light-contrast.mjs`. `--glass-2`, `--accent-a`, `--accent-b` and
   the three semantic fills are the mode-dependent tokens; the component defines
   no mode-specific rule.
-- **Enter/exit animation** — the determinate fill's width glide is the
-  component's own state animation, and the indeterminate sweep is continuous.
-  There is no mount animation, the written exception `DESIGN-11` allows for an
-  in-flow indicator its host mounts; a host that wants it to appear gradually
-  wraps it in `DrylPresence`.
+- **Enter/exit animation** — a mounted bar fills its cells in from the left,
+  staggered, and every later change staggers from the leading edge; the
+  indeterminate wave is continuous. There is no exit animation, the written
+  exception `DESIGN-11` allows for an in-flow indicator its host mounts; a
+  host that wants it to leave gradually wraps it in `DrylPresence`.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above,
   including the deliberate absence of an ARIA value while indeterminate, and
   the clamp that keeps the announced value equal to the drawn one. The missing
@@ -235,6 +269,6 @@ both, or neither.
 - **Demo page** — `DRYL.Website/Components/Pages/DemoProgress.razor`, with the
   examples `Components/Examples/Progress/Determinate.razor`,
   `.../Indeterminate.razor`, `.../Variants.razor`, `.../Sizes.razor` and
-  `.../AiMode.razor`.
+  `.../AiMode.razor`, `.../Steps.razor`.
 - **`ComponentCatalog`** — registered as `"Progress"` / `progress` in
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged AI-capable.
