@@ -7,12 +7,14 @@
     Usage:
       <DrylToggle @bind-Value="model.DarkMode" Label="Dark mode (always on)" />
 
-    Layout is label-left / switch-right, justified. The thumb slides
-    with --ease-spring; the track glows in the accent gradient when on.
+    Layout is label-left / switch-right, justified. The knob's leading edge
+    runs ahead and its trailing edge springs after, so it stretches in travel;
+    pressed it goes wide and flat. The track fades into the accent gradient and,
+    after a user change, sends one glow pulse when it turns on (data-touched).
     ───────────────────────────────────────────────────────── *@
 
-<label class="row" style="cursor: pointer; user-select: none; justify-content: space-between;">
-    <span style="font-size: 13px; color: var(--fg-muted);">
+<label class="@RowCssClass">
+    <span class="choice-label">
         @if (ChildContent is not null) { @ChildContent }
         else { @Label }
     </span>
@@ -23,6 +25,7 @@
            checked="@CurrentValue"
            @onchange="HandleChange"
            disabled="@Disabled"
+           data-touched="@_touched"
            aria-label="@(ChildContent is null && string.IsNullOrEmpty(Label) ? AriaLabel : null)"
            @attributes="AdditionalAttributes" />
 </label>
@@ -42,6 +45,11 @@
 
     private readonly string _id = $"dryl-toggle-{Guid.NewGuid():N}";
 
+    // Set by the first user change; the glow pulse plays only from then on, never on first render.
+    private bool _touched;
+
+    private string RowCssClass => Disabled ? "row choice choice--end choice--disabled" : "row choice choice--end";
+
     public override Task SetParametersAsync(ParameterView parameters)
     {
         parameters.SetParameterProperties(this);
@@ -50,8 +58,11 @@
         return base.SetParametersAsync(parameters);
     }
 
-    private void HandleChange(ChangeEventArgs e) =>
+    private void HandleChange(ChangeEventArgs e)
+    {
+        _touched = true;
         CurrentValue = (bool)(e.Value ?? false);
+    }
 
     protected override bool TryParseValueFromString(
         string? value,

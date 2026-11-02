@@ -89,6 +89,25 @@ contracts as the fields above. Its own parameters, including the creation path
 (`OnCreate`, `CreateLabel`) and the status texts (`EmptyText`, `LoadingText`),
 are listed in [`F5 DrylAutocomplete.md`](F5%20DrylAutocomplete.md).
 
+## `InputBase<bool>` — `DrylCheckbox`, `DrylToggle`
+
+`DrylCheckbox` and `DrylToggle` inherit `InputBase<bool>`. `Value`,
+`ValueChanged` and `ValueExpression` are typed `bool`; each component supplies
+`() => Value` when no expression is given, so simple binding works outside an
+`EditForm`. A native `change` event writes the new state through
+`CurrentValue`. Parsing from a string accepts `bool.TryParse` and treats any
+other text as `false` without a parsing error. Neither component shows
+validation messages, a helper or an `aria-invalid` state of its own.
+`AdditionalAttributes` are applied to the native input. Both render their label
+row with the shared `.choice` / `.choice-label` classes and mark a user change
+with `data-touched` (idea I39); see
+[`F8 DrylCheckbox.md`](F8%20DrylCheckbox.md) and
+[`F11 DrylToggle.md`](F11%20DrylToggle.md).
+
+`DrylRadioGroup<TValue>` inherits `InputBase<TValue>` and takes part in
+validation like the text fields; see
+[`F9 DrylRadioGroup.md`](F9%20DrylRadioGroup.md).
+
 ## AI state and aura inheritance
 
 `AiState` and `AiAura` are Foundation types, defined in

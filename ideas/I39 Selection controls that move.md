@@ -1,7 +1,10 @@
 # Selection controls that move
 
 ## Meta
-- **State:** Draft
+- **State:** Adopted
+- **Specs:** `specs/E8 Inputs/F8 DrylCheckbox.md`, `specs/E8 Inputs/F9 DrylRadioGroup.md`,
+  `specs/E8 Inputs/F10 DrylRadio.md`, `specs/E8 Inputs/F11 DrylToggle.md`,
+  `specs/E8 Inputs/_Api.md`
 
 ## Problem
 
@@ -77,8 +80,10 @@ reduced motion for all three. Because the check is CSS on `.checkbox`, the raw
   review). The check is a `mask` with an inline SVG data URI — a shape, not a
   colour. Variant C's checked state carries no fill and needs a hand-measured
   non-text contrast check in light mode (WCAG 1.4.11).
-- **Specs:** new `specs/E8 Inputs/` features for `DrylCheckbox`,
-  `DrylRadioGroup` (+ `DrylRadio`) and `DrylToggle`; `E8 Inputs/_Api.md`.
+- **Specs:** new `specs/E8 Inputs/` features `F8 DrylCheckbox`,
+  `F9 DrylRadioGroup`, `F10 DrylRadio`, `F11 DrylToggle`; `E8 Inputs/_Api.md`
+  gains the `InputBase<bool>` contract. Writing the `DrylRadioGroup` spec also
+  closes its I32 follow-up: the group inherits a scope's state.
 - **Public API:** none planned. `data-touched` is internal markup.
 - **Code:** `DrylCheckbox.razor`, `DrylToggle.razor`, `DrylRadio.razor`
   (touched flag, label class), `DrylRadioGroup.razor` (B only: glider element
@@ -88,7 +93,18 @@ reduced motion for all three. Because the check is CSS on `.checkbox`, the raw
 
 ## Decisions
 - 2026-11-02: The rework covers Checkbox, Radio and Toggle together (Product Owner).
+- 2026-11-02: Variant **A — Tinte** is built (Product Owner: "Wir nehmen
+  Variante A: Tinte. Setz es um."). B and C are dropped.
+- 2026-11-02: The indeterminate state stays out of this rework and is left for
+  its own idea (Tech Lead default; the go-ahead to build covered it).
+- 2026-11-02: The check's draw starts with the fill instead of after it — the
+  prototype's `--dur-fast` delay is not a delay token (`DESIGN-10`) — and the
+  check mask is written inline rather than as a new custom property, so no new
+  token is introduced (Tech Lead).
+- 2026-11-02: Checkbox and toggle gain a `:focus-visible` ring and a dimmed
+  disabled look; the radio's focus ring moves from `:focus-within` to the
+  input's `:focus-visible`, so a mouse pick shows no ring (Tech Lead, `UX-02`).
+- 2026-11-02: `DrylRadioGroup` inherits a surrounding scope's state now that it
+  has a spec, closing its I32 follow-up (Tech Lead).
 
 ## Open Points
-- Which variant: A, B, C, or a mix (e.g. A with B's gliding radio bead)?
-- Indeterminate state: in this rework or its own idea? (Tech Lead: its own idea.)

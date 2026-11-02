@@ -30,7 +30,6 @@ public class AiScopeInheritanceTests : BunitContext
         ["DrylInputOtp.razor"] = "I32 follow-up — spec first",
         ["DrylInputPassword.razor"] = "I32 follow-up — spec first",
         ["DrylMultiSelect.razor"] = "I32 follow-up — spec first",
-        ["DrylRadioGroup.razor"] = "I32 follow-up — spec first",
         ["DrylRating.razor"] = "I32 follow-up — spec first",
         ["DrylSlider.razor"] = "I32 follow-up — spec first",
         ["DrylExpansion.razor"] = "I32 follow-up — spec first",
@@ -76,6 +75,7 @@ public class AiScopeInheritanceTests : BunitContext
         typeof(DrylStat), typeof(DrylCodeBlock), typeof(DrylTimelineItem), typeof(DrylAlert),
         typeof(DrylEmptyState), typeof(DrylProgress), typeof(DrylSkeleton), typeof(DrylSpinner),
         typeof(DrylFileUpload), typeof(DrylImage), typeof(DrylTable<string>),
+        typeof(DrylRadioGroup<string>),
     };
 
     [Theory]
