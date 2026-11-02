@@ -59,14 +59,19 @@ highlighting:
   `DrylMultiSelect` (it has none).
 - **Out of scope (proposed):** server-side search (`ItemsProvider`), creating
   new entries from the query (the I16 path for the multi-select), grouping,
-  "select all matches", highlighting the matched substring. Each can follow as
-  its own idea.
+  "select all matches". Each can follow as its own idea.
+- **Moved into scope by decision (2026-11-02):** highlighting the matched part
+  of each label.
 
 ## Impact
-- **Harness:** expected none — the field reuses the input tokens, the filtered
-  rows reuse the I38 gliding ink and the I39 checkbox. Rows entering and leaving
-  as the filter changes need a decision on motion (see Open Points); with
-  existing durations and `DrylPresence` it needs no new token or keyframe.
+- **Harness:** none. The text field reuses the input tokens, the rows reuse the
+  I38 gliding ink and the I39 checkbox. Filtered rows collapse on a
+  `grid-template-rows` track with `--dur-med` / `--ease-out` and fade on
+  `--dur-fast`, as in the prototype. Rows stay mounted and are hidden by a class,
+  so nothing mounts conditionally and `DrylPresence` is not needed for them
+  (`DESIGN-12`). The matched text is a `<mark>` in `--accent-fg` at weight 600,
+  a small indicator in the sense of `DESIGN-08`. No new token, keyframe or
+  dependency.
 - **Specs:** `DrylMultiSelect` has no spec. It gets its first under `E8 Inputs`
   (next free feature number), and its line in
   `scripts/spec-coverage-baseline.json` is removed. `E8 Inputs/_Api.md` gains
@@ -83,13 +88,22 @@ highlighting:
   multi-select demo gets a searchable example.
 
 ## Decisions
+- 2026-11-02: Variant **B — search in the trigger** (Product Owner, after the
+  prototype: "B weich zuklappen, highlighted"). A and C are dropped.
+- 2026-11-02: Rows the filter removes **collapse and fade**; rows it brings back
+  open the same way (Product Owner).
+- 2026-11-02: The matched part of a label is **highlighted** (Product Owner).
+  This moves it from out of scope into scope.
+- 2026-11-02: The highlight marks the first case-insensitive occurrence of the
+  trimmed query in the label, whatever filter ran. With a custom `SearchFunc`
+  that matches on something else, a row without such an occurrence is shown
+  unmarked (Tech Lead).
 
 ## Open Points
-- Where the user types: A, B or C (Tech Lead recommends B).
-- Does the query clear after an entry is toggled, or stay so the user can pick
-  several matches of one search? (Tech Lead: stay; clear on close.)
-- Opt-in by parameter, or searchable by default above some number of items?
-  (Tech Lead: opt-in `Searchable`, so existing pages do not change.)
-- Motion for rows the filter removes or brings back: instant, or a short fade
-  through `DrylPresence`.
-- Which of the out-of-scope items, if any, belong in 3.16.0 after all.
+- Opt-in `Searchable` (default `false`) rather than searchable by default
+  (Tech Lead recommendation) — awaiting Product Owner confirmation.
+- Keyboard details as prototyped: the query stays after a toggle and clears on
+  close; Backspace in an empty field first marks the last chip, then removes
+  it; Escape first clears the query, then closes — awaiting confirmation.
+- Remaining out-of-scope list (server search, creating entries, grouping,
+  "select all matches") — awaiting confirmation that none belongs in 3.16.0.
