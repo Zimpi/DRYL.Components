@@ -3696,24 +3696,92 @@ td.tbl-td-editing select {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Progress */
+/* Progress — DrylProgress: a row of glass cells (I36).
+   One gradient runs across every cell: each cell's ::before carries the whole
+   gradient (background-size n×100%) shifted to its own slot, and scales to its
+   fill fraction --f. Each cell clips its own fill, so the track itself does not
+   clip and the aura on .progress-wrap is never cut off. */
 .progress {
+  --progress-a: var(--accent-a);
+  --progress-b: var(--accent-b);
+  display: flex;
+  gap: var(--sp-1);
   height: 6px;
   width: 100%;
-  border-radius: var(--r-pill);
-  background: var(--glass-2);
-  overflow: hidden;
   position: relative;
 }
-.progress-bar {
+.progress--sm { height: 4px; }
+.progress--lg { height: 10px; }
+.progress--success { --progress-a: var(--success); --progress-b: color-mix(in oklab, var(--success) 70%, var(--accent-b)); }
+.progress--warning { --progress-a: var(--warning); --progress-b: color-mix(in oklab, var(--warning) 70%, var(--danger)); }
+.progress--danger  { --progress-a: var(--danger);  --progress-b: color-mix(in oklab, var(--danger) 70%, var(--chart-5)); }
+
+.progress-cell {
+  --progress-delay: calc(var(--reveal-step) * var(--k, 0));
+  flex: 1 1 0;
+  min-width: 0;
   height: 100%;
-  background: var(--accent-grad);
+  position: relative;
+  overflow: hidden;
   border-radius: var(--r-pill);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-a) 50%, transparent);
-  transition: width var(--dur-slow) var(--ease-out);
+  background: var(--glass-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow var(--dur-med) var(--ease-out);
+}
+.progress-cell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--progress-a), var(--progress-b));
+  background-size: calc(var(--n, 1) * 100%) 100%;
+  background-position: calc(var(--i, 0) / max(1, var(--n, 1) - 1) * 100%) 0;
+  transform: scaleX(var(--f, 0));
+  transform-origin: left center;
+  transition: transform var(--dur-med) var(--ease-out) var(--progress-delay);
+}
+/* A lit cell glows in its own hue (DESIGN-08); a full one springs up once, staggered
+   outward from the previous leading edge. */
+.progress-cell.is-lit {
+  box-shadow: inset 0 0 0 1px transparent, 0 0 12px color-mix(in srgb, var(--progress-a) 40%, transparent);
+}
+.progress-cell.is-full {
+  animation: progress-cell-pop var(--dur-slow) var(--ease-spring) var(--progress-delay);
+}
+/* The leading cell breathes while the bar stands still. */
+.progress-cell.is-lead::before {
+  animation: progress-cell-breathe 1.6s var(--ease-in-out) infinite alternate;
+}
+/* At 100% the row flashes once, left to right. */
+.progress--complete .progress-cell::before {
+  animation: progress-cell-flash var(--dur-choreo) var(--ease-out) calc(var(--reveal-step) * var(--i, 0));
+}
+/* Indeterminate: a wave of light rolls through the cells. */
+.progress--indeterminate .progress-cell::before {
+  transform: scaleX(1);
+  transition: none;
+  opacity: 0.08;
+  animation: progress-cell-wave 1.5s var(--ease-in-out) calc(var(--reveal-step) * var(--i, 0)) infinite;
+}
+@keyframes progress-cell-pop {
+  0%   { transform: scaleY(1); }
+  45%  { transform: scaleY(1.7); }
+  100% { transform: scaleY(1); }
+}
+@keyframes progress-cell-breathe {
+  from { filter: brightness(1); }
+  to   { filter: brightness(1.45); }
+}
+@keyframes progress-cell-flash {
+  from { filter: brightness(1.9); }
+  to   { filter: brightness(1); }
+}
+@keyframes progress-cell-wave {
+  0%, 100% { opacity: 0.08; }
+  30%      { opacity: 1; }
+  60%      { opacity: 0.08; }
 }
 
-/* DrylProgress — wrapper, label row, sizes, variants, indeterminate */
+/* DrylProgress — wrapper, label row */
 .progress-field {
   display: flex;
   flex-direction: column;
@@ -3732,30 +3800,21 @@ td.tbl-td-editing select {
   font-family: var(--font-mono);
   color: var(--fg);
 }
-/* Aura host sits outside the track so the ring is not clipped by overflow:hidden */
+/* Aura host wraps the row of cells; nothing inside clips it. */
 .progress-wrap {
   position: relative;
   width: 100%;
   border-radius: var(--r-pill);
 }
-.progress--sm { height: 4px; }
-.progress--lg { height: 10px; }
 
-.progress-bar--success { background: var(--success); box-shadow: 0 0 12px color-mix(in srgb, var(--success) 50%, transparent); }
-.progress-bar--warning { background: var(--warning); box-shadow: 0 0 12px color-mix(in srgb, var(--warning) 50%, transparent); }
-.progress-bar--danger  { background: var(--danger);  box-shadow: 0 0 12px color-mix(in srgb, var(--danger) 50%, transparent); }
-
-.progress--indeterminate .progress-bar {
-  width: 40%;
-  transition: none;
-  animation: progress-indeterminate 1.4s var(--ease-in-out) infinite;
-}
-@keyframes progress-indeterminate {
-  0%   { transform: translateX(-120%); }
-  100% { transform: translateX(320%); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .progress--indeterminate .progress-bar { animation: none; width: 100%; }
+  .progress-cell,
+  .progress-cell::before { transition: none; animation: none; }
+  .progress-cell.is-full,
+  .progress-cell.is-lead::before,
+  .progress--complete .progress-cell::before,
+  .progress--indeterminate .progress-cell::before { animation: none; }
+  .progress--indeterminate .progress-cell::before { opacity: 1; }
 }
 
 /* ============== TABS (DrylTabs / DrylTab) ============== */

@@ -33,17 +33,18 @@ public class GlobalizationTests : BunitContext
     }
 
     [Fact]
-    public void Progress_fill_width_is_dot_decimal_under_german_culture()
+    public void Progress_cell_fill_is_dot_decimal_under_german_culture()
     {
         UnderCulture("de-DE", () =>
         {
-            // 1 / 3 → 33.33%, a value that needs a decimal separator.
+            // 1 / 60 of 20 cells → the first cell is 0.333 filled, a value that
+            // needs a decimal separator.
             var cut = Render<DrylProgress>(ps => ps
                 .Add(p => p.Value, 1d)
-                .Add(p => p.Max, 3d));
+                .Add(p => p.Max, 60d));
 
-            Assert.Contains("33.33%", cut.Markup);
-            Assert.DoesNotContain("33,33", cut.Markup);
+            Assert.Contains("--f: 0.333", cut.Markup);
+            Assert.DoesNotContain("0,333", cut.Markup);
         });
     }
 
