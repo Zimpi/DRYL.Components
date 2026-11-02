@@ -21,7 +21,7 @@ pill. `Dot` prefixes a small glowing status dot. For success, warning and danger
 the dot keeps the semantic color while the label uses the legible `--fg` token;
 neutral and accent dots follow the label. The mark supplements the visible text.
 
-The badge is alive (I38, "Puls & Zähler"). It grows out of its leading mark
+The badge is alive (I40, "Puls & Zähler"). It grows out of its leading mark
 when it mounts. A change of `Kind` squishes the pill once and flashes a ring in
 the new tone. A dot on `Success`, `Warning` or `Danger` beats in a tempo that
 matches the kind, so a reader feels the state before reading it. A label set
@@ -185,7 +185,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `--warning` and `--danger` are the mode-dependent tokens; the component
   defines no mode-specific rule.
 - **Enter/exit animation** — enter, kind change, beat and value change as
-  under "Motion" (I38); exit through `DrylPresence` at the call site.
+  under "Motion" (I40); exit through `DrylPresence` at the call site.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   substantive decision is that the badge claims no role, so it does not announce
   itself as something a user could act on.
@@ -197,7 +197,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   `DRYL.Website/Components/ComponentCatalog.cs`, flagged not AI-capable.
 - **Tests** — `tests/DRYL.Components.Tests/DrylBadgeTests.cs` guards the child
   content, the unmodified neutral pill, the four modifier classes, the dot
-  modifier and the attribute splat, and for I38 the alternating kind-change
+  modifier and the attribute splat, and for I40 the alternating kind-change
   class, `Value` precedence and its accessible copy, `--badge-len`, the digit
   roll and its direction, the word swap, invariant parsing and that an
   unchanged re-render starts nothing; the `Class` merge is guarded separately in

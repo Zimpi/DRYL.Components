@@ -61,7 +61,7 @@ public class DrylBadgeTests : BunitContext
         Assert.Equal("yes", cut.Find("span").GetAttribute("data-test"));
     }
 
-    // ── I38: Puls & Zähler ────────────────────────────────────────────
+    // ── I40: Puls & Zähler ────────────────────────────────────────────
 
     [Fact]
     public void Child_content_sits_in_the_label()

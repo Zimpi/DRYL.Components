@@ -1329,7 +1329,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 
 /* ============== BADGES ============== */
-/* I38 "Puls & Zähler": the pill grows out of its leading mark on mount, a
+/* I40 "Puls & Zähler": the pill grows out of its leading mark on mount, a
    kind change squishes it once and flashes a ring in the new tone, a dot on
    Success/Warning/Danger beats in a tempo that matches the kind, and a Value
    label rolls changed digits or lets the old word leave while the new rises. */

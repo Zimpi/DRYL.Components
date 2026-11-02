@@ -62,4 +62,8 @@ Three directions, side by side in a prototype artifact
   beat follows the prototype — Success, Warning and Danger dots beat, Neutral
   and Accent rest. A switch can follow as its own idea.
 
+- 2026-11-02: Renumbered from I38 to I40 on merge: a parallel session had
+  filed I38 (gliding highlight) and I39 on the release branch first. The
+  commits and the branch `feat/i38-badge-pulse` carry the old number.
+
 ## Open Points
