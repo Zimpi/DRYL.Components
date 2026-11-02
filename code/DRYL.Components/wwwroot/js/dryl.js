@@ -161,6 +161,69 @@ window.dryl.spotlight = {
 };
 
 /* --------------------------------------------------------------
+ * Expansion — the pointer's side of DrylExpansion's seam (I42). The
+ * click writes where the seam starts (--seam-x on the body) and the
+ * mouse where the hover light sits (--spot-x on the header). Both are
+ * delegated from the document, so a panel needs no interop of its own
+ * and there is nothing to dispose. Blazor renders no style on either
+ * element, so what is written here survives its renders.
+ * -------------------------------------------------------------- */
+window.dryl.expansion = (() => {
+    const HEADER = '.expansion-header';
+    let lit = null, frame = 0, x = 0;
+
+    function headerFrom(e) {
+        return e.target instanceof Element ? e.target.closest(HEADER) : null;
+    }
+
+    function move(e) {
+        x = e.clientX;
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+            frame = 0;
+            if (!lit) return;
+            lit.style.setProperty('--spot-x', (x - lit.getBoundingClientRect().left) + 'px');
+            if (!lit.hasAttribute('data-spot')) lit.setAttribute('data-spot', '');
+        });
+    }
+
+    function release() {
+        if (!lit) return;
+        lit.removeEventListener('pointermove', move);
+        lit.removeEventListener('pointerleave', release);
+        lit.removeAttribute('data-spot');
+        lit = null;
+    }
+
+    function over(e) {
+        if (e.pointerType !== 'mouse') return;
+        const header = headerFrom(e);
+        if (!header || header === lit) return;
+        release();
+        lit = header;
+        lit.addEventListener('pointermove', move, { passive: true });
+        lit.addEventListener('pointerleave', release);
+    }
+
+    // A click from the keyboard (detail 0) has no point: the seam starts in the middle.
+    function click(e) {
+        const header = headerFrom(e);
+        const body = header?.nextElementSibling;
+        if (!body) return;
+        const left = body.getBoundingClientRect().left;
+        body.style.setProperty('--seam-x', e.detail > 0 ? (e.clientX - left) + 'px' : '50%');
+    }
+
+    if (!window.__drylExpansionBound) {
+        window.__drylExpansionBound = true;
+        document.addEventListener('pointerover', over, { capture: true, passive: true });
+        document.addEventListener('click', click, true);
+    }
+
+    return { release };
+})();
+
+/* --------------------------------------------------------------
  * Download — client-side file download via a Blob URL. Used by
  * DrylTable's CSV export. No npm: builds a Blob, clicks a transient
  * <a download>, then revokes the URL. The C# caller is responsible for

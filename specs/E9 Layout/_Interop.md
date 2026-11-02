@@ -14,6 +14,7 @@ cleanup duties each imposes (`CODE-05` in
 | `dryl.motion.disposeNavGlide(drawer)` | `DrylDrawer.DisposeAsync` | Disconnects the observers and listeners and clears the `data-nav-ink*` markers. |
 | `dryl.storage.get` / `dryl.storage.set` | `DrylDrawer` (`SidebarMode.Pinnable`) | Restores and persists the collapsed state under `PersistStateKey`. |
 | `dryl.modal.attach` / `dryl.modal.detach` | `DrylDrawer` (`SidebarMode.Flyout`) | Focus trap and Escape while the flyout is open. |
+| `dryl.expansion` (delegated document listeners) | `DrylExpansion`, **without calling it** | Writes where the seam starts (`--seam-x` on the body) and where the hover light sits (`--spot-x` and `data-spot` on the header). Nothing to dispose. |
 
 *(the rest: phase C)*
 

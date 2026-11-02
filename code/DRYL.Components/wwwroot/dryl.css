@@ -5197,6 +5197,14 @@ body.dryl-scroll-locked { overflow: hidden; }
   Uses the grid-template-rows: 0fr → 1fr trick.
   The inner overflow:hidden wrapper collapses to zero height while the content
   itself is never "squeezed" — it always renders at its natural size.
+
+  The seam (I42)
+  ──────────────
+  Opening, a 1px accent seam draws out along the header's lower edge from the
+  point of the click, and a soft edge uncovers the body downwards from it.
+  Under the mouse a short light runs along that same edge. dryl.expansion
+  writes --seam-x and --spot-x; without script the seam starts in the middle
+  and there is no light.
 */
 
 .expansion {
@@ -5231,7 +5239,7 @@ body.dryl-scroll-locked { overflow: hidden; }
 .expansion.is-open {
   margin: var(--sp-3) 0;
   border-radius: var(--r-md);
-  border-color: var(--line-strong);
+  border-color: var(--accent-line);
   box-shadow: var(--shadow-md);
   z-index: 1;
   transition:
@@ -5250,6 +5258,8 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 /* ── Header ── */
 .expansion-header {
+  position: relative;
+  overflow: clip;
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -5275,6 +5285,25 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 .expansion-header:hover .expansion-chevron { color: var(--fg-muted); }
 
+/* Hover light: moves by transform only, and data-spot waits for the first mouse
+   move, so touch never lights it and it never flashes at the corner. */
+.expansion-header::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--sp-8) * -1);
+  bottom: 0;
+  width: calc(var(--sp-8) * 2);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-a), var(--accent-b), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(var(--spot-x, 0px));
+  transition: opacity var(--dur-med) var(--ease-out);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .expansion-header[data-spot]:hover::after { opacity: 1; will-change: transform; }
+}
+
 .expansion-icon { color: var(--fg-muted); flex-shrink: 0; }
 
 .expansion-title { flex: 1; }
@@ -5285,19 +5314,23 @@ body.dryl-scroll-locked { overflow: hidden; }
   gap: var(--sp-2);
 }
 
-/* Chevron flips 180° when open */
+/* Chevron springs through 180° when open, and glows while it is */
 .expansion-chevron {
   color: var(--fg-dim);
   flex-shrink: 0;
-  transition: transform var(--dur-med) var(--ease-out), color var(--dur-med) var(--ease-out);
+  transition: transform var(--dur-slow) var(--ease-spring),
+              color var(--dur-med) var(--ease-out),
+              filter var(--dur-med) var(--ease-out);
 }
 .expansion.is-open .expansion-chevron {
   transform: rotate(180deg);
-  color: var(--fg-muted);
+  color: var(--accent-fg);
+  filter: drop-shadow(0 0 var(--sp-1) var(--accent-a));
 }
 
 /* ── Body (grid-rows animation) ── */
 .expansion-body {
+  position: relative;
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows var(--dur-med) var(--ease-out);
@@ -5305,21 +5338,75 @@ body.dryl-scroll-locked { overflow: hidden; }
 
 .expansion.is-open .expansion-body {
   grid-template-rows: 1fr;
+  transition-duration: var(--dur-slow);
 }
 
-/* overflow:hidden here is what allows 0fr to fully collapse */
+/* The seam: scales out from the click, and settles at a quieter glow */
+.expansion-body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+  box-shadow: 0 0 var(--sp-2) var(--accent-a);
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: var(--seam-x, 50%) center;
+  transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+
+.expansion.is-open .expansion-body::before {
+  opacity: 0.75;
+  transform: none;
+  transition: transform var(--dur-slow) var(--ease-out), opacity var(--dur-med) var(--ease-out);
+}
+
+/* overflow:hidden here is what allows 0fr to fully collapse.
+   The mask is the soft edge that uncovers the body. Only a closed or opening
+   panel wears it: mask-image leaves after the reveal (allow-discrete, held by
+   --delay-long), because a mask at rest would be a backdrop root for anything
+   inside. A browser without allow-discrete drops the mask at once and the track
+   alone reveals the body. */
 .expansion-body-inner {
   overflow: hidden;
+  min-height: 0;
+  -webkit-mask-image: linear-gradient(#000 calc(100% - var(--sp-7)), transparent);
+  mask-image: linear-gradient(#000 calc(100% - var(--sp-7)), transparent);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 0%;
+  mask-size: 100% 0%;
+  transition: mask-size var(--dur-fast) var(--ease-out);
+}
+
+.expansion.is-open .expansion-body-inner {
+  -webkit-mask-image: none;
+  mask-image: none;
+  -webkit-mask-size: 100% calc(100% + var(--sp-7));
+  mask-size: 100% calc(100% + var(--sp-7));
+  transition: mask-size var(--dur-slow) var(--ease-in-out),
+              mask-image var(--dur-fast) var(--ease-out) var(--delay-long);
+  transition-behavior: normal, allow-discrete;
 }
 
 .expansion-body-content {
-  padding: 0 var(--sp-5) var(--sp-5);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
   color: var(--fg-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .expansion,
+  .expansion.is-open,
   .expansion-body,
+  .expansion.is-open .expansion-body,
+  .expansion-body::before,
+  .expansion.is-open .expansion-body::before,
+  .expansion-body-inner,
+  .expansion.is-open .expansion-body-inner,
   .expansion-chevron { transition: none; }
 }
 
