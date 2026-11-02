@@ -74,7 +74,8 @@
     display: flex;
     align-items: center;
     width: 100%;
-    padding: var(--sp-2) var(--sp-4);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-sm);
     background: transparent;
     color: var(--fg-muted);
     font-size: 13px;
@@ -86,7 +87,11 @@
 }
 
 .select-option:hover,
-.select-option.is-highlighted { background: var(--glass-2); color: var(--fg); }
+.select-option.is-highlighted { color: var(--fg); }
+
+/* Static fill only without the ink (I38). */
+.select-panel:not([data-glide]) > .select-option:hover,
+.select-panel:not([data-glide]) > .select-option.is-highlighted { background: var(--glass-2); }
 
 /* Selected rows get a permanent accent tint so checked state reads
    at a glance without only relying on the checkbox. */
@@ -95,7 +100,7 @@
     background: color-mix(in srgb, var(--accent-a) 8%, transparent);
 }
 
-.select-option.is-selected.is-highlighted {
+.select-panel:not([data-glide]) > .select-option.is-selected.is-highlighted {
     background: color-mix(in srgb, var(--accent-a) 15%, transparent);
 }
 
@@ -126,7 +131,7 @@
     border-radius: var(--r-md);
     box-shadow: var(--shadow-lg),
                 0 0 24px color-mix(in srgb, var(--accent-a) 8%, transparent);
-    padding: var(--sp-1) 0;
+    padding: var(--sp-1);
     max-height: 240px;
     overflow-y: auto;
     outline: none;

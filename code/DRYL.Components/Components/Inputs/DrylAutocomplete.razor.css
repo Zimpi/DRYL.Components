@@ -9,7 +9,7 @@
     border: 1px solid var(--line-strong);
     border-radius: var(--r-md);
     box-shadow: var(--shadow-lg);
-    padding: var(--sp-1) 0;
+    padding: var(--sp-1);
     max-height: 240px;
     overflow-y: auto;
     outline: none;
@@ -30,7 +30,8 @@
     align-items: center;
     gap: var(--sp-2);
     width: 100%;
-    padding: var(--sp-2) var(--sp-4);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-sm);
     background: transparent;
     color: var(--fg-muted);
     font-size: 13px;
@@ -44,8 +45,13 @@
 
 .autocomplete-option:hover,
 .autocomplete-option.is-highlighted {
-    background: var(--glass-2);
     color: var(--fg);
+}
+
+/* Static fill only without the ink (I38). */
+.autocomplete-panel:not([data-glide]) .autocomplete-option:hover,
+.autocomplete-panel:not([data-glide]) .autocomplete-option.is-highlighted {
+    background: var(--glass-2);
 }
 
 /* Currently bound value shown in the list */

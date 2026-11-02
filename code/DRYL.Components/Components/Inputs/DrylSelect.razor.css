@@ -45,7 +45,7 @@
     border: 1px solid var(--line-strong);
     border-radius: var(--r-md);
     box-shadow: var(--shadow-lg);
-    padding: var(--sp-1) 0;
+    padding: var(--sp-1);
     max-height: 240px;
     overflow-y: auto;
     outline: none;
@@ -64,7 +64,8 @@
     display: flex;
     align-items: center;
     width: 100%;
-    padding: var(--sp-2) var(--sp-4);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-sm);
     background: transparent;
     color: var(--fg-muted);
     font-size: 13px;
@@ -76,10 +77,16 @@
                 color      var(--dur-fast) var(--ease-out);
 }
 
+/* The static fill is the fallback for a list without the ink (I38): once
+   dryl.motion.glideScan marks the listbox data-glide, the ink is the fill. */
 .select-option:hover,
 .select-option.is-highlighted {
-    background: var(--glass-2);
     color: var(--fg);
+}
+
+.select-panel:not([data-glide]) > .select-option:hover,
+.select-panel:not([data-glide]) > .select-option.is-highlighted {
+    background: var(--glass-2);
 }
 
 .select-option.is-selected {

@@ -194,7 +194,22 @@ native `input`.
 - The list surface uses `--panel-float` with `--glass-fx-float`.
 - The list enters and leaves through the shared popover lifecycle.
 - The highlighted option carries `.is-highlighted`.
-- A highlighted or hovered option uses `--fg` over `--glass-2`.
+- The listbox carries `data-dryl-glide="[role=option]"`, which makes it a
+  list-ink host (idea I38; `E11 Surfaces/_Interop.md`).
+- The list is inset by `--sp-1` on every side and options are rounded with
+  `--r-sm`, so the ink sits inside the list's radius.
+- While the ink is active, the option under the mouse or the highlighted
+  option, the create option included — whichever the user acted on last — is covered by the ink.
+- While the ink is active, options draw no hover or highlight fill of their
+  own; the covered option's text uses `--fg`.
+- The ink glides between options on `--dur-slow` / `--ease-spring` and appears
+  without travel when it was hidden.
+- A soft accent light follows the mouse inside the covered option.
+- Without the ink (no script), a highlighted or hovered option uses `--fg` over
+  `--glass-2`.
+- Under `prefers-reduced-motion` the ink moves without a transition.
+- When the options re-render as the query changes, the ink follows the newly
+  highlighted option.
 - Option highlight changes over `--dur-fast` with `--ease-out`.
 - The create option is separated from the options above it by a `--line`
   hairline.
