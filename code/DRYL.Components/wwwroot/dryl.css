@@ -1168,74 +1168,164 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 }
 .input-helper-error { color: var(--danger); }
 
+/* ============== SELECTION CONTROLS — Checkbox, Toggle, Radio (I39 "Tinte") ==============
+   The accent fill sits on its own layer (::before) so it fades and springs in
+   instead of snapping — a gradient is a background-image and does not
+   interpolate. The check is a mask drawn left to right by a clip-path wipe.
+   Pressing squashes a control; the glow pulse plays only once the component has
+   seen a user change ([data-touched]), never on first render. */
+
 /* Checkbox */
 .checkbox {
   appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  flex: none;
   width: 18px;
   height: 18px;
-  border-radius: 5px;
-  background: var(--glass-1);
+  border-radius: var(--r-xs);
+  background-color: var(--glass-1);
   border: 1px solid var(--line-strong);
   display: inline-grid;
   place-content: center;
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
   position: relative;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 0%, transparent), 0 0 0 0 transparent;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow   var(--dur-med)  var(--ease-out),
+              transform    var(--dur-med)  var(--ease-spring);
 }
-.checkbox:hover { border-color: var(--accent-line); }
-.checkbox:checked {
+.checkbox:hover:not(:disabled) { border-color: var(--accent-line); }
+.checkbox:active:not(:disabled) { transform: scale(0.86); transition-duration: var(--dur-fast); }
+.checkbox::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
   background: var(--accent-grad);
-  border-color: transparent;
-  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-a) 50%, transparent);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-med) var(--ease-spring);
 }
 .checkbox::after {
   content: '';
-  width: 10px;
-  height: 6px;
-  border: 2px solid var(--knob);
-  border-top: 0;
-  border-right: 0;
-  transform: rotate(-45deg) translate(1px, -1px) scale(0);
-  opacity: 0;
-  transition: transform var(--dur-med) var(--ease-spring),
-              opacity var(--dur-fast) var(--ease-out);
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  background: var(--knob);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.4 6.4 5 9l4.6-5.6'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.4 6.4 5 9l4.6-5.6'/%3E%3C/svg%3E") center / contain no-repeat;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path var(--dur-fast) var(--ease-in-out);
 }
+.checkbox:checked {
+  border-color: transparent;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 0%, transparent),
+              0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent);
+}
+.checkbox:checked::before { opacity: 1; transform: scale(1); }
 .checkbox:checked::after {
-  transform: rotate(-45deg) translate(1px, -1px) scale(1);
-  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  transition: clip-path var(--dur-med) var(--ease-out);
 }
+.checkbox[data-touched]:checked { animation: dryl-choice-pulse var(--dur-slow) var(--ease-out); }
 
-/* Toggle */
+/* Toggle — the knob is two edges: the leading edge runs ahead on --dur-fast,
+   the trailing edge springs after on --dur-slow, so the knob stretches in
+   travel. Pressed, it goes wide and flat. */
 .toggle {
   appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  flex: none;
   width: 36px;
   height: 20px;
   border-radius: var(--r-pill);
-  background: var(--glass-2);
+  background-color: var(--glass-2);
   border: 1px solid var(--line-strong);
   position: relative;
   cursor: pointer;
-  transition: background var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 0%, transparent), 0 0 0 0 transparent;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-med) var(--ease-out);
+}
+.toggle:hover:not(:disabled) { border-color: var(--accent-line); }
+.toggle::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: var(--accent-grad);
+  opacity: 0;
+  transition: opacity var(--dur-med) var(--ease-out);
 }
 .toggle::after {
   content: '';
   position: absolute;
   top: 1px;
+  bottom: 1px;
   left: 1px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--fg-muted);
-  transition: transform var(--dur-med) var(--ease-spring), background var(--dur-med) var(--ease-out);
+  right: 17px;
+  border-radius: var(--r-pill);
+  background-color: var(--fg-muted);
+  transition: left   var(--dur-fast) var(--ease-out),
+              right  var(--dur-slow) var(--ease-spring),
+              top    var(--dur-fast) var(--ease-out),
+              bottom var(--dur-fast) var(--ease-out),
+              background-color var(--dur-med) var(--ease-out);
 }
 .toggle:checked {
-  background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 0%, transparent),
+              0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent);
 }
+.toggle:checked::before { opacity: 1; }
 .toggle:checked::after {
-  background: var(--knob);
-  transform: translateX(16px);
+  left: 17px;
+  right: 1px;
+  background-color: var(--knob);
+  transition: left   var(--dur-slow) var(--ease-spring),
+              right  var(--dur-fast) var(--ease-out),
+              top    var(--dur-fast) var(--ease-out),
+              bottom var(--dur-fast) var(--ease-out),
+              background-color var(--dur-med) var(--ease-out);
+}
+.toggle:active:not(:disabled)::after { right: 12px; top: 2px; bottom: 2px; }
+.toggle:checked:active:not(:disabled)::after { left: 12px; right: 1px; }
+.toggle[data-touched]:checked { animation: dryl-toggle-pulse var(--dur-slow) var(--ease-out); }
+
+.checkbox:focus-visible,
+.toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-a) 50%, transparent);
+  outline-offset: 2px;
+}
+.checkbox:disabled,
+.toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* The label row DrylCheckbox and DrylToggle render; .radio-label matches it. */
+.choice { cursor: pointer; user-select: none; }
+.choice--end { justify-content: space-between; }
+.choice--disabled { cursor: not-allowed; }
+.choice-label {
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+.choice--disabled .choice-label { color: var(--fg-dim); }
+
+/* One glow ring that leaves the control once and fades; the resting glow
+   (second layer) is the checked state's own, so the pulse lands on it. */
+@keyframes dryl-choice-pulse {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 60%, transparent),
+                     0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent); }
+  to   { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent-a) 0%, transparent),
+                     0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent); }
+}
+@keyframes dryl-toggle-pulse {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 60%, transparent),
+                     0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent); }
+  to   { box-shadow: 0 0 0 9px color-mix(in srgb, var(--accent-a) 0%, transparent),
+                     0 0 18px color-mix(in srgb, var(--accent-a) 45%, transparent); }
 }
 
 /* ============== BADGES ============== */
@@ -5408,16 +5498,30 @@ input[type=number] { -moz-appearance: textfield; }
   width: 18px;
   height: 18px;
   border-radius: var(--r-pill);
-  background: var(--glass-1);
+  background-color: var(--glass-1);
   border: 1px solid var(--line-strong);
   display: grid;
   place-content: center;
+  position: relative;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 0%, transparent), 0 0 0 0 transparent;
   transition: border-color var(--dur-fast) var(--ease-out),
-              background   var(--dur-fast) var(--ease-out),
-              box-shadow   var(--dur-fast) var(--ease-out);
+              box-shadow   var(--dur-med)  var(--ease-out),
+              transform    var(--dur-med)  var(--ease-spring);
+}
+.radio-control::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: var(--accent-grad);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-med) var(--ease-spring);
 }
 .radio-control::after {
   content: '';
+  position: relative;
+  z-index: 1;
   width: 8px;
   height: 8px;
   border-radius: var(--r-pill);
@@ -5428,21 +5532,24 @@ input[type=number] { -moz-appearance: textfield; }
 .radio:hover .radio-control {
   border-color: var(--accent-line);
 }
+.radio:active .radio-control { transform: scale(0.86); transition-duration: var(--dur-fast); }
 .radio-input:checked + .radio-control {
-  background: var(--accent-grad);
   border-color: transparent;
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-a) 0%, transparent),
+              0 0 14px color-mix(in srgb, var(--accent-a) 45%, transparent);
 }
+.radio-input:checked + .radio-control::before { opacity: 1; transform: scale(1); }
 .radio-input:checked + .radio-control::after {
   transform: scale(1);
 }
-.radio:focus-within .radio-control {
+.radio-input[data-touched]:checked + .radio-control { animation: dryl-choice-pulse var(--dur-slow) var(--ease-out); }
+.radio-input:focus-visible + .radio-control {
   outline: 2px solid color-mix(in srgb, var(--accent-a) 50%, transparent);
   outline-offset: 2px;
 }
 .radio-label {
-  font-size: 14px;
-  color: var(--fg);
+  font-size: 13px;
+  color: var(--fg-muted);
   line-height: 1.4;
 }
 .radio--disabled {
@@ -5628,7 +5735,9 @@ input[type=number] { -moz-appearance: textfield; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .radio-control, .radio-control::after { transition: none; }
+  .checkbox, .checkbox::before, .checkbox::after,
+  .toggle, .toggle::before, .toggle::after,
+  .radio-control, .radio-control::before, .radio-control::after { transition: none; animation: none; }
 }
 
 /* ─────────────────────────────────────────────────────────
