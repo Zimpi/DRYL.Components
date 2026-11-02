@@ -2,8 +2,8 @@
 
 **Branch:** `release/3.16.0` — sammelt die Features der nächsten Minor-Version.
 **Stand:** `<Version>` `3.16.0`, unveröffentlicht (kein `v3.16.0`-Tag, nicht
-auf `origin/main`); Agents unverändert `0.25.0`. `74/131` Specs,
-**1947 bUnit- und 178 JS-Tests grün**, alle Prüfskripte grün.
+auf `origin/main`); Agents unverändert `0.25.0`. Stand nach I39 (02.11.):
+`80/131` Specs, **2015 bUnit- und 186 JS-Tests grün**, alle Prüfskripte grün.
 
 > `release/3.16.0` ist **nicht** nach `main` gemergt, und das ist Absicht: ein
 > Push auf `main` veröffentlicht 3.16.0 (`REL-05`).
@@ -29,6 +29,7 @@ auf `origin/main`); Agents unverändert `0.25.0`. `74/131` Specs,
 | Website-Demo I34: alle Button-Toasts mit `Origin`, neues Beispiel „From the bell“ | `DRYL.Website` `4436549`, gemergt in `ed243bd` auf `release/3.16.0` |
 | Idee I35: organische Spinner (Liquid, Goo, Bloom), umgesetzt in `DrylSpinner`, Spec und Tests | `ideas/I35 Organic spinners.md` (Adopted), `e7edcf3`, gemergt in `b4ffc2a`; Website-Demo auf `release/3.16.0` in `DRYL.Website` |
 | Idee I36: Glaszellen für `DrylProgress` (Variante B aus dem Prototyp „DRYL Progress-Varianten“), Spec, Tests, Website-Demo mit neuem Beispiel „Steps“ | `ideas/I36 Glass cells for the progress bar.md` (Adopted), Plan `docs/2026-11-02-i36-progress-cells-plan.md`; `DRYL.Website` auf `release/3.16.0` |
+| Idee I39: Checkbox, Toggle und Radio bewegen sich (Variante A „Tinte“ aus dem Prototyp „DRYL Auswahl-Varianten“): Haken zeichnet sich, Knopf dehnt sich, Glow-Puls; erste Specs `E8 Inputs` F8–F11; `DrylRadioGroup` erbt den Scope-State (I32-Nachzügler); Website-Beispiel „Checkbox and toggle“ | `ideas/I39 Selection controls that move.md` (Adopted), Plan `docs/plans/2026-11-02-i39-selection-motion-plan.md`; gemergt in `f90eb28`, `DRYL.Website` in `1114654` |
 
 Der Prototyp mit den drei Varianten liegt als Artifact „DRYL Toast-Morphs“
 vor (claude.ai, privat).
