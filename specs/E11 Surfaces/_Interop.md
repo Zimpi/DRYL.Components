@@ -32,6 +32,15 @@ attaches `window.dryl`, and the component calls into it by name.
 
 `opts` carries `placement`, `matchWidth`, `closeOnOutside` and `role`.
 
+**The list ink (I38).** `dryl.popover.open` calls `dryl.motion.glideScan(panel)`
+after the reveal and any pending focus; `dryl.popover.close` calls
+`dryl.motion.glideRelease(panel)`. No component calls either directly.
+
+| Entry point | Does |
+|---|---|
+| `dryl.motion.glideScan(panel)` | Attaches the ink to every host in the panel — the panel itself when it is a `[role="menu"]` (rows `[role="menuitem"]`), and every element carrying `data-dryl-glide="<row selector>"` (`DrylSelect`, `DrylMultiSelect`, `DrylAutocomplete`, each `DrylTimePicker` column). Watches the panel for hosts that render later. Per host: a `MutationObserver` on `class` and children (the listboxes' `.is-highlighted`, an autocomplete's re-rendered rows), a `ResizeObserver`, and `pointerover`/`pointermove`/`pointerleave`/`focusin` listeners; mouse only. Writes `data-glide`, `data-glide-on`, `data-glide-tone`, `data-glide-spot` and `--glide-x/y/w/h`, `--glide-spot-x` — attributes Blazor never renders. |
+| `dryl.motion.glideRelease(panel)` | Disconnects the panel watcher and every host's observers and listeners, cancels pending frames and removes every attribute and property written above (`CODE-05`). |
+
 **Back into .NET.** `DrylPopover` hands `dryl.popover.open` a
 `DotNetObjectReference<DrylPopover>`; the outside-press listener calls
 `Close()`, the component's one `[JSInvokable]` method. It is public because

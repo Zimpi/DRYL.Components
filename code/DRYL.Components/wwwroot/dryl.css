@@ -2076,6 +2076,68 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   .nav-item .ico { transition: none; }
 }
 
+/* ── List ink (I38) ───────────────────────────────────────
+   The drawer's ink, carried into menus and option lists. dryl.motion.glideScan
+   marks each list host (a [role="menu"] panel, or an element carrying
+   data-dryl-glide) with data-glide and writes the covered row's offset and
+   size into --glide-x/y/w/h. The ink is the host's ::before and the hover
+   light its ::after — pseudo-elements, so Blazor's children stay its own.
+   data-glide is "place" (first placement: no travel) or "glide" (spring
+   travel); data-glide-on shows the ink, data-glide-tone="danger" recolours it,
+   data-glide-spot lights it under the mouse. Without script none of this
+   exists and every row keeps its static hover fill. */
+[data-glide] { isolation: isolate; }
+[data-glide]:not(.popover-panel) { position: relative; }
+[data-glide]::before,
+[data-glide]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  width: var(--glide-w, 0px);
+  height: var(--glide-h, 0px);
+  border-radius: var(--r-sm);
+  transform: translate(var(--glide-x, 0px), var(--glide-y, 0px));
+  opacity: 0;
+  pointer-events: none;
+}
+[data-glide]::before {
+  background:
+    linear-gradient(var(--accent-a), var(--accent-b)) left var(--sp-1) center / 3px var(--sp-4) no-repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-a) 18%, transparent), color-mix(in srgb, var(--accent-b) 4%, transparent));
+  box-shadow: inset 0 0 0 1px var(--accent-line), inset 0 0 18px color-mix(in srgb, var(--accent-a) 15%, transparent);
+}
+[data-glide][data-glide-tone="danger"]::before {
+  background:
+    linear-gradient(var(--danger), var(--danger)) left var(--sp-1) center / 3px var(--sp-4) no-repeat,
+    linear-gradient(90deg, color-mix(in srgb, var(--danger) 16%, transparent), color-mix(in srgb, var(--danger) 3%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 40%, transparent);
+}
+[data-glide]::after {
+  background: radial-gradient(var(--sp-8) circle at var(--glide-spot-x, 50%) 50%, color-mix(in srgb, var(--accent-a) 32%, transparent), transparent);
+}
+[data-glide][data-glide-tone="danger"]::after {
+  background: radial-gradient(var(--sp-8) circle at var(--glide-spot-x, 50%) 50%, color-mix(in srgb, var(--danger) 24%, transparent), transparent);
+}
+[data-glide][data-glide-on]::before { opacity: 1; }
+[data-glide="place"]::before,
+[data-glide="place"]::after { transition: opacity var(--dur-med) var(--ease-out); }
+[data-glide="glide"]::before,
+[data-glide="glide"]::after {
+  transition: transform var(--dur-slow) var(--ease-spring),
+              width var(--dur-slow) var(--ease-spring),
+              height var(--dur-med) var(--ease-out),
+              opacity var(--dur-med) var(--ease-out);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  [data-glide][data-glide-on][data-glide-spot]::after { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-glide]::before,
+  [data-glide]::after { transition: none; }
+}
+
 .topbar {
   height: var(--appbar-h);
   display: flex;
@@ -5199,17 +5261,22 @@ body.dryl-scroll-locked { overflow: hidden; }
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  border-radius: var(--r-sm);
   transition:
     background var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
-.menu-item:hover { background: var(--glass-2); color: var(--fg); }
+/* Without the ink (prerender, static SSR, before the panel is revealed) each
+   row keeps its own fill; once dryl.motion.glideScan marks the panel
+   data-glide, the ink is the fill and the rows only brighten (I38). */
+:not([data-glide]) > .menu-item:hover { background: var(--glass-2); }
+.menu-item:hover { color: var(--fg); }
 .menu-item:focus-visible {
   outline: none;
-  background: var(--glass-2);
   color: var(--fg);
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
+:not([data-glide]) > .menu-item:focus-visible { background: var(--glass-2); }
 .menu-item:disabled,
 .menu-item[disabled] {
   opacity: 0.4;
@@ -5220,9 +5287,10 @@ body.dryl-scroll-locked { overflow: hidden; }
 /* Danger variant */
 .menu-item--danger { color: var(--danger); }
 .menu-item--danger:hover,
-.menu-item--danger:focus-visible {
+.menu-item--danger:focus-visible { color: var(--danger-fg); }
+:not([data-glide]) > .menu-item--danger:hover,
+:not([data-glide]) > .menu-item--danger:focus-visible {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
-  color: var(--danger-fg);
 }
 
 /* Keyboard shortcut hint — pushed to trailing edge */

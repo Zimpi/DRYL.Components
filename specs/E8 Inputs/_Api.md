@@ -6,7 +6,8 @@ part of the data contract the 1.0 freeze binds.
 **Source folder:** `code/DRYL.Components/Components/Inputs/`
 
 This reference covers the shared contracts used by `DrylInputText`,
-`DrylTextarea` and `DrylSelect`. Other Inputs types remain phase-C work. It has
+`DrylTextarea` and `DrylSelect`; `DrylMultiSelect` uses `SelectItem` and
+`InputState` with the same meaning, and `DrylTimePicker` uses `InputState`. Other Inputs types remain phase-C work. It has
 no `Meta` block and claims no component (`SPEC-03`).
 
 ## `InputState`

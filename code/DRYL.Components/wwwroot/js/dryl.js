@@ -974,6 +974,10 @@ window.dryl.popover = (() => {
             pendingFocus();
         }
 
+        // Menus and option lists get the gliding ink (I38). After the focus
+        // above, so the ink starts on the row that already has it.
+        window.dryl.motion?.glideScan(panel);
+
         // Capture-phase scroll catches scrolling in any ancestor container.
         const onScroll = () => reposition();
         const onResize = () => reposition();
@@ -1032,6 +1036,7 @@ window.dryl.popover = (() => {
         // start of the exit, because the panel is still on screen and still
         // keyboard-reachable while it fades.
         drylPanelKeys.uninstall(s.panel);
+        window.dryl.motion?.glideRelease(s.panel);
 
         // Last resort for the focus return. The normal path is releaseFocus,
         // called from C# the moment the close is requested, so the user is not
@@ -2375,6 +2380,186 @@ window.dryl.motion = (() => {
         s.host.removeAttribute('data-nav-ink');
     }
 
+    /* ---- List glide (I38) -------------------------------------------
+     * The drawer's ink (I29) for menus and option lists. A host is a menu
+     * panel ([role="menu"], rows [role="menuitem"]) or any element marked
+     * data-dryl-glide="<row selector>" (the listbox of DrylSelect,
+     * DrylMultiSelect and DrylAutocomplete, each column of DrylTimePicker).
+     * dryl.popover calls glideScan(panel) once the panel is revealed and
+     * glideRelease(panel) when it closes, so no component wires anything.
+     *
+     * The ink is the host's own ::before and the hover light its ::after —
+     * pseudo-elements, because Blazor owns the host's children and a foreign
+     * node between a menu and its menuitems breaks the role pair. JS writes
+     * only data-glide* attributes and --glide-* custom properties on the
+     * host; Blazor renders neither.
+     *
+     * The ink covers the row the user acted on last: the row under the mouse,
+     * the focused row (DrylMenu's arrow keys move real focus) or the row the
+     * component marks .is-highlighted (the listboxes' arrow keys). When the
+     * mouse leaves it falls back to focus, then to the highlight, and fades
+     * when there is neither. Geometry comes from the offsetParent chain, not
+     * from getBoundingClientRect: the popover opens with a scale morph, and a
+     * measured rect would bake that scale into the ink.
+     * ---------------------------------------------------------------- */
+    const _glide = new Map(); // host -> state
+    const GLIDE_ENABLED = ':not([disabled]):not([aria-disabled="true"])';
+
+    function glideRows(host) {
+        const sel = host.getAttribute('data-dryl-glide') || '[role="menuitem"]';
+        return sel + GLIDE_ENABLED;
+    }
+
+    function glideOffset(row, host) {
+        let x = 0, y = 0;
+        for (let n = row; n && n !== host; n = n.offsetParent) { x += n.offsetLeft; y += n.offsetTop; }
+        return { x, y };
+    }
+
+    function glideUsable(s, row) {
+        return !!row && row.isConnected && s.host.contains(row) && row.matches(s.rows) && row.offsetWidth > 0;
+    }
+
+    function glideFallback(s) {
+        const active = document.activeElement;
+        if (active && active !== s.host && s.host.contains(active)) {
+            const row = active.closest?.(s.rows);
+            if (glideUsable(s, row)) return row;
+        }
+        const hl = s.host.querySelector('.is-highlighted');
+        return glideUsable(s, hl) ? hl : null;
+    }
+
+    function glideMode(s, mode) {
+        if (s.host.getAttribute('data-glide') !== mode) s.host.setAttribute('data-glide', mode);
+    }
+
+    function glidePlace(s, animate) {
+        const { host } = s;
+        if (!glideUsable(s, s.active)) s.active = glideFallback(s);
+        const row = s.active;
+        if (!row) { host.removeAttribute('data-glide-on'); return; }
+        const was = host.hasAttribute('data-glide-on');
+        glideMode(s, animate && was && !reduced() ? 'glide' : 'place');
+        const { x, y } = glideOffset(row, host);
+        host.style.setProperty('--glide-x', x + 'px');
+        host.style.setProperty('--glide-y', y + 'px');
+        host.style.setProperty('--glide-w', row.offsetWidth + 'px');
+        host.style.setProperty('--glide-h', row.offsetHeight + 'px');
+        if (row.classList.contains('menu-item--danger')) host.setAttribute('data-glide-tone', 'danger');
+        else host.removeAttribute('data-glide-tone');
+        if (!was) host.setAttribute('data-glide-on', '');
+        // A placement arms the spring a frame later, so the next move glides.
+        if (host.getAttribute('data-glide') === 'place') {
+            cancelAnimationFrame(s.arm);
+            s.arm = requestAnimationFrame(() => { if (_glide.get(host) === s) glideMode(s, 'glide'); });
+        }
+    }
+
+    function glideAttach(host) {
+        if (_glide.has(host)) return;
+        const s = { host, rows: glideRows(host), active: null, lastHl: null, arm: 0, frame: 0, px: 0, row: null };
+
+        s.over = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(s.rows);
+            if (!row || !host.contains(row) || row === s.active) return;
+            s.active = row;
+            glidePlace(s, true);
+        };
+        s.move = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            const row = e.target.closest?.(s.rows);
+            if (!row || !host.contains(row)) return;
+            s.row = row; s.px = e.clientX;
+            if (s.frame) return;
+            s.frame = requestAnimationFrame(() => {
+                s.frame = 0;
+                const r = s.row.getBoundingClientRect();
+                const scale = s.row.offsetWidth ? r.width / s.row.offsetWidth : 1;
+                host.style.setProperty('--glide-spot-x', ((s.px - r.left) / (scale || 1)) + 'px');
+                if (!host.hasAttribute('data-glide-spot')) host.setAttribute('data-glide-spot', '');
+            });
+        };
+        s.leave = (e) => {
+            if (e.pointerType !== 'mouse') return;
+            host.removeAttribute('data-glide-spot');
+            s.active = glideFallback(s);
+            glidePlace(s, true);
+        };
+        s.focus = (e) => {
+            const row = e.target.closest?.(s.rows);
+            if (!glideUsable(s, row) || row === s.active) return;
+            s.active = row;
+            glidePlace(s, true);
+        };
+        // Blazor moves .is-highlighted on the listboxes' arrow keys and
+        // re-renders rows as an autocomplete query changes.
+        s.mo = new MutationObserver(() => {
+            const hl = host.querySelector('.is-highlighted');
+            if (hl !== s.lastHl) { s.lastHl = hl; if (glideUsable(s, hl)) s.active = hl; }
+            glidePlace(s, true);
+        });
+        s.mo.observe(host, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+        s.ro = new ResizeObserver(() => glidePlace(s, false));
+        s.ro.observe(host);
+
+        host.addEventListener('pointerover', s.over);
+        host.addEventListener('pointermove', s.move, { passive: true });
+        host.addEventListener('pointerleave', s.leave);
+        host.addEventListener('focusin', s.focus);
+        _glide.set(host, s);
+
+        // data-glide from the start: it is what hands the rows' static fill
+        // over to the ink, even before there is a row to cover.
+        glideMode(s, 'place');
+        s.lastHl = host.querySelector('.is-highlighted');
+        s.active = glideFallback(s);
+        glidePlace(s, false);
+    }
+
+    function glideDetach(host) {
+        const s = _glide.get(host);
+        if (!s) return;
+        _glide.delete(host);
+        s.mo.disconnect();
+        s.ro.disconnect();
+        host.removeEventListener('pointerover', s.over);
+        host.removeEventListener('pointermove', s.move);
+        host.removeEventListener('pointerleave', s.leave);
+        host.removeEventListener('focusin', s.focus);
+        cancelAnimationFrame(s.arm);
+        cancelAnimationFrame(s.frame);
+        for (const a of ['data-glide', 'data-glide-on', 'data-glide-tone', 'data-glide-spot']) host.removeAttribute(a);
+        for (const p of ['--glide-x', '--glide-y', '--glide-w', '--glide-h', '--glide-spot-x']) host.style.removeProperty(p);
+    }
+
+    function glideHosts(panel) {
+        const hosts = panel.matches('[role="menu"], [data-dryl-glide]') ? [panel] : [];
+        return hosts.concat(Array.from(panel.querySelectorAll('[data-dryl-glide]')));
+    }
+
+    // Content can render after the reveal (DrylTimePicker's columns arrive
+    // a render later), so the panel is watched for hosts until it closes.
+    const _glidePanels = new Map(); // panel -> MutationObserver
+
+    function glideScan(panel) {
+        if (!panel || panel.nodeType !== 1) return;
+        const scan = () => { for (const host of glideHosts(panel)) glideAttach(host); };
+        scan();
+        if (_glidePanels.has(panel)) return;
+        const mo = new MutationObserver(scan);
+        mo.observe(panel, { subtree: true, childList: true });
+        _glidePanels.set(panel, mo);
+    }
+
+    function glideRelease(panel) {
+        if (!panel || panel.nodeType !== 1) return;
+        _glidePanels.get(panel)?.disconnect();
+        _glidePanels.delete(panel);
+        for (const host of [..._glide.keys()]) if (host === panel || panel.contains(host) || !host.isConnected) glideDetach(host);
+    }
+
     /* ---- Reveal -----------------------------------------------------
      * A target counts as in view once `threshold` of it is visible OR it
      * fills `threshold` of the viewport. The ratio alone never fires on a
@@ -2755,7 +2940,7 @@ window.dryl.motion = (() => {
         animation.reverse();
     }
 
-    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
+    return { onExit, clearExit, moveIndicator, disposeIndicator, navGlide, disposeNavGlide, glideScan, glideRelease, observe, unobserve, autoFlip, stopAutoFlip, countUp, collapse, restore };
 })();
 
 /* ──────────────────────────────────────────────────────────

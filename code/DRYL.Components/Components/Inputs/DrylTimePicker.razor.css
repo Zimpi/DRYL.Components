@@ -73,8 +73,22 @@
 }
 
 .time-cell:hover {
-    background: var(--glass-2);
     color: var(--fg);
+}
+
+/* Static fill only without the ink (I38). A cell is centred digits, so the
+   column's ink drops the leading bar the menu rows carry. */
+.time-col:not([data-glide]) > .time-cell:hover {
+    background: var(--glass-2);
+}
+
+.time-col[data-glide]::before,
+.time-col[data-glide]::after {
+    border-radius: var(--r-xs);
+}
+
+.time-col[data-glide]::before {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent-a) 18%, transparent), color-mix(in srgb, var(--accent-b) 4%, transparent));
 }
 
 .time-cell.is-selected {

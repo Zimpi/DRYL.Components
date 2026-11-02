@@ -197,6 +197,25 @@ either — see **Recorded debt**.
   every other dropdown in the library without restating a single token.
 - An item's hover and focus-visible states are drawn from the token set, with
   no colour of its own.
+- An item is rounded with `--r-sm`.
+- Once the popover reveals the panel, the panel is a list-ink host (idea I38;
+  `E11 Surfaces/_Interop.md`): the ink is the panel's own `::before`, so no
+  element is added between the `menu` and its `menuitem`s.
+- The ink opens on the item that has focus, placed without travel.
+- While the ink is active, the item under the mouse or the focused item —
+  whichever the user acted on last — is covered by the ink.
+- When the mouse leaves the panel, the ink returns to the focused item, or
+  fades when no item has focus.
+- While the ink is active, items draw no hover or focus fill of their own; the
+  focus-visible `--accent-line` ring stays, so the keyboard position is visible
+  even while the mouse is elsewhere.
+- The ink glides between items on `--dur-slow` / `--ease-spring`.
+- A soft accent light follows the mouse inside the covered item.
+- On a danger item the ink, its leading bar and its light take `--danger`.
+- Disabled items, separators and headers are never covered.
+- Without the ink (no script), hover and focus-visible keep a `--glass-2` fill
+  and a danger item a `--danger` tint.
+- Under `prefers-reduced-motion` the ink moves without a transition.
 - A danger item is drawn in `--danger`.
 - A disabled item is dimmed rather than hidden.
 - The component branches on no colour mode and writes no mode-assuming value:
@@ -214,6 +233,11 @@ either — see **Recorded debt**.
   component, so there is no mode branch to check. Checked by eye on
   `/components/menu` in both modes with a menu open: the panel is the popover's
   surface, and the items resolve their hover and danger colours per mode.
+- **The ink (I38)** — measured on `/components/menu` in dark and light with the
+  `Actions` menu open: the panel carries `data-glide` and `data-glide-on`, the
+  ink starts under `Edit` (the focused item) and glides to `Duplicate` on
+  hover with the light lit; the hovered item's own background reads
+  transparent; after `Escape` no element on the page carries `data-glide`.
 - **Enter/exit animation** — **yes**, and none of it is this component's. The
   panel is a `DrylPopover`, which animates in with `popover-in` and out with
   `presence-out-fade`, both `--dur-fast`, both suppressed under

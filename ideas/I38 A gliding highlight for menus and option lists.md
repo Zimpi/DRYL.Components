@@ -1,8 +1,9 @@
 # A gliding highlight for menus and option lists
 
 ## Meta
-- **State:** Draft
-- **Specs:** none yet for `DrylMenu`, `DrylMenuItem`, `DrylSelect`, `DrylMultiSelect`, `DrylAutocomplete`, `DrylTimePicker` (phase C); the rework writes them
+- **State:** Adopted
+- **Specs:** `specs/E10 Navigation/F1 DrylMenu.md`, `specs/E8 Inputs/F3 DrylSelect.md`, `specs/E8 Inputs/F5 DrylAutocomplete.md`, `specs/E8 Inputs/F6 DrylMultiSelect.md` (new), `specs/E8 Inputs/F7 DrylTimePicker.md` (new), `specs/E11 Surfaces/_Interop.md`
+- **Plan:** `docs/plans/2026-11-02-i38-menu-glide-plan.md`
 
 ## Problem
 
@@ -58,9 +59,11 @@ disabled rows are skipped; the light is mouse-only; reduced motion places
 without gliding; without script the static look stays.
 
 ## Scope
-- **In scope:** the highlight and hover light in the five lists; panel inset
-  (`--sp-1` all round, so the highlight sits inside the radius); one shared
-  option base style; keyboard highlight per column in `DrylTimePicker`.
+- **In scope:** the highlight and hover light in the five lists; list inset
+  (`--sp-1` all round, so the highlight sits inside the radius); rounded rows.
+- **Moved out during the build:** one shared option base style (the
+  `DrylSelect`/`DrylMultiSelect` copies stay, recorded as debt in F6) and
+  keyboard navigation in `DrylTimePicker` (recorded as debt in F7).
 - **Out of scope:** panel open/close motion (the popover owns it, I30);
   sub-menus; type-ahead; AI styling; `DrylCommandPalette` (its own list,
   candidate for a follow-up).
@@ -70,9 +73,11 @@ without gliding; without script the static look stays.
   easings; no new token, no new easing, no new dependency. B and C use a
   direction-dependent transition (two durations on `top`/`bottom`), a new
   pattern but no new value.
-- **Specs:** none of the six components has a spec yet; the rework writes
-  them (raises the coverage meter) together with `_Api.md` / `_Interop.md`
-  entries for the shared engine.
+- **Specs:** `DrylMenu` (with `DrylMenuItem`), `DrylSelect` and
+  `DrylAutocomplete` have specs that gain the ink's criteria; `DrylMultiSelect`
+  and `DrylTimePicker` have none and get their first (coverage 74 → 76). The
+  engine is documented beside its caller, `DrylPopover`, in
+  `E11 Surfaces/_Interop.md`.
 - **Public API:** none planned — the glide is the default look. Open: whether a
   consumer may opt out.
 - **Code:** a generalised `navGlide` engine in `wwwroot/js/dryl.js` bound to a
@@ -83,8 +88,22 @@ without gliding; without script the static look stays.
 - **Website:** demos for the five components; `ComponentCatalog` entries.
 
 ## Decisions
+- 2026-11-02: Variant **A — Ink** is built (Product Owner: "Wir machen A:Ink
+  setze es um"). B and C are dropped.
+- 2026-11-02: No opt-out parameter; the ink is the default look of all five
+  lists (Tech Lead default, recommended in the round that showed the variants;
+  the Product Owner's go-ahead to build covered it).
+- 2026-11-02: `DrylCommandPalette` stays out of 3.16 and is a candidate for a
+  follow-up idea (Tech Lead default, as above).
+- 2026-11-02: The ink is drawn as the list host's `::before` (ink) and
+  `::after` (hover light), not as an element: Blazor owns the hosts' children,
+  and a node between a `menu` and its `menuitem`s breaks the role pair. The
+  drawer's 3 px bar becomes a background layer of the ink (Tech Lead).
+- 2026-11-02: `DrylPopover` attaches and releases the ink when it reveals and
+  closes a panel; no list component calls into JavaScript for it (Tech Lead).
+- 2026-11-02: The time picker gets no arrow keys in this idea. The ink follows
+  hover and focus; keyboard navigation inside the columns is recorded as debt
+  in its spec, because it is a behaviour decision, not part of a visual rework
+  (Tech Lead, narrowing the Draft's scope).
 
 ## Open Points
-1. Which variant (A, B or C)? — Product Owner.
-2. Opt-out parameter, or the glide everywhere?
-3. `DrylCommandPalette` in this release or a follow-up idea?
