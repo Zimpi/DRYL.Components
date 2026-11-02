@@ -28,7 +28,8 @@ test('fifty actual CSS checks pass including every badge label at 4.5', () => {
   assert.deepEqual(results.filter(result => !result.pass), []);
 });
 test('the old semantic foreground on tinted light badges is caught', () => {
-  const old = css.replace(/(\.badge-success\s*\{\s*color:)\s*var\(--fg\)/, '$1 var(--success)');
+  const old = css.replace(/(\.badge-success\s*\{[^}]*?\scolor:)\s*var\(--fg\)/, '$1 var(--success)');
+  assert.notEqual(old, css, 'the rule this test rewrites has changed shape');
   assert.ok(validate(old).some(result => result.name.startsWith('light badge success') && !result.pass));
 });
 test('CSS token changes cannot retain a stale passing palette', () => {
