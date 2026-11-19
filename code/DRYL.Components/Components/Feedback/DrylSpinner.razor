@@ -30,7 +30,6 @@
      aria-live="polite"
      @attributes="AdditionalAttributes">
 
-    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
 
     @if (Variant == SpinnerVariant.Dots)
     {
@@ -115,15 +114,10 @@
     // Each instance owns its goo filter, so two spinners on a page never share one id.
     private readonly string _gooId = $"dryl-spinner-goo-{Guid.NewGuid():N}";
 
-    private AiState _prevAi;
-    private int _genTick;
     private readonly AuraLifecycle _aura = new();
 
     protected override void OnParametersSet()
     {
-        if (Shown == AiState.Generated && _prevAi != AiState.Generated)
-            _genTick++;
-        _prevAi = Shown;
         _aura.Sync(Shown, () => InvokeAsync(StateHasChanged));
     }
 
@@ -159,8 +153,8 @@
             });
 
             AiAuraCss.Append(parts, _aura, EffectiveAura);
-            // The spinner also reacts to the idle Active state (speed cue) — a class
-            // AiAuraCss.Append intentionally omits for the generic ring.
+            // The spinner draws no aura frame (AI-08): the classes only retime and recolour
+            // its own loop. "ai-active" is a class the shared helper has no use for.
             if (_aura.Present && _aura.RenderState == AiState.Active) parts.Add("ai-active");
 
             if (!string.IsNullOrWhiteSpace(Class)) parts.Add(Class!);

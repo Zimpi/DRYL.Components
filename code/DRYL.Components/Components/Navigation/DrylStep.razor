@@ -40,7 +40,7 @@
     /// <summary>If true, the step cannot be activated by clicking.</summary>
     [Parameter] public bool Disabled { get; set; }
 
-    /// <summary>AI ambient state — adds a rotating gradient ring around the step header.</summary>
+    /// <summary>AI ambient state — puts the shared aura on the step's indicator circle.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>

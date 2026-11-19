@@ -197,7 +197,8 @@ The declaration's API belongs to [`F3 DrylStep.md`](F3%20DrylStep.md).
   are pending; emulation alone is not the native contrast-theme evidence.
 - **AI decision:** the container has no `Ai` parameter because work belongs to
   an individual step. It renders each step's shared `DrylAuraElements` and
-  `AiAuraCss` classes on that header; no container-level aura is needed (`AI-05`).
+  `AiAuraCss` classes on that step's indicator circle, the step's one bounded
+  surface (`AI-08`); no container-level aura is needed (`AI-05`).
   The child owns the state and lifecycle under `F3 DrylStep`.
 - **Demo:** source verified in the sibling website repository at
   `DRYL.Website/Components/Pages/DemoStepper.razor`, route `/components/stepper`.

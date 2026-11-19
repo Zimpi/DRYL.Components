@@ -420,6 +420,7 @@ states, colour weighting and Generated reveal.
 | `.ai-from-proposed` | Beside `.ai-generated` when it was entered straight from `.ai-proposed`: keeps the frozen edge, skips the entrance lift, flares the edge (`ai-proposed-flare`) and delays the bloom by `--delay-long`. |
 | `.ai-aura-wave`     | The accept wave, rendered only with `.ai-from-proposed`: a disc of AI light (`ai-proposed-wave`) from `--ai-wave-x` / `--ai-wave-y`, which `dryl.proposal` in `dryl.js` stamps on the host at pointer-down (centre otherwise); clipped to the host's radius. |
 | `.ai-indicator`     | Standalone status pill (`DrylAiIndicator`) — pulsing sparkle + shimmer sweep, adapts speed to state.   |
+| `.ai-mark-ring`     | A light ring around a small round mark (a slider knob, a selected radio) inside an `.ai-aura` host that draws no frame (`AI-08`). Breathes at the state's halo period, runs out once under `.ai-generated`, rests under `.ai-proposed`. |
 
 The ring/comet/glow/wash markup is emitted by the shared `<DrylAuraElements/>` component,
 driven by an `AuraLifecycle` (which keeps the aura mounted for one `--dur-slow`
@@ -451,6 +452,15 @@ Aurora variant's drift strips held at a fixed quarter offset, with no animation.
 | Comet afterglow retire    | `--dur-choreo`, `--delay-long` | `--ease-out` |
 | Graceful exit dissolve    | `--dur-slow` (420ms) | `--ease-out` |
 | Indicator pulse / shimmer | 2.4s / 3.6s (Active), 1s / 1.4s (Thinking), 1.6s / 2.2s (Streaming) | `--ease-in-out` |
+| Mark ring breathe (`ai-mark-breathe`) | the state's halo period | `--ease-in-out` |
+| Mark ring run-out (`ai-mark-out`) | `--dur-choreo`, once | `--ease-out` |
+| Progress cell sheen (`progress-ai-sheen`, Active / Streaming) | 3.6s / 1.5s | `--ease-in-out` |
+| Progress cell wave ahead (`progress-ai-wave`, Thinking) | 1.5s | `--ease-in-out` |
+| Slider fill sheen (`slider-ai-sheen`, Streaming) | 1.6s | `--ease-in-out` |
+| OTP walking light (`otp-ai-walk`) | the state's comet period ÷ 2.4 | `--ease-in-out` |
+
+The six mark animations above belong to components that draw no aura frame
+(`AI-08`) and were signed off by the maintainer on 2026-11-19 (`AI-04`, I45).
 
 All animations are suppressed under `prefers-reduced-motion: reduce` — the aura stays as a static even saum with the travelling comet hidden.
 

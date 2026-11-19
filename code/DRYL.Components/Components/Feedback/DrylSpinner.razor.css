@@ -11,6 +11,8 @@
 .spinner-wrap {
     --sz:         var(--sp-5);  /* Medium = 24 px */
     --spin-tempo: 1;
+    --spin-a:     var(--accent-a);
+    --spin-b:     var(--accent-b);
 
     display:         inline-flex;
     align-items:     center;
@@ -29,6 +31,11 @@
 .spinner-wrap.ai-aura.ai-active    { --spin-tempo: 1.35; }
 .spinner-wrap.ai-aura.ai-thinking  { --spin-tempo: 1.9;  }
 .spinner-wrap.ai-aura.ai-streaming { --spin-tempo: 0.55; }
+
+/* AI hue: the loop takes the state's weighting of the AI pair. A spinner has no
+   surface for an aura frame to trace, so it draws none (AI-08). */
+.spinner-wrap.ai-aura.ai-thinking,
+.spinner-wrap.ai-aura.ai-streaming { --spin-a: var(--ai-hot); --spin-b: var(--ai-cool); }
 
 .spinner-body {
     position: absolute;
@@ -53,10 +60,10 @@
     border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%;
     background: conic-gradient(
         from 0deg,
-        var(--accent-b),
-        var(--accent-a) 42%,
-        color-mix(in srgb, var(--accent-a) 12%, transparent) 88%,
-        var(--accent-b)
+        var(--spin-b),
+        var(--spin-a) 42%,
+        color-mix(in srgb, var(--spin-a) 12%, transparent) 88%,
+        var(--spin-b)
     );
     mask:         radial-gradient(circle at 55% 50%, transparent var(--dryl-spinner-hole), #fff calc(var(--dryl-spinner-hole) + 2%));
     -webkit-mask: radial-gradient(circle at 55% 50%, transparent var(--dryl-spinner-hole), #fff calc(var(--dryl-spinner-hole) + 2%));
@@ -110,7 +117,7 @@
 }
 
 .spinner-goo-core {
-    fill:      var(--accent-a);
+    fill:      var(--spin-a);
     transform: scale(0.94);
     animation: dryl-spinner-goo-core calc(1.8s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
 }
@@ -120,9 +127,9 @@
 }
 
 /* Resting positions — a three-lobed drop, shown when the loop is stopped */
-.spinner-goo-drop:nth-of-type(2) { fill: var(--accent-b); transform: rotate(0deg)   translateX(8px) scale(0.8); }
-.spinner-goo-drop:nth-of-type(3) { fill: var(--accent-a); transform: rotate(120deg) translateX(8px) scale(0.8); animation-delay: calc(-0.9s * var(--spin-tempo)); }
-.spinner-goo-drop:nth-of-type(4) { fill: color-mix(in srgb, var(--accent-a) 50%, var(--accent-b)); transform: rotate(240deg) translateX(8px) scale(0.8); animation-delay: calc(-1.8s * var(--spin-tempo)); }
+.spinner-goo-drop:nth-of-type(2) { fill: var(--spin-b); transform: rotate(0deg)   translateX(8px) scale(0.8); }
+.spinner-goo-drop:nth-of-type(3) { fill: var(--spin-a); transform: rotate(120deg) translateX(8px) scale(0.8); animation-delay: calc(-0.9s * var(--spin-tempo)); }
+.spinner-goo-drop:nth-of-type(4) { fill: color-mix(in srgb, var(--spin-a) 50%, var(--spin-b)); transform: rotate(240deg) translateX(8px) scale(0.8); animation-delay: calc(-1.8s * var(--spin-tempo)); }
 
 .spinner-goo-spark {
     fill:      var(--ai-core);
@@ -153,7 +160,7 @@
     position:      absolute;
     inset:         -18%;
     border-radius: 50%;
-    background:    radial-gradient(closest-side, color-mix(in srgb, var(--accent-a) 30%, transparent), transparent);
+    background:    radial-gradient(closest-side, color-mix(in srgb, var(--spin-a) 30%, transparent), transparent);
     opacity:       0.75;
     animation:     dryl-spinner-bloom-halo calc(2.4s * var(--spin-tempo)) var(--ease-in-out) infinite alternate;
 }
@@ -167,9 +174,9 @@
     animation:     dryl-spinner-bloom-morph calc(var(--membrane-period) * var(--spin-tempo)) var(--ease-viscous) infinite alternate;
 }
 
-.spinner-bloom-membrane:nth-child(1) { --membrane-period: 3.1s; background: var(--accent-a); }
-.spinner-bloom-membrane:nth-child(2) { --membrane-period: 3.9s; background: var(--accent-b); border-radius: 44% 56% 46% 54% / 55% 45% 55% 45%; animation-direction: alternate-reverse; animation-delay: calc(-1.2s * var(--spin-tempo)); }
-.spinner-bloom-membrane:nth-child(3) { --membrane-period: 2.5s; background: color-mix(in srgb, var(--accent-a) 55%, var(--accent-b)); border-radius: 52% 48% 60% 40% / 46% 52% 48% 54%; animation-delay: calc(-0.6s * var(--spin-tempo)); }
+.spinner-bloom-membrane:nth-child(1) { --membrane-period: 3.1s; background: var(--spin-a); }
+.spinner-bloom-membrane:nth-child(2) { --membrane-period: 3.9s; background: var(--spin-b); border-radius: 44% 56% 46% 54% / 55% 45% 55% 45%; animation-direction: alternate-reverse; animation-delay: calc(-1.2s * var(--spin-tempo)); }
+.spinner-bloom-membrane:nth-child(3) { --membrane-period: 2.5s; background: color-mix(in srgb, var(--spin-a) 55%, var(--spin-b)); border-radius: 52% 48% 60% 40% / 46% 52% 48% 54%; animation-delay: calc(-0.6s * var(--spin-tempo)); }
 
 .spinner-bloom-core {
     position:      absolute;

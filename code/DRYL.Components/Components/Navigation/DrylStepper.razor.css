@@ -110,11 +110,6 @@
     padding: var(--sp-3) var(--sp-3);
 }
 
-/* AI aura requires explicit border-radius on the host */
-.step-header.ai-aura {
-    border-radius: var(--r-md);
-}
-
 /* ── Step indicator (the circle) ────────────────────────── */
 
 .step-indicator {

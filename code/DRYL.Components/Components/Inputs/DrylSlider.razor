@@ -33,8 +33,15 @@
         </div>
     }
 
-    <div class="@WrapperCssClass">
-        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+    <div class="@WrapperCssClass" style="--slider-frac: @_frac">
+        @* No aura frame: a track has no surface to trace (AI-08). The knob wears the
+           shared mark ring, and a sheen runs through the fill while streaming. *@
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" Frameless="true" />
+        @if (_aura.Present)
+        {
+            <span class="slider-ai-sheen" aria-hidden="true"></span>
+            <span class="slider-ai-ring ai-mark-ring" aria-hidden="true" @key="_genTick"></span>
+        }
 
         <input id="@_id"
                class="@SliderCssClass"
@@ -92,10 +99,10 @@
     /// <summary>Accessible label — required if <c>Label</c> is not set.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    /// <summary>AI ambient state — the knob and the fill show it: a light ring breathes around the knob, the fill takes the state's colour.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    /// <summary>AI aura variant. Has no visible effect here: the slider draws no aura frame, its knob and fill carry the state.</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
@@ -108,6 +115,7 @@
     private AiState _prevAi = AiState.None;
     private int _genTick;
     private string _pct = "0%";
+    private string _frac = "0";
     private readonly AuraLifecycle _aura = new();
 
     public override Task SetParametersAsync(ParameterView parameters)
@@ -140,6 +148,7 @@
         var range = Max - Min;
         var pct = range > 0 ? Math.Clamp((value - Min) / range * 100, 0, 100) : 0;
         _pct = FormattableString.Invariant($"{pct:F2}%");
+        _frac = FormattableString.Invariant($"{pct / 100:F4}");
     }
 
     private bool HasValidationError =>

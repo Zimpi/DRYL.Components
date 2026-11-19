@@ -47,6 +47,9 @@ Namespace: `DRYL.Components`. A plain component with type parameter `TValue`.
   (`EqualityComparer<TValue>.Default`).
 - A `change` on the input reports `Value` to the group.
 - Outside a group the option renders unchecked and reports nothing.
+- Inside a group that shows an AI state, the selected option renders an
+  `.ai-mark-ring` inside its control, hidden from assistive technology; the
+  contract of that ring is in [`DrylRadioGroup`](F9%20DrylRadioGroup.md).
 
 ### Disabled
 

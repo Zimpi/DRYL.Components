@@ -42,7 +42,7 @@
 .skel-wrap .skel-circle { height: var(--sk-circle-d, 48px); width: var(--sk-circle-d, 48px); }
 .skel-wrap .skel-rect   { height: var(--sk-rect-h,  120px); }
 
-/* ─── Variant border-radius on wrapper (AI ring traces this) ─ */
+/* ─── Variant shape of the wrapper ──────────────────────────── */
 .skel-wrap.v-avatar {
     width:           var(--sk-circle-d, 48px);
     height:          var(--sk-circle-d, 48px);
@@ -117,7 +117,27 @@
 .skel-text-block     .skel:nth-child(6)::before { animation-delay: 0.60s; }
 .skel-card-header-text .skel:nth-child(2)::before { animation-delay: 0.10s; }
 
-/* ─── AI state: Thinking — faster shimmer ──────────────────── */
+/* ─── AI state: Active / Thinking — violet tint ──────────────
+   Loose blocks have no surface for an aura frame to trace, so the
+   skeleton draws none (AI-08). The tint is what tells Active from
+   None; Thinking deepens it and speeds the shimmer up.
+   ─────────────────────────────────────────────────────────── */
+.skel-wrap.ai-aura.ai-active .skel {
+    background: color-mix(in srgb, var(--ai-a) 12%, var(--glass-1));
+}
+.skel-wrap.ai-aura.ai-thinking .skel {
+    background: color-mix(in srgb, var(--ai-a) 18%, var(--glass-1));
+}
+.skel-wrap.ai-aura.ai-active .skel::before,
+.skel-wrap.ai-aura.ai-thinking .skel::before {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, var(--ai-a) 30%, transparent) 50%,
+        transparent 100%
+    );
+    background-size: 40% 100%;
+}
 .skel-wrap.ai-aura.ai-thinking .skel::before {
     animation-duration: 0.8s;
 }

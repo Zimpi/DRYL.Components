@@ -22,6 +22,8 @@ Version bump guide:
 - `DrylTable.CompactBelow` — Below this width of its own, a table is no longer a squeezed grid but a list of records: each row is a two-line tile with a title, a trailing value and a meta line, and a chevron unfolds it in place to show the remaining columns, the `DetailTemplate` and the row actions. It defaults to `Breakpoint.Sm`, so every existing table gets it on a phone without a change; the width is the table's own, so a table in a narrow panel becomes a list as well. Set `CompactBelow="null"` to keep the grid at every width, or a larger `Breakpoint` for a table with many columns.
 - `DrylColumn.CompactRole` and `ColumnCompactRole` — Which part a column plays in a record. Left on `Auto`, the `Primary` column is the title, the next column the trailing value, the two after that the meta line, and the rest unfold. Set it where the order of your columns is not the order of their importance: `<DrylColumn TItem="Service" Field="@(s => s.Status)" CompactRole="ColumnCompactRole.Trailing" />`. `Detail` keeps a column for the unfolded record, `Hidden` leaves it out while compact.
 - `DrylTable` — While compact, sorting and filtering are reached through one "Sort and filter" control, in the toolbar or in a control row of its own when the table has no toolbar. A record in edit mode shows each editor at full width under its column title.
+- `.ai-mark-ring` — A light ring around a small round mark, for your own AI-aware control that has no surface to frame. Place it inside an element that carries the `ai-aura` state classes and position it over the mark; it breathes at the state's tempo, runs out once on `Generated` and rests on `Proposed`.
+- `DrylAuraElements.Frameless` — Renders none of the aura layers and keeps the screen-reader text of `AiState.Proposed`, for a host whose own marks show the AI state.
 
 ### Changed
 - `DrylTable` — The table now reports `role="table"` instead of `role="grid"`, and its rows and cells carry their roles explicitly. The grid role promised arrow-key navigation between cells that the table never had.
@@ -29,7 +31,20 @@ Version bump guide:
 - `DrylTable` — A table is now a size container unless `CompactBelow` is `null`. In a shrink-to-fit context — an inline block, a flex item without a basis — it no longer takes its width from its columns; give it a width, or opt out.
 - `DrylColumn.Width` — Body cells receive the width as the `--tbl-col-w` custom property instead of an inline `width`; the header cell is unchanged. Only CSS that read the inline width of a `td` is affected.
 - `dryl.css` — A heading (`h1`–`h6`) or the `main` landmark with `tabindex="-1"` no longer draws the accent focus ring. Blazor's `FocusOnNavigate` focuses the page's first `h1` after every navigation, which put a ring around the page title on each page load; focus still moves there, so the screen reader announcement and the Tab starting point are unchanged, and the `h1:focus { outline: none; }` line from the Blazor template is no longer needed in your `app.css`. Operable elements keep their ring.
+- AI state without a frame — Eight components no longer draw the comet frame where there is no surface for it to trace; their own marks show the `AiState` instead, in the same colors and at the same tempo as the aura. Nothing in your markup changes, and no wrapper gains padding or a fill in AI mode any more, so setting `Ai` no longer moves the layout.
+  - `DrylProgress` — A sheen travels over the lit cells (`Active`, faster while `Streaming`), a wave runs ahead through the unlit cells while `Thinking`, and the row flashes once on `Generated`. A `Success`, `Warning` or `Danger` bar keeps its own colors.
+  - `DrylSkeleton` — `Active` and `Thinking` now tint the lines violet; `Streaming` and `Generated` are unchanged.
+  - `DrylSpinner` — Beside its tempo, the spinner takes the state's color: violet while `Thinking`, cyan while `Streaming`.
+  - `DrylRating` — Only the stars, with the motion they already had.
+  - `DrylSlider` — A light ring breathes around the knob and the fill takes the state's color; `Streaming` sends a sheen through the fill.
+  - `DrylRadioGroup` — The selected option carries the state: its fill takes the AI colors and a light ring breathes around it.
+  - `DrylStep` — The aura sits on the step's circle instead of framing the header, so it no longer cuts through the connector line.
+  - `DrylInputOtp` — The boxes keep ring and halo; one light walks through them in turn instead of a comet on every box.
+- `Aura` on `DrylProgress`, `DrylSkeleton`, `DrylSpinner`, `DrylRating`, `DrylSlider` and `DrylRadioGroup` — The parameter stays and no longer has a visible effect, because these components draw no ring to vary.
 - `DRYL.Components` — Minimum `Markdig` raised from 1.3.2 to 1.6.0. No API of this package changes; consumers pinned to an older Markdig need to move up with it.
+
+### Fixed
+- `DrylRating` — The glow behind the filled stars no longer turns green while `Thinking`.
 
 ## [Agents 0.25.1] — 2026-11-19
 

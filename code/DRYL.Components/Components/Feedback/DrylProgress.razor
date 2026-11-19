@@ -13,8 +13,9 @@
 
     The track is a row of glass cells (one per unit when Max is a whole
     number from 1 to 12, otherwise 20). One gradient runs across every
-    cell; the leading lit cell is filled partially. Each cell clips its own
-    fill, so the AI aura on the wrapper is never clipped.
+    cell; the leading lit cell is filled partially. In AI mode the cells
+    themselves show the state — a row of cells has no surface for an aura
+    frame to trace (AI-08).
     ───────────────────────────────────────────────────────── *@
 
 <div class="progress-field @Class" @attributes="AdditionalAttributes">
@@ -39,8 +40,6 @@
     }
 
     <div class="@WrapCssClass">
-        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
-
         <div class="@TrackCssClass"
              style="@TrackStyle"
              role="progressbar"
@@ -85,10 +84,10 @@
     /// <summary>Accessible label for the progress bar.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    /// <summary>AI ambient state — the cells show it: a sheen over the lit cells, a wave ahead of them while thinking, one flash when generated.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    /// <summary>AI aura variant. Has no visible effect here: the bar draws no aura frame, its cells carry the state.</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the state and the aura variant.</summary>
@@ -110,8 +109,6 @@
     // so nothing on it waits for a human decision (I20).
     private AiState Shown => EffectiveAi == AiState.Proposed ? AiState.None : EffectiveAi;
 
-    private AiState _prevAi = AiState.None;
-    private int _genTick;
     private readonly AuraLifecycle _aura = new();
 
     // Cell bookkeeping. _units is how many cells the current value fills (fractional);
@@ -138,8 +135,6 @@
             _units = units;
         }
 
-        if (Shown == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
-        _prevAi = Shown;
         _aura.Sync(Shown, () => InvokeAsync(StateHasChanged));
     }
 
@@ -206,6 +201,8 @@
         {
             var parts = new List<string> { "progress-wrap" };
             AiAuraCss.Append(parts, _aura, EffectiveAura);
+            // "ai-active" has no class in the shared helper; the cells need it for the Active sheen.
+            if (_aura.Present && _aura.RenderState == AiState.Active) parts.Add("ai-active");
             return string.Join(' ', parts);
         }
     }

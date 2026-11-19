@@ -15,8 +15,9 @@
       </DrylRadioGroup>
 
     Each <DrylRadio> picks up the group context via CascadingValue.
-    AI mode is supported on the group wrapper; individual radios do
-    not carry their own Ai parameter.
+    AI mode is set on the group; individual radios carry no Ai parameter.
+    The group draws no aura frame — it has no surface of its own (AI-08) —
+    and the selected option shows the state instead.
     ───────────────────────────────────────────────────────── *@
 
 <fieldset class="field" style="border: none; padding: 0; margin: 0; min-width: 0;">
@@ -26,7 +27,7 @@
     }
 
     <div class="@WrapperCssClass">
-        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" Frameless="true" />
 
         <div class="@GroupCssClass" role="radiogroup" aria-describedby="@(ShowHelper ? _helperId : null)">
             <CascadingValue Value="@_context" IsFixed="false">
@@ -63,10 +64,10 @@
     /// <summary>If true, all radio buttons in the group are disabled.</summary>
     [Parameter] public bool Disabled { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border and glow around the group. Leave it at <see cref="AiState.None"/> to follow a surrounding <c>DrylAiScope</c>.</summary>
+    /// <summary>AI ambient state — the selected option shows it: its fill takes the AI colour and a light ring breathes around it. Leave it at <see cref="AiState.None"/> to follow a surrounding <c>DrylAiScope</c>.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    /// <summary>AI aura variant. Has no visible effect here: the group draws no aura frame, its selected option carries the state.</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); supplies the state and the aura variant when the group sets neither.</summary>
@@ -96,14 +97,20 @@
         base.OnParametersSet();
         if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
         _prevAi = EffectiveAi;
-        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
+        // The aura's own re-renders (graceful exit, Generated retiring) change whether the
+        // selected option wears the mark ring, so they rebuild the cascaded context too.
+        _aura.Sync(EffectiveAi, () => InvokeAsync(() => { BuildContext(); StateHasChanged(); }));
 
+        BuildContext();
+    }
+
+    private void BuildContext() =>
         _context = new RadioGroupContext<TValue>(
             CurrentValue,
             EventCallback.Factory.Create<TValue>(this, v => CurrentValue = v),
             Disabled,
-            _groupName);
-    }
+            _groupName,
+            _aura.Present);
 
     private bool HasValidationError =>
         EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
