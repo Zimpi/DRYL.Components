@@ -32,7 +32,9 @@
   output, spanning the table's full width.
 - Several rows can be expanded at once.
 - Clicking the expand cell does not also raise `OnRowClick`.
-- `DetailTemplate` left `null` renders no expand column at all.
+- `DetailTemplate` left `null` shows no expand column on a wide table; the
+  compact presentation of `S10` uses the same control to unfold a record and
+  shows it there.
 
 ### CSV export
 

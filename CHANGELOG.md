@@ -18,7 +18,16 @@ Version bump guide:
 
 <!-- Collected on release/3.17.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
 
+### Added
+- `DrylTable.CompactBelow` — Below this width of its own, a table is no longer a squeezed grid but a list of records: each row is a two-line tile with a title, a trailing value and a meta line, and a chevron unfolds it in place to show the remaining columns, the `DetailTemplate` and the row actions. It defaults to `Breakpoint.Sm`, so every existing table gets it on a phone without a change; the width is the table's own, so a table in a narrow panel becomes a list as well. Set `CompactBelow="null"` to keep the grid at every width, or a larger `Breakpoint` for a table with many columns.
+- `DrylColumn.CompactRole` and `ColumnCompactRole` — Which part a column plays in a record. Left on `Auto`, the `Primary` column is the title, the next column the trailing value, the two after that the meta line, and the rest unfold. Set it where the order of your columns is not the order of their importance: `<DrylColumn TItem="Service" Field="@(s => s.Status)" CompactRole="ColumnCompactRole.Trailing" />`. `Detail` keeps a column for the unfolded record, `Hidden` leaves it out while compact.
+- `DrylTable` — While compact, sorting and filtering are reached through one "Sort and filter" control, in the toolbar or in a control row of its own when the table has no toolbar. A record in edit mode shows each editor at full width under its column title.
+
 ### Changed
+- `DrylTable` — The table now reports `role="table"` instead of `role="grid"`, and its rows and cells carry their roles explicitly. The grid role promised arrow-key navigation between cells that the table never had.
+- `DrylTable` — A tap on a compact record unfolds it unless `OnRowClick` is set; with `OnRowClick`, the tap is yours and the chevron unfolds.
+- `DrylTable` — A table is now a size container unless `CompactBelow` is `null`. In a shrink-to-fit context — an inline block, a flex item without a basis — it no longer takes its width from its columns; give it a width, or opt out.
+- `DrylColumn.Width` — Body cells receive the width as the `--tbl-col-w` custom property instead of an inline `width`; the header cell is unchanged. Only CSS that read the inline width of a `td` is affected.
 - `DRYL.Components` — Minimum `Markdig` raised from 1.3.2 to 1.6.0. No API of this package changes; consumers pinned to an older Markdig need to move up with it.
 
 ## [Agents 0.25.1] — 2026-11-19

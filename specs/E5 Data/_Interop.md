@@ -30,6 +30,8 @@ renders, measure a table, suppress a browser default, and write a file.
 | `dryl.table.focusHeader` | `DrylTable` | Moves focus onto a header after a keyboard column move. |
 | `dryl.table.focusFirstEditor` | `DrylTable` | Moves focus into the first editor when an inline edit starts. |
 | `dryl.table.layoutPinned` | `DrylTable` | Re-measures the sticky offsets of pinned columns. |
+| `dryl.table.initCompactTap` / `dryl.table.disposeCompactTap` | `DrylTable` | One delegated click listener on the table root: while the table is compact and carries `data-compact-tap`, a tap on a record presses that record's unfold control. Calls nothing back into .NET; attached once when `CompactBelow` is set, removed on disposal (`CODE-05`). |
+| `dryl.table.isCompact` | `DrylTable` | Reads whether the stylesheet currently shows the table as a record list. Used by the tap helper only. |
 | `dryl.calendar.scrollToTime` | `DrylCalendar` | Puts `InitialScrollTime` at the top of the time grid's scroller, once per newly shown grid. |
 | `dryl.storage.get` / `dryl.storage.set` | `DrylTable` | Reads and writes the persisted table state. |
 | `dryl.download.csv` | `DrylTable` | Hands the built CSV to the browser as a download. |

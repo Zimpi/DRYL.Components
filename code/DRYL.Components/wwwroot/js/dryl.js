@@ -2105,6 +2105,43 @@ window.dryl.table = {
         root.__drylResizeCancel = null;
     },
 
+    // isCompact(el): whether the table that owns `el` is currently shown as a record list.
+    // The stylesheet makes that switch on its own (a container query sets --tblc-on on the
+    // root's children); this only reads the result.
+    isCompact(el) {
+        if (!el) return false;
+        try { return getComputedStyle(el).getPropertyValue('--tblc-on').trim() === '1'; }
+        catch (_) { return false; }
+    },
+
+    // initCompactTap(root): while the table is compact, a tap on a record unfolds it. One
+    // delegated click listener on the stable root forwards the tap to the record's own unfold
+    // control, so the state stays in .NET and the wide table is untouched. The root carries
+    // data-compact-tap only while no OnRowClick is set — with one, a tap belongs to the consumer.
+    initCompactTap(root) {
+        if (!root || root.__drylCompactTap) return;
+        const onClick = (e) => {
+            if (!root.isConnected || root.getAttribute('data-compact-tap') !== 'true') return;
+            const target = e.target;
+            if (!target || !target.closest) return;
+            const row = target.closest('tr.tbl-rec');
+            if (!row || row.closest('.tbl-root') !== root) return;
+            if (row.classList.contains('tbl-row--editing')) return;
+            if (target.closest('button, a, input, select, textarea, label, summary, [role="button"], [contenteditable="true"]')) return;
+            if (!window.dryl.table.isCompact(row)) return;
+            const btn = row.querySelector(':scope > .tbl-col-expand > .tbl-expand-btn');
+            if (btn) btn.click();
+        };
+        root.__drylCompactTap = onClick;
+        root.addEventListener('click', onClick);
+    },
+
+    disposeCompactTap(root) {
+        if (!root || !root.__drylCompactTap) return;
+        root.removeEventListener('click', root.__drylCompactTap);
+        root.__drylCompactTap = null;
+    },
+
     // layoutPinned(root): measure cumulative widths of pinned columns and set the sticky left/right
     // offset on the matching header + body cells (by column index, which lines up because thead and
     // tbody share the same leading/trailing structural columns). Re-run after every render; pure

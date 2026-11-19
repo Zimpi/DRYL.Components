@@ -57,6 +57,9 @@
 ### Width and resizing
 
 - A column with `Width` renders at that width.
+- The header cell carries the width inline; a body cell receives it as the
+  `--tbl-col-w` custom property, so the compact presentation of `S10` can let
+  go of it.
 - `ResizableColumns` set renders a resize handle on every column that has not
   opted out through `Resizable`.
 - A completed resize stores the new width as a runtime override for that column.

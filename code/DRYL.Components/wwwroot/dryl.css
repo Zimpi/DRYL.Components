@@ -2529,12 +2529,12 @@ code, .code-inline {
   font-family: var(--font-mono);
 }
 .tbl td {
-  padding: 14px;
+  padding: var(--tbl-cell-pad, 14px);
   border-bottom: 1px solid var(--line);
   color: var(--fg-muted);
   vertical-align: middle;
 }
-.tbl tr:hover td { background: var(--hover-wash); color: var(--fg); }
+.tbl tr:hover td { background: var(--tblc-clear, var(--hover-wash)); color: var(--fg); }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .name { color: var(--fg); font-weight: 500; }
 
@@ -2558,20 +2558,20 @@ code, .code-inline {
 .tbl-root .tbl tbody tr {
   transition: background var(--dur-fast) var(--ease-out);
 }
-.tbl-root .tbl tbody tr:hover td { background: var(--glass-2); color: var(--fg); }
+.tbl-root .tbl tbody tr:hover td { background: var(--tblc-clear, var(--glass-2)); color: var(--fg); }
 
 /* Selected row */
 .tbl-root .tbl tbody tr.tbl-row--selected td {
-  background: color-mix(in srgb, var(--accent-a) 7%, transparent);
+  background: var(--tblc-clear, color-mix(in srgb, var(--accent-a) 7%, transparent));
 }
 .tbl-root .tbl tbody tr.tbl-row--selected:hover td {
-  background: color-mix(in srgb, var(--accent-a) 12%, transparent);
+  background: var(--tblc-clear, color-mix(in srgb, var(--accent-a) 12%, transparent));
 }
 
 /* Checkbox column */
 .tbl-col-check {
-  width: 44px;
-  padding-left: var(--sp-4);
+  width: var(--tblc-auto, 44px);
+  padding-left: var(--tblc-zero, var(--sp-4));
   padding-right: 0;
 }
 
@@ -2598,7 +2598,7 @@ code, .code-inline {
 .tbl-root .tbl tbody tr.tbl-row--ai-enter td {
   animation:
     tbl-row-ai-rise var(--dur-slow) var(--ease-out) both,
-    tbl-row-ai-flash var(--dur-choreo) var(--ease-out) both;
+    var(--tblc-none, tbl-row-ai-flash) var(--dur-choreo) var(--ease-out) both;
 }
 
 /* AI mode on the table wrapper — the .tbl-root has overflow:hidden so it can
@@ -2716,6 +2716,7 @@ code, .code-inline {
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--line);
+  flex-wrap: var(--tblc-wrap, nowrap);
 }
 
 /* Search wrapper — pins icon + input together, takes natural width on the left. */
@@ -2723,9 +2724,9 @@ code, .code-inline {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 240px;
-  max-width: 360px;
-  flex: 0 1 auto;
+  min-width: var(--tblc-zero, 240px);
+  max-width: var(--tblc-none, 360px);
+  flex: var(--tblc-on, 0) 1 auto;
 }
 .tbl-search .input { width: 100%; }
 .tbl-search .input-icon-leading { left: 10px; pointer-events: none; }
@@ -3062,8 +3063,8 @@ code, .code-inline {
 
 /* Expand column — chevron toggle on the row for DetailTemplate. */
 .tbl-col-expand {
-  width: 36px;
-  padding-left: var(--sp-3);
+  width: var(--tblc-auto, 36px);
+  padding-left: var(--tblc-zero, var(--sp-3));
   padding-right: 0;
 }
 
@@ -3098,8 +3099,8 @@ code, .code-inline {
 
 /* Reorder grip column — leading drag handle when Reorderable is set. */
 .tbl-col-grip {
-  width: 32px;
-  padding-left: var(--sp-3);
+  width: var(--tblc-auto, 32px);
+  padding-left: var(--tblc-zero, var(--sp-3));
   padding-right: 0;
 }
 
@@ -3169,10 +3170,10 @@ code, .code-inline {
 /* Trailing per-row actions column. */
 th.tbl-col-actions,
 td.tbl-col-actions {
-  width: 1%;
+  width: var(--tblc-auto, 1%);
   white-space: nowrap;
   text-align: right;
-  padding-right: var(--sp-4);
+  padding-right: var(--tblc-zero, var(--sp-4));
 }
 .tbl-row-actions {
   display: inline-flex;
@@ -3187,14 +3188,14 @@ td.tbl-col-actions {
    the rest of the body, including under the hover rule. */
 .tbl-root .tbl tbody tr.tbl-row--editing td,
 .tbl-root .tbl tbody tr.tbl-row--editing:hover td {
-  background: var(--accent-soft);
+  background: var(--tblc-clear, var(--accent-soft));
 }
 
 /* A cell hosting an inline editor sheds the text padding so the control fills the
    cell, and lets DRYL inputs stretch to the column width. */
 td.tbl-td-editing {
-  padding-top: var(--sp-1);
-  padding-bottom: var(--sp-1);
+  padding-top: var(--tblc-zero, var(--sp-1));
+  padding-bottom: var(--tblc-zero, var(--sp-1));
 }
 td.tbl-td-editing .input,
 td.tbl-td-editing .select,
@@ -3253,22 +3254,22 @@ td.tbl-td-editing select {
 /* Pinned (frozen) columns — the layout helper sets the per-column left/right offset; CSS owns
    the sticky behaviour, opaque backing and layering. */
 .tbl .tbl-pin {
-  position: sticky;
+  position: var(--tblc-static, sticky);
   z-index: 1;
-  background: var(--bg-2);
+  background: var(--tblc-clear, var(--bg-2));
 }
 /* Keep pinned body cells opaque through hover so scrolling content can't bleed under them. */
 .tbl-root .tbl tbody tr td.tbl-pin,
 .tbl-root .tbl tbody tr:hover td.tbl-pin {
-  background: var(--bg-2);
+  background: var(--tblc-clear, var(--bg-2));
 }
 /* Pinned header cells sit above the sticky header row and the pinned body cells. */
 .tbl-root .tbl thead th.tbl-pin {
   z-index: 4;
 }
 /* Edge rule that separates a frozen column from the scrolling area. */
-.tbl .tbl-pin-start { box-shadow: inset -1px 0 0 var(--line); }
-.tbl .tbl-pin-end   { box-shadow: inset 1px 0 0 var(--line); }
+.tbl .tbl-pin-start { box-shadow: var(--tblc-none, inset -1px 0 0 var(--line)); }
+.tbl .tbl-pin-end   { box-shadow: var(--tblc-none, inset 1px 0 0 var(--line)); }
 
 /* Column resize grip — sits at the right edge of a resizable header. */
 .tbl-col-resize {
@@ -3491,6 +3492,306 @@ td.tbl-td-editing select {
   color: var(--fg-muted);
 }
 .tbl-col-menu-option:hover { color: var(--fg); }
+
+/* ============== TABLE COMPACT PRESENTATION (record list) ============== */
+
+/* Below CompactBelow of its own width the table is a list of records, not a grid.
+   The switch is one DOM restyled by a container query, written so that no rule is
+   repeated per breakpoint: each breakpoint class has one query that sets a fixed
+   vocabulary of custom properties on the root's children, and every compact rule
+   reads that vocabulary with the wide value as its fallback —
+   `display: var(--tblc-grid, table-row)`. A declaration that must not exist while
+   wide names a vocabulary property without a fallback, which makes it invalid at
+   computed-value time there. Margins, grid placement and a row's padding and
+   border need no guard at all: a table row and a table cell ignore them. */
+.tbl-compact-sm,
+.tbl-compact-md,
+.tbl-compact-lg,
+.tbl-compact-xl {
+  container-type: inline-size;
+  container-name: dryl-table;
+}
+
+/* Reset per table, so a table nested in another table's detail follows its own
+   query instead of inheriting the surrounding table's presentation. */
+.tbl-root > * {
+  --tblc-on: initial;
+  --tblc-block: initial;
+  --tblc-grid: initial;
+  --tblc-flex: initial;
+  --tblc-none: initial;
+  --tblc-zero: initial;
+  --tblc-auto: initial;
+  --tblc-full: initial;
+  --tblc-clear: initial;
+  --tblc-static: initial;
+  --tblc-wrap: initial;
+  --tblc-anywhere: initial;
+}
+
+@container dryl-table (max-width: 480px) {
+  .tbl-compact-sm > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+@container dryl-table (max-width: 768px) {
+  .tbl-compact-md > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+@container dryl-table (max-width: 1024px) {
+  .tbl-compact-lg > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+@container dryl-table (max-width: 1280px) {
+  .tbl-compact-xl > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+
+/* The grid dissolves: the header row leaves, the table, its body, its full-width
+   rows and their cells become blocks. */
+.tbl-root .tbl { display: var(--tblc-block, table); }
+.tbl-root .tbl > thead { display: var(--tblc-none, table-header-group); }
+.tbl-root .tbl > tbody { display: var(--tblc-block, table-row-group); }
+.tbl-root .tbl > tbody > tr { display: var(--tblc-block, table-row); }
+.tbl-root .tbl > tbody > tr > td { display: var(--tblc-block, table-cell); }
+
+/* A record — two lines at rest: [grip] [check] title … trailing [unfold]
+                                                meta  … meta-end
+   Everything else spans the record beneath those lines once it is unfolded. */
+.tbl-root .tbl > tbody > tr.tbl-rec {
+  display: var(--tblc-grid, table-row);
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  row-gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec:last-child { border-bottom: 0; }
+
+.tbl-root .tbl > tbody > tr.tbl-rec > td {
+  --tbl-cell-pad: var(--tblc-zero);
+  border-bottom-style: var(--tblc-none, solid);
+  overflow-wrap: var(--tblc-anywhere, normal);
+}
+/* A column's declared or resized width arrives as --tbl-col-w and is let go while
+   compact, where the record's grid sizes the cell. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-col-key] {
+  width: var(--tblc-auto, var(--tbl-col-w, auto));
+}
+
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-grip {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin-inline-end: var(--sp-2);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-check {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-inline-end: var(--sp-3);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-expand {
+  grid-column: 5;
+  grid-row: 1 / span 2;
+  margin-inline-start: var(--sp-2);
+}
+/* Without a DetailTemplate the unfold control belongs to the record list only. */
+.tbl-root .tbl .tbl-col-expand--compact { display: var(--tblc-block, none); }
+
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="title"] {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="trailing"] {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  margin-inline-start: var(--sp-3);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="meta"] {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: start;
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="meta-end"] {
+  grid-column: 4;
+  grid-row: 2;
+  justify-self: end;
+  margin-inline-start: var(--sp-3);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="hidden"] {
+  display: var(--tblc-none, table-cell);
+}
+
+/* Detail columns and the actions cell — hidden at rest, a full-width line each
+   once the record is unfolded: the column's title, then its value. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="detail"],
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-actions {
+  grid-column: 1 / -1;
+  display: var(--tblc-none, table-cell);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--open > td[data-compact="detail"] {
+  display: var(--tblc-flex, table-cell);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: var(--tblc-full, auto);
+  margin-top: var(--sp-1);
+  animation: tbl-detail-in calc(var(--dur-med) * var(--tblc-on)) var(--ease-out);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--open > td.tbl-col-actions,
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--editing > td.tbl-col-actions {
+  display: var(--tblc-block, table-cell);
+  margin-top: var(--sp-2);
+  animation: tbl-detail-in calc(var(--dur-med) * var(--tblc-on)) var(--ease-out);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="detail"]::before,
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-td-editing::before {
+  content: attr(data-label);
+  display: var(--tblc-block, none);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+/* An end-aligned column would pull its label to the far edge with it. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-td-editing::before { align-self: flex-start; }
+
+/* A record in edit mode — every cell under edit takes a line of its own at the
+   record's full width, under its title, so an editor is never squeezed into the
+   trailing or meta slot. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-td-editing {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  justify-self: stretch;
+  display: var(--tblc-flex, table-cell);
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: var(--tblc-full, auto);
+  margin-inline-start: 0;
+  margin-top: var(--sp-2);
+}
+
+/* Row states. While wide they are painted on the cells; a record paints them on
+   the row, so its padding is covered too. Each names --tblc-full without a
+   fallback and is therefore no declaration at all on a wide table. */
+.tbl-root .tbl > tbody > tr.tbl-rec:hover {
+  background: color-mix(in srgb, var(--glass-2) var(--tblc-full), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--selected {
+  background: color-mix(in srgb, var(--accent-a) calc(var(--tblc-on) * 7%), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--selected:hover {
+  background: color-mix(in srgb, var(--accent-a) calc(var(--tblc-on) * 12%), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--editing,
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--editing:hover {
+  background: color-mix(in srgb, var(--accent-soft) var(--tblc-full), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--ai-enter {
+  animation: tbl-row-ai-flash calc(var(--dur-choreo) * var(--tblc-on)) var(--ease-out) both;
+}
+
+/* Sort and filter while compact — one control, in the toolbar or in a control
+   row of its own, and an in-flow panel beneath it. All three are in the markup
+   at every width and shown only by the vocabulary. */
+.tbl-compact-slot { display: var(--tblc-flex, none); }
+.tbl-compactbar {
+  display: var(--tblc-flex, none);
+  justify-content: flex-end;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-compact-trigger {
+  gap: var(--sp-2);
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+.tbl-compact-presence { display: var(--tblc-block, none); }
+.tbl-compact-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--glass-1);
+}
+.tbl-compact-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tbl-compact-heading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.tbl-compact-sorts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.tbl-compact-sort {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--fg-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-compact-sort:hover { color: var(--fg); border-color: var(--line-strong); }
+.tbl-compact-sort:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 1px;
+}
+.tbl-compact-sort.is-active {
+  color: var(--fg);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.tbl-compact-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: 13px;
+}
+.tbl-compact-filter .input { width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--open > td[data-compact="detail"],
+  .tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-actions,
+  .tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--ai-enter { animation: none; }
+  .tbl-compact-sort { transition: none; }
+}
 
 /* Avatar */
 .avatar {

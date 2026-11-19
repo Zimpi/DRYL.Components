@@ -58,6 +58,7 @@ into every consumer's markup:
 | `ColumnAlign` | `Models/ColumnAlign.cs` | `ColumnAlign.End` |
 | `ColumnFilterType` | `Models/ColumnFilterType.cs` | `ColumnFilterType.Select` |
 | `ColumnPin` | `Models/ColumnPin.cs` | `ColumnPin.Start` |
+| `ColumnCompactRole` | `Models/ColumnCompactRole.cs` | `ColumnCompactRole.Trailing` |
 | `FilterOperator` | `Models/FilterDescriptor.cs` | `FilterOperator.In` |
 | `SortDirection` | `Models/SortDescriptor.cs` | `SortDirection.Descending` |
 | `TableEditMode` | `Models/TableEditMode.cs` | `TableEditMode.Cell` |
@@ -209,6 +210,7 @@ itself through a cascade and renders nothing of its own.
 | `Resizable` | `bool` | `true` | Whether `ResizableColumns` applies to this column. |
 | `Reorderable` | `bool` | `true` | Whether `ReorderableColumns` applies to this column. |
 | `Hidden` | `bool` | `false` | Starts hidden; the visibility menu can show it. |
+| `CompactRole` | `ColumnCompactRole` | `ColumnCompactRole.Auto` | The column's part in a record while the table is compact. |
 | `CellTemplate` | `RenderFragment<TItem>?` | `null` | Cell renderer. |
 | `EditTemplate` | `RenderFragment<TItem>?` | `null` | Editor for inline editing. Its presence is what makes the column editable. |
 | `HeaderTemplate` | `RenderFragment?` | `null` | Header renderer. |
@@ -252,6 +254,20 @@ Either `Field` or a `CellTemplate` is required. `Auto` resolves to
 | `None` | The default. The only value that can be reordered. |
 | `Start` | Frozen to the leading edge; rendered before every unpinned column. |
 | `End` | Frozen to the trailing edge; rendered after every unpinned column. |
+
+### `ColumnCompactRole`
+
+The part a column plays in a record while `DrylTable` is compact
+(`DrylTable.CompactBelow`). It has no effect while the table is wide.
+
+| Member | Notes |
+|---|---|
+| `Auto` | The default. The table assigns the role by column order. |
+| `Title` | The record's title, leading its first line. |
+| `Trailing` | The value at the end of the first line. |
+| `Meta` | A value on the second line. A record shows up to two. |
+| `Detail` | Shown only in the unfolded record, under the column's title. |
+| `Hidden` | Not shown while the table is compact. |
 
 ### `TableEditMode`
 
