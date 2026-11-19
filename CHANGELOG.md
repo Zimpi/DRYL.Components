@@ -14,6 +14,18 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.17.0] — 2026-11-19
+
+<!-- Collected on release/3.17.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
+
+### Changed
+- `DRYL.Components` — Minimum `Markdig` raised from 1.3.2 to 1.6.0. No API of this package changes; consumers pinned to an older Markdig need to move up with it.
+
+## [Agents 0.25.1] — 2026-11-19
+
+### Changed
+- `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
+
 ## [3.16.0] — 2026-11-02
 
 Motion everywhere: toasts grow from their origin or the bell, spinners turn organic, and tooltips, badges, progress bars, menus, selection controls, trees and expansion panels each gain their own deliberate movement. Agents is unchanged.
