@@ -39,7 +39,7 @@ visible focus indicator (a `box-shadow` ring, a `border-color` change tied to
 `:focus`/`:focus-visible`, etc.).
 
 Check: `rg -n 'outline:\s*none' code/` locates every candidate — currently
-**36 hits** (13 in `dryl.css`, 23 across component `.razor.css` files). A
+**37 hits** (14 in `dryl.css`, 23 across component `.razor.css` files). A
 raw count does not establish compliance: the rule is about whether each
 `outline: none` is paired with a replacement ring, and that pairing does not
 sit in a fixed position relative to the `outline: none` — it can sit on an
@@ -55,7 +55,7 @@ adjacent to it — it lives on the separate rule
 with its own comment explaining why: "The global `:focus-visible` rule adds
 a bright cyan outline that clashes with the violet glow above. Suppress it
 here — the glow already satisfies WCAG focus visibility." So one selector
-family accounts for two of the 36 grep hits, and the ring that justifies
+family accounts for two of the 37 grep hits, and the ring that justifies
 both lives on a third, unrelated-by-pseudo-class rule (`:focus`, not
 `:focus-visible`) that a same-line or same-block grep would never associate
 with either hit. (No line numbers are cited here on purpose — the ring rule
@@ -81,8 +81,22 @@ replacement ring exists. Spot-checked in `dryl.css`: the
 `.tbl-edit-btn:focus-visible`, `.toast-close:focus-visible`,
 `.tab:focus-visible`, and `.dialog-close:focus-visible` — each of these six
 carries its `outline: none` and its `box-shadow`/`border-color` replacement
-in the same rule block. The full set of 36 has not been individually
+in the same rule block. The full set of 37 has not been individually
 re-verified for this document and should be walked during phase C.
+
+**Exception — script-focused, non-operable targets (I44).** One
+`outline: none` carries no replacement indicator on purpose:
+`:is(h1, h2, h3, h4, h5, h6, main, [role="main"])[tabindex="-1"]:focus-visible`
+in `dryl.css`. A heading or the main landmark with `tabindex="-1"` is not
+operable and not in the tab order; it receives focus only from script —
+Blazor's `FocusOnNavigate` after a route change, or a skip link — so that a
+screen reader announces the new page and the next Tab starts at the top. Focus
+still moves there; only the ring is not painted, in forced colors as well. The
+exception is exactly this selector: it never extends to an operable element,
+to `tabindex="0"`, or to a roving-tabindex control, and widening it needs
+maintainer sign-off. `FocusTests.Script_focused_heading_and_main_show_no_ring`
+proves both halves — no outline on the script-focused heading and `main`, the
+accent ring on a heading that is in the tab order.
 
 I13 adds a scoped forced-colors fallback for `.input`, `.textarea`, `.select`,
 `.dialog-close` and isolated Stepper `.step-header` focus-visible selectors.

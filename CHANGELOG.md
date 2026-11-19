@@ -28,6 +28,7 @@ Version bump guide:
 - `DrylTable` — A tap on a compact record unfolds it unless `OnRowClick` is set; with `OnRowClick`, the tap is yours and the chevron unfolds.
 - `DrylTable` — A table is now a size container unless `CompactBelow` is `null`. In a shrink-to-fit context — an inline block, a flex item without a basis — it no longer takes its width from its columns; give it a width, or opt out.
 - `DrylColumn.Width` — Body cells receive the width as the `--tbl-col-w` custom property instead of an inline `width`; the header cell is unchanged. Only CSS that read the inline width of a `td` is affected.
+- `dryl.css` — A heading (`h1`–`h6`) or the `main` landmark with `tabindex="-1"` no longer draws the accent focus ring. Blazor's `FocusOnNavigate` focuses the page's first `h1` after every navigation, which put a ring around the page title on each page load; focus still moves there, so the screen reader announcement and the Tab starting point are unchanged, and the `h1:focus { outline: none; }` line from the Blazor template is no longer needed in your `app.css`. Operable elements keep their ring.
 - `DRYL.Components` — Minimum `Markdig` raised from 1.3.2 to 1.6.0. No API of this package changes; consumers pinned to an older Markdig need to move up with it.
 
 ## [Agents 0.25.1] — 2026-11-19

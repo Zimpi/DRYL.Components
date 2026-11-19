@@ -1684,6 +1684,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    specificity) makes rounded surfaces like .input snap to square corners on focus. */
 :focus-visible { outline: 2px solid var(--accent-b); outline-offset: 2px; }
 
+/* A heading or the main landmark that script focuses after a route change
+   (Blazor's FocusOnNavigate, a skip link) is not operable and not in the tab
+   order: focus still moves there for the announcement and the next Tab, but
+   the ring stays off. The written exception lives in UX-02. Roving-tabindex
+   controls are not headings and keep their ring. */
+:is(h1, h2, h3, h4, h5, h6, main, [role="main"])[tabindex="-1"]:focus-visible { outline: none; }
+
 /* ============== APP CHROME ============== */
 .app-shell {
   display: grid;
