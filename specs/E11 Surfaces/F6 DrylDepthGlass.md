@@ -128,9 +128,10 @@ evidence**.
 
 - **Hand-written frost on an in-flow surface.** `.dg-surface` in `dryl.css`
   declares `backdrop-filter: blur(8px) saturate(1.5)` instead of `--glass-fx-flow`
-  (`DESIGN-06`, `DESIGN-07`). The `DESIGN-07` grep tolerates hits in `dryl.css`,
-  so the check does not see it; the rule's intent — no hand-written blur on an
-  in-flow surface — is broken all the same.
+  (`DESIGN-06`, `DESIGN-07`); the `DESIGN-07` check line names it. Moving it
+  onto `--glass-fx-flow` was tried on 2026-11-20 and withdrawn: with the
+  default tier the ground shows sharp through the pane and the glass reads as
+  a tinted outline. Which tier the pane belongs to is an open design question.
 - **Literal shadow geometry.** The `.dg-surface` shadow and the `.dg-warp:hover`
   shadow write their offsets, blur radii and inset widths as literals around the
   `--depth-*` colour tokens (`DESIGN-01`: every shadow references a variable).

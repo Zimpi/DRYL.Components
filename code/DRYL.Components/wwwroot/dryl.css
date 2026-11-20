@@ -1714,7 +1714,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding: 24px 18px;
   border-right: 1px solid var(--line);
   background: var(--sheen-grad-soft);
-  backdrop-filter: blur(20px);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -2325,7 +2326,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
   background: var(--bar-bg);
-  backdrop-filter: blur(20px);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
@@ -3904,8 +3906,8 @@ td.tbl-td-editing select {
     var(--sheen-grad),
     var(--panel-soft);
   border: 1px solid var(--line-strong);
-  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   box-shadow:
     inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);

@@ -48,7 +48,11 @@ supplies the words unless the consumer sets them. No new parameter — the
 Verify: bUnit test — with no parameter the search field's placeholder is
 `Search commands…`; with `Placeholder` set it is the given text.
 
-## Task 3 — `DESIGN-07`: four hand-written blurs move onto the tiers
+## Task 3 — `DESIGN-07`: three hand-written blurs move onto the tiers
+
+Amended during the work: `.dg-surface` was moved to `--glass-fx-flow`, inspected
+on `/components/depth-glass` and withdrawn — the pane loses its frost. It joins
+the two scrims in the idea dialogue.
 
 Files:
 - `code/DRYL.Components/wwwroot/dryl.css` — `.sidebar`, `.topbar`, `.toast` →

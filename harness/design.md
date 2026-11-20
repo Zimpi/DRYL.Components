@@ -109,9 +109,12 @@ Never write `backdrop-filter: blur(...)` on a new in-flow surface — use the
 token (`--glass-fx-flow` / `--glass-fx-float`).
 
 Check: `rg -n 'backdrop-filter:\s*blur\(' code/` returns hits only in
-`dryl.css` — and currently returns none there. The last three pre-existing
-offenders (`.chat`, `.reconnect-overlay`, `.validation-summary`) moved onto the
-tokens in 3.17.0.
+`dryl.css`, and there only on three rules whose lighter blur has no token yet:
+the two scrims `.sidebar-backdrop` and `.dialog-backdrop` — full-viewport
+layers behind a floating surface — and `.dg-surface`, the `DrylDepthGlass`
+pane, which loses its frost on `--glass-fx-flow`. They are recorded debt, not a
+precedent. Moved onto the tokens in 3.17.0: `.chat`, `.reconnect-overlay`,
+`.validation-summary`, `.sidebar`, `.topbar` and `.toast`.
 
 ### DESIGN-08 — Accents glow, never scream
 

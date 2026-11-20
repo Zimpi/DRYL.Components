@@ -27,6 +27,7 @@ Version bump guide:
 
 ### Changed
 - `DrylChat`, `DrylValidationSummary` — The panel and the banner now take the in-flow glass tier `--glass-fx-flow` like every other surface in the page flow, instead of a blur of their own. With the default tier they keep their translucent fill and no longer blur what lies behind them, which on the page's smooth background looked the same and cost a blur each. Set `--glass-fx-flow: blur(var(--glass-blur)) saturate(140%);` to bring frost back to every in-flow surface at once.
+- `DrylAppBar`, `DrylDrawer`, `DrylToast` — The bar, the sidebar and the toast card now take the floating glass tier `--glass-fx-float` instead of a blur of their own, so they frost like every other floating layer and follow your theme's frost setting; the frost is a little stronger than before.
 - `DrylReconnectModal` — The full-screen overlay now takes the floating glass tier `--glass-fx-float`, so the page behind it frosts like behind any other floating layer and follows your theme's frost setting; it is a little stronger than before.
 - `DrylTable` — The table now reports `role="table"` instead of `role="grid"`, and its rows and cells carry their roles explicitly. The grid role promised arrow-key navigation between cells that the table never had.
 - `DrylTable` — A tap on a compact record unfolds it unless `OnRowClick` is set; with `OnRowClick`, the tap is yours and the chevron unfolds.

@@ -75,6 +75,7 @@ Namespace: `DRYL.Components`. Implements `IDisposable`.
 - `Elevation` defaults to `AppBarElevation.Flat`.
 - `AppBarElevation.Flat` renders no `is-raised` class; the bar fills with
   `--bar-bg` and has a `--line` bottom border.
+- The bar's `backdrop-filter` is `--glass-fx-float`, the floating glass tier.
 - `AppBarElevation.Raised` adds `is-raised` to the root.
 - A raised bar fills with `--glass-2` and casts `--shadow-md`.
 
@@ -134,10 +135,8 @@ Namespace: `DRYL.Components`. Implements `IDisposable`.
 
 ## Recorded debt
 
-- **Hand-written frost.** `.topbar` writes `backdrop-filter: blur(...)` itself
-  instead of `--glass-fx-float`, and fills with `--bar-bg` rather than
-  `--panel-float` (`DESIGN-06`, `DESIGN-07`). The `DESIGN-07` check line's
-  claim that `dryl.css` returns no hits is therefore not true for `.topbar`.
+- **A fill of its own.** `.topbar` fills with `--bar-bg` rather than
+  `--panel-float`, the fill `DESIGN-06` names for a floating surface.
 - **Icon-only toggles without a tooltip.** Both toggles carry an `aria-label`
   but no `DrylTooltip` (`UX-05`).
 - **Fixed English labels.** `Toggle navigation`, `Collapse sidebar` and
