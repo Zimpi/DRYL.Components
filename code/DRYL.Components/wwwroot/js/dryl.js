@@ -2614,7 +2614,7 @@ window.dryl.motion = (() => {
         s.ro = new ResizeObserver(() => glidePlace(s, false));
         s.ro.observe(host);
 
-        // A DrylMultiSelect row collapsing under a search (I43) moves every row
+        // A DrylMultiSelect row collapsing under a search (I51) moves every row
         // below it for the length of its track transition, and nothing above
         // fires while it does. Re-place every frame until each one has ended.
         s.tracks = 0;

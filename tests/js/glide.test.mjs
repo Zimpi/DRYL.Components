@@ -171,7 +171,7 @@ test('a mouse moving again after the keyboard takes the ink back without a point
     assert.equal(f.host.props.get('--glide-y'), '72px');
 });
 
-test('a row track collapsing under a search keeps the ink on its row every frame (I43)', () => {
+test('a row track collapsing under a search keeps the ink on its row every frame (I51)', () => {
     const f = fixture();
     f.host.rows[2].classes.add('is-highlighted');
     f.motion.glideScan(f.host); f.frame();

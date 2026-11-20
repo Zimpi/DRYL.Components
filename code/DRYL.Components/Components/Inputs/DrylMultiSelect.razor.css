@@ -42,7 +42,7 @@
     color: var(--fg-dim);
 }
 
-/* ── Search mode (I43) ───────────────────────────────────── */
+/* ── Search mode (I51) ───────────────────────────────────── */
 
 /* The trigger becomes a chip input: the chips, then a text field that
    takes the rest of the line and wraps under them when it runs out. */

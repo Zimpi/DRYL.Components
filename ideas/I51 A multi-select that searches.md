@@ -118,6 +118,11 @@ highlighting:
   filtered row is `inert` and `aria-hidden`. The list ink re-places itself every
   frame while such a track moves, so it stays on its row (Tech Lead).
 
+- 2026-11-20: The work missed 3.16.0 and ships with **3.17.0**. The idea was
+  written as I43; that number went to the table's record list on
+  `release/3.17.0` in the meantime, so this one is renumbered to **I51**
+  (Tech Lead).
+
 ## Open Points
 
 *(none)*

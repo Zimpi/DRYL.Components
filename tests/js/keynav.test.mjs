@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 // dryl.keynav: which keys lose their native default. DrylMultiSelect's search
-// field (I43) passes its own list so the caret keys stay native.
+// field (I51) passes its own list so the caret keys stay native.
 const source = readFileSync(new URL('../../code/DRYL.Components/wwwroot/js/dryl.js', import.meta.url), 'utf8');
 
 function load() {

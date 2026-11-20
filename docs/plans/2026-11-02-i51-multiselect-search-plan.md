@@ -1,11 +1,11 @@
-# I43 — A multi-select that searches: plan
+# I51 — A multi-select that searches: plan
 
-Idea: [`ideas/I43 A multi-select that searches.md`](../../ideas/I43%20A%20multi-select%20that%20searches.md) (variant B — search in the trigger, collapsing rows, matched text highlighted).
+Idea: [`ideas/I51 A multi-select that searches.md`](../../ideas/I51%20A%20multi-select%20that%20searches.md) (variant B — search in the trigger, collapsing rows, matched text highlighted).
 Target: `release/3.16.0` (library and website). Feature branch: `claude/bold-newton-iqkm4y` in both repos.
 
 ## Task 1 — Idea and spec
 
-Files: `ideas/I43 A multi-select that searches.md` (→ Ready, then Adopted), `specs/E8 Inputs/F6 DrylMultiSelect.md`
+Files: `ideas/I51 A multi-select that searches.md` (→ Ready, then Adopted), `specs/E8 Inputs/F6 DrylMultiSelect.md`
 (→ Modified: description, Public API, a "Search" block of acceptance criteria, motion, evidence),
 `specs/E8 Inputs/_Interop.md` (`dryl.keynav.attach(element, keys)`, the ink following a collapsing row).
 Verify: `node scripts/check-harness-links.mjs`, `node scripts/check-spec-coverage.mjs`.
@@ -34,3 +34,5 @@ Verify: `dotnet build` against the sibling checkout; Playwright on `/components/
 watch rows collapse, pick with Enter, Backspace twice, Escape twice.
 
 Merging into `release/3.16.0` is left to the maintainer.
+
+> 2026-11-20: carried out as written, but merged into `release/3.17.0`, not 3.16.0; the changelog entry sits in `[3.17.0]`. The idea was renumbered from I43 to I51.

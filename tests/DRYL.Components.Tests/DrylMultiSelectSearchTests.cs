@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components.Web;
 namespace DRYL.Components.Tests;
 
 /// <summary>
-/// The "Search" criteria of <c>specs/E8 Inputs/F6 DrylMultiSelect.md</c> (idea I43):
+/// The "Search" criteria of <c>specs/E8 Inputs/F6 DrylMultiSelect.md</c> (idea I51):
 /// the chip input, filtering over mounted rows, the matched-text mark, and Backspace
 /// and Escape in two steps. JSInterop is Loose because the popover, the presence and
 /// the key helper wire themselves through dryl.js, which bUnit never executes; the

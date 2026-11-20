@@ -39,7 +39,7 @@ so once the popover reveals it, `dryl.motion.glideScan` lays the list ink
 next — see `E11 Surfaces/_Interop.md`. Without script the highlighted option
 keeps its static `--glass-2` fill.
 
-**Search is opt-in** (`ideas/I43 A multi-select that searches.md`). With
+**Search is opt-in** (`ideas/I51 A multi-select that searches.md`). With
 `Searchable` set, the trigger becomes a chip input: the chips, then a text
 field that takes the rest of the line. The field, not the surrounding `div`,
 is then the `combobox`: it carries the id the label points to and every
