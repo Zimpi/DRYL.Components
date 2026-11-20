@@ -53,8 +53,19 @@ Namespace: `DRYL.Components.Agents`. Injects `ICommandResolver` (required).
 | `OpenChanged` | `EventCallback<bool>` | — | Raised when the palette opens or closes. |
 | `Placeholder` | `string?` | `null` | Search input placeholder, forwarded to the core palette; `null` leaves the core palette's `CommandPaletteTexts.Placeholder`. |
 | `EmptyText` | `string?` | `null` | Empty-state text, forwarded to the core palette; `null` leaves the core palette's `CommandPaletteTexts.EmptyText`. |
+| `Texts` | `CommandPaletteTexts?` | `null` | Every word of the palette's chrome; the place to translate it. |
 | `MaxResults` | `int` | `8` | Maximum registry commands shown for a query. |
 | `HotKey` | `bool` | `true` | Enables the global ⌘K / Ctrl+K toggle. |
+| `Items` | `CommandItem[]?` | `null` | Static item list, used when `SearchProvider` is not set. |
+| `SearchProvider` | `Func<string, Task<CommandItem[]>>?` | `null` | Async search provider; wins over `Items`. |
+| `Debounce` | `TimeSpan` | 250 ms | Rest before a non-empty query reaches `SearchProvider`. |
+| `GroupOrder` | `CommandGroupOrder` | `CommandGroupOrder.Alphabetical` | Order of the result groups. |
+| `Fallback` | `Func<string, CommandItem?>?` | `null` | One entry kept present for every non-blank query. |
+| `OnItemRun` | `EventCallback<CommandItem>` | — | Raised whenever an item runs. |
+| `Ai` | `AiState` | `AiState.None` | AI result panel state of the palette shell. |
+| `Aura` | `AiAura?` | `null` | AI aura variant; `null` inherits the surrounding scope. |
+| `AiContent` | `RenderFragment?` | `null` | Content of the AI result panel. |
+| `AriaLabel` | `string?` | `null` | ARIA label of the palette dialog. |
 | `Class` | `string?` | `null` | Extra classes, forwarded to the core palette. |
 | `ChildContent` | `RenderFragment?` | `null` | Declarative `DrylCommand` children. |
 
@@ -67,8 +78,15 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
 
 - The component renders exactly one `DrylCommandPalette` and no element of its
   own.
-- `Open`, `OpenChanged`, `Placeholder`, `EmptyText`, `MaxResults`, `HotKey` and
-  `Class` reach the core palette unchanged.
+- Every parameter of the wrapper reaches the core palette unchanged: `Open`,
+  `OpenChanged`, `Placeholder`, `EmptyText`, `Texts`, `MaxResults`, `HotKey`,
+  `Items`, `SearchProvider`, `Debounce`, `GroupOrder`, `Fallback`, `OnItemRun`,
+  `Ai`, `Aura`, `AiContent`, `AriaLabel` and `Class`.
+- The wrapper has every `[Parameter]` of `DrylCommandPalette` except
+  `Resolver`, each with the same type; a parameter added to the core palette
+  and not to the wrapper fails
+  `DrylAiCommandPaletteTests.Carries_every_parameter_of_the_core_palette_except_the_resolver`.
+- `Texts` set translates the core palette's chrome.
 - With `Placeholder` or `EmptyText` unset, the core palette shows its own
   default word from `CommandPaletteTexts.Default`.
 - `ChildContent` is rendered inside the core palette, so its `DrylCommand`s
@@ -148,13 +166,6 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
 
 ## Recorded debt
 
-- **No `Texts` passthrough.** The wrapper does not expose the core palette's
-  `Texts`, so the thinking pill, the back and run buttons and the other
-  palette words cannot be translated through it.
-- **Partial passthrough.** `Items`, `SearchProvider`, `Debounce`, `GroupOrder`,
-  `Fallback`, `OnItemRun`, `Ai`, `Aura`, `AiContent` and `AriaLabel` of the core
-  palette are not forwarded; a consumer who needs one uses `DrylCommandPalette`
-  with `Resolver` directly.
 - **No session factory through DI.** `AddDrylCommandResolver` always builds the
   resolver without a session factory; session reuse needs a hand-registered
   `DrylAiCommandResolver`.
@@ -170,10 +181,10 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
 - **Enter/exit animation** — delegated: the core palette's overlay enter/exit
   (`S1` of its spec); the wrapper renders nothing that mounts on its own.
 - **Keyboard and a11y** — delegated to the core palette, as stated above.
-- **AI mode** — **yes, through the resolver**, and **no `Ai` parameter**: the
-  AI here is the resolution step, whose thinking aura and pill the core palette
-  already draws while `Resolver` works. The core palette's own `Ai` opt-in is not
-  forwarded (recorded above).
+- **AI mode** — **yes, through the resolver**: the AI here is the resolution
+  step, whose thinking aura and pill the core palette already draws while
+  `Resolver` works, with no opt-in. The core palette's own `Ai`, `Aura` and
+  `AiContent` are forwarded for a host that also shows an AI result panel.
 - **Demo page** — none of its own. `/components/command-palette` shows the
   resolver seam with the example `CommandPalette/AiResolver`, but on the core
   `DrylCommandPalette` with a demo resolver, not on this wrapper.

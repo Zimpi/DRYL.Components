@@ -10,11 +10,19 @@
       builder.Services.AddDrylCommandResolver(sp => yourAgent);
 
     Then host declarative <DrylCommand>s as usual.
+
+    Every parameter of the core palette is forwarded unchanged; the one
+    thing the wrapper owns is Resolver. A test compares the two parameter
+    lists, so a parameter added to the core palette cannot be forgotten here.
     ───────────────────────────────────────────────────────── *@
 
 <DrylCommandPalette Open="Open" OpenChanged="OpenChanged"
-                    Placeholder="@Placeholder" EmptyText="@EmptyText"
+                    Placeholder="@Placeholder" EmptyText="@EmptyText" Texts="Texts"
                     MaxResults="MaxResults" HotKey="HotKey"
+                    Items="Items" SearchProvider="SearchProvider" Debounce="Debounce"
+                    GroupOrder="GroupOrder" Fallback="Fallback" OnItemRun="OnItemRun"
+                    Ai="Ai" Aura="Aura" AiContent="AiContent"
+                    AriaLabel="@AriaLabel"
                     Resolver="Resolver" Class="@Class">
     @ChildContent
 </DrylCommandPalette>
@@ -32,11 +40,44 @@
     /// <summary>Empty-state text. When null, the palette's own default applies (<see cref="CommandPaletteTexts.EmptyText"/>).</summary>
     [Parameter] public string? EmptyText { get; set; }
 
+    /// <summary>Every human word of the palette's own chrome — the place to translate it. Defaults to <see cref="CommandPaletteTexts.Default"/>.</summary>
+    [Parameter] public CommandPaletteTexts? Texts { get; set; }
+
     /// <summary>Maximum number of registry commands shown for a query.</summary>
     [Parameter] public int MaxResults { get; set; } = 8;
 
     /// <summary>Enables the global ⌘K / Ctrl+K toggle.</summary>
     [Parameter] public bool HotKey { get; set; } = true;
+
+    /// <summary>Static item list used when <see cref="SearchProvider"/> is not set.</summary>
+    [Parameter] public CommandItem[]? Items { get; set; }
+
+    /// <summary>Async search provider invoked with the current query; takes precedence over <see cref="Items"/>.</summary>
+    [Parameter] public Func<string, Task<CommandItem[]>>? SearchProvider { get; set; }
+
+    /// <summary>How long a non-empty query rests before <see cref="SearchProvider"/> is asked. Defaults to 250 ms.</summary>
+    [Parameter] public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>How the groups of the result rows are ordered. Defaults to <see cref="CommandGroupOrder.Alphabetical"/>.</summary>
+    [Parameter] public CommandGroupOrder GroupOrder { get; set; } = CommandGroupOrder.Alphabetical;
+
+    /// <summary>One entry kept present for every non-blank query; return <c>null</c> to show none for that query.</summary>
+    [Parameter] public Func<string, CommandItem?>? Fallback { get; set; }
+
+    /// <summary>Fires whenever an item runs, before its navigation or action.</summary>
+    [Parameter] public EventCallback<CommandItem> OnItemRun { get; set; }
+
+    /// <summary>AI result panel state of the palette shell. Defaults to <see cref="AiState.None"/> — the resolver's own thinking state needs no opt-in.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c>.</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Content rendered inside the AI result panel when <see cref="Ai"/> is non-None.</summary>
+    [Parameter] public RenderFragment? AiContent { get; set; }
+
+    /// <summary>ARIA label for the palette dialog. When set, wins over <see cref="CommandPaletteTexts.AriaLabel"/>.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
 
     /// <summary>Additional CSS classes applied to the palette panel.</summary>
     [Parameter] public string? Class { get; set; }

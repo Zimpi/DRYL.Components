@@ -1,7 +1,8 @@
 # An AI command palette that speaks your language and can be seen
 
 ## Meta
-- **State:** Draft
+- **State:** Adopted
+- **Specs:** `specs/E15 Agent Inputs/F2 DrylAiCommandPalette.md`
 
 ## Problem
 
@@ -32,7 +33,7 @@ resolver. Three gaps remain after its German defaults were removed:
 - **C — demo and catalog only.** The wrapper stays a convenience for the simple
   case; whoever needs more uses the core palette. Gap 1 stays.
 
-Recommendation: **B**. A wrapper that forwards part of its inner component
+Chosen: **B**. A wrapper that forwards part of its inner component
 always meets a consumer one parameter short; the comparison test keeps it from
 drifting again.
 
@@ -53,6 +54,13 @@ drifting again.
   request — they need the new package or the project reference.
 
 ## Decisions
+- 2026-11-20: Way **B** — the wrapper forwards every parameter of the core
+  palette, guarded by a test that compares the two parameter lists; plus demo
+  and catalog entry (Product Owner, on the Tech Lead's recommendation). The
+  Tech Lead took that answer as the confirmation of the final version.
+- 2026-11-20: Agents goes from the unpublished 0.25.1 to 0.26.0 (`REL-01`).
+- 2026-11-20: The demo and the `ComponentCatalog` entry belong to the
+  `DRYL.Website` repository and are not part of the library commit; until they
+  land, the spec keeps "no demo, no catalog entry" as recorded debt.
 
 ## Open Points
-- A, B or C?

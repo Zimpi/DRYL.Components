@@ -60,9 +60,14 @@ Version bump guide:
 ### Security
 - `DrylMarkdown` — Model-authored Markdown can no longer run script in your app. Two ways through are closed. A link, image or autolink target with a scheme other than `http`, `https`, `mailto` or `tel` (images: `http`, `https`) — `javascript:`, `vbscript:`, `data:` and the rest, in any case, behind character references or with control characters inside — is dropped: a link keeps its text, an image shows its alt text. And attribute blocks such as `{onclick="…"}` or `{style="…"}` are no longer interpreted, so they can no longer put an event handler or an overlay on a rendered element; they now show as plain text. If you render model output with an earlier version, update. Relative links, fragments and `https` images are unchanged; a `{.class}` or `{#id}` block you relied on for styling now renders as text.
 
-## [Agents 0.25.1] — 2026-11-20
+## [Agents 0.26.0] — 2026-11-20
+
+### Added
+- `DrylAiCommandPalette.Texts` — Translate every word of the palette, as on `DrylCommandPalette`: `<DrylAiCommandPalette Texts="@(CommandPaletteTexts.Default with { Placeholder = "Befehl suchen…", EmptyText = "Keine Treffer" })" />`.
+- `DrylAiCommandPalette` — The wrapper now has every parameter of `DrylCommandPalette`: `Items`, `SearchProvider`, `Debounce`, `GroupOrder`, `Fallback`, `OnItemRun`, `Ai`, `Aura`, `AiContent` and `AriaLabel` join the ones it had. You no longer have to switch to the core palette and wire the resolver by hand to use one of them.
 
 ### Changed
+- This release was opened as 0.25.1 for a dependency update and fixes; the new `DrylAiCommandPalette` parameters make it a minor version.
 - `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
 
 - `DrylVoiceOrb` — An orb without a working session is now the glass sphere alone. Before, it showed an orbiting comet even with no `Run` or an idle one. The aura arrives when the session listens, thinks or speaks, and fades out when it stops instead of vanishing.
