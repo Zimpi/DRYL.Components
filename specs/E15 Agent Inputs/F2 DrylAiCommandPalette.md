@@ -51,8 +51,8 @@ Namespace: `DRYL.Components.Agents`. Injects `ICommandResolver` (required).
 |---|---|---|---|
 | `Open` | `bool` | `false` | Visibility; supports `@bind-Open`. |
 | `OpenChanged` | `EventCallback<bool>` | — | Raised when the palette opens or closes. |
-| `Placeholder` | `string` | `"Befehl suchen…"` | Search input placeholder, forwarded to the core palette. |
-| `EmptyText` | `string` | `"Keine Treffer"` | Empty-state text, forwarded to the core palette. |
+| `Placeholder` | `string?` | `null` | Search input placeholder, forwarded to the core palette; `null` leaves the core palette's `CommandPaletteTexts.Placeholder`. |
+| `EmptyText` | `string?` | `null` | Empty-state text, forwarded to the core palette; `null` leaves the core palette's `CommandPaletteTexts.EmptyText`. |
 | `MaxResults` | `int` | `8` | Maximum registry commands shown for a query. |
 | `HotKey` | `bool` | `true` | Enables the global ⌘K / Ctrl+K toggle. |
 | `Class` | `string?` | `null` | Extra classes, forwarded to the core palette. |
@@ -69,6 +69,8 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
   own.
 - `Open`, `OpenChanged`, `Placeholder`, `EmptyText`, `MaxResults`, `HotKey` and
   `Class` reach the core palette unchanged.
+- With `Placeholder` or `EmptyText` unset, the core palette shows its own
+  default word from `CommandPaletteTexts.Default`.
 - `ChildContent` is rendered inside the core palette, so its `DrylCommand`s
   register there.
 - The core palette's `Resolver` is the `ICommandResolver` resolved from DI.
@@ -146,10 +148,6 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
 
 ## Recorded debt
 
-- **German default words.** `Placeholder` and `EmptyText` default to German
-  literals, and because they are always passed, they win over the core
-  palette's English `CommandPaletteTexts.Default` (`REL-02` spirit; the
-  palette's `Texts` contract).
 - **No `Texts` passthrough.** The wrapper does not expose the core palette's
   `Texts`, so the thinking pill, the back and run buttons and the other
   palette words cannot be translated through it.

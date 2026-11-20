@@ -56,6 +56,8 @@ Version bump guide:
 ### Changed
 - `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
 
+- `DrylAiCommandPalette` — `Placeholder` and `EmptyText` no longer default to German words. Left unset, the palette now shows the same English defaults as `DrylCommandPalette` ("Search commands…", "No results"). If you relied on the German defaults, set them: `<DrylAiCommandPalette Placeholder="Befehl suchen…" EmptyText="Keine Treffer" />`.
+
 ### Fixed
 - `DrylAgentError`, `DrylAgentUsage` — When you pass a fresh run, the alert and the usage row now slide and fade out. Before, they vanished at once and the exit animation played on an empty element.
 

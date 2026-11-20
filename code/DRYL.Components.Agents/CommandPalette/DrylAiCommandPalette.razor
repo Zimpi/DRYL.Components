@@ -26,11 +26,11 @@
     /// <summary>Fires when <see cref="Open"/> changes — enables two-way @bind-Open binding.</summary>
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
 
-    /// <summary>Search input placeholder.</summary>
-    [Parameter] public string Placeholder { get; set; } = "Befehl suchen…";
+    /// <summary>Search input placeholder. When null, the palette's own default applies (<see cref="CommandPaletteTexts.Placeholder"/>).</summary>
+    [Parameter] public string? Placeholder { get; set; }
 
-    /// <summary>Empty-state text.</summary>
-    [Parameter] public string EmptyText { get; set; } = "Keine Treffer";
+    /// <summary>Empty-state text. When null, the palette's own default applies (<see cref="CommandPaletteTexts.EmptyText"/>).</summary>
+    [Parameter] public string? EmptyText { get; set; }
 
     /// <summary>Maximum number of registry commands shown for a query.</summary>
     [Parameter] public int MaxResults { get; set; } = 8;
