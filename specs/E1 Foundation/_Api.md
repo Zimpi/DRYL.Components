@@ -23,7 +23,81 @@ the exact spelling used in code. Until then this file claims nothing.*
 
 ## Theming
 
-*(phase C)*
+All in namespace `DRYL.Components.Theming`, under
+`code/DRYL.Components/Theming/`. Behaviour is pinned in
+[`F5 DrylThemeProvider.md`](F5%20DrylThemeProvider.md), which claims these
+files; [`F6 DrylColorModeToggle.md`](F6%20DrylColorModeToggle.md) consumes the
+service. The consumer guide is
+[`../../harness/theming.md`](../../harness/theming.md).
+
+### `DrylTheme` (sealed record)
+
+A theme carries **seeds only**; everything else is derived from them in
+`dryl.css` with `color-mix()`.
+
+| Member | Type | Default | Emits |
+|---|---|---|---|
+| `Accent` | `DrylAccent` | required | `--accent-a`, `--accent-b` |
+| `AiAccent` | `DrylAccent?` | `null` | `--ai-a`, `--ai-b`; `null` emits neither, and AI surfaces reuse the brand accent |
+| `Semantic` | `DrylSemantic?` | `null` | the non-blank members of `DrylSemantic` |
+| `Charts` | `DrylChartPalette?` | `null` | the non-blank members of `DrylChartPalette` |
+
+`ToCssVariables()` is `internal`: the provider's serialisation to
+`--key:value;` pairs, not consumer API.
+
+### `DrylAccent` (readonly record struct)
+
+`DrylAccent(string A, string B)` — the two stops of the accent gradient; `A`
+maps to `--accent-a` (or `--ai-a`), `B` to `--accent-b` (or `--ai-b`).
+
+### `DrylSemantic` (sealed record)
+
+`Success` → `--success`, `Warning` → `--warning`, `Danger` → `--danger`,
+`Info` → `--info`; each `string?`, `null` keeps the `dryl.css` default.
+
+### `DrylChartPalette` (sealed record)
+
+`Series1` … `Series6` → `--chart-1` … `--chart-6`; each `string?`, `null` keeps
+the default — slots 1 and 2 derived from the accent seeds, slots 3–6 fixed
+anchors. The chart components that read these slots are specified in `E4
+Charts`.
+
+### `DrylThemes` (static)
+
+| Member | Notes |
+|---|---|
+| `Nebula` | Violet → cyan; identical to the `dryl.css` defaults. Sets only `Accent`. |
+| `Ember` | Amber → red; overrides `Series3`. |
+| `Verdant` | Green → teal; overrides `Series4`. |
+| `Mono` | Near-monochrome slate; overrides all six chart slots. |
+| `Default` | Returns `Nebula`. |
+
+### `DrylColorMode` (enum)
+
+`System`, `Dark`, `Light` — in this order; `System` is the default value.
+`System` follows `prefers-color-scheme`; the other two force a mode through
+`data-dryl-mode` on the document root.
+
+### `IDrylThemeService` / `DrylThemeService` (scoped)
+
+| Member | Notes |
+|---|---|
+| `Current` | `DrylTheme`; starts as `DrylThemes.Default`. |
+| `SetThemeAsync(DrylTheme theme)` | Throws on `null`; sets `Current`, raises `OnThemeChanged` on every call. |
+| `SetAccentAsync(string a, string b)` | `SetThemeAsync(Current with { Accent = … })`. |
+| `OnThemeChanged` | `event Func<Task>?`; designed for one subscriber (the provider). |
+| `CurrentMode` | `DrylColorMode`; starts as `System`. |
+| `SetModeAsync(DrylColorMode mode)` | No-op for the current mode; otherwise sets `CurrentMode` and raises `OnModeChanged`. |
+| `OnModeChanged` | `event Func<Task>?`; multicast — every subscriber awaited in turn. |
+
+### The mode contract
+
+- **`data-dryl-mode`** on `document.documentElement`: absent = follow the
+  system, `"light"` / `"dark"` = forced. Both LIGHT-TOKEN-SET copies in
+  `dryl.css` key on it (`DESIGN-02`); no component reads it.
+- **`localStorage` key `dryl-color-mode`**: holds `"light"` or `"dark"` for an
+  explicit choice; absent for System. Written by `dryl.theme.applyMode`, read by
+  the provider's pre-paint script and `dryl.theme.storedMode`.
 
 ## AI state vocabulary
 

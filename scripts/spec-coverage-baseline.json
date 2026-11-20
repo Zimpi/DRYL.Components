@@ -11,8 +11,6 @@
     "code/DRYL.Components.Agents/Tools/DrylAskChoiceDialog.razor",
     "code/DRYL.Components.Agents/Tools/DrylAskMultiChoiceDialog.razor",
     "code/DRYL.Components.Agents/Tools/DrylAskTextDialog.razor",
-    "code/DRYL.Components.Agents/Voice/DrylVoiceOrb.razor",
-    "code/DRYL.Components/Components/Providers/DrylColorModeToggle.razor",
-    "code/DRYL.Components/Components/Providers/DrylThemeProvider.razor"
+    "code/DRYL.Components.Agents/Voice/DrylVoiceOrb.razor"
   ]
 }
