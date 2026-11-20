@@ -15,9 +15,26 @@ and never as raw markup or executable HTML.
 
 `DrylMarkdown` parses `Content` with Markdig (CommonMark plus the advanced
 extensions: GFM tables, autolinks, task lists and the rest) and renders the result
-inside a `.md` root and a `.md-content` column. Raw HTML in the source is disabled
-in the pipeline, so `<script>` or an `<img onerror>` written by a model is escaped
-as text rather than executed.
+inside a `.md` root and a `.md-content` column.
+
+**Content is untrusted.** The component's typical input is written by a model,
+and a model can be steered by whatever it read. Three things keep that input from
+running code in the host app:
+
+- Raw HTML in the source is disabled in the pipeline, so `<script>` or an
+  `<img onerror>` written by a model is escaped as text rather than executed.
+- The generic-attributes extension is left out of the advanced set, so a brace
+  block such as `{onclick="…"}` or `{style="…"}` is plain text and can never put
+  an attribute on an element.
+- Every link, image and autolink target is checked after parsing. A link may
+  point at `http`, `https`, `mailto` or `tel`, or carry no scheme at all
+  (relative paths, fragments, protocol-relative URLs); an image may load from
+  `http`, `https` or a scheme-less URL. Anything else — `javascript:`,
+  `vbscript:`, `data:` and every other scheme — is dropped: a link keeps its
+  text without the `a` element, an image is replaced by its alt text, an autolink
+  by its literal text. The check sees the target as the browser will, after
+  character references are decoded and with whitespace and control characters
+  removed, and it ignores case.
 
 Code blocks are not rendered by Markdig. The document is walked block by block:
 every code block becomes a `DrylCodeBlock` (fenced or indented; a fenced block's
@@ -76,6 +93,36 @@ Namespace: `DRYL.Components`. Inherits `DrylAiAware`; implements `IDisposable`.
 - A code block's text is passed to `DrylCodeBlock` unrendered, as its `Code`.
 - Raw HTML in the source is escaped and shown as text, never inserted as markup.
 - Inline HTML in the source is escaped the same way.
+
+### Untrusted link and image targets
+
+- A link whose target has the scheme `http`, `https`, `mailto` or `tel` renders
+  as an `a` element with that target.
+- A link whose target has no scheme — a relative path, a fragment or a
+  protocol-relative URL — renders as an `a` element with that target.
+- A link whose target has any other scheme renders its text without an `a`
+  element.
+- A `javascript:` target is dropped in any mix of upper and lower case.
+- A `javascript:` target written with a character reference (`&#106;avascript:`)
+  is dropped.
+- A `javascript:` target with a tab or other control character inside the scheme
+  is dropped.
+- A `data:` link target is dropped.
+- A reference-style link is checked against its definition's target like an
+  inline link.
+- An autolink with a disallowed scheme renders as its literal text without an `a`
+  element.
+- An image whose source has the scheme `http` or `https`, or no scheme, renders as
+  an `img` element.
+- An image whose source has any other scheme renders its alt text instead of an
+  `img` element.
+- No rendered element carries an attribute whose name starts with `on`.
+
+### Attribute blocks
+
+- A brace block after an element (`{onclick="…"}`, `{style="…"}`, `{.class}`)
+  adds no attribute to that element.
+- A brace block renders as literal text.
 
 ### Streaming robustness
 
@@ -160,16 +207,10 @@ Namespace: `DRYL.Components`. Inherits `DrylAiAware`; implements `IDisposable`.
 
 ### Recorded gaps — not deviations
 
-- **Link targets are not filtered — a security gap.** The pipeline disables raw
-  HTML only; it adds no URL-scheme filter, and Markdig 1.6.0 carries none of its
-  own. Measured on 2026-11-20 against this exact pipeline
-  (`UseAdvancedExtensions().DisableHtml()`): `[x](javascript:alert(1))`, the
-  mixed-case `JaVaScRiPt:` form and the autolink `<javascript:alert(1)>` all
-  render as `<a href="javascript:…">`, `![i](javascript:…)` as an `img` `src`,
-  and a `data:text/html` target passes unchanged. Model-authored Markdown can
-  therefore place a clickable script link in the host app, which contradicts the
-  pipeline's own comment that untrusted Markdown cannot inject active markup.
-  No test covers link targets.
+- **Image syntax can embed a video player.** The advanced set's media-links
+  extension turns an image whose `https` source is a recognised video host into an
+  `iframe` embed of that host. It runs no script in the host page, but it does
+  load a third party on render, from a URL the model chose.
 - **Heading identifiers can collide.** The advanced extensions give every heading
   an auto-generated `id`; two `DrylMarkdown` instances on one page with the same
   heading text produce duplicate ids.
@@ -198,6 +239,8 @@ Namespace: `DRYL.Components`. Inherits `DrylAiAware`; implements `IDisposable`.
   `ClassName` `"DrylMarkdown"`, AI flag `false`, in
   `DRYL.Website/Components/ComponentCatalog.cs`.
 - **Tests** — `tests/DRYL.Components.Tests/DrylMarkdownTests.cs` (rendering,
-  surrogate robustness, parse memo), `tests/DRYL.Components.Tests/AiProposedTests.cs`
+  surrogate robustness, parse memo),
+  `tests/DRYL.Components.Tests/DrylMarkdownSafetyTests.cs` (link, image and
+  autolink targets, attribute blocks), `tests/DRYL.Components.Tests/AiProposedTests.cs`
   and `tests/DRYL.Components.Tests/AiProposedSweepTests.cs` (proposal, accept
   wave). Code-block delegation and HTML escaping have no dedicated test.

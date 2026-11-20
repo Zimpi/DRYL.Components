@@ -48,6 +48,9 @@ Version bump guide:
 ### Fixed
 - `DrylRating` — The glow behind the filled stars no longer turns green while `Thinking`.
 
+### Security
+- `DrylMarkdown` — Model-authored Markdown can no longer run script in your app. Two ways through are closed. A link, image or autolink target with a scheme other than `http`, `https`, `mailto` or `tel` (images: `http`, `https`) — `javascript:`, `vbscript:`, `data:` and the rest, in any case, behind character references or with control characters inside — is dropped: a link keeps its text, an image shows its alt text. And attribute blocks such as `{onclick="…"}` or `{style="…"}` are no longer interpreted, so they can no longer put an event handler or an overlay on a rendered element; they now show as plain text. If you render model output with an earlier version, update. Relative links, fragments and `https` images are unchanged; a `{.class}` or `{#id}` block you relied on for styling now renders as text.
+
 ## [Agents 0.25.1] — 2026-11-19
 
 ### Changed

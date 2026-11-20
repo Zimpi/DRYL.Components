@@ -3,6 +3,7 @@
 @implements IDisposable
 @using Markdig
 @using Markdig.Syntax
+@using Markdig.Syntax.Inlines
 @using System.Text
 
 @*  ─────────────────────────────────────────────────────────
@@ -13,7 +14,8 @@
     Fenced code blocks are delegated to DrylCodeBlock (language label
     + copy button). All other Markdown is rendered to HTML by Markdig
     with raw HTML disabled, so model-authored "<script>…" is escaped
-    rather than executed.
+    rather than executed; attribute blocks are off and link/image
+    targets are limited to safe schemes (see DropUnsafeTargets).
 
     Usage:
       <DrylMarkdown Content="@_answer" Ai="@_state" />
@@ -51,12 +53,75 @@
     /// <summary>Extra CSS class(es) merged onto the markdown root's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
-    // Raw HTML is disabled so untrusted (model-authored) Markdown cannot inject
-    // active markup; advanced extensions add GFM tables, autolinks, etc.
-    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .DisableHtml()
-        .Build();
+    // Content is untrusted (model-authored), so three doors stay shut:
+    //  - raw HTML is disabled, so <script> and <img onerror> are escaped;
+    //  - the generic-attributes extension is removed from the advanced set,
+    //    because "{onclick=…}" / "{style=…}" would otherwise put any attribute
+    //    on any element (an onmouseover on a heading needs no click at all);
+    //  - every link, image and autolink target is checked after parsing
+    //    (DropUnsafeTargets), because Markdig passes javascript:/data: through.
+    private static readonly MarkdownPipeline _pipeline = BuildPipeline();
+
+    private static MarkdownPipeline BuildPipeline()
+    {
+        var builder = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .DisableHtml();
+        builder.Extensions.RemoveAll(e => e is Markdig.Extensions.GenericAttributes.GenericAttributesExtension);
+        return builder.Build();
+    }
+
+    private static readonly string[] _linkSchemes = { "http", "https", "mailto", "tel" };
+    private static readonly string[] _imageSchemes = { "http", "https" };
+
+    // Replaces every link, image or autolink whose target is not allowed by its
+    // own content: a link keeps its text, an image its alt text, an autolink its
+    // literal URL. Runs on the parsed tree, before anything is rendered.
+    private static void DropUnsafeTargets(MarkdownDocument document)
+    {
+        foreach (var link in document.Descendants<LinkInline>().ToList())
+        {
+            if (IsAllowedTarget(link.Url, link.IsImage ? _imageSchemes : _linkSchemes)) continue;
+            var child = link.FirstChild;
+            while (child is not null)
+            {
+                var next = child.NextSibling;
+                child.Remove();
+                link.InsertBefore(child);
+                child = next;
+            }
+            link.Remove();
+        }
+
+        foreach (var autolink in document.Descendants<AutolinkInline>().ToList())
+        {
+            if (autolink.IsEmail || IsAllowedTarget(autolink.Url, _linkSchemes)) continue;
+            autolink.ReplaceBy(new LiteralInline(autolink.Url ?? string.Empty));
+        }
+    }
+
+    // A target is read the way a browser reads it: whitespace and control
+    // characters are ignored (browsers strip them, so "java\tscript:" is
+    // javascript:) and the scheme is case-insensitive. Markdig has already
+    // decoded character references. A target without a scheme — relative path,
+    // fragment, query, protocol-relative — is always allowed.
+    internal static bool IsAllowedTarget(string? url, string[] schemes)
+    {
+        if (string.IsNullOrEmpty(url)) return true;
+
+        var sb = new StringBuilder(url.Length);
+        foreach (var c in url)
+        {
+            if (c > ' ' && c != '\u007F') sb.Append(char.ToLowerInvariant(c));
+        }
+        var target = sb.ToString();
+
+        var end = target.IndexOfAny(new[] { ':', '/', '?', '#' });
+        if (end <= 0 || target[end] != ':') return true;
+
+        var scheme = target[..end];
+        return Array.IndexOf(schemes, scheme) >= 0;
+    }
 
     private readonly List<Segment> _segments = new();
     private string? _lastContent;
@@ -101,6 +166,7 @@
         // the next chunk delivers the pair and the character renders normally.
         _parseCount++;
         var document = Markdown.Parse(StripLoneSurrogates(Content!), _pipeline);
+        DropUnsafeTargets(document);
 
         var sb = new StringBuilder();
         using var writer = new StringWriter(sb);
