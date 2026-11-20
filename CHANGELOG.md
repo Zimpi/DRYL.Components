@@ -14,9 +14,9 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [3.17.0] — 2026-11-20
+## [3.17.0] — 2026-11-21
 
-<!-- Collected on release/3.17.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
+A table becomes a list of records on a phone, `DrylMultiSelect` learns to search, validate and speak your language, AI state finds its own marks on components without a surface to frame, and `DrylMarkdown` is hardened against model-authored script. Agents 0.26.0 ships with it.
 
 ### Added
 - `DrylTable.CompactBelow` — Below this width of its own, a table is no longer a squeezed grid but a list of records: each row is a two-line tile with a title, a trailing value and a meta line, and a chevron unfolds it in place to show the remaining columns, the `DetailTemplate` and the row actions. It defaults to `Breakpoint.Sm`, so every existing table gets it on a phone without a change; the width is the table's own, so a table in a narrow panel becomes a list as well. Set `CompactBelow="null"` to keep the grid at every width, or a larger `Breakpoint` for a table with many columns.
@@ -70,7 +70,7 @@ Version bump guide:
 ### Security
 - `DrylMarkdown` — Model-authored Markdown can no longer run script in your app. Two ways through are closed. A link, image or autolink target with a scheme other than `http`, `https`, `mailto` or `tel` (images: `http`, `https`) — `javascript:`, `vbscript:`, `data:` and the rest, in any case, behind character references or with control characters inside — is dropped: a link keeps its text, an image shows its alt text. And attribute blocks such as `{onclick="…"}` or `{style="…"}` are no longer interpreted, so they can no longer put an event handler or an overlay on a rendered element; they now show as plain text. If you render model output with an earlier version, update. Relative links, fragments and `https` images are unchanged; a `{.class}` or `{#id}` block you relied on for styling now renders as text.
 
-## [Agents 0.26.0] — 2026-11-20
+## [Agents 0.26.0] — 2026-11-21
 
 ### Added
 - `DrylAiCommandPalette.Texts` — Translate every word of the palette, as on `DrylCommandPalette`: `<DrylAiCommandPalette Texts="@(CommandPaletteTexts.Default with { Placeholder = "Befehl suchen…", EmptyText = "Keine Treffer" })" />`.
@@ -79,7 +79,6 @@ Version bump guide:
 ### Changed
 - This release was opened as 0.25.1 for a dependency update and fixes; the new `DrylAiCommandPalette` parameters make it a minor version.
 - `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
-
 - `DrylVoiceOrb` — An orb without a working session is now the glass sphere alone. Before, it showed an orbiting comet even with no `Run` or an idle one. The aura arrives when the session listens, thinks or speaks, and fades out when it stops instead of vanishing.
 - `DrylHandoffTrace` — A lane that completes now plays the same "done" one-shot as a message or a card, and the aura of a lane that fails or is stopped fades out instead of being cut off. A lane that was already done when the trace appears stays calm.
 - `DrylAiCommandPalette` — `Placeholder` and `EmptyText` no longer default to German words. Left unset, the palette now shows the same English defaults as `DrylCommandPalette` ("Search commands…", "No results"). If you relied on the German defaults, set them: `<DrylAiCommandPalette Placeholder="Befehl suchen…" EmptyText="Keine Treffer" />`.
