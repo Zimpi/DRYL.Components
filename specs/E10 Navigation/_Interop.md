@@ -4,8 +4,11 @@ The JS interop surface this category uses, the DI services it registers, and the
 cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
-This reference currently covers `DrylStepper`, `DrylStep`, `DrylCommandPalette` and `DrylCommand`. Other navigation
-interop remains phase-C work; the statements below make no category-wide claim.
+This reference covers `DrylStepper`, `DrylStep`, `DrylCommandPalette`,
+`DrylCommand`, `DrylTabs`, `DrylTab`, `DrylBreadcrumbs` and
+`DrylBreadcrumbItem`. `DrylMenu`'s use of `dryl.menu` is described in
+[`F1 DrylMenu.md`](F1%20DrylMenu.md); the statements below make no
+category-wide claim.
 
 ## Interop
 
@@ -75,3 +78,47 @@ hotkey and — while open — the modal, and disposes its `DotNetObjectReference
 The per-open listeners of `dryl.commandpalette.attach` live on the input and the
 backdrop and go with those elements. `DrylCommand.Dispose` removes the command
 from the registry.
+
+## DrylTabs and DrylTab
+
+### Interop
+
+`DrylTabs` uses the indicator glide of `dryl.motion` in
+`code/DRYL.Components/wwwroot/js/dryl.js`, and only while `AnimateIndicator` is
+`true`:
+
+| Entry point | When | What |
+|---|---|---|
+| `dryl.motion.moveIndicator(container)` | `OnAfterRenderAsync` — the first render, and every render whose active tab differs from the last measured one | On first call attaches a `ResizeObserver` to the strip. Places the `[data-dryl-ink]` element under the `[data-dryl-ink-active="true"]` header (width and `translateX`), or fades it when none is active. Adds `.is-ink-ready` on the next frame, which enables the CSS glide. Ignores a reference that is no longer an element. |
+| `dryl.motion.disposeIndicator(container)` | `DisposeAsync`, once the indicator was attached | Disconnects the `ResizeObserver` and forgets the strip. |
+
+`DrylTab` uses no interop.
+
+### Services
+
+`DrylTabs` injects `IJSRuntime`. Neither component registers or resolves any
+other service; `DrylTabs` cascades its own instance for tab registration.
+
+### Cleanup
+
+`DrylTabs.DisposeAsync` clears its tab list and, when `moveIndicator` succeeded
+at least once, calls `dryl.motion.disposeIndicator`, swallowing
+`JSDisconnectedException` and the prerender `InvalidOperationException`
+(`CODE-05`). It creates no `DotNetObjectReference`. `DrylTab.Dispose`
+unregisters from the parent.
+
+## DrylBreadcrumbs and DrylBreadcrumbItem
+
+### Interop
+
+None. Neither component injects `IJSRuntime` or calls a `dryl.*` entry point;
+links are plain `a` elements and navigation is the browser's and the router's.
+
+### Services
+
+None. `DrylBreadcrumbs` cascades its own instance for item registration.
+
+### Cleanup
+
+`DrylBreadcrumbs.Dispose` clears its item list; `DrylBreadcrumbItem.Dispose`
+unregisters from the parent. No timers, listeners or observers are owned.

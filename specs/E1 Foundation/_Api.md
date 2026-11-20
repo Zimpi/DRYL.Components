@@ -200,3 +200,22 @@ after removal), the cascaded instance adds `Options`, `Message` and `Ai`.
 `Add`, `Contains`, `Count`, `ToDictionary()`; a `null` value removes the name.
 `ToastPosition`: `TopRight`, `TopLeft`, `TopCenter`, `BottomRight`,
 `BottomLeft`, `BottomCenter`.
+
+## Reconnect modal (`F4 DrylReconnectModal`)
+
+`DrylReconnectModal` defines no enum, model or service; its parameters are all
+strings, one `bool` and the `Class` / `AdditionalAttributes` pair, listed in
+[`F4 DrylReconnectModal.md`](F4%20DrylReconnectModal.md). Two contracts it
+depends on are not its own:
+
+- **The framework's reconnect-display contract.** The root's id
+  `components-reconnect-modal`, the state classes `components-reconnect-show`,
+  `-hide`, `-retrying`, `-paused`, `-failed` and `-rejected`, and the span ids
+  `components-reconnect-current-attempt`, `components-reconnect-max-retries` and
+  `components-seconds-to-next-attempt` are spelled by ASP.NET Core's
+  `blazor.web.js`, not by the library. Since .NET 10 the framework also sets
+  `components-reconnect-resume-failed`, which the component does not style.
+- **`--z-reconnect`.** Declared in the shared `:root` block of `dryl.css`,
+  mode-neutral, the top of the library's stacking order — the overlay has to
+  win over every other layer while the circuit is down.
+

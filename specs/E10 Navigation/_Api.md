@@ -5,8 +5,11 @@ part of the data contract the 1.0 freeze binds.
 
 **Source folder:** `code/DRYL.Components/Components/Navigation/`
 
-This reference currently covers the Stepper family and the command palette. Other navigation types
-remain phase-C work. It carries no `Meta` block and claims no component
+This reference covers the shared types of the Stepper family and the command
+palette, and the parameter boundaries of the two parent/child declaration pairs
+`DrylTabs`/`DrylTab` and `DrylBreadcrumbs`/`DrylBreadcrumbItem`. Types nested in
+a single component (e.g. `DrylMenu.MenuPlacement`) are documented in that
+component's spec. It carries no `Meta` block and claims no component
 (`SPEC-03`).
 
 ## `StepperOrientation`
@@ -141,3 +144,37 @@ record of `Command` (`DrylCommand`), `Arguments`
 Defined in `code/DRYL.Components/Components/Navigation/CommandContext.cs`. The
 payload of `DrylCommand.OnRun`: `Arguments`, `CancellationToken` and
 `GetArgument<T>(string name)`.
+
+## `DrylTabs` / `DrylTab` parameter boundary
+
+Neither component defines an enum or a model type of its own.
+
+`DrylTabs` exposes `Active`, `ActiveChanged`, `AriaLabel`, `AnimateIndicator`,
+`ChildContent`, `Class` and `AdditionalAttributes`. Full types and defaults are
+in [`F8 DrylTabs.md`](F8%20DrylTabs.md).
+
+`DrylTab` exposes `Id`, `Label`, `Icon`, `Disabled`, `Ai`, `TrailingContent` and
+`ChildContent`. Full types and defaults are in [`F9 DrylTab.md`](F9%20DrylTab.md).
+
+The parent cascades itself as a fixed value; each `DrylTab` registers against it
+and renders no element of its own. The binding key of `Active` is the tab's
+identifier: its non-empty `Id`, or a generated identifier when it has none. `Ai`
+is the shared `AiState` (see above); `DrylTab` has no `Aura` parameter. There is
+no public tab collection, no registration or navigation method and no
+orientation parameter.
+
+## `DrylBreadcrumbs` / `DrylBreadcrumbItem` parameter boundary
+
+Neither component defines an enum or a model type of its own.
+
+`DrylBreadcrumbs` exposes `AriaLabel` (`string`, default `"Breadcrumb"`),
+`Separator`, `MaxItems`, `ChildContent`, `AdditionalAttributes` and `Class`.
+Full types and defaults are in
+[`F10 DrylBreadcrumbs.md`](F10%20DrylBreadcrumbs.md).
+
+`DrylBreadcrumbItem` exposes `Href`, `Icon` and `ChildContent`. Full types and
+defaults are in [`F11 DrylBreadcrumbItem.md`](F11%20DrylBreadcrumbItem.md).
+
+The parent cascades itself as a fixed value; each item registers against it and
+renders no element of its own. The last registered item is always the current
+page. Neither component takes an `Ai` parameter (`AI-05`).

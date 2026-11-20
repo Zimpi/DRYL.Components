@@ -99,3 +99,12 @@ the provider disposes on detach. The bell marker `data-dryl-inbox` is written by
 Cleanup (`CODE-05`): the timer lives on the slot's registration; `detach` and
 `leave` clear it, and a callback retained past `detach` checks the registration
 and stays inert (`tests/js/toast.test.mjs`).
+
+### Reconnect modal (`F4 DrylReconnectModal`)
+
+| Concern | What |
+|---|---|
+| Interop | None through `IJSRuntime`, and no `dryl.*` entry point. The framework's own `blazor.web.js` finds the root by id, toggles its state classes and fills the counter spans. The component's two buttons call the framework globals `Blazor.reconnect()` and `location.reload()` through native inline `onclick` attributes, because no .NET code runs on a dead circuit. |
+| Services | None injected or registered. |
+| Cleanup | None: no listener, timer, observer or `DotNetObjectReference` is owned (`CODE-05`). |
+
