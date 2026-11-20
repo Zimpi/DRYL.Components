@@ -169,15 +169,13 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
 - **No session factory through DI.** `AddDrylCommandResolver` always builds the
   resolver without a session factory; session reuse needs a hand-registered
   `DrylAiCommandResolver`.
-- **No demo, no catalog entry.** The wrapper is shown on no website page and
-  has no `ComponentCatalog` entry of its own (`CODE-20`, `REL-04`).
 - **Confidence is constant.** `Confidence` is always `1.0`; it does not reflect
   the model's certainty.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
 - **Both color modes** — no markup or style of its own; the core palette's modes
-  apply; **not yet inspected by eye**: there is no demo page to inspect it on (recorded debt).
+  apply; inspected on `/components/ai-command-palette` in dark and light, with a resolved suggestion shown (2026-11-20).
 - **Enter/exit animation** — delegated: the core palette's overlay enter/exit
   (`S1` of its spec); the wrapper renders nothing that mounts on its own.
 - **Keyboard and a11y** — delegated to the core palette, as stated above.
@@ -185,11 +183,12 @@ listed with their exact signatures in [`_Api.md`](_Api.md).
   step, whose thinking aura and pill the core palette already draws while
   `Resolver` works, with no opt-in. The core palette's own `Ai`, `Aura` and
   `AiContent` are forwarded for a host that also shows an AI result panel.
-- **Demo page** — none of its own. `/components/command-palette` shows the
-  resolver seam with the example `CommandPalette/AiResolver`, but on the core
-  `DrylCommandPalette` with a demo resolver, not on this wrapper.
-- **`ComponentCatalog`** — no entry of its own; the `"Command Palette"` /
-  `command-palette` entry names `DrylCommandPalette`.
+- **Demo page** — `/components/ai-command-palette`
+  (`DRYL.Website/Components/Pages/DemoAiCommandPalette.razor`), example
+  `Agents/AiCommandPalette`. The site has no model: the page runs on a scripted
+  stand-in `ICommandResolver` registered in DI and says so.
+- **`ComponentCatalog`** — the `"AI Command Palette"` / `ai-command-palette`
+  entry in `DRYL.Website/Components/ComponentCatalog.cs`.
 - **Tests** — `tests/DRYL.Components.Tests/DrylAiCommandPaletteTests.cs`
   (children reach the inner palette) and
   `tests/DRYL.Components.Tests/DrylAiCommandResolverTests.cs` (`ParseArguments`

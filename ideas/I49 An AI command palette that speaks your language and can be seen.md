@@ -63,4 +63,7 @@ drifting again.
   `DRYL.Website` repository and are not part of the library commit; until they
   land, the spec keeps "no demo, no catalog entry" as recorded debt.
 
+- 2026-11-20: Demo page and catalog entry landed in `DRYL.Website` (branch
+  `feat/i49-ai-command-palette`); the spec's debt line is removed.
+
 ## Open Points
