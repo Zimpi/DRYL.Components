@@ -24,7 +24,7 @@
                  Ai="AiState.Streaming" Progress="_progress" />
     ───────────────────────────────────────────────────────── *@
 
-<div class="@WrapClass" style="@WrapStyle"
+<div class="@WrapClass" style="@InlineStyle.Merge(WrapStyle, Style)"
      aria-live="@(Ai is AiState.None or AiState.Proposed ? null : "polite")"
      aria-label="@StateLabel"
      @attributes="AdditionalAttributes">
@@ -159,6 +159,9 @@
 
     /// <summary>Extra CSS class(es) merged onto the image wrapper's own classes.</summary>
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>Extra inline declarations merged after the component's own; a plain <c>style="…"</c> attribute binds here too. On a property both set, yours wins.</summary>
+    [Parameter] public string? Style { get; set; }
 
     private enum Phase { Loading, Loaded, Failed }
     private Phase _phase = Phase.Loading;

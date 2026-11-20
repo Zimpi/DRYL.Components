@@ -4,20 +4,25 @@
 - **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylMultiSelect.razor
               code/DRYL.Components/Components/Inputs/DrylMultiSelect.razor.css
+              code/DRYL.Components/Components/Inputs/MultiSelectTexts.cs
 
 ## User Story
 
 As a Blazor developer building a form on DRYL, I want a dropdown that lets the
 user pick any number of options, shows what is picked as removable chips and
-stays open while they pick, so that I can bind a list of values without
-building a listbox, its keyboard model and its chip row myself.
+stays open while they pick — and, on a long list, lets them type to find an
+option — so that I can bind a list of values without building a listbox, its
+keyboard model, its chip row or a search beside it myself.
 
 ## Description
 
 `DrylMultiSelect` is a `combobox` trigger that opens a `listbox` with
 `aria-multiselectable="true"`. It binds a list of option values through
-`SelectedValues` / `SelectedValuesChanged`; it is not an `InputBase`, so it
-takes part in no `EditForm` validation.
+`SelectedValues` / `SelectedValuesChanged`. It is not an `InputBase`; inside an
+`EditForm` it reports to the form through `SelectedValuesExpression`, which
+`@bind-SelectedValues` supplies (`ideas/I52 Loose ends of the select family.md`):
+every change marks the bound field as modified, and a validation message for
+that field turns the control to its error state and replaces the helper text.
 
 **It is a consumer of `E11 Surfaces`/`F1 DrylPopover`**, and the panel's
 portal, placement, click-outside dismissal and entrance and exit motion are
@@ -38,6 +43,34 @@ so once the popover reveals it, `dryl.motion.glideScan` lays the list ink
 next — see `E11 Surfaces/_Interop.md`. Without script the highlighted option
 keeps its static `--glass-2` fill.
 
+**Search is opt-in** (`ideas/I51 A multi-select that searches.md`). With
+`Searchable` set, the trigger becomes a chip input: the chips, then a text
+field that takes the rest of the line. The field, not the surrounding `div`,
+is then the `combobox`: it carries the id the label points to and every
+`aria-*` the trigger carries without search. Typing opens the list and
+filters it over the options' labels — case-insensitive `Contains`, or a
+consumer `SearchFunc` — and highlights the first match. `Enter` toggles the
+highlighted option and `Space` types. The query stays after a toggle, so
+several matches of one search can be picked in a row, and clears when the
+list closes. `Backspace` in an empty field first marks the last picked value,
+a second press removes it. `Escape` first clears a query, a second press
+closes the list.
+
+**The field says what it does.** A polite live region inside the field, hidden
+from sight, announces what happens without a focus move: that `Backspace`
+marked the last picked value, that a value was removed, and how many options a
+query lists. Every word the field renders or announces of its own comes from
+`Texts` (`MultiSelectTexts`), English by default; `Placeholder`,
+`SearchPlaceholder` and `EmptyText` win over the matching member when set.
+
+**Filtered rows stay mounted.** In search mode each option sits in a
+`role="none"` track wrapper; a row the query does not match collapses its
+track and fades, and is `inert` and `aria-hidden` until it matches again, so
+the list never mounts or unmounts an option while the user types. The part of
+a label that matches the query is marked with `<mark>`. With a `SearchFunc`
+that matches on something else, a row whose label does not contain the query
+is shown unmarked.
+
 ## Public API
 
 | Member | Type | Default | Meaning |
@@ -45,15 +78,25 @@ keeps its static `--glass-2` fill.
 | `Items` | `IEnumerable<SelectItem>?` | `null` | The options, in order. |
 | `SelectedValues` | `IReadOnlyList<string>` | `[]` | The picked option values. |
 | `SelectedValuesChanged` | `EventCallback<IReadOnlyList<string>>` | — | Raised with the new list after a toggle or a chip removal. |
+| `SelectedValuesExpression` | `Expression<Func<IReadOnlyList<string>>>?` | `null` | Names the bound field for a surrounding `EditForm`; supplied by `@bind-SelectedValues`. |
 | `Label` | `string?` | `null` | Visible label above the trigger. |
-| `Placeholder` | `string?` | `null` | Shown while nothing is picked; falls back to `Select options…`. |
-| `HelperText` | `string?` | `null` | Text below the control, linked through `aria-describedby`. |
+| `Placeholder` | `string?` | `null` | Shown while nothing is picked; falls back to `Texts.Placeholder`. |
+| `HelperText` | `string?` | `null` | Text below the control, linked through `aria-describedby`; replaced by validation messages. |
 | `MaxVisibleChips` | `int` | `3` | Chips shown before the rest collapse into `+N`. |
-| `State` | `InputState` | `Default` | `Default`, `Error` or `Success` border treatment. |
+| `State` | `InputState` | `Default` | `Default`, `Error` or `Success` border treatment; a validation message wins. |
 | `Disabled` | `bool` | `false` | Greys the trigger out and ignores clicks. |
 | `AriaLabel` | `string?` | `null` | Accessible name when `Label` is not set. |
 | `Ai` | `AiState` | `None` | AI ambient state of the field. |
 | `Aura` | `AiAura?` | `null` | Aura variant; inherits a surrounding `DrylAiScope`. |
+| `Searchable` | `bool` | `false` | Turns the trigger into a chip input that filters the list as the user types. |
+| `SearchPlaceholder` | `string?` | `null` | Placeholder of the search field while values are picked; falls back to `Texts.SearchPlaceholder`. While nothing is picked the field shows `Placeholder`. |
+| `SearchFunc` | `Func<string, IEnumerable<SelectItem>, IEnumerable<SelectItem>>?` | `null` | Filter replacing the default case-insensitive `Contains` on `Label`. Receives the trimmed query and all items. |
+| `EmptyText` | `string?` | `null` | Text of an open list whose query matches no option; falls back to `Texts.EmptyText`. |
+| `Texts` | `MultiSelectTexts` | `MultiSelectTexts.Default` | Every word the field renders or announces of its own; see `_Api.md`. |
+
+`SearchFunc` is a `Func` rather than an `EventCallback` because it returns a
+value the component needs (conventions §3 governs notification events only).
+Its shape is `DrylAutocomplete.SearchFunc` with `SelectItem` for `TItem`.
 
 ## Acceptance Criteria
 
@@ -65,7 +108,7 @@ keeps its static `--glass-2` fill.
 - The listbox carries `role="listbox"` and `aria-multiselectable="true"`.
 - Each item of `Items` renders as one option carrying `role="option"`, in order.
 - An option's `aria-selected` is `true` exactly while its value is in `SelectedValues`.
-- A list without items shows a `No options` row instead of options.
+- A list without items shows a `Texts.NoOptions` row instead of options.
 - Each picked value renders as a chip labelled with its option's label.
 - A picked value without a matching option renders its raw value as the chip label.
 - No more than `MaxVisibleChips` chips are shown.
@@ -87,12 +130,85 @@ keeps its static `--glass-2` fill.
 - `ArrowDown` on a closed control opens it with the first option highlighted.
 - `ArrowDown` moves the highlight to the next option and stops at the last.
 - `ArrowUp` moves the highlight to the previous option and stops at the first.
+- `ArrowUp` on a closed control opens it with the last option highlighted.
+- `ArrowUp` on an open list without a highlight highlights the last option.
+- `Home` on an open list highlights the first option, `End` the last.
+- `Home` and `End` on a closed control do nothing.
 - `Enter` and `Space` on an open list toggle the highlighted option.
 - `Enter` and `Space` on a closed control open it.
 - `Escape` and `Tab` close the list.
 - The trigger's `aria-activedescendant` names the highlighted option while the list is open.
 - Moving the highlight scrolls it into view.
 - Hovering an option makes it the highlighted option.
+
+### Validation
+
+These criteria hold while the control has a `SelectedValuesExpression` and a
+cascaded `EditContext`. Without either it reports to no form and shows no
+message.
+
+- Every change that raises `SelectedValuesChanged` then notifies the `EditContext` that the bound field changed.
+- A validation message for the bound field applies `.input-error` to the trigger regardless of `State`.
+- A validation message sets `aria-invalid="true"` on the element carrying `role="combobox"`.
+- Validation messages replace `HelperText`, in an `.input-helper-error` element the combobox names through `aria-describedby`.
+- Several validation messages are displayed joined by a space.
+- When the field's messages go, the trigger, `aria-invalid` and `HelperText` return to their state without a message.
+- A change of the form's validation state re-renders the control.
+- Disposal unsubscribes from the `EditContext`.
+
+### Search
+
+These criteria hold while `Searchable` is `true`; without it the control
+behaves as described above.
+
+- The trigger contains a text field after the chips.
+- The text field carries `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls` and `aria-activedescendant`.
+- The surrounding trigger carries no `role` and no `tabindex`.
+- The label's `for` names the text field.
+- The text field shows `Placeholder` while nothing is picked, and `SearchPlaceholder` while something is.
+- Typing into the text field opens a closed list.
+- An option whose label contains the trimmed query, ignoring case, is listed.
+- An option whose label does not contain the query is filtered out.
+- A `SearchFunc` decides alone which options are listed.
+- An empty or whitespace query lists every option.
+- A filtered-out option is `inert` and `aria-hidden="true"` and stays in the DOM.
+- A query change highlights the first listed option.
+- A query that lists no option shows `EmptyText`, or `Texts.EmptyText` when it is not set, and highlights nothing.
+- `ArrowDown` and `ArrowUp` move the highlight across listed options only; `ArrowUp` without a highlight, or on a closed control, starts at the last listed option.
+- `Enter` on an open list toggles the highlighted option.
+- `Enter` on a closed control opens it.
+- `Space` types a space and toggles nothing.
+- Toggling an option keeps the query and the filtered list.
+- Closing the list clears the query.
+- A click on the trigger focuses the text field and opens a closed list.
+- A click on the trigger leaves an open list open.
+- `Backspace` in an empty text field marks the last picked value without removing it.
+- A second `Backspace` while the last value is marked removes it and raises `SelectedValuesChanged` once.
+- Any other key clears the mark.
+- `Backspace` in a text field that holds text edits the text and removes nothing.
+- `Escape` with a query clears the query and leaves the list open.
+- `Escape` without a query closes the list.
+- The matching part of a listed option's label is wrapped in a `<mark>`.
+- A label that does not contain the query renders without a `<mark>`.
+- The text field's caret keys (`ArrowLeft`, `ArrowRight`, `Home`, `End`) keep their native behaviour.
+- `Enter` in the text field does not submit a surrounding form.
+- A disabled control's text field is disabled.
+
+### Texts and announcements
+
+- The field contains one visually hidden `aria-live="polite"` region, with and without `Searchable`; it starts empty.
+- Marking the last picked value announces `Texts.RemoveArmed` with that value's label, also when the mark shows on the `+N` marker.
+- Taking the mark off without removing clears the announcement, so marking again is announced again.
+- Removing a picked value, by the second `Backspace` or by a chip's remove button, announces `Texts.Removed` with its label.
+- A picked value without a matching option is announced by its raw value.
+- A query that lists at least one option announces `Texts.Results` with the number of listed options.
+- A query that lists no option announces nothing in that region; the `EmptyText` row is itself `aria-live="polite"`.
+- An empty query, toggling an option and closing the list clear the announcement.
+- The placeholder without a pick falls back to `Texts.Placeholder`, the search field's placeholder with a pick to `Texts.SearchPlaceholder`.
+- The listbox's accessible name is `Texts.ListLabel` of `Label`.
+- A chip's remove button is named `Texts.Remove` of the chip's label.
+- `Placeholder`, `SearchPlaceholder` and `EmptyText` win over `Texts` when set.
+- With `MultiSelectTexts.Default` every word is English.
 
 ### Appearance and motion
 
@@ -107,6 +223,14 @@ keeps its static `--glass-2` fill.
 - Without the ink (no script), the hovered and the highlighted option keep a `--glass-2` fill.
 - A picked option keeps its accent tint and its checked box whether or not it is covered.
 - Under `prefers-reduced-motion` the ink moves without a transition.
+- A filtered-out row collapses its track on `--dur-med` / `--ease-out` and fades on `--dur-fast` / `--ease-out`; a row that matches again opens the same way.
+- While a row's track moves, the ink stays on the row it covers.
+- Under `prefers-reduced-motion` rows collapse and open without a transition.
+- The marked part of a label reads `--accent-fg` at weight 600 on no fill of its own.
+- The marked last chip carries `.chip--armed`: an `--accent-line` ring and a stronger accent tint.
+- The search text field draws no border, fill or focus ring of its own; the trigger's focus treatment shows while it has focus.
+- The panel, the option rows and the empty row take their base declarations from the `OPTION LIST` block of `dryl.css`, shared with `DrylSelect`; the component's stylesheet adds the picked tint, the checkbox column and the panel's accent edge.
+- A trigger in the error or success state shows that state's focus treatment while the search text field has focus.
 - The component branches on no colour mode (`DESIGN-02`).
 
 ### AI mode
@@ -122,31 +246,30 @@ keeps its static `--glass-2` fill.
   paints a fill of its own. The component's stylesheet has no mode selector.
 - **Enter/exit animation** — **yes**, the popover's; the ink appears with an
   opacity fade on first placement and glides afterwards.
-- **Keyboard and a11y** — the "Keyboard" criteria above; read off
-  `HandleKeyDown`. The ink follows `.is-highlighted`, so it moves with the
+- **Keyboard and a11y** — the "Keyboard" and "Search" criteria above; read off
+  `HandleKeyDown` and `HandleSearchKeyDown`. In search mode focus never leaves
+  the text field; `aria-activedescendant` names the highlighted option and
+  filtered rows leave the accessibility tree. The ink follows `.is-highlighted`, so it moves with the
   keyboard exactly as `aria-activedescendant` does.
 - **AI mode** — **yes**: a model may propose or fill a multi-value field, so
   the field carries `Ai` and `Aura` like the other inputs (`AI-05`).
 - **Demo page** — `/components/multiselect` in `DRYL.Website`, built from the
-  `Basics`, `Overflow`, `States` and `AiMode` examples under
+  `Basics`, `Search`, `Translated`, `Validation`, `Overflow`, `States` and `AiMode` examples under
   `Components/Examples/MultiSelect/`.
 - **`ComponentCatalog`** — registered as `"Multi Select"` / `multiselect`,
   group `Inputs`, `ClassName` `"DrylMultiSelect"`, AI flag `true` (`REL-04`).
 - **Tests** — `tests/DRYL.Components.Tests/ListGlideTests.cs` covers the ink
-  host marker; the ink's behaviour is covered in `tests/js/glide.test.mjs`.
+  host marker; the ink's behaviour, including following a collapsing row, is
+  covered in `tests/js/glide.test.mjs`. The "Search" criteria are covered in
+  `tests/DRYL.Components.Tests/DrylMultiSelectSearchTests.cs`, the "Texts and
+  announcements" criteria in
+  `tests/DRYL.Components.Tests/DrylMultiSelectTextsTests.cs`, the "Validation"
+  criteria and `Home`, `End` and `ArrowUp` in
+  `tests/DRYL.Components.Tests/DrylMultiSelectFormTests.cs`, the key list of
+  `dryl.keynav` in `tests/js/keynav.test.mjs`.
 
 ## Recorded debt (`State: Implemented`)
 
 **Deviations from the acceptance criteria above: none.**
 
-- **`Home` and `End` do nothing**, although `dryl.keynav` suppresses their
-  default; `DrylSelect` handles both.
-- **`ArrowUp` before any highlight does nothing** rather than starting at the
-  last option.
-- **Fixed English strings** — `Select options…`, `No options`, `Options` /
-  `{Label} options` and `Remove {label}` are not translatable.
-- **Option styles are a copy of `DrylSelect`'s**, because scoped CSS does not
-  cross components; the two copies have already drifted (the picked tint exists
-  only here). A shared rule in `dryl.css` would end that.
-- **No `EditForm` integration** — the control is not an `InputBase`, so a
-  validation message for the bound list is never shown.
+*(none)*

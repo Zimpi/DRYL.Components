@@ -81,9 +81,15 @@
      floating surfaces only.
 
      An app that wants frost everywhere can have it back in one line:
-     --glass-fx-flow: blur(var(--glass-blur)) saturate(140%); */
+     --glass-fx-flow: blur(var(--glass-blur)) saturate(140%);
+
+     And one thin frost for a layer you are meant to keep seeing through: the
+     scrim behind a dialog or a flyout sidebar, and the depth-glass pane. The
+     float tier would smear the page behind a dialog and charge a full-viewport
+     layer its heavy blur; the flow tier is none. */
   --glass-fx-float: blur(24px) saturate(160%);
   --glass-fx-flow:  none;
+  --glass-fx-thin:  blur(8px);
 
   /* Text */
   --fg:            #f4f4f7;
@@ -543,13 +549,18 @@ body::before {
 #root { position: relative; z-index: 2; min-height: 100vh; }
 
 /* ============== TYPE ============== */
-h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
-h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; }
-h2 { font-size: 32px; line-height: 1.15; letter-spacing: -0.025em; }
-h3 { font-size: 20px; line-height: 1.3; }
-h4 { font-size: 15px; line-height: 1.4; }
+/* The heading steps are written once, for the element and for DrylTypo's
+   variant class. A class outranks an element selector, so a DrylTypo looks
+   like its Variant whatever tag `As` renders: `.typo-h2` on an <h1> is the h2
+   step, weight and tracking included. */
+h1, h2, h3, h4,
+.typo-h1, .typo-h2, .typo-h3, .typo-h4 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
+h1, .typo-h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; }
+h2, .typo-h2 { font-size: 32px; line-height: 1.15; letter-spacing: -0.025em; }
+h3, .typo-h3 { font-size: 20px; line-height: 1.3; }
+h4, .typo-h4 { font-size: 15px; line-height: 1.4; }
 
-.eyebrow {
+.eyebrow, .typo-eyebrow {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.18em;
@@ -559,6 +570,18 @@ h4 { font-size: 15px; line-height: 1.4; }
 }
 
 .mono { font-family: var(--font-mono); }
+
+/* DrylTypo — the element is built with a RenderTreeBuilder and carries no
+   scoped-CSS attribute, so its steps live here. The text steps reset weight
+   and tracking, so they hold on a heading tag as well.
+   This block stays ABOVE .gradient-text: the two are equally specific, and the
+   later rule has to win for `Gradient` to keep its transparent colour. */
+.typo { margin: 0; }
+.typo-h1, .typo-h2, .typo-h3, .typo-h4 { color: var(--fg); }
+.typo-lead, .typo-body, .typo-caption { font-weight: 400; letter-spacing: normal; }
+.typo-lead    { font-size: 17px; line-height: 1.55; color: var(--fg-muted); max-width: 64ch; }
+.typo-body    { font-size: 14px; line-height: 1.5;  color: var(--fg-muted); }
+.typo-caption { font-size: 12px; line-height: 1.4;  color: var(--fg-dim); }
 
 .gradient-text {
   background: var(--accent-grad);
@@ -983,6 +1006,62 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border: 0;
 }
 
+/* ============== OPTION LIST ==============
+   The list surface DrylSelect and DrylMultiSelect open in a popover: the
+   panel, its option rows and its empty row. It lives here because scoped
+   CSS does not cross components; each component's stylesheet only adds
+   what is its own (the select's dot, the multi-select's tint and box). */
+.select-panel {
+  width: 100%;
+  background: var(--panel-float);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--sp-1);
+  max-height: 240px;
+  overflow-y: auto;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.select-panel::-webkit-scrollbar       { width: 4px; }
+.select-panel::-webkit-scrollbar-track { background: transparent; }
+.select-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+
+.select-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease-out),
+              color      var(--dur-fast) var(--ease-out);
+}
+.select-option:hover,
+.select-option.is-highlighted,
+.select-option.is-selected { color: var(--fg); }
+
+/* The static fill is the fallback for a list without the ink (I38): once
+   dryl.motion.glideScan marks the listbox data-glide, the ink is the fill. */
+.select-panel:not([data-glide]) .select-option:hover,
+.select-panel:not([data-glide]) .select-option.is-highlighted { background: var(--glass-2); }
+
+.select-empty {
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--fg-dim);
+  font-size: 13px;
+  text-align: center;
+}
+
 /* ============== INPUTS ============== */
 .input,
 .textarea,
@@ -1085,21 +1164,10 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border-radius: var(--r-lg);
 }
 
-/* AI mode on radio groups — give the wrapper a surface + radius so the
-   rotating ring has rounded corners and the group reads as a contained panel. */
-.radio-group-wrapper.ai-aura {
-  border-radius: var(--r-lg);
-  padding: var(--sp-3);
-  background: var(--glass-1);
-}
-
-/* AI mode on the rating stars — a radius + inline-flex box so the ring/glow
-   trace the stars as a contained pill instead of a square that overflows them. */
-.rating-wrapper.ai-aura {
-  display: inline-flex;
-  border-radius: var(--r-md);
-  padding: var(--sp-2);
-}
+/* Radio groups and rating stars have no surface of their own, so they draw no
+   aura frame and their wrappers gain nothing in AI mode (AI-08): the selected
+   option and the stars carry the state. See the RADIO GROUP block and
+   DrylRating.razor.css. */
 
 /* AI mode on buttons uses the shared aura vocabulary (.ai-aura-ring / -glow / -wash
    via <DrylAuraElements>), same as every other host — no button-specific ring. The
@@ -1603,8 +1671,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .dg-surface {
   border-radius: var(--r-lg);
   background: var(--glass-1);
-  backdrop-filter: blur(8px) saturate(1.5);
-  -webkit-backdrop-filter: blur(8px) saturate(1.5);
+  backdrop-filter: var(--glass-fx-thin);
+  -webkit-backdrop-filter: var(--glass-fx-thin);
   border: 1px solid var(--depth-edge);
   box-shadow:
     0 12px 36px color-mix(in srgb, var(--depth-shadow) 76%, transparent),
@@ -1684,6 +1752,13 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    specificity) makes rounded surfaces like .input snap to square corners on focus. */
 :focus-visible { outline: 2px solid var(--accent-b); outline-offset: 2px; }
 
+/* A heading or the main landmark that script focuses after a route change
+   (Blazor's FocusOnNavigate, a skip link) is not operable and not in the tab
+   order: focus still moves there for the announcement and the next Tab, but
+   the ring stays off. The written exception lives in UX-02. Roving-tabindex
+   controls are not headings and keep their ring. */
+:is(h1, h2, h3, h4, h5, h6, main, [role="main"])[tabindex="-1"]:focus-visible { outline: none; }
+
 /* ============== APP CHROME ============== */
 .app-shell {
   display: grid;
@@ -1718,7 +1793,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding: 24px 18px;
   border-right: 1px solid var(--line);
   background: var(--sheen-grad-soft);
-  backdrop-filter: blur(20px);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1846,7 +1922,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   position: fixed;
   inset: 0;
   background: var(--backdrop);
-  backdrop-filter: blur(4px);
+  backdrop-filter: var(--glass-fx-thin);
+  -webkit-backdrop-filter: var(--glass-fx-thin);
   z-index: 40;
   opacity: 0;
   pointer-events: none;
@@ -2329,7 +2406,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   padding: 0 32px;
   border-bottom: 1px solid var(--line);
   background: var(--bar-bg);
-  backdrop-filter: blur(20px);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
@@ -2529,12 +2607,12 @@ code, .code-inline {
   font-family: var(--font-mono);
 }
 .tbl td {
-  padding: 14px;
+  padding: var(--tbl-cell-pad, 14px);
   border-bottom: 1px solid var(--line);
   color: var(--fg-muted);
   vertical-align: middle;
 }
-.tbl tr:hover td { background: var(--hover-wash); color: var(--fg); }
+.tbl tr:hover td { background: var(--tblc-clear, var(--hover-wash)); color: var(--fg); }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .name { color: var(--fg); font-weight: 500; }
 
@@ -2558,20 +2636,20 @@ code, .code-inline {
 .tbl-root .tbl tbody tr {
   transition: background var(--dur-fast) var(--ease-out);
 }
-.tbl-root .tbl tbody tr:hover td { background: var(--glass-2); color: var(--fg); }
+.tbl-root .tbl tbody tr:hover td { background: var(--tblc-clear, var(--glass-2)); color: var(--fg); }
 
 /* Selected row */
 .tbl-root .tbl tbody tr.tbl-row--selected td {
-  background: color-mix(in srgb, var(--accent-a) 7%, transparent);
+  background: var(--tblc-clear, color-mix(in srgb, var(--accent-a) 7%, transparent));
 }
 .tbl-root .tbl tbody tr.tbl-row--selected:hover td {
-  background: color-mix(in srgb, var(--accent-a) 12%, transparent);
+  background: var(--tblc-clear, color-mix(in srgb, var(--accent-a) 12%, transparent));
 }
 
 /* Checkbox column */
 .tbl-col-check {
-  width: 44px;
-  padding-left: var(--sp-4);
+  width: var(--tblc-auto, 44px);
+  padding-left: var(--tblc-zero, var(--sp-4));
   padding-right: 0;
 }
 
@@ -2598,7 +2676,7 @@ code, .code-inline {
 .tbl-root .tbl tbody tr.tbl-row--ai-enter td {
   animation:
     tbl-row-ai-rise var(--dur-slow) var(--ease-out) both,
-    tbl-row-ai-flash var(--dur-choreo) var(--ease-out) both;
+    var(--tblc-none, tbl-row-ai-flash) var(--dur-choreo) var(--ease-out) both;
 }
 
 /* AI mode on the table wrapper — the .tbl-root has overflow:hidden so it can
@@ -2716,6 +2794,7 @@ code, .code-inline {
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--line);
+  flex-wrap: var(--tblc-wrap, nowrap);
 }
 
 /* Search wrapper — pins icon + input together, takes natural width on the left. */
@@ -2723,9 +2802,9 @@ code, .code-inline {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 240px;
-  max-width: 360px;
-  flex: 0 1 auto;
+  min-width: var(--tblc-zero, 240px);
+  max-width: var(--tblc-none, 360px);
+  flex: var(--tblc-on, 0) 1 auto;
 }
 .tbl-search .input { width: 100%; }
 .tbl-search .input-icon-leading { left: 10px; pointer-events: none; }
@@ -3062,8 +3141,8 @@ code, .code-inline {
 
 /* Expand column — chevron toggle on the row for DetailTemplate. */
 .tbl-col-expand {
-  width: 36px;
-  padding-left: var(--sp-3);
+  width: var(--tblc-auto, 36px);
+  padding-left: var(--tblc-zero, var(--sp-3));
   padding-right: 0;
 }
 
@@ -3098,8 +3177,8 @@ code, .code-inline {
 
 /* Reorder grip column — leading drag handle when Reorderable is set. */
 .tbl-col-grip {
-  width: 32px;
-  padding-left: var(--sp-3);
+  width: var(--tblc-auto, 32px);
+  padding-left: var(--tblc-zero, var(--sp-3));
   padding-right: 0;
 }
 
@@ -3169,10 +3248,10 @@ code, .code-inline {
 /* Trailing per-row actions column. */
 th.tbl-col-actions,
 td.tbl-col-actions {
-  width: 1%;
+  width: var(--tblc-auto, 1%);
   white-space: nowrap;
   text-align: right;
-  padding-right: var(--sp-4);
+  padding-right: var(--tblc-zero, var(--sp-4));
 }
 .tbl-row-actions {
   display: inline-flex;
@@ -3187,14 +3266,14 @@ td.tbl-col-actions {
    the rest of the body, including under the hover rule. */
 .tbl-root .tbl tbody tr.tbl-row--editing td,
 .tbl-root .tbl tbody tr.tbl-row--editing:hover td {
-  background: var(--accent-soft);
+  background: var(--tblc-clear, var(--accent-soft));
 }
 
 /* A cell hosting an inline editor sheds the text padding so the control fills the
    cell, and lets DRYL inputs stretch to the column width. */
 td.tbl-td-editing {
-  padding-top: var(--sp-1);
-  padding-bottom: var(--sp-1);
+  padding-top: var(--tblc-zero, var(--sp-1));
+  padding-bottom: var(--tblc-zero, var(--sp-1));
 }
 td.tbl-td-editing .input,
 td.tbl-td-editing .select,
@@ -3253,22 +3332,22 @@ td.tbl-td-editing select {
 /* Pinned (frozen) columns — the layout helper sets the per-column left/right offset; CSS owns
    the sticky behaviour, opaque backing and layering. */
 .tbl .tbl-pin {
-  position: sticky;
+  position: var(--tblc-static, sticky);
   z-index: 1;
-  background: var(--bg-2);
+  background: var(--tblc-clear, var(--bg-2));
 }
 /* Keep pinned body cells opaque through hover so scrolling content can't bleed under them. */
 .tbl-root .tbl tbody tr td.tbl-pin,
 .tbl-root .tbl tbody tr:hover td.tbl-pin {
-  background: var(--bg-2);
+  background: var(--tblc-clear, var(--bg-2));
 }
 /* Pinned header cells sit above the sticky header row and the pinned body cells. */
 .tbl-root .tbl thead th.tbl-pin {
   z-index: 4;
 }
 /* Edge rule that separates a frozen column from the scrolling area. */
-.tbl .tbl-pin-start { box-shadow: inset -1px 0 0 var(--line); }
-.tbl .tbl-pin-end   { box-shadow: inset 1px 0 0 var(--line); }
+.tbl .tbl-pin-start { box-shadow: var(--tblc-none, inset -1px 0 0 var(--line)); }
+.tbl .tbl-pin-end   { box-shadow: var(--tblc-none, inset 1px 0 0 var(--line)); }
 
 /* Column resize grip — sits at the right edge of a resizable header. */
 .tbl-col-resize {
@@ -3492,6 +3571,306 @@ td.tbl-td-editing select {
 }
 .tbl-col-menu-option:hover { color: var(--fg); }
 
+/* ============== TABLE COMPACT PRESENTATION (record list) ============== */
+
+/* Below CompactBelow of its own width the table is a list of records, not a grid.
+   The switch is one DOM restyled by a container query, written so that no rule is
+   repeated per breakpoint: each breakpoint class has one query that sets a fixed
+   vocabulary of custom properties on the root's children, and every compact rule
+   reads that vocabulary with the wide value as its fallback —
+   `display: var(--tblc-grid, table-row)`. A declaration that must not exist while
+   wide names a vocabulary property without a fallback, which makes it invalid at
+   computed-value time there. Margins, grid placement and a row's padding and
+   border need no guard at all: a table row and a table cell ignore them. */
+.tbl-compact-sm,
+.tbl-compact-md,
+.tbl-compact-lg,
+.tbl-compact-xl {
+  container-type: inline-size;
+  container-name: dryl-table;
+}
+
+/* Reset per table, so a table nested in another table's detail follows its own
+   query instead of inheriting the surrounding table's presentation. */
+.tbl-root > * {
+  --tblc-on: initial;
+  --tblc-block: initial;
+  --tblc-grid: initial;
+  --tblc-flex: initial;
+  --tblc-none: initial;
+  --tblc-zero: initial;
+  --tblc-auto: initial;
+  --tblc-full: initial;
+  --tblc-clear: initial;
+  --tblc-static: initial;
+  --tblc-wrap: initial;
+  --tblc-anywhere: initial;
+}
+
+@container dryl-table (max-width: 480px) {
+  .tbl-compact-sm > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+@container dryl-table (max-width: 768px) {
+  .tbl-compact-md > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+@container dryl-table (max-width: 1024px) {
+  .tbl-compact-lg > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+@container dryl-table (max-width: 1280px) {
+  .tbl-compact-xl > * {
+    --tblc-on: 1; --tblc-block: block; --tblc-grid: grid; --tblc-flex: flex;
+    --tblc-none: none; --tblc-zero: 0; --tblc-auto: auto; --tblc-full: 100%;
+    --tblc-clear: transparent; --tblc-static: static; --tblc-wrap: wrap;
+    --tblc-anywhere: anywhere;
+  }
+}
+
+/* The grid dissolves: the header row leaves, the table, its body, its full-width
+   rows and their cells become blocks. */
+.tbl-root .tbl { display: var(--tblc-block, table); }
+.tbl-root .tbl > thead { display: var(--tblc-none, table-header-group); }
+.tbl-root .tbl > tbody { display: var(--tblc-block, table-row-group); }
+.tbl-root .tbl > tbody > tr { display: var(--tblc-block, table-row); }
+.tbl-root .tbl > tbody > tr > td { display: var(--tblc-block, table-cell); }
+
+/* A record — two lines at rest: [grip] [check] title … trailing [unfold]
+                                                meta  … meta-end
+   Everything else spans the record beneath those lines once it is unfolded. */
+.tbl-root .tbl > tbody > tr.tbl-rec {
+  display: var(--tblc-grid, table-row);
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  row-gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec:last-child { border-bottom: 0; }
+
+.tbl-root .tbl > tbody > tr.tbl-rec > td {
+  --tbl-cell-pad: var(--tblc-zero);
+  border-bottom-style: var(--tblc-none, solid);
+  overflow-wrap: var(--tblc-anywhere, normal);
+}
+/* A column's declared or resized width arrives as --tbl-col-w and is let go while
+   compact, where the record's grid sizes the cell. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-col-key] {
+  width: var(--tblc-auto, var(--tbl-col-w, auto));
+}
+
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-grip {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin-inline-end: var(--sp-2);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-check {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-inline-end: var(--sp-3);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-expand {
+  grid-column: 5;
+  grid-row: 1 / span 2;
+  margin-inline-start: var(--sp-2);
+}
+/* Without a DetailTemplate the unfold control belongs to the record list only. */
+.tbl-root .tbl .tbl-col-expand--compact { display: var(--tblc-block, none); }
+
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="title"] {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="trailing"] {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  margin-inline-start: var(--sp-3);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="meta"] {
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: start;
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="meta-end"] {
+  grid-column: 4;
+  grid-row: 2;
+  justify-self: end;
+  margin-inline-start: var(--sp-3);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="hidden"] {
+  display: var(--tblc-none, table-cell);
+}
+
+/* Detail columns and the actions cell — hidden at rest, a full-width line each
+   once the record is unfolded: the column's title, then its value. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="detail"],
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-actions {
+  grid-column: 1 / -1;
+  display: var(--tblc-none, table-cell);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--open > td[data-compact="detail"] {
+  display: var(--tblc-flex, table-cell);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: var(--tblc-full, auto);
+  margin-top: var(--sp-1);
+  animation: tbl-detail-in calc(var(--dur-med) * var(--tblc-on)) var(--ease-out);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--open > td.tbl-col-actions,
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--editing > td.tbl-col-actions {
+  display: var(--tblc-block, table-cell);
+  margin-top: var(--sp-2);
+  animation: tbl-detail-in calc(var(--dur-med) * var(--tblc-on)) var(--ease-out);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec > td[data-compact="detail"]::before,
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-td-editing::before {
+  content: attr(data-label);
+  display: var(--tblc-block, none);
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+/* An end-aligned column would pull its label to the far edge with it. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-td-editing::before { align-self: flex-start; }
+
+/* A record in edit mode — every cell under edit takes a line of its own at the
+   record's full width, under its title, so an editor is never squeezed into the
+   trailing or meta slot. */
+.tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-td-editing {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  justify-self: stretch;
+  display: var(--tblc-flex, table-cell);
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: var(--tblc-full, auto);
+  margin-inline-start: 0;
+  margin-top: var(--sp-2);
+}
+
+/* Row states. While wide they are painted on the cells; a record paints them on
+   the row, so its padding is covered too. Each names --tblc-full without a
+   fallback and is therefore no declaration at all on a wide table. */
+.tbl-root .tbl > tbody > tr.tbl-rec:hover {
+  background: color-mix(in srgb, var(--glass-2) var(--tblc-full), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--selected {
+  background: color-mix(in srgb, var(--accent-a) calc(var(--tblc-on) * 7%), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--selected:hover {
+  background: color-mix(in srgb, var(--accent-a) calc(var(--tblc-on) * 12%), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--editing,
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--editing:hover {
+  background: color-mix(in srgb, var(--accent-soft) var(--tblc-full), transparent);
+}
+.tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--ai-enter {
+  animation: tbl-row-ai-flash calc(var(--dur-choreo) * var(--tblc-on)) var(--ease-out) both;
+}
+
+/* Sort and filter while compact — one control, in the toolbar or in a control
+   row of its own, and an in-flow panel beneath it. All three are in the markup
+   at every width and shown only by the vocabulary. */
+.tbl-compact-slot { display: var(--tblc-flex, none); }
+.tbl-compactbar {
+  display: var(--tblc-flex, none);
+  justify-content: flex-end;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-compact-trigger {
+  gap: var(--sp-2);
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+.tbl-compact-presence { display: var(--tblc-block, none); }
+.tbl-compact-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--glass-1);
+}
+.tbl-compact-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tbl-compact-heading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+.tbl-compact-sorts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.tbl-compact-sort {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--fg-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.tbl-compact-sort:hover { color: var(--fg); border-color: var(--line-strong); }
+.tbl-compact-sort:focus-visible {
+  outline: 1px solid var(--accent-line);
+  outline-offset: 1px;
+}
+.tbl-compact-sort.is-active {
+  color: var(--fg);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.tbl-compact-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: 13px;
+}
+.tbl-compact-filter .input { width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--open > td[data-compact="detail"],
+  .tbl-root .tbl > tbody > tr.tbl-rec > td.tbl-col-actions,
+  .tbl-root .tbl > tbody > tr.tbl-rec.tbl-row--ai-enter { animation: none; }
+  .tbl-compact-sort { transition: none; }
+}
+
 /* Avatar */
 .avatar {
   width: 28px; height: 28px;
@@ -3607,8 +3986,8 @@ td.tbl-td-editing select {
     var(--sheen-grad),
     var(--panel-soft);
   border: 1px solid var(--line-strong);
-  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
   box-shadow:
     inset 0 1px 0 var(--edge-hi),
     var(--shadow-md);
@@ -4045,14 +4424,70 @@ td.tbl-td-editing select {
   font-family: var(--font-mono);
   color: var(--fg);
 }
-/* Aura host wraps the row of cells; nothing inside clips it. */
+/* Carries the AI state classes. A row of cells has no surface of its own, so
+   no aura frame is drawn around it (AI-08) — the cells show the state. */
 .progress-wrap {
   position: relative;
   width: 100%;
   border-radius: var(--r-pill);
 }
 
+/* ── AI mode — the cells carry the state (I45) ──
+   Thinking and Streaming take the state's hue, unless a semantic variant has
+   already given the bar a meaning of its own. */
+.progress-wrap.ai-thinking .progress:not(.progress--success, .progress--warning, .progress--danger),
+.progress-wrap.ai-streaming .progress:not(.progress--success, .progress--warning, .progress--danger) {
+  --progress-a: var(--ai-hot);
+  --progress-b: var(--ai-cool);
+}
+/* Active: a slow sheen travels over the lit cells. Streaming: a fast one. The
+   sheen is a veil of --ai-core over the fill — near-white on dark, a deep accent
+   on light — so it reads in both modes, where brightening the fill would wash
+   it out on a light ground. It scales with the fill, so a partial leading cell
+   is veiled only as far as it is lit. */
+.progress-wrap.ai-active .progress:not(.progress--indeterminate) .progress-cell.is-lit::after,
+.progress-wrap.ai-streaming .progress:not(.progress--indeterminate) .progress-cell.is-lit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ai-core);
+  opacity: 0;
+  transform: scaleX(var(--f, 0));
+  transform-origin: left center;
+}
+.progress-wrap.ai-active .progress:not(.progress--indeterminate) .progress-cell.is-lit::after {
+  animation: progress-ai-sheen 3.6s var(--ease-in-out) calc(var(--reveal-step) * 2 * var(--i, 0)) infinite;
+}
+.progress-wrap.ai-streaming .progress:not(.progress--indeterminate) .progress-cell.is-lit::after {
+  animation: progress-ai-sheen 1.5s var(--ease-in-out) calc(var(--reveal-step) * var(--i, 0)) infinite;
+}
+/* Thinking: a wave runs ahead through the cells that are not lit yet. */
+.progress-wrap.ai-thinking .progress:not(.progress--indeterminate) .progress-cell:not(.is-lit)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ai-a);
+  opacity: 0;
+  animation: progress-ai-wave 1.5s var(--ease-in-out) calc(var(--reveal-step) * var(--i, 0)) infinite;
+}
+/* Generated: the lit cells flash once, left to right. */
+.progress-wrap.ai-generated .progress:not(.progress--indeterminate) .progress-cell.is-lit::before {
+  animation: progress-cell-flash var(--dur-choreo) var(--ease-out) calc(var(--reveal-step) * var(--i, 0));
+}
+@keyframes progress-ai-sheen {
+  0%, 18%, 100% { opacity: 0; }
+  8%            { opacity: 0.6; }
+}
+@keyframes progress-ai-wave {
+  0%, 60%, 100% { opacity: 0; }
+  30%           { opacity: 0.6; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .progress-wrap.ai-aura .progress-cell::before,
+  .progress-wrap.ai-aura .progress-cell::after { animation: none; }
+  /* Thinking keeps a still tint on the unlit cells in place of the wave. */
+  .progress-wrap.ai-thinking .progress:not(.progress--indeterminate) .progress-cell:not(.is-lit)::after { opacity: 0.18; }
   .progress-cell,
   .progress-cell::before { transition: none; animation: none; }
   .progress-cell.is-full,
@@ -4269,8 +4704,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--backdrop) 92%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: var(--glass-fx-thin);
+  -webkit-backdrop-filter: var(--glass-fx-thin);
   display: grid;
   place-items: center;
   padding: var(--sp-5);
@@ -5182,6 +5617,49 @@ body.dryl-scroll-locked { overflow: hidden; }
   .ai-aura .ai-aura-comet { opacity: 0; }
 }
 
+/* ── AI MARK RING (AI-08) ── a light ring around a small round mark — a slider
+   knob, a selected radio — inside an .ai-aura host that draws no frame because
+   it has no surface of its own. Colour and tempo are the host state's: --ai-hot
+   and --aura-halo-dur. The host positions and sizes the ring; only opacity and
+   scale animate, so it stays on the compositor. */
+.ai-mark-ring {
+  position: absolute;
+  border-radius: var(--r-pill);
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--ai-hot, var(--ai-a)) 75%, transparent),
+    0 0 14px color-mix(in srgb, var(--ai-hot, var(--ai-a)) 65%, transparent);
+}
+.ai-aura .ai-mark-ring {
+  animation: ai-mark-breathe var(--aura-halo-dur) var(--ease-in-out) infinite;
+}
+/* Generated: the ring runs out once. */
+.ai-aura.ai-generated .ai-mark-ring {
+  animation: ai-mark-out var(--dur-choreo) var(--ease-out) both;
+}
+/* Proposed rests: a thin still ring, nothing loops (AI-06). */
+.ai-aura.ai-proposed .ai-mark-ring {
+  animation: none;
+  opacity: 0.85;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ai-a) 80%, transparent);
+}
+.ai-aura.ai-aura--out .ai-mark-ring {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+@keyframes ai-mark-breathe { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+@keyframes ai-mark-out {
+  from { opacity: 1; scale: 1; }
+  to   { opacity: 0; scale: 2.2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-aura .ai-mark-ring { animation: none; opacity: 0.85; transition: none; }
+  .ai-aura.ai-generated .ai-mark-ring,
+  .ai-aura.ai-aura--out .ai-mark-ring { opacity: 0; }
+}
+
 /* ============== EXPANSION PANELS ============== */
 
 /*
@@ -5732,6 +6210,16 @@ input[type=number] { -moz-appearance: textfield; }
   color: var(--fg-muted);
   line-height: 1.4;
 }
+/* AI mode — the selected option carries the state (AI-08, I45): its fill takes
+   the state's hue and DrylRadio renders an .ai-mark-ring around the control. */
+.radio-group-wrapper.ai-aura .radio-input:checked + .radio-control::before {
+  background: linear-gradient(135deg, var(--ai-hot), var(--ai-cool));
+}
+.radio-group-wrapper.ai-aura .radio-input:checked + .radio-control {
+  box-shadow: 0 0 0 0 transparent,
+              0 0 14px color-mix(in srgb, var(--ai-hot) 45%, transparent);
+}
+.radio-control > .ai-mark-ring { inset: calc(var(--sp-1) * -1); }
 .radio--disabled {
   opacity: 0.4;
   cursor: not-allowed;

@@ -32,7 +32,7 @@
             @for (int i = 0; i < Digits; i++)
             {
                 var idx = i;
-                <div class="@BoxWrapClass">
+                <div class="@BoxWrapClass" style="--otp-i: @idx; --otp-n: @Digits">
                     <DrylAuraElements Aura="_aura" GenTick="_genTick" />
                     <input @key="@($"otp-{idx}")"
                            class="@BoxCssClass"
@@ -82,7 +82,7 @@
     /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    /// <summary>AI ambient state — every box keeps its ring and halo, and one light walks through the boxes in turn.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
     /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>

@@ -41,7 +41,7 @@ contract: a consumer builds their own layout out of `skel`, `skel-circle` and
 | `Label` | `string?` | `null` | Accessible label. `null` uses a state-aware default. |
 | `ChildContent` | `RenderFragment?` | `null` | Layout for `SkeletonVariant.Custom`. |
 | `Ai` | `AiState` | `AiState.None` | Ambient AI state; also mutates the shimmer. `AiState.None` inherits a surrounding `DrylAiScope`. |
-| `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
+| `Aura` | `AiAura?` | `null` | Has no visible effect; the skeleton draws no aura frame. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the skeleton's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
@@ -143,15 +143,17 @@ consumer's, not the library's.
 ### AI mode
 
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
-- The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
-  otherwise.
 - A component that leaves `Ai` at `AiState.None` shows the surrounding
-  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
-  inherited move into it; an explicit `Ai` wins over the scope.
-- The skeleton renders the shared aura vocabulary — ring, comet, glow, wash —
-  rather than a skeleton-specific AI treatment (`AI-02`).
-- The root gains a glass frame while an aura is present, so the rotating ring
-  has a shape to trace instead of wrapping loose blocks.
+  `DrylAiScope`'s state; an explicit `Ai` wins over the scope.
+- The skeleton renders no aura layer — no ring, comet, glow or wash — because
+  loose blocks have no surface of their own for one to trace (`AI-08`).
+- The root carries the shared state classes, so the blocks take the state's
+  colors from the shared vocabulary (`AI-02`).
+- `Aura` has no visible effect on the skeleton.
+- `AiState.Active` tints the blocks' resting fill with `--ai-a`, so an active
+  skeleton differs from a plain one without a frame.
+- `AiState.Active` recolors the shimmer with `--ai-a`.
+- `AiState.Thinking` tints the blocks more strongly than `AiState.Active`.
 - `AiState.Thinking` accelerates the shimmer relative to its default.
 - `AiState.Streaming` recolors the shimmer from the neutral sweep to a gradient
   built from `--ai-a` and `--ai-b`, so the placeholder itself says that model
@@ -167,13 +169,11 @@ consumer's, not the library's.
 - Under `prefers-reduced-motion: reduce` `AiState.Streaming` keeps its
   violet-cyan color as a static tint on the blocks themselves, so the signal the
   moving shimmer carried survives the loss of the motion that carried it.
+- Under `prefers-reduced-motion: reduce` `AiState.Active` and
+  `AiState.Thinking` keep their tint on the blocks.
 - Under `prefers-reduced-motion: reduce` `AiState.Generated` settles the blocks
   at a dimmed opacity instead of animating them out.
 - No AI state reintroduces motion under `prefers-reduced-motion: reduce`.
-- Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
-  dissolves rather than snapping away.
-- Entering `AiState.Generated` replays the one-shot completion wash, every time
-  it is entered.
 - `AiState.Active` is signalled by an extra class the shared aura helper
   deliberately omits, so the skeleton can respond to the idle-but-engaged state
   as well.
@@ -200,7 +200,8 @@ consumer's, not the library's.
 - **`SkeletonVariant.Custom` freezes three CSS class names** — `skel`,
   `skel-circle` and `skel-rect` — into the public contract. They are as bound by
   the 1.0 freeze as the parameters, and nothing in the build enforces that.
-- **No tests of its own.** None of the criteria above is guarded by a test.
+- **Almost no tests.** `tests/DRYL.Components.Tests/AiFramelessTests.cs` guards
+  the absent frame; none of the other criteria above is guarded by a test.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -218,7 +219,8 @@ consumer's, not the library's.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   substantive decision is the state-aware default label: "AI streaming content"
   is announced in words, not only in the shimmer's color.
-- **AI mode** — yes, and it drives the primitive rather than decorating it. The
+- **AI mode** — yes, and it drives the primitive rather than decorating it:
+  there is no frame (`AI-08`), the blocks carry the state. The
   violet-cyan streaming shimmer is the component's reason to exist as a DRYL
   component rather than a generic placeholder.
 - **Demo page** — `DRYL.Website/Components/Pages/DemoSkeleton.razor`, with the

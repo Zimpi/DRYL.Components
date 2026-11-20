@@ -10,4 +10,5 @@ internal sealed record RadioGroupContext<TValue>(
     TValue? SelectedValue,
     EventCallback<TValue> OnChange,
     bool GroupDisabled,
-    string Name);
+    string Name,
+    bool AiMarked = false);

@@ -20,7 +20,7 @@
     Each child DrylStep registers itself via the cascading parent reference.
     DrylStep renders no DOM — DrylStepper draws the header track and the
     active step's body. Clicking a step header navigates to it (unless Disabled).
-    AI ambient state on a step wraps its header in the shared ai-aura vocabulary.
+    AI ambient state on a step puts the shared ai-aura vocabulary on its indicator circle.
 
     Motion: horizontally one glowing ring glides to the active step and the
     connectors behind it fill one after another; the body leaves the way the
@@ -53,11 +53,10 @@
                      aria-current="@(isActive ? "step" : null)"
                      @onclick="() => ActivateStep(step)">
 
-                    @* AI aura primitives on the header — driven by the step's own lifecycle *@
-                    <DrylAuraElements Aura="step.AuraFx" GenTick="step.GenTick" />
-
-                    @* Indicator circle *@
+                    @* Indicator circle. It is the step's one bounded surface, so the AI aura
+                       sits on it and not on the header (AI-08) — driven by the step's lifecycle. *@
                     <div class="@IndicatorCss(step, isActive)">
+                        <DrylAuraElements Aura="step.AuraFx" GenTick="step.GenTick" />
                         @if (step.StepState == StepState.Completed)
                         {
                             <DrylIcon Name="Check" Size="14" />
@@ -279,7 +278,6 @@
         if (step.Disabled)                      parts.Add("is-disabled");
         if (step.StepState == StepState.Completed) parts.Add("is-completed");
         if (step.StepState == StepState.Error)     parts.Add("is-error");
-        AiAuraCss.Append(parts, step.AuraFx, step.EffectiveAura);
         return string.Join(' ', parts);
     }
 
@@ -290,6 +288,7 @@
         else if (step.StepState == StepState.Error) parts.Add("is-error");
         else if (isActive)                          parts.Add("is-active");
         else                                        parts.Add("is-pending");
+        AiAuraCss.Append(parts, step.AuraFx, step.EffectiveAura);
         return string.Join(' ', parts);
     }
 

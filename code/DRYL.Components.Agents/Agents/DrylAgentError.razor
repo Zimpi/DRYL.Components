@@ -16,8 +16,9 @@
     OnRetry is optional — without it no retry button is shown.
     ───────────────────────────────────────────────────────── *@
 
-<DrylPresence Visible="@(Run?.Error is not null)" Transition="PresenceTransition.SlideUp" Appear>
-    @if (Run?.Error is { } error)
+<DrylPresence Visible="@(Run?.Error is not null)" Transition="PresenceTransition.SlideUp" Appear
+              OnExited="DropHeld">
+    @if (Shown() is { } error)
     {
         <DrylAlert Kind="DrylAlert.AlertKind.Danger" Title="@Title">
             <div class="agent-error">
@@ -56,6 +57,15 @@
     [Parameter] public string RetryLabel { get; set; } = "Retry";
 
     private DrylRunBase? _subscribed;
+
+    // The error last shown. Once Run.Error is gone the presence still renders
+    // its child for the exit pass; without the held error that pass would slide
+    // out an empty wrapper.
+    private DrylRunError? _held;
+
+    private DrylRunError? Shown() => Run?.Error is { } current ? _held = current : _held;
+
+    private void DropHeld() => _held = null;
 
     private static string? MetaLine(DrylRunError error) =>
         (error.Source, error.ExceptionType) switch

@@ -6,8 +6,8 @@
     border: 1px solid var(--line);
     border-radius: var(--r-lg);
     background: var(--glass-1);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: var(--glass-fx-flow);
+    -webkit-backdrop-filter: var(--glass-fx-flow);
     box-shadow: var(--shadow-md);
 }
 

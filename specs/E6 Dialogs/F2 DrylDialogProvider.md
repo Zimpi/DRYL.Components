@@ -203,9 +203,8 @@ opening the page behind the dialog.
 
 - Every color the component renders comes from a token; the component names no
   literal color (`DESIGN-01`).
-- The backdrop derives from `--backdrop` and frosts what is behind it, which is
-  the one place in the library where a full-viewport blur is warranted
-  (`DESIGN-07`).
+- The backdrop derives from `--backdrop` and frosts what is behind it with
+  `--glass-fx-thin` (`DESIGN-07`).
 - The backdrop sits at `--z-modal`.
 - The component branches on no color mode and holds no mode-assuming value, so
   the same markup serves light and dark (`DESIGN-02`).

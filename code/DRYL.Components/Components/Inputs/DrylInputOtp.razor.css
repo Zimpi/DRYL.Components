@@ -15,6 +15,28 @@
     border-color: transparent;
 }
 
+/* ── AI mode — one light walks through the boxes (I45) ──
+   Every box is a surface and keeps ring and halo. Six comets orbiting side by
+   side read as noise, so the comet is retired here and the ring and halo of each
+   box brighten in turn instead, at a period taken from the state's comet period. */
+.otp-box-wrap.ai-aura { --aura-base: 56%; }
+.otp-box-wrap.ai-aura ::deep .ai-aura-comet { display: none; }
+.otp-box-wrap.ai-aura:not(.ai-generated, .ai-proposed, .ai-aura--out) ::deep .ai-aura-ring,
+.otp-box-wrap.ai-aura:not(.ai-generated, .ai-proposed, .ai-aura--out) ::deep .ai-aura-glow {
+    animation: otp-ai-walk calc(var(--aura-comet-dur) / 2.4) var(--ease-in-out)
+               calc(var(--aura-comet-dur) / 2.4 / (var(--otp-n, 6) + 2) * var(--otp-i, 0)) infinite;
+}
+@keyframes otp-ai-walk {
+    0%, 55%, 100% { opacity: 0.22; }
+    22%           { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .otp-box-wrap.ai-aura:not(.ai-generated, .ai-proposed, .ai-aura--out) ::deep .ai-aura-ring,
+    .otp-box-wrap.ai-aura:not(.ai-generated, .ai-proposed, .ai-aura--out) ::deep .ai-aura-glow {
+        animation: none;
+    }
+}
+
 .otp-boxes {
     display: flex;
     gap: var(--sp-2);

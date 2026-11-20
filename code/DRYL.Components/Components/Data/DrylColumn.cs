@@ -92,6 +92,13 @@ public class DrylColumn<TItem> : ComponentBase, IDisposable
     /// </summary>
     [Parameter] public bool Hidden { get; set; }
 
+    /// <summary>
+    /// The part this column plays in a record while the table is compact (see
+    /// <see cref="DrylTable{TItem}.CompactBelow"/>). Default <see cref="ColumnCompactRole.Auto"/>:
+    /// the table assigns the roles by column order. Has no effect while the table is wide.
+    /// </summary>
+    [Parameter] public ColumnCompactRole CompactRole { get; set; } = ColumnCompactRole.Auto;
+
     /// <summary>Cell renderer. Receives the row item. When omitted, the column renders <c>Field</c>'s value as text.</summary>
     [Parameter] public RenderFragment<TItem>? CellTemplate { get; set; }
 

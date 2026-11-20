@@ -14,8 +14,9 @@
       <DrylAgentUsage Run="_run" />
     ───────────────────────────────────────────────────────── *@
 
-<DrylPresence Visible="@(Run?.Usage is not null)" Transition="PresenceTransition.Fade" Appear>
-    @if (Run?.Usage is { } usage)
+<DrylPresence Visible="@(Run?.Usage is not null)" Transition="PresenceTransition.Fade" Appear
+              OnExited="DropHeld">
+    @if (Shown() is { } usage)
     {
         <div class="agent-usage" role="status" aria-live="polite" aria-label="Token usage">
             @if (usage.InputTokens is { } input)
@@ -39,6 +40,14 @@
     [Parameter] public DrylRunBase? Run { get; set; }
 
     private DrylRunBase? _subscribed;
+
+    // The usage last shown, kept so the presence's exit pass fades out the row
+    // instead of an empty wrapper.
+    private DrylRunUsage? _held;
+
+    private DrylRunUsage? Shown() => Run?.Usage is { } current ? _held = current : _held;
+
+    private void DropHeld() => _held = null;
 
     // Invariant formatting: a German locale would turn "1.2k" into "1,2k".
     private static string Fmt(long n) => n switch

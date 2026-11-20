@@ -48,6 +48,10 @@ The visual is delivered by the existing CSS primitives in `dryl.css`:
 `.ai-aura-wash`, plus `.ai-indicator` for status pills. A new AI-aware
 component composes these; it does not draw its own gradient border or glow.
 
+Which components draw the frame at all — ring, comet and halo — is decided by
+`AI-08`: only those with a surface of their own. A component without one still
+takes its colors, tempo and state classes from these primitives.
+
 Check: all six selectors exist in
 `code/DRYL.Components/wwwroot/dryl.css` — confirmed via
 `rg -n '\.ai-aura\b|\.ai-aura-ring|\.ai-aura-comet|\.ai-aura-glow|\.ai-aura-wash|\.ai-indicator\b' code/DRYL.Components/wwwroot/dryl.css`,
@@ -216,5 +220,63 @@ same one-shot: `AuraLifecycle.FromProposed` marks it, `AiAuraCss.Append` adds
 exactly like any other `Generated`. A host that draws its own aura markup instead
 of composing `AiAuraCss` and `DrylAuraElements` misses that hand-over, which is
 one more reason to compose them.
+
+### AI-08 — The aura frames a surface; without one, the content carries the state
+
+Status: **binding** | Enforced: **review**
+
+The ring, the comet and the halo trace a shape. They belong on a component
+that has a visible, bounded surface of its own at rest — a card, an input, a
+dialog, a tab, a round marker. Drawn around a component without one, they
+invent a box that is not there: a frame around a row of progress cells, around
+loose skeleton lines, around a row of stars.
+
+The binding test is asked of the component at `AiState.None`:
+
+> **Does the element the aura would trace already have a visible edge or fill
+> of its own?**
+> **Yes** → it composes `DrylAuraElements` (`AI-02`).
+> **No** → it draws no frame. It still appends the state classes through
+> `AiAuraCss.Append`, and its own marks show the state.
+
+A component that draws no frame stays inside the shared vocabulary:
+
+- **Color** comes from `--ai-a`, `--ai-b`, `--ai-core` and the state's
+  weighting of them, `--ai-hot` / `--ai-cool`, which `.ai-aura` and its state
+  classes set.
+- **Tempo** comes from the state's periods on `.ai-aura`
+  (`--aura-halo-dur`, `--aura-comet-dur`), or from one multiplier per state.
+- **The state classes** are the shared ones (`ai-thinking`, `ai-streaming`,
+  `ai-generated`, `ai-proposed`); `AuraLifecycle` still owns the `Generated`
+  one-shot (`AI-07`) and the graceful exit.
+- **A light ring around a small round mark** — a slider knob, a selected radio —
+  is the shared `.ai-mark-ring` primitive in `dryl.css`, not a per-component
+  ring.
+- **`AiState.Proposed`** rests: the marks hold the AI color and nothing loops
+  (`AI-06`). The screen-reader text of a proposal still comes from
+  `DrylAuraElements`, rendered with `Frameless`.
+- The `Aura` parameter stays on such a component and has no visible effect on
+  it; removing it would be a breaking change (`REL-01`).
+
+Motion a component adds to its marks for this is new AI motion and needs the
+sign-off `AI-04` asks for. The reasoning and the sign-off of the first eight are
+in `ideas/I45 The aura frames a surface, the content carries the rest.md`.
+
+**Eight components answer the test without the full frame**, named here the way
+`AI-03` names its non-opt-ins:
+
+- `DrylProgress`, `DrylSkeleton`, `DrylSpinner`, `DrylRating`, `DrylSlider`,
+  `DrylRadioGroup` — no surface; the cells, lines, loop, stars, knob and
+  selected option carry the state.
+- `DrylStep` — the header has no surface, the step circle has one; the aura
+  sits on the circle.
+- `DrylInputOtp` — every box is a surface and keeps ring and halo; the six
+  comets are replaced by one light that walks through the boxes.
+
+Check: `rg -n 'DrylAuraElements' code/DRYL.Components/Components` — a reviewer
+confirms that none of the six surface-less components above renders it without
+`Frameless`, and reads every **new** `Ai` parameter against the test before
+merge. "Has a surface" is a visual fact and not greppable, so this stays
+review-enforced.
 
 ---

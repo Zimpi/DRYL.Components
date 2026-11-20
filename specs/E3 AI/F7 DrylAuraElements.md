@@ -42,6 +42,7 @@ them, which makes the pairing a contract rather than a convention.
 |---|---|---|---|
 | `Aura` | `AuraLifecycle` | — (`[EditorRequired]`) | The host's aura lifecycle: what state to render, and whether the aura is live or fading out. |
 | `GenTick` | `int` | `0` | A counter the host bumps on each entry into `AiState.Generated`, so the one-shot wash re-keys and replays. |
+| `Frameless` | `bool` | `false` | Renders no layer at all, only the proposal description. For a host without a surface of its own (`AI-08`). |
 
 The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
 `ChildContent`: it is markup a host embeds, not a surface a consumer configures.
@@ -64,6 +65,11 @@ The component takes no `AiState`, no `Class`, no `AdditionalAttributes` and no
   the bloom rather than leaving the previous element in place (`AI-07`).
 - The component composes only the `.ai-aura*` primitives and defines no gradient,
   glow or border of its own (`AI-02`).
+- With `Frameless` the component renders no ring, comet, glow, wash or wave under
+  any state.
+- With `Frameless` the component still renders the proposal description under
+  `AiState.Proposed`, so a host that draws no frame keeps the one source of
+  that text.
 
 ### Host contract
 

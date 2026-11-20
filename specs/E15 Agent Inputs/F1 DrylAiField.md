@@ -174,6 +174,8 @@ after `CommandPaletteTexts`. Translate with `AiFieldTexts.Default with { … }`.
   (`Texts.Writing`), the suggestion being ready (`Texts.Ready`), its acceptance
   (`Texts.Accepted`), rejection or cancellation (`Texts.Rejected`) and failure
   (`Texts.Failed`).
+- The review chips and the `Texts.Ready` announcement appear in the same
+  render; the live region never reads `Texts.Writing` while the chips show.
 - The trigger, the chips and the send button are native buttons, reachable by
   Tab.
 - The trigger keeps its accessible name in sync with its glyph.

@@ -14,6 +14,79 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.17.0] — 2026-11-21
+
+A table becomes a list of records on a phone, `DrylMultiSelect` learns to search, validate and speak your language, AI state finds its own marks on components without a surface to frame, and `DrylMarkdown` is hardened against model-authored script. Agents 0.26.0 ships with it.
+
+### Added
+- `DrylTable.CompactBelow` — Below this width of its own, a table is no longer a squeezed grid but a list of records: each row is a two-line tile with a title, a trailing value and a meta line, and a chevron unfolds it in place to show the remaining columns, the `DetailTemplate` and the row actions. It defaults to `Breakpoint.Sm`, so every existing table gets it on a phone without a change; the width is the table's own, so a table in a narrow panel becomes a list as well. Set `CompactBelow="null"` to keep the grid at every width, or a larger `Breakpoint` for a table with many columns.
+- `DrylColumn.CompactRole` and `ColumnCompactRole` — Which part a column plays in a record. Left on `Auto`, the `Primary` column is the title, the next column the trailing value, the two after that the meta line, and the rest unfold. Set it where the order of your columns is not the order of their importance: `<DrylColumn TItem="Service" Field="@(s => s.Status)" CompactRole="ColumnCompactRole.Trailing" />`. `Detail` keeps a column for the unfolded record, `Hidden` leaves it out while compact.
+- `DrylTable` — While compact, sorting and filtering are reached through one "Sort and filter" control, in the toolbar or in a control row of its own when the table has no toolbar. A record in edit mode shows each editor at full width under its column title.
+- `Style` on `DrylStack`, `DrylGrid`, `DrylContainer`, `DrylAspectRatio`, `DrylSpacer`, `DrylScrollArea`, `DrylTypo`, `DrylDrawer`, `DrylLayout`, `DrylCalendar` and `DrylImage` — Inline declarations of your own, merged after the component's: `<DrylStack Style="margin-top: var(--sp-4)">`. A plain `style="…"` attribute works the same way. Where you and the component set the same property, yours wins.
+- `DrylThemeProvider.Nonce` — For apps with a Content Security Policy that forbids inline code: pass the nonce of the current response and the provider's inline `<style>` and `<script>` carry it. `<DrylThemeProvider Nonce="@_nonce" />`.
+- `--glass-fx-thin` — A thin frost (`blur(8px)`) for a layer you are meant to keep seeing through. The dialog backdrop, the flyout sidebar's backdrop and the `DrylDepthGlass` pane use it, so you can now tune or switch off all three in one line of your theme: `--glass-fx-thin: none;`.
+- `.ai-mark-ring` — A light ring around a small round mark, for your own AI-aware control that has no surface to frame. Place it inside an element that carries the `ai-aura` state classes and position it over the mark; it breathes at the state's tempo, runs out once on `Generated` and rests on `Proposed`.
+- `DrylAuraElements.Frameless` — Renders none of the aura layers and keeps the screen-reader text of `AiState.Proposed`, for a host whose own marks show the AI state.
+- `DrylMultiSelect.Searchable` — Turns the field into a chip input that filters a long list as you type: `<DrylMultiSelect @bind-SelectedValues="_skills" Items="_skillItems" Searchable="true" />`. The list opens on the first keystroke, filters case-insensitively on the labels and marks the matching text. Rows that stop matching collapse instead of disappearing, and the highlight stays on its row while they do. `Enter` picks the highlighted option and the query stays, so several matches of one search can be picked in a row; `Space` types. `Backspace` in an empty field marks the last chip, a second press removes it. `Escape` clears the query, a second press closes the list, and closing always clears it. `SearchPlaceholder` is shown once something is picked, `SearchFunc` replaces the filter, and `EmptyText` replaces the text for a query without matches. A screen reader hears how many options a query lists, that the last chip is marked, and that a value was removed. Without `Searchable` the field looks and behaves as before.
+- `DrylMultiSelect.Texts` and `MultiSelectTexts` — Translate every word the multi-select renders or announces of its own: `<DrylMultiSelect Texts="@(MultiSelectTexts.Default with { NoOptions = "Keine Optionen", Remove = label => $"{label} entfernen" })" />`. This covers the placeholders, the empty texts, the accessible names of the list and of each chip's remove button, and the screen-reader announcements. The defaults are the English words the field always showed, and `Placeholder` still wins when set.
+- `DrylMultiSelect.SelectedValuesExpression` — The multi-select now takes part in an `EditForm`. `@bind-SelectedValues` supplies the expression by itself, so `<DrylMultiSelect @bind-SelectedValues="model.Skills" Items="_items" />` inside a form is all it takes: a validation message for the bound list, for example from `[MinLength(1)]`, turns the field to its error state, sets `aria-invalid` and replaces the helper text, as on `DrylSelect`.
+- `DrylSelect.Texts` and `SelectTexts` — Translate the two words the select renders of its own, the `No options` row and the accessible name of the list: `<DrylSelect Texts="@(SelectTexts.Default with { NoOptions = "Keine Optionen" })" />`.
+- `DrylMultiSelect` — `Home` and `End` jump to the first and the last option of an open list, and `ArrowUp` on a closed field opens it at the last option.
+
+### Changed
+- `DrylChat`, `DrylValidationSummary` — The panel and the banner now take the in-flow glass tier `--glass-fx-flow` like every other surface in the page flow, instead of a blur of their own. With the default tier they keep their translucent fill and no longer blur what lies behind them, which on the page's smooth background looked the same and cost a blur each. Set `--glass-fx-flow: blur(var(--glass-blur)) saturate(140%);` to bring frost back to every in-flow surface at once.
+- `DrylAppBar`, `DrylDrawer`, `DrylToast` — The bar, the sidebar and the toast card now take the floating glass tier `--glass-fx-float` instead of a blur of their own, so they frost like every other floating layer and follow your theme's frost setting; the frost is a little stronger than before.
+- `DrylDrawer` — The backdrop behind a flyout sidebar blurs the page a little more than before (8 px instead of 4 px), like the backdrop behind a dialog.
+- `DrylDepthGlass` — The pane frosts what lies behind it as before and no longer boosts its saturation.
+- `DrylReconnectModal` — The full-screen overlay now takes the floating glass tier `--glass-fx-float`, so the page behind it frosts like behind any other floating layer and follows your theme's frost setting; it is a little stronger than before.
+- `DrylThemeProvider.Theme` — The parameter is now a real one-way binding: pass a different theme later and it is applied. Before, it was read once at startup and later values were ignored. A theme you set through `IDrylThemeService` stays until the parameter itself changes. `Mode` remains a startup value; switch the mode at runtime with `IDrylThemeService.SetModeAsync`.
+- `DrylTable` — The table now reports `role="table"` instead of `role="grid"`, and its rows and cells carry their roles explicitly. The grid role promised arrow-key navigation between cells that the table never had.
+- `DrylTable` — A tap on a compact record unfolds it unless `OnRowClick` is set; with `OnRowClick`, the tap is yours and the chevron unfolds.
+- `DrylTable` — A table is now a size container unless `CompactBelow` is `null`. In a shrink-to-fit context — an inline block, a flex item without a basis — it no longer takes its width from its columns; give it a width, or opt out.
+- `DrylColumn.Width` — Body cells receive the width as the `--tbl-col-w` custom property instead of an inline `width`; the header cell is unchanged. Only CSS that read the inline width of a `td` is affected.
+- `dryl.css` — A heading (`h1`–`h6`) or the `main` landmark with `tabindex="-1"` no longer draws the accent focus ring. Blazor's `FocusOnNavigate` focuses the page's first `h1` after every navigation, which put a ring around the page title on each page load; focus still moves there, so the screen reader announcement and the Tab starting point are unchanged, and the `h1:focus { outline: none; }` line from the Blazor template is no longer needed in your `app.css`. Operable elements keep their ring.
+- AI state without a frame — Eight components no longer draw the comet frame where there is no surface for it to trace; their own marks show the `AiState` instead, in the same colors and at the same tempo as the aura. Nothing in your markup changes, and no wrapper gains padding or a fill in AI mode any more, so setting `Ai` no longer moves the layout.
+  - `DrylProgress` — A sheen travels over the lit cells (`Active`, faster while `Streaming`), a wave runs ahead through the unlit cells while `Thinking`, and the row flashes once on `Generated`. A `Success`, `Warning` or `Danger` bar keeps its own colors.
+  - `DrylSkeleton` — `Active` and `Thinking` now tint the lines violet; `Streaming` and `Generated` are unchanged.
+  - `DrylSpinner` — Beside its tempo, the spinner takes the state's color: violet while `Thinking`, cyan while `Streaming`.
+  - `DrylRating` — Only the stars, with the motion they already had.
+  - `DrylSlider` — A light ring breathes around the knob and the fill takes the state's color; `Streaming` sends a sheen through the fill.
+  - `DrylRadioGroup` — The selected option carries the state: its fill takes the AI colors and a light ring breathes around it.
+  - `DrylStep` — The aura sits on the step's circle instead of framing the header, so it no longer cuts through the connector line.
+  - `DrylInputOtp` — The boxes keep ring and halo; one light walks through them in turn instead of a comet on every box.
+- `Aura` on `DrylProgress`, `DrylSkeleton`, `DrylSpinner`, `DrylRating`, `DrylSlider` and `DrylRadioGroup` — The parameter stays and no longer has a visible effect, because these components draw no ring to vary.
+- `DRYL.Components` — Minimum `Markdig` raised from 1.3.2 to 1.6.0. No API of this package changes; consumers pinned to an older Markdig need to move up with it.
+- `DrylMultiSelect` — Bound with `@bind-SelectedValues` inside an `EditForm`, the field now marks its model field as modified on every change and shows that field's validation messages. Before, it did neither. A field outside a form, or bound without `@bind-`, is unchanged.
+- `DrylSelect`, `DrylMultiSelect` — The option list's styles moved from the two components' scoped stylesheets into `dryl.css` (`.select-panel`, `.select-option`, `.select-empty`). Nothing looks different; CSS of your own that relied on the scoped attribute of these rules to win a tie now meets a plain class selector.
+
+### Fixed
+- `DrylMultiSelect` — `ArrowUp` on an open list without a highlighted option now starts at the last option instead of doing nothing.
+- `DrylMultiSelect` — A searchable field in the error or success state keeps that state's focus ring while you type. Until now it fell back to the accent ring.
+- `DrylMultiSelect` — Removing a value with a chip's remove button is now announced to screen readers. Until now the chip disappeared silently.
+- `DrylStack`, `DrylGrid`, `DrylContainer`, `DrylAspectRatio`, `DrylSpacer`, `DrylScrollArea`, `DrylTypo`, `DrylDrawer`, `DrylLayout`, `DrylCalendar`, `DrylImage` — A `style` attribute no longer replaces the component's own inline style. Before, `style="margin-top: 8px"` on a `DrylStack` removed `display: flex` and every flex setting, and on `DrylLayout` or `DrylDrawer` it silently disabled the width parameters. If you used `style` to switch a component's layout off on purpose, name the property you want to change — yours still wins for it.
+- `DrylTypo` — `Variant` now sets the look, as documented. Until now the look followed the rendered tag: `Lead`, `Caption` and `Eyebrow` rendered as plain body text, and `Variant="DrylTypo.TypoVariant.H2" As="h1"` looked like an `h1`. Text you render through `DrylTypo` with one of these variants changes size and color accordingly; `Body` and the heading variants on their own tag look as before.
+- `DrylRating` — The glow behind the filled stars no longer turns green while `Thinking`.
+
+### Security
+- `DrylMarkdown` — Model-authored Markdown can no longer run script in your app. Two ways through are closed. A link, image or autolink target with a scheme other than `http`, `https`, `mailto` or `tel` (images: `http`, `https`) — `javascript:`, `vbscript:`, `data:` and the rest, in any case, behind character references or with control characters inside — is dropped: a link keeps its text, an image shows its alt text. And attribute blocks such as `{onclick="…"}` or `{style="…"}` are no longer interpreted, so they can no longer put an event handler or an overlay on a rendered element; they now show as plain text. If you render model output with an earlier version, update. Relative links, fragments and `https` images are unchanged; a `{.class}` or `{#id}` block you relied on for styling now renders as text.
+
+## [Agents 0.26.0] — 2026-11-21
+
+### Added
+- `DrylAiCommandPalette.Texts` — Translate every word of the palette, as on `DrylCommandPalette`: `<DrylAiCommandPalette Texts="@(CommandPaletteTexts.Default with { Placeholder = "Befehl suchen…", EmptyText = "Keine Treffer" })" />`.
+- `DrylAiCommandPalette` — The wrapper now has every parameter of `DrylCommandPalette`: `Items`, `SearchProvider`, `Debounce`, `GroupOrder`, `Fallback`, `OnItemRun`, `Ai`, `Aura`, `AiContent` and `AriaLabel` join the ones it had. You no longer have to switch to the core palette and wire the resolver by hand to use one of them.
+
+### Changed
+- This release was opened as 0.25.1 for a dependency update and fixes; the new `DrylAiCommandPalette` parameters make it a minor version.
+- `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
+- `DrylVoiceOrb` — An orb without a working session is now the glass sphere alone. Before, it showed an orbiting comet even with no `Run` or an idle one. The aura arrives when the session listens, thinks or speaks, and fades out when it stops instead of vanishing.
+- `DrylHandoffTrace` — A lane that completes now plays the same "done" one-shot as a message or a card, and the aura of a lane that fails or is stopped fades out instead of being cut off. A lane that was already done when the trace appears stays calm.
+- `DrylAiCommandPalette` — `Placeholder` and `EmptyText` no longer default to German words. Left unset, the palette now shows the same English defaults as `DrylCommandPalette` ("Search commands…", "No results"). If you relied on the German defaults, set them: `<DrylAiCommandPalette Placeholder="Befehl suchen…" EmptyText="Keine Treffer" />`.
+
+### Fixed
+- `DrylAiField` — The review chips and the "ready" announcement now appear in the same render. Until now the chips showed up one render early, while the screen-reader live region still read `Texts.Writing`, and the announcement followed a moment later.
+- `DrylAgentError`, `DrylAgentUsage` — When you pass a fresh run, the alert and the usage row now slide and fade out. Before, they vanished at once and the exit animation played on an empty element.
+
 ## [3.16.0] — 2026-11-02
 
 Motion everywhere: toasts grow from their origin or the bell, spinners turn organic, and tooltips, badges, progress bars, menus, selection controls, trees and expansion panels each gain their own deliberate movement. Agents is unchanged.

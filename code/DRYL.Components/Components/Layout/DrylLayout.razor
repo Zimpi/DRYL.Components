@@ -19,7 +19,7 @@
 
 <CascadingValue Value="_ctx" IsFixed="true">
     <div class="app-shell@(_ctx.SidebarCollapsed ? " is-sidebar-collapsed" : null) @Class"
-         style="@StyleVars"
+         style="@InlineStyle.Merge(StyleVars, Style)"
          @attributes="AdditionalAttributes">
         @ChildContent
     </div>
@@ -45,6 +45,9 @@
 
     /// <summary>Extra CSS class(es) applied to the .app-shell root.</summary>
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>Extra inline declarations merged after the component's own; a plain <c>style="…"</c> attribute binds here too. On a property both set, yours wins.</summary>
+    [Parameter] public string? Style { get; set; }
 
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]

@@ -105,14 +105,15 @@ all (reviewer check).
 
 Status: **binding** | Enforced: **grep**
 
-Never write `backdrop-filter: blur(...)` on a new in-flow surface — use the
-token (`--glass-fx-flow` / `--glass-fx-float`).
+Never write `backdrop-filter: blur(...)` — use a token: `--glass-fx-float` for
+a floating surface, `--glass-fx-flow` for one in the flow, `--glass-fx-thin`
+for a scrim or pane that is meant to be seen through.
 
-Check: `rg -n 'backdrop-filter:\s*blur\(' code/` returns hits only in
-`dryl.css` — currently **6 pre-existing hits outside `dryl.css`**, across
-three components — the `.chat` rule in `DrylChat.razor.css`, the
-`.reconnect-overlay` rule in `DrylReconnectModal.razor.css`, and the
-`.validation-summary` rule in `DrylValidationSummary.razor.css` — see phase C.
+Check: `rg -n 'backdrop-filter:\s*blur\(' code/` returns no hit. The last
+hand-written blurs moved onto the tokens in 3.17.0: `.chat`,
+`.reconnect-overlay`, `.validation-summary`, `.sidebar`, `.topbar` and `.toast`
+onto the two tiers; the scrims `.sidebar-backdrop` and `.dialog-backdrop` and
+the `.dg-surface` pane onto `--glass-fx-thin`.
 
 ### DESIGN-08 — Accents glow, never scream
 

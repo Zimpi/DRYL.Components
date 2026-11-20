@@ -60,4 +60,17 @@ public class DrylAgentUsageTests : BunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("1.1k", cut.Markup));
     }
+
+    [Fact]
+    public void Keeps_the_row_for_the_exit_when_a_run_without_usage_replaces_it()
+    {
+        var run = new DrylAgentRun();
+        run.AddUsage(new UsageDetails { TotalTokenCount = 100 });
+        var cut = Render<DrylAgentUsage>(p => p.Add(x => x.Run, run));
+
+        cut.Render(p => p.Add(x => x.Run, new DrylAgentRun()));
+
+        Assert.Contains("presence-exit", cut.Markup);
+        Assert.Contains("100", cut.Find(".agent-usage").TextContent);
+    }
 }

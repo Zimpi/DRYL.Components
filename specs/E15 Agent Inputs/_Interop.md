@@ -5,9 +5,11 @@ cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
 The voice contract below adopts H01 from
-[I13](../../ideas/I13%20Performance%20and%20hardening%20update.md). Other Agent Inputs
-interop and services remain phase-C documentation debt. This companion file
-claims no component coverage (`SPEC-03`).
+[I13](../../ideas/I13%20Performance%20and%20hardening%20update.md). The command
+palette resolver, the generation components and the voice orb follow in their own
+sections below. `DrylAiField`'s DOM bridge (`dryl-aifield.js`) is described in
+[`F1 DrylAiField.md`](F1%20DrylAiField.md), whose `Source` claims it, and has no
+section here yet. This companion file claims no component coverage (`SPEC-03`).
 
 ## Interop
 
@@ -43,6 +45,20 @@ channel. Audio samples never pass through .NET. The meter writes the existing
 The browser reports `OnConnected`, `OnActivity`, `OnTranscript`,
 `OnToolCallAsync`, `OnTurnEndedAsync`, `OnFailed` and `OnClosed` with the
 arguments and return types listed in [`_Api.md`](_Api.md).
+
+### Voice orb
+
+`DrylVoiceOrb` imports the same module after its first render and calls
+`attachOrb(element)` once with its root element; on disposal it calls
+`attachOrb(null)` and disposes its module reference. The module keeps one orb
+element per page: the last orb to attach receives `--voice-level`, and a
+detaching orb clears the slot whichever orb holds it. The orb makes no other
+call and receives no callback.
+
+### Command palette and generation
+
+none — `DrylAiCommandPalette`, `DrylAiCommandResolver`, `DrylAiGenerate` and
+`DrylAiBuild` make no JS interop call.
 
 ### Attempt ownership — I13
 
@@ -215,7 +231,41 @@ An unsuccessful current request exposes the provider's JSON error message or
 the existing status-code fallback. A missing returned client secret fails the
 current attempt. Only the minted secret, never `ApiKey`, is passed to JS.
 
+### Command resolver
+
+`AddDrylCommandResolver(agentFactory)` in
+`code/DRYL.Components.Agents/Extensions/ServiceCollectionExtensions.cs` registers
+`ICommandResolver` scoped as a `DrylAiCommandResolver` over the agent the factory
+returns for that scope. `DrylAiCommandPalette` injects `ICommandResolver` as a
+required service, so rendering it without a registration throws.
+
+### Activity service
+
+`DrylAiGenerate` and `DrylAiBuild` resolve `IDrylAiActivityService` optionally
+from the scope; without it they render normally and write no state.
+`DrylAiGenerate` writes every state under `Key`; `DrylAiBuild` writes only its
+settle state, because `DrylAgentRunner` owns the key while the build runs.
+
 ## Cleanup
+
+### Command palette and generation
+
+- `DrylAiCommandPalette` owns nothing to clean up; the inner
+  `DrylCommandPalette` disposes its own resources.
+- `DrylAiCommandResolver` holds no per-resolution resource; each resolution's
+  session comes from the agent or the host's session factory.
+- `DrylAiGenerate` cancels and disposes its run's cancellation source on
+  disposal, which ends the enumeration of `Source` and any settle dwell.
+- `DrylAiBuild` unsubscribes from its run's `OnChange` and cancels a settle
+  dwell on disposal; it never disposes the run, which the host owns.
+
+### Voice orb
+
+- `DrylVoiceOrb` unsubscribes from its run's `OnChange` on disposal; it never
+  stops or disposes the run.
+- An orb that never attached — static prerender — makes no JS call on disposal.
+- A disconnected circuit or an already torn-down module during disposal is
+  swallowed.
 
 ### Browser resources — I13
 

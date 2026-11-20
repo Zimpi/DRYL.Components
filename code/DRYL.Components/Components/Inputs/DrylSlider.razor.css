@@ -1,27 +1,71 @@
 ﻿.slider-wrap {
+    --slider-a: var(--accent-a);
+    --slider-b: var(--accent-b);
+    --slider-inset: 2px; /* the range input's own margin, written out so the AI marks can follow it */
     position: relative;
     padding: var(--sp-1) 0;
 }
 
-/* AI aura needs an explicit radius on the wrapper */
-.slider-wrap.ai-aura {
-    border-radius: var(--r-md);
-    padding: var(--sp-2);
+/* ── AI mode — knob and fill carry the state (AI-08, I45) ──
+   A track has no surface for an aura frame to trace, so none is drawn and the
+   wrapper gains no padding: entering AI mode moves nothing. */
+.slider-wrap.ai-thinking,
+.slider-wrap.ai-streaming {
+    --slider-a: var(--ai-hot);
+    --slider-b: var(--ai-cool);
 }
+
+/* The shared mark ring, centred on the knob. The knob's centre travels from half
+   a knob inside the left edge to half a knob inside the right one. */
+.slider-ai-ring {
+    left: calc(var(--slider-inset) + 9px + (100% - 18px) * var(--slider-frac, 0));
+    top: 50%;
+    width: calc(18px + var(--sp-2));
+    height: calc(18px + var(--sp-2));
+    translate: -50% -50%;
+}
+
+/* Streaming: a sheen runs through the fill, in reading direction. */
+.slider-ai-sheen {
+    display: none;
+    position: absolute;
+    left: var(--slider-inset);
+    top: 50%;
+    width: calc(100% * var(--slider-frac, 0));
+    height: 4px;
+    translate: 0 -50%;
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    pointer-events: none;
+}
+.slider-wrap.ai-streaming .slider-ai-sheen { display: block; }
+.slider-ai-sheen::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 40%;
+    translate: -100% 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--knob) 85%, transparent), transparent);
+    animation: slider-ai-sheen 1.6s var(--ease-in-out) infinite;
+}
+@keyframes slider-ai-sheen { to { translate: 260% 0; } }
 
 .dryl-slider {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
     height: 4px;
+    margin: var(--slider-inset);
     border-radius: var(--r-pill);
     outline: none;
     cursor: pointer;
     /* gradient fill from left up to var(--pct), then track color */
     background: linear-gradient(
         to right,
-        var(--accent-a) 0%,
-        var(--accent-b) var(--pct, 0%),
+        var(--slider-a) 0%,
+        var(--slider-b) var(--pct, 0%),
         var(--glass-3) var(--pct, 0%),
         var(--glass-3) 100%
     );
@@ -81,5 +125,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .slider-ai-sheen::before { animation: none; }
+    .slider-wrap.ai-streaming .slider-ai-sheen { display: none; }
     .dryl-slider::-webkit-slider-thumb { transition: none; }
 }

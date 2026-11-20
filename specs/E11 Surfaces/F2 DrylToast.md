@@ -125,8 +125,6 @@ over the card, and the variant accent survives only on the icon chip.
   disappears on its own after `Duration`. Candidate for its own idea.
 - The countdown bar runs on `linear`, which `DESIGN-10` reserves for continuous
   motion; a timer drawn eased would misstate the time left. Not yet ruled on.
-- The card's frost is a hand-written `backdrop-filter` rather than
-  `--glass-fx-float` (`DESIGN-06`, `DESIGN-07`) — pre-existing debt.
 
 ## Cross-cutting evidence (`SPEC-05`)
 

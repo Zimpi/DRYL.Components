@@ -38,7 +38,9 @@
     @Columns
 </CascadingValue>
 
-<div class="@WrapperClass" @ref="_rootEl" @attributes="AdditionalAttributes">
+@{ ResolveCompactRoles(); }
+
+<div class="@WrapperClass" @ref="_rootEl" data-compact-tap="@CompactTapData" @attributes="AdditionalAttributes">
 
     @* Aura only on a bordered table — the ring/glow need the glass-card box to trace. *@
     @if (Bordered)
@@ -87,6 +89,10 @@
                            placeholder="@SearchPlaceholder"
                            aria-label="@SearchPlaceholder" />
                 </div>
+            }
+            @if (HasCompactControl)
+            {
+                <div class="tbl-compact-slot">@CompactTrigger</div>
             }
             @if (_filters.Count > 0)
             {
@@ -163,17 +169,70 @@
         </div>
     }
 
+    @if (HasCompactControl)
+    {
+        @if (!ShowToolbar)
+        {
+            <div class="tbl-compactbar">@CompactTrigger</div>
+        }
+        <DrylPresence Visible="_compactPanelOpen" Transition="PresenceTransition.SlideDown" Class="tbl-compact-presence">
+            <div class="tbl-compact-panel"
+                 id="@_compactPanelId"
+                 role="region"
+                 aria-label="Sort and filter"
+                 @onkeydown="OnCompactPanelKeyDown">
+                @if (VisibleColumns.Any(c => c.Sortable))
+                {
+                    <div class="tbl-compact-section">
+                        <span class="tbl-compact-heading">Sort</span>
+                        <div class="tbl-compact-sorts">
+                            @foreach (var col in VisibleColumns.Where(c => c.Sortable))
+                            {
+                                var sortCol = col;
+                                var sortDir = SortDirectionFor(sortCol);
+                                <button type="button"
+                                        class="tbl-compact-sort @(sortDir.HasValue ? "is-active" : null)"
+                                        @onclick="() => OnCompactSort(sortCol)"
+                                        aria-label="@CompactSortLabel(sortCol, sortDir)">
+                                    <span>@sortCol.DisplayTitle</span>
+                                    @if (sortDir == SortDirection.Descending)
+                                    {
+                                        <DrylIcon Name="ArrowDown" Size="12" />
+                                    }
+                                    else if (sortDir == SortDirection.Ascending)
+                                    {
+                                        <DrylIcon Name="ArrowUp" Size="12" />
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+                @foreach (var col in VisibleColumns.Where(c => c.Filterable))
+                {
+                    var filterCol = col;
+                    <div class="tbl-compact-section">
+                        <span class="tbl-compact-heading">Filter @filterCol.DisplayTitle</span>
+                        <div class="tbl-compact-filter">
+                            @FilterEditor(filterCol)
+                        </div>
+                    </div>
+                }
+            </div>
+        </DrylPresence>
+    }
+
     <div class="@WrapClass" style="@WrapStyle">
-        <table class="tbl" aria-label="@AriaLabel" role="grid">
-            <thead>
-                <tr>
+        <table class="tbl" aria-label="@AriaLabel" role="table">
+            <thead role="rowgroup">
+                <tr role="row">
                     @if (ReorderColumnVisible)
                     {
-                        <th class="tbl-col-grip" scope="col" aria-label="Reorder"></th>
+                        <th class="tbl-col-grip" scope="col" role="columnheader" aria-label="Reorder"></th>
                     }
                     @if (Selectable)
                     {
-                        <th class="tbl-col-check" scope="col">
+                        <th class="tbl-col-check" scope="col" role="columnheader">
                             <input type="checkbox"
                                    class="checkbox"
                                    checked="@AllSelected"
@@ -181,9 +240,9 @@
                                    aria-label="Select all rows" />
                         </th>
                     }
-                    @if (DetailTemplate is not null)
+                    @if (ShowExpandColumn)
                     {
-                        <th class="tbl-col-expand" scope="col" aria-label="Expand"></th>
+                        <th class="@ExpandCellClass" scope="col" role="columnheader" aria-label="Expand"></th>
                     }
                     @foreach (var col in VisibleColumns)
                     {
@@ -191,6 +250,7 @@
                         var canDragCol = CanReorderColumn(dragCol);
                         <th class="@HeaderCssClass(col)"
                             scope="col"
+                            role="columnheader"
                             style="@HeaderStyle(col)"
                             aria-sort="@HeaderAriaSort(col)"
                             data-col-key="@col.Key"
@@ -248,10 +308,6 @@
                                 @if (col.Filterable && _openFilterColumn == col.Key)
                                 {
                                     var openCol = col;
-                                    var currentText = _filters.TryGetValue(openCol.Key, out var f1)
-                                        ? f1.Value as string ?? "" : "";
-                                    var currentSet = _filters.TryGetValue(openCol.Key, out var f2) && f2.Value is HashSet<object?> s
-                                        ? s : new HashSet<object?>();
                                     <div class="tbl-filter-popover"
                                          @onkeydown="OnPopoverKeyDown"
                                          tabindex="-1">
@@ -263,34 +319,7 @@
                                             </button>
                                         </div>
                                         <div class="tbl-filter-popover-body">
-                                            @if (openCol.ResolvedFilterType == ColumnFilterType.Select)
-                                            {
-                                                var values = GetDistinctValues(openCol).ToList();
-                                                if (values.Count == 0)
-                                                {
-                                                    <span class="tbl-filter-empty">No values</span>
-                                                }
-                                                @foreach (var value in values)
-                                                {
-                                                    var v = value;
-                                                    var isChecked = SetContainsValue(currentSet, v);
-                                                    <label class="tbl-filter-option">
-                                                        <input type="checkbox" class="checkbox"
-                                                               checked="@isChecked"
-                                                               @onchange="@((ChangeEventArgs e) => ToggleSelectFilterValue(openCol, v, e.Value is true))" />
-                                                        <span>@(v?.ToString() ?? "(empty)")</span>
-                                                    </label>
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <input class="input"
-                                                       type="text"
-                                                       value="@currentText"
-                                                       data-dryl-input
-                                                       placeholder="Contains…"
-                                                       @oninput="@((ChangeEventArgs e) => SetTextFilter(openCol, e.Value?.ToString()))" />
-                                            }
+                                            @FilterEditor(openCol)
                                         </div>
                                         <div class="tbl-filter-popover-footer">
                                             <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
@@ -319,15 +348,15 @@
                     }
                     @if (ShowActionsColumn)
                     {
-                        <th class="tbl-col-actions" scope="col" aria-label="Actions"></th>
+                        <th class="tbl-col-actions" scope="col" role="columnheader" aria-label="Actions"></th>
                     }
                 </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
                 @if (Loading || _serverLoading)
                 {
-                    <tr class="tbl-loading-row">
-                        <td colspan="99" aria-label="Loading">
+                    <tr class="tbl-loading-row" role="row">
+                        <td colspan="99" role="cell" aria-label="Loading">
                             <div style="display:flex; align-items:center; justify-content:center; padding: var(--sp-7) 0;">
                                 <span class="spinner" role="status" aria-label="Loading data…"></span>
                             </div>
@@ -336,8 +365,8 @@
                 }
                 else if (_view.Count == 0)
                 {
-                    <tr class="tbl-empty-row">
-                        <td colspan="99">
+                    <tr class="tbl-empty-row" role="row">
+                        <td colspan="99" role="cell">
                             @if (EmptyContent is not null)
                             {
                                 @EmptyContent
@@ -362,8 +391,8 @@
                         var groupKey = group.Key;
                         var groupId = GroupId(groupKey);
                         var collapsed = _collapsedGroups.Contains(groupId);
-                        <tr class="tbl-group-header" @key="@($"g:{groupId}")">
-                            <td colspan="99">
+                        <tr class="tbl-group-header" role="row" @key="@($"g:{groupId}")">
+                            <td colspan="99" role="cell">
                                 <button type="button"
                                         class="tbl-group-toggle"
                                         @onclick="@(() => ToggleGroup(groupId))"
@@ -414,10 +443,62 @@
    <text> is a Razor pass-through tag that lets a single template return multiple
    top-level elements without wrapping them in an extra container. *@
 @code {
+    // The filter editor of one column — shared by the header's filter surface and the
+    // compact sort/filter panel, so a filter behaves the same from either place.
+    private RenderFragment FilterEditor(DrylColumn<TItem> filterCol) =>
+    @<text>
+        @if (filterCol.ResolvedFilterType == ColumnFilterType.Select)
+        {
+            var currentSet = _filters.TryGetValue(filterCol.Key, out var fs) && fs.Value is HashSet<object?> s
+                ? s : new HashSet<object?>();
+            var values = GetDistinctValues(filterCol).ToList();
+            if (values.Count == 0)
+            {
+                <span class="tbl-filter-empty">No values</span>
+            }
+            @foreach (var value in values)
+            {
+                var v = value;
+                var isChecked = SetContainsValue(currentSet, v);
+                <label class="tbl-filter-option">
+                    <input type="checkbox" class="checkbox"
+                           checked="@isChecked"
+                           @onchange="@((ChangeEventArgs e) => ToggleSelectFilterValue(filterCol, v, e.Value is true))" />
+                    <span>@(v?.ToString() ?? "(empty)")</span>
+                </label>
+            }
+        }
+        else
+        {
+            var currentText = _filters.TryGetValue(filterCol.Key, out var ft)
+                ? ft.Value as string ?? "" : "";
+            <input class="input"
+                   type="text"
+                   value="@currentText"
+                   data-dryl-input
+                   placeholder="Contains…"
+                   aria-label="@($"Filter {filterCol.DisplayTitle}")"
+                   @oninput="@((ChangeEventArgs e) => SetTextFilter(filterCol, e.Value?.ToString()))" />
+        }
+    </text>;
+
+    // The control that opens the compact sort/filter panel. Rendered at every width and shown
+    // by the stylesheet only while the table is compact.
+    private RenderFragment CompactTrigger =>
+    @<button type="button"
+             class="tbl-col-menu-trigger tbl-compact-trigger @(_sort.Count > 0 || _filters.Count > 0 ? "is-active" : null)"
+             @onclick="ToggleCompactPanel"
+             aria-expanded="@(_compactPanelOpen ? "true" : "false")"
+             aria-controls="@_compactPanelId">
+        <DrylIcon Name="Sliders" Size="13" />
+        <span>Sort and filter</span>
+    </button>;
+
     private RenderFragment<TItem> RowFragment => item =>
     @<text>
         @{ var rowIndex = ReorderColumnVisible ? _view.IndexOf(item) : -1; }
         <tr class="@RowCssClass(item, rowIndex)"
+            role="row"
             data-dryl-morph="@RowMorphName(item)"
             @onclick="() => HandleRowClick(item)"
             @onkeydown="@((KeyboardEventArgs e) => OnEditKeyDown(e, item))"
@@ -430,7 +511,7 @@
             @if (ReorderColumnVisible)
             {
                 var canDrag = CanReorderNow;
-                <td class="tbl-col-grip" @onclick:stopPropagation>
+                <td class="tbl-col-grip" role="cell" @onclick:stopPropagation>
                     <button type="button"
                             class="tbl-grip"
                             data-grip-index="@rowIndex"
@@ -448,7 +529,7 @@
 
             @if (Selectable)
             {
-                <td class="tbl-col-check" @onclick:stopPropagation>
+                <td class="tbl-col-check" role="cell" @onclick:stopPropagation>
                     <input type="checkbox"
                            class="checkbox"
                            checked="@_selected.Contains(item)"
@@ -457,10 +538,10 @@
                 </td>
             }
 
-            @if (DetailTemplate is not null)
+            @if (ShowExpandColumn)
             {
                 var expanded = _expandedRows.Contains(item);
-                <td class="tbl-col-expand" @onclick:stopPropagation>
+                <td class="@ExpandCellClass" role="cell" @onclick:stopPropagation>
                     <button type="button"
                             class="tbl-expand-btn @(expanded ? "is-expanded" : null)"
                             @onclick="() => ToggleExpanded(item)"
@@ -476,6 +557,9 @@
                 var c = col;
                 var editingThisCell = IsEditingCell(item, c);
                 <td class="@CellCssClass(c, editingThisCell)" style="@CellStyle(c)"
+                    role="cell"
+                    data-compact="@CompactRoleData(c)"
+                    data-label="@(CompactBelow is null ? null : c.DisplayTitle)"
                     data-col-key="@c.Key"
                     data-pin="@PinData(c)"
                     @ondblclick="() => OnCellDoubleClick(item, c)"
@@ -497,7 +581,7 @@
 
             @if (ShowActionsColumn)
             {
-                <td class="tbl-col-actions" @onclick:stopPropagation>
+                <td class="tbl-col-actions" role="cell" @onclick:stopPropagation>
                     <div class="tbl-row-actions">
                         @if (IsEditingRow(item))
                         {
@@ -537,8 +621,8 @@
 
         @if (DetailTemplate is not null && _expandedRows.Contains(item))
         {
-            <tr class="tbl-row-detail" @key="@($"d:{item!.GetHashCode()}")">
-                <td colspan="99">
+            <tr class="tbl-row-detail" role="row" @key="@($"d:{item!.GetHashCode()}")">
+                <td colspan="99" role="cell">
                     <div class="tbl-row-detail-inner">
                         @DetailTemplate(item)
                     </div>
@@ -792,6 +876,17 @@
     /// </summary>
     [Parameter] public bool Bordered { get; set; } = true;
 
+    /// <summary>
+    /// Below this width of its own, the table is shown as a list of records instead of a grid:
+    /// each record is a two-line tile — title, a trailing value and a meta line — that unfolds
+    /// in place to show the remaining columns, the <see cref="DetailTemplate"/> and the
+    /// <see cref="RowActions"/>. The width is the table's own, not the viewport's, so a table in
+    /// a narrow panel becomes a list as well. Which column plays which part is set per column
+    /// through <see cref="DrylColumn{TItem}.CompactRole"/>. Default <see cref="Breakpoint.Sm"/>;
+    /// set to <c>null</c> to keep the grid at every width.
+    /// </summary>
+    [Parameter] public Breakpoint? CompactBelow { get; set; } = Breakpoint.Sm;
+
     /// <summary>Accessible label for the <c>&lt;table&gt;</c> element.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
@@ -886,8 +981,94 @@
     private bool _resizeAttached;
     private bool _pendingColLayout;
 
+    // Compact presentation. The stylesheet alone decides whether the table is shown as a grid
+    // or as a record list, so everything the list needs is in the markup at every width:
+    // _compactRoles maps a column key to the part it plays in a record, the unfold control is
+    // the DetailTemplate's expand control, and the sort/filter panel is ordinary state.
+    private readonly Dictionary<string, string> _compactRoles = new(StringComparer.Ordinal);
+    private readonly string _compactPanelId = "tbl-compact-" + Guid.NewGuid().ToString("N")[..8];
+    private bool _compactPanelOpen;
+    private bool _compactTapAttached;
+
     private bool AllSelected =>
         _view.Count > 0 && _view.All(i => _selected.Contains(i));
+
+    // Assigns each visible column its part in a record: explicit roles first, then the columns
+    // left on Auto fill the empty slots in order (title, trailing, two meta) and the rest are
+    // shown only when the record is unfolded. A surplus explicit claim falls to detail rather
+    // than being dropped.
+    private void ResolveCompactRoles()
+    {
+        _compactRoles.Clear();
+        if (CompactBelow is null) return;
+
+        var cols = VisibleColumns.ToList();
+        var title = cols.FirstOrDefault(c => c.CompactRole == ColumnCompactRole.Title)
+                    ?? cols.FirstOrDefault(c => c.CompactRole == ColumnCompactRole.Auto && c.Primary)
+                    ?? cols.FirstOrDefault(c => c.CompactRole == ColumnCompactRole.Auto);
+        if (title is not null) _compactRoles[title.Key] = "title";
+
+        var auto = new Queue<DrylColumn<TItem>>(
+            cols.Where(c => c.CompactRole == ColumnCompactRole.Auto && !ReferenceEquals(c, title)));
+
+        var trailing = cols.FirstOrDefault(c => c.CompactRole == ColumnCompactRole.Trailing)
+                       ?? (auto.Count > 0 ? auto.Dequeue() : null);
+        if (trailing is not null) _compactRoles[trailing.Key] = "trailing";
+
+        var metas = cols.Where(c => c.CompactRole == ColumnCompactRole.Meta).Take(2).ToList();
+        while (metas.Count < 2 && auto.Count > 0) metas.Add(auto.Dequeue());
+        if (metas.Count > 0) _compactRoles[metas[0].Key] = "meta";
+        if (metas.Count > 1) _compactRoles[metas[1].Key] = "meta-end";
+
+        foreach (var c in cols)
+        {
+            if (_compactRoles.ContainsKey(c.Key)) continue;
+            _compactRoles[c.Key] = c.CompactRole == ColumnCompactRole.Hidden ? "hidden" : "detail";
+        }
+    }
+
+    private string? CompactRoleData(DrylColumn<TItem> col) =>
+        _compactRoles.TryGetValue(col.Key, out var role) ? role : null;
+
+    // A record has something to unfold when a column is shown only in the unfolded record or
+    // the table has a trailing actions cell. With a DetailTemplate the control exists anyway.
+    private bool CompactUnfold =>
+        CompactBelow is not null && (_compactRoles.ContainsValue("detail") || ShowActionsColumn);
+
+    private bool ShowExpandColumn => DetailTemplate is not null || CompactUnfold;
+
+    // Without a DetailTemplate the expand column exists for the compact presentation only;
+    // the modifier keeps it out of the wide table.
+    private string ExpandCellClass =>
+        DetailTemplate is not null ? "tbl-col-expand" : "tbl-col-expand tbl-col-expand--compact";
+
+    private bool HasCompactControl =>
+        CompactBelow is not null && _columns.Any(c => c.Sortable || c.Filterable);
+
+    // A tap on a compact record unfolds it only while the consumer has not claimed row clicks.
+    private string? CompactTapData =>
+        CompactBelow is not null && ShowExpandColumn && !OnRowClick.HasDelegate ? "true" : null;
+
+    private void ToggleCompactPanel() => _compactPanelOpen = !_compactPanelOpen;
+
+    private void OnCompactPanelKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") _compactPanelOpen = false;
+    }
+
+    private async Task OnCompactSort(DrylColumn<TItem> column)
+    {
+        ToggleSort(column, multi: false);
+        MarkPersistDirty();
+        await RunRowTransitionAsync(RebuildViewAsync);
+    }
+
+    private static string CompactSortLabel(DrylColumn<TItem> column, SortDirection? direction) => direction switch
+    {
+        SortDirection.Ascending => $"Sort by {column.DisplayTitle}, sorted ascending",
+        SortDirection.Descending => $"Sort by {column.DisplayTitle}, sorted descending",
+        _ => $"Sort by {column.DisplayTitle}, not sorted"
+    };
 
     // Effective column order: pinned-start first, then unpinned, then pinned-end; within each
     // group the user's drag/keyboard order (or registration order when none). OrderBy is a stable
@@ -1036,6 +1217,8 @@
             var classes = new List<string> { "tbl-root" };
             if (Bordered) { classes.Add("glass-card"); classes.Add("p-0"); }
             if (!StickyHeader) classes.Add("tbl-no-sticky");
+            if (CompactBelow is Breakpoint below)
+                classes.Add("tbl-compact-" + below.ToString().ToLowerInvariant());
             // Aura classes only on a bordered table (borderless has no box to trace).
             if (Bordered) AiAuraCss.Append(classes, _aura, EffectiveAura);
             if (!string.IsNullOrWhiteSpace(Class)) classes.Add(Class!);
@@ -1190,6 +1373,15 @@
             _dotNetRef ??= DotNetObjectReference.Create(this);
             try { await JS.InvokeVoidAsync("dryl.table.initColumnResize", _rootEl, _dotNetRef); }
             catch (Microsoft.JSInterop.JSException) { _resizeAttached = false; }
+        }
+
+        // Attach the compact tap helper once; like the resize helper it is a delegated listener
+        // on the stable root. Whether a tap unfolds is read from data-compact-tap on each click.
+        if (CompactBelow is not null && !_compactTapAttached)
+        {
+            _compactTapAttached = true;
+            try { await JS.InvokeVoidAsync("dryl.table.initCompactTap", _rootEl); }
+            catch (Microsoft.JSInterop.JSException) { _compactTapAttached = false; }
         }
 
         if (_pendingFocusHeaderKey is string headerKey)
@@ -1639,7 +1831,10 @@
     {
         var parts = new List<string>();
         var width = EffectiveWidth(col);
-        if (!string.IsNullOrEmpty(width)) parts.Add($"width: {width}");
+        // A body cell hands its width to the stylesheet as a custom property rather than
+        // setting it inline, so the compact presentation can let go of it; the header cell,
+        // which the resize helper measures and drives, keeps the inline width.
+        if (!string.IsNullOrEmpty(width)) parts.Add($"--tbl-col-w: {width}");
         if (col.Align != ColumnAlign.Start) parts.Add($"text-align: {col.TextAlign}");
         return parts.Count == 0 ? null : string.Join("; ", parts);
     }
@@ -1656,7 +1851,8 @@
 
     private string RowCssClass(TItem item, int rowIndex)
     {
-        var classes = new List<string>();
+        var classes = new List<string> { "tbl-rec" };
+        if (_expandedRows.Contains(item)) classes.Add("tbl-row--open");
         if (_selected.Contains(item)) classes.Add("tbl-row--selected");
         if (IsEditingRow(item)) classes.Add("tbl-row--editing");
         if (ShowAiEnter(item)) classes.Add("tbl-row--ai-enter");
@@ -1665,7 +1861,7 @@
             if (_dragIndex == rowIndex) classes.Add("tbl-row--dragging");
             else if (_dragOverIndex == rowIndex) classes.Add("tbl-row--drop-target");
         }
-        return classes.Count == 0 ? string.Empty : string.Join(' ', classes);
+        return string.Join(' ', classes);
     }
 
     private async Task ToggleRow(TItem item)
@@ -2111,6 +2307,12 @@
         if (_resizeAttached)
         {
             try { await JS.InvokeVoidAsync("dryl.table.disposeColumnResize", _rootEl); }
+            catch (Microsoft.JSInterop.JSException) { /* circuit gone */ }
+            catch (Microsoft.JSInterop.JSDisconnectedException) { /* circuit gone */ }
+        }
+        if (_compactTapAttached)
+        {
+            try { await JS.InvokeVoidAsync("dryl.table.disposeCompactTap", _rootEl); }
             catch (Microsoft.JSInterop.JSException) { /* circuit gone */ }
             catch (Microsoft.JSInterop.JSDisconnectedException) { /* circuit gone */ }
         }

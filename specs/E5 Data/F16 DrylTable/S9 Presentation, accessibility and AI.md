@@ -39,6 +39,8 @@
 ### Keyboard and accessibility
 
 - The table carries `AriaLabel` as its accessible label.
+- The table claims the table role, not the grid role, and its rows, header
+  cells and cells carry their roles explicitly.
 - A sortable header is a tab stop; a plain header is not.
 - A reorderable header is a tab stop even when it is not sortable, so the
   keyboard column move is reachable.
@@ -101,6 +103,7 @@
 - The row morph engine is disposed with the component.
 - The column-resize helper is detached, and its object reference disposed, with
   the component.
+- The compact tap helper is detached with the component.
 - Detaching is skipped when nothing was attached, and survives a disconnected
   circuit without throwing.
 - Every interop call the table makes after a render is best-effort: a missing
@@ -108,13 +111,11 @@
 
 ## Recorded gaps
 
-- **The table claims the grid role without implementing the grid pattern.**
-  That role promises two-dimensional keyboard navigation — arrow keys between
-  cells, `Home` and `End` within a row, one tab stop for the whole widget. The
-  table offers none of it: the tab order runs through each interactive element
-  in turn, and no arrow key moves between cells. A screen-reader user is told
-  they are in a grid and then finds none of the behaviour a grid implies. The
-  plain table role would be the honest claim for what the component does today.
+- **A selectable row reports its selection on a role that does not carry it.**
+  The rows report `aria-selected`, which the table role does not support on a
+  row; the checkbox in the row is what a screen reader can rely on. The grid
+  role the table used to claim did support it, and promised a keyboard pattern
+  the table never had.
 - **The loading indicator is not a `DrylSpinner`.** The loading row renders a
   bare span carrying the spinner class, inside an element with a hand-written
   inline style attribute — the one place in the component where layout is
@@ -155,7 +156,8 @@
 - **Keyboard and a11y** — the criteria above, plus the per-feature keyboard
   contracts in `S3`, `S5`, `S6` and `S7`. The substantive decisions are the
   labelled controls and the `Alt`-plus-arrow paths for both row and column
-  moves; the substantive omission is the unearned grid role, recorded above.
+  moves. The roles are explicit so that they hold in the compact presentation
+  of `S10` as well.
 - **AI mode** — yes, in two ways: the table carries the shared aura, and
   `AiState.Streaming` additionally turns on the row-glide and the per-row enter
   animation without any opt-in, because a table is the surface an agent most

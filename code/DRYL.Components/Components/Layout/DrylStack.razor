@@ -24,14 +24,14 @@
 @if (Collapses)
 {
     <div class="cq">
-        <div class="stack stack-collapse-@BreakpointSlug @Class" style="@Style" @attributes="AdditionalAttributes">
+        <div class="stack stack-collapse-@BreakpointSlug @Class" style="@InlineStyle.Merge(OwnStyle, Style)" @attributes="AdditionalAttributes">
             @ChildContent
         </div>
     </div>
 }
 else
 {
-    <div class="stack @Class" style="@Style" @attributes="AdditionalAttributes">
+    <div class="stack @Class" style="@InlineStyle.Merge(OwnStyle, Style)" @attributes="AdditionalAttributes">
         @ChildContent
     </div>
 }
@@ -67,7 +67,10 @@ else
     /// <summary>Extra CSS class(es) merged onto the stack's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
-    private string Style
+    /// <summary>Extra inline declarations merged after the component's own; a plain <c>style="…"</c> attribute binds here too. On a property both set, yours wins.</summary>
+    [Parameter] public string? Style { get; set; }
+
+    private string OwnStyle
     {
         get
         {

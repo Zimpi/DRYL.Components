@@ -15,7 +15,7 @@
       </DrylStack>
     ───────────────────────────────────────────────────────── *@
 
-<div class="spacer @Class" style="@Style" aria-hidden="true" @attributes="AdditionalAttributes"></div>
+<div class="spacer @Class" style="@InlineStyle.Merge(OwnStyle, Style)" aria-hidden="true" @attributes="AdditionalAttributes"></div>
 
 @code {
     /// <summary>Fixed spacer size from the <c>--sp-*</c> scale. When null, the
@@ -29,7 +29,10 @@
     /// <summary>Extra CSS class(es) merged onto the spacer's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
-    private string Style => Size is { } s
+    /// <summary>Extra inline declarations merged after the component's own; a plain <c>style="…"</c> attribute binds here too. On a property both set, yours wins.</summary>
+    [Parameter] public string? Style { get; set; }
+
+    private string OwnStyle => Size is { } s
         ? $"flex: 0 0 auto; width: {DrylGrid.GapToken(s)}; height: {DrylGrid.GapToken(s)};"
         : "flex: 1 1 auto;";
 }

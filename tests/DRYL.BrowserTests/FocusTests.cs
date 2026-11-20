@@ -73,6 +73,37 @@ public sealed class FocusTests(BrowserFixture browser)
             await Assertions.Expect(page.Locator("#dialog-open")).ToBeFocusedAsync();
         }, ReducedMotion.Reduce, forced ? ForcedColors.Active : ForcedColors.None);
 
+    [Theory]
+    [MemberData(nameof(Modes))]
+    public Task Script_focused_heading_and_main_show_no_ring(string mode, bool forced) =>
+        browser.RunAsync($"{nameof(Script_focused_heading_and_main_show_no_ring)}-{forced}", mode, async page =>
+        {
+            // Keyboard modality first, so a script focus matches :focus-visible the way it
+            // does after FocusOnNavigate on a fresh page.
+            await page.Locator("#focus-before").FocusAsync();
+            await page.Keyboard.PressAsync("Tab");
+
+            var heading = page.Locator("h1").First;
+
+            // In the tab order a heading is a focus stop like any other: the ring stays.
+            await heading.EvaluateAsync("el => { el.setAttribute('tabindex', '0'); el.focus(); }");
+            await Assertions.Expect(heading).ToBeFocusedAsync();
+            Assert.True(await HasOutline(heading), "A heading in the tab order must keep the accent ring.");
+
+            // What FocusOnNavigate does: tabindex=-1, then focus.
+            await heading.EvaluateAsync("el => { el.blur(); el.setAttribute('tabindex', '-1'); el.focus(); }");
+            await Assertions.Expect(heading).ToBeFocusedAsync();
+            Assert.False(await HasOutline(heading), "A script-focused heading must not draw a ring.");
+
+            var main = page.Locator("main").First;
+            await main.EvaluateAsync("el => { el.setAttribute('tabindex', '-1'); el.focus(); }");
+            await Assertions.Expect(main).ToBeFocusedAsync();
+            Assert.False(await HasOutline(main), "A script-focused main landmark must not draw a ring.");
+        }, ReducedMotion.Reduce, forced ? ForcedColors.Active : ForcedColors.None);
+
+    private static Task<bool> HasOutline(ILocator locator) =>
+        locator.EvaluateAsync<bool>("el => { const s = getComputedStyle(el); return s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0; }");
+
     private static async Task Focus(ILocator locator, bool forced)
     {
         await Assertions.Expect(locator).ToBeFocusedAsync();

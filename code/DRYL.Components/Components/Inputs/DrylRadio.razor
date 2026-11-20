@@ -21,7 +21,8 @@
            disabled="@IsDisabled"
            data-touched="@_touched"
            @onchange="HandleChange" />
-    <span class="radio-control"></span>
+    <span class="radio-control">@if (IsChecked && (Context?.AiMarked ?? false))
+        {<span class="ai-mark-ring" aria-hidden="true"></span>}</span>
     @if (!string.IsNullOrEmpty(Label))
     {
         <span class="radio-label">@Label</span>

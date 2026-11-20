@@ -5,6 +5,7 @@
 - **Source:** code/DRYL.Components/Components/Data/DrylTable.razor
               code/DRYL.Components/Components/Data/DrylColumn.cs
               code/DRYL.Components/Components/Data/Models/ColumnAlign.cs
+              code/DRYL.Components/Components/Data/Models/ColumnCompactRole.cs
               code/DRYL.Components/Components/Data/Models/ColumnFilterType.cs
               code/DRYL.Components/Components/Data/Models/ColumnPin.cs
               code/DRYL.Components/Components/Data/Models/DataRequest.cs
@@ -31,6 +32,7 @@ while every `S{n}` beside it does.
 | `S7 Row reordering and motion.md` | Drag and keyboard reorder, row morphs, streaming glide |
 | `S8 Grouping, detail rows and export.md` | `GroupBy`, `DetailTemplate`, CSV export |
 | `S9 Presentation, accessibility and AI.md` | Layout, tokens, roles, keyboard, `Ai`, state persistence, cleanup |
+| `S10 Compact presentation.md` | The record list below `CompactBelow`: column roles, unfolding, sort and filter |
 
 ## User Story
 
@@ -71,6 +73,12 @@ search and export and a column-visibility menu, a bulk-action bar that appears
 with the first selection, per-row detail rows, per-row action slots, grouping
 headers, and a pagination footer. Each of them is absent from the markup
 entirely when it is not configured.
+
+The table has **two presentations of one markup**. At its usual width it is a
+grid. Below `CompactBelow` of its own width it is a list of records — a
+two-line tile per row that unfolds in place — because a grid cannot be read on
+a phone. The stylesheet makes that switch alone; the component renders what
+both presentations need and never learns which one is showing.
 
 ## Public API
 
@@ -152,6 +160,7 @@ entirely when it is not configured.
 |---|---|---|---|
 | `Loading` | `bool` | `false` | Renders the loading row instead of the data. |
 | `Bordered` | `bool` | `true` | Renders the table on the library's card surface. |
+| `CompactBelow` | `Breakpoint?` | `Breakpoint.Sm` | Below this width of its own the table is a record list. `null` keeps the grid. |
 | `AriaLabel` | `string?` | `null` | Accessible label for the table. |
 | `PersistStateKey` | `string?` | `null` | Persists sort, filters, page, size, hidden columns, widths and order. |
 | `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |

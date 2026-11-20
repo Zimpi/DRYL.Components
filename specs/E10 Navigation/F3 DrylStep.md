@@ -86,14 +86,16 @@ in [`_Api.md`](_Api.md).
 - `Aura` defaults to `null`.
 - A supplied `Aura` overrides a surrounding scope's aura variant.
 - An unset `Aura` uses the surrounding scope's non-null aura variant.
-- With neither an explicit nor a scoped variant, the header uses
+- With neither an explicit nor a scoped variant, the step's indicator uses
   `AiAura.Comet`.
 - A step that leaves `Ai` at `AiState.None` shows the surrounding
-  `DrylAiScope`'s state on its header; an explicit `Ai` wins over the scope.
+  `DrylAiScope`'s state on its indicator; an explicit `Ai` wins over the scope.
 - A change to the resolved AI state — its own `Ai` or the scope's — requests a
   parent refresh.
 - Non-`None` AI activity is rendered through the shared aura primitives on this
-  step's header (`AI-02`).
+  step's indicator circle (`AI-02`).
+- The step's header carries no aura and no aura class: the header has no
+  surface of its own, the indicator circle has one (`AI-08`).
 - AI activity is independent of whether the step is selected.
 - Changing AI activity does not change the step's progress state.
 - On leaving live AI activity for `None`, the aura remains present for its
@@ -117,8 +119,8 @@ in [`_Api.md`](_Api.md).
   use the parent's isolated `.step-*` selectors and the global `.ai-aura*`
   primitives. Source review confirms this dependency; rendered inspection of
   both modes remains pending under the parent contract (`DESIGN-02`).
-- **Enter/exit:** `AuraLifecycle.Sync` drives `DrylAuraElements` on the parent
-  header and cancels pending work on disposal. The declaration itself has
+- **Enter/exit:** `AuraLifecycle.Sync` drives `DrylAuraElements` on the parent's
+  indicator circle and cancels pending work on disposal. The declaration itself has
   nothing to animate because it emits no element; this is the reasoned
   `DESIGN-11` exception for the declaration, not an exception for the parent's
   body exit debt. The parent owns I13's reduced-motion panel target. Shared aura

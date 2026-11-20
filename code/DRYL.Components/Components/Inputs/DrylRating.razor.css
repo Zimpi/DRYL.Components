@@ -64,7 +64,7 @@
 /* Thinking — slow breathing glow */
 @keyframes rating-star-breathe {
     0%, 100% { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ai-a) 35%, transparent)); opacity: 0.55; }
-    50%      { filter: drop-shadow(0 0 11px var(--ai-a));                                     opacity: 1; }
+    50%      { filter: drop-shadow(0 0 11px color-mix(in srgb, var(--ai-a) 100%, transparent)); opacity: 1; }
 }
 
 .rating-wrapper.ai-thinking .rating-btn--filled {

@@ -31,9 +31,11 @@ Two structural decisions are worth naming. Every number written into the
 markup — the cell fill fraction, the cell count — is formatted with
 `InvariantCulture`, because a fill of `0,333` is not a CSS number and would
 silently empty the cell under a German locale; there is a regression test for
-exactly that. And each cell clips its own fill, so the track itself clips
-nothing and the AI aura, hosted on a wrapper around the track, is never cut
-off.
+exactly that. And each cell clips its own fill, so the fill cannot spill past
+a cell's rounded ends.
+
+A row of cells has no surface of its own, so the bar draws no aura frame in AI
+mode (`AI-08`): the cells themselves show the state.
 
 `Indeterminate` replaces the fill with a wave of light rolling through the
 cells and removes the value from the component's ARIA, so nothing claims a
@@ -53,7 +55,7 @@ number that does not exist.
 | `Label` | `RenderFragment?` | `null` | Custom caption; overrides `LabelText`. |
 | `AriaLabel` | `string?` | `null` | Accessible label for the bar. |
 | `Ai` | `AiState` | `AiState.None` | Ambient AI state. `AiState.None` inherits a surrounding `DrylAiScope`. |
-| `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
+| `Aura` | `AiAura?` | `null` | Has no visible effect; the bar draws no aura frame. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the progress field's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
@@ -87,8 +89,8 @@ both, or neither.
   gradient can be laid across the whole row.
 - Each cell clips its own fill, so the fill cannot spill past the cell's
   rounded ends.
-- The track clips nothing, and the aura host sits outside it, so the aura is
-  not clipped.
+- A wrapper around the track carries the AI state classes and renders no aura
+  layer.
 - `Class` is merged onto the root's own classes rather than replacing them.
 - `AdditionalAttributes` are applied to the root.
 
@@ -195,25 +197,35 @@ both, or neither.
 ### AI mode
 
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
-- The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
-  otherwise.
 - A component that leaves `Ai` at `AiState.None` shows the surrounding
-  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
-  inherited move into it; an explicit `Ai` wins over the scope.
-- The bar renders the shared aura vocabulary — ring, comet, glow, wash — rather
-  than a progress-specific AI treatment (`AI-02`).
-- The aura traces the track's pill shape rather than a rectangle around it.
-- The aura is independent of `Variant` and `Indeterminate`, so any combination
-  renders.
-- Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
-  dissolves rather than snapping away.
-- Entering `AiState.Generated` replays the one-shot completion wash, every time
-  it is entered.
+  `DrylAiScope`'s state; an explicit `Ai` wins over the scope.
+- The bar renders no aura layer — no ring, comet, glow or wash — because a row
+  of cells has no surface of its own for one to trace (`AI-08`).
+- The wrapper around the track carries the shared state classes, so the cells
+  take the state's colors from the shared vocabulary (`AI-02`).
+- `Aura` has no visible effect on the bar.
+- Under `AiState.Active` a sheen travels over the lit cells, from the first to
+  the leading one, and repeats.
+- Under `AiState.Streaming` the same sheen repeats faster than under
+  `AiState.Active`.
+- Under `AiState.Thinking` a wave of `--ai-a` runs through the cells that are
+  not lit, ahead of the fill, and repeats.
+- Under `AiState.Thinking` and `AiState.Streaming` the fill takes the state's
+  weighting of `--ai-a` and `--ai-b` when `Variant` is
+  `ProgressVariant.Accent`.
+- A semantic `Variant` keeps its own fill colors under every AI state.
+- Entering `AiState.Generated` flashes the lit cells once, left to right, over
+  `--dur-choreo`.
+- An `Indeterminate` bar plays no sheen, no wave ahead and no flash; its own
+  wave keeps running.
 - The AI state changes nothing about the bar's layout, so the label row does not
   move when an operation starts or ends.
 - `AiState.Proposed` renders exactly like `AiState.None`: a progress
   bar reports how far work has come, and nothing on it waits for a human
   decision.
+- Under `prefers-reduced-motion: reduce` no AI state animates a cell.
+- Under `prefers-reduced-motion: reduce` `AiState.Thinking` keeps a still tint
+  of `--ai-a` on the cells that are not lit, in place of the wave.
 
 ## Recorded gaps
 
@@ -244,7 +256,9 @@ both, or neither.
   the label row and the indeterminate rendering in
   `tests/DRYL.Components.Tests/DrylProgressTests.cs`; the invariant-culture
   fill fraction in `tests/DRYL.Components.Tests/GlobalizationTests.cs`; the
-  class merge in `tests/DRYL.Components.Tests/ClassMergeTests.cs`. What the
+  class merge in `tests/DRYL.Components.Tests/ClassMergeTests.cs`; the AI state
+  classes and the absent frame in
+  `tests/DRYL.Components.Tests/AiFramelessTests.cs`. What the
   CSS does with those markers is checked by eye only.
 
 ## Cross-cutting evidence (`SPEC-05`)
@@ -264,8 +278,7 @@ both, or neither.
   the clamp that keeps the announced value equal to the drawn one. The missing
   default label is recorded as a gap rather than glossed.
 - **AI mode** — yes. A progress bar is the natural place to show a model's
-  long-running work, and the aura is hosted outside the clipping track so it is
-  actually visible there.
+  long-running work. The cells carry the state; there is no frame (`AI-08`).
 - **Demo page** — `DRYL.Website/Components/Pages/DemoProgress.razor`, with the
   examples `Components/Examples/Progress/Determinate.razor`,
   `.../Indeterminate.razor`, `.../Variants.razor`, `.../Sizes.razor` and

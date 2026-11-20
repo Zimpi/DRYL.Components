@@ -19,10 +19,13 @@
 
 @if (Aura.Present)
 {
-    <div class="ai-aura-ring" aria-hidden="true"></div>
-    <div class="ai-aura-comet" aria-hidden="true"></div>
-    <div class="ai-aura-glow" aria-hidden="true"></div>
-    @if (Aura.RenderState == AiState.Generated && !Aura.Exiting)
+    @if (!Frameless)
+    {
+        <div class="ai-aura-ring" aria-hidden="true"></div>
+        <div class="ai-aura-comet" aria-hidden="true"></div>
+        <div class="ai-aura-glow" aria-hidden="true"></div>
+    }
+    @if (!Frameless && Aura.RenderState == AiState.Generated && !Aura.Exiting)
     {
         <div class="ai-aura-wash" aria-hidden="true" @key="GenTick"></div>
         @if (Aura.FromProposed)
@@ -49,6 +52,13 @@
     /// re-keys and its bloom animation replays.
     /// </summary>
     [Parameter] public int GenTick { get; set; }
+
+    /// <summary>
+    /// When true, no ring, comet, glow, wash or wave is rendered — only the
+    /// screen-reader text of <see cref="AiState.Proposed"/>. For a host without a
+    /// surface of its own, whose marks carry the AI state instead of a frame.
+    /// </summary>
+    [Parameter] public bool Frameless { get; set; }
 
     // A sibling of the wash, so it needs a key of its own that still changes with GenTick.
     private string WaveKey => $"wave-{GenTick}";

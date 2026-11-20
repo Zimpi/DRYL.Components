@@ -4,6 +4,7 @@
 - **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylSelect.razor
               code/DRYL.Components/Components/Inputs/DrylSelect.razor.css
+              code/DRYL.Components/Components/Inputs/SelectTexts.cs
 
 ## User Story
 
@@ -45,6 +46,7 @@ Namespace: `DRYL.Components`. Inherits `InputBase<string>` and implements
 | `Ai` | `AiState` | `AiState.None` | AI state, with scope inheritance. |
 | `Aura` | `AiAura?` | `null` | Aura variant, with scope inheritance. |
 | `Items` | `IEnumerable<SelectItem>?` | `null` | Ordered options whose values can be selected. |
+| `Texts` | `SelectTexts` | `SelectTexts.Default` | The words the select renders of its own; see [`_Api.md`](_Api.md). |
 
 `SelectItem` and `InputState` are defined in [`_Api.md`](_Api.md). There is no
 public open-state parameter, item template, multiple-selection mode, search,
@@ -62,7 +64,7 @@ combobox, not a native `select` element.
 - Options preserve the enumeration order of `Items`.
 - Updating `Items` refreshes the available option list on parameter application.
 - Null `Items` is treated as an empty list.
-- An open empty list displays `No options`.
+- An open empty list displays `Texts.NoOptions`, by default `No options`.
 - Each option displays its `SelectItem.Label` as text.
 - The trigger displays the first item label whose value matches the bound value.
 - Without a matching item, the trigger displays `Placeholder` when supplied.
@@ -123,8 +125,9 @@ combobox, not a native `select` element.
 - `aria-expanded` reflects the requested open state.
 - `aria-controls` names the generated listbox ID.
 - The open option list has `role="listbox"`.
-- The listbox name is `Options` without a visible `Label`.
-- With a visible `Label`, the listbox name is that label followed by ` options`.
+- The listbox name is `Texts.ListLabel` of `Label`.
+- By default the listbox name is `Options` without a visible `Label`.
+- By default, with a visible `Label`, the listbox name is that label followed by ` options`.
 - Every option has `role="option"`.
 - An option whose value equals the bound value has `aria-selected="true"`.
 - A valid highlighted option is named by `aria-activedescendant`.
@@ -156,6 +159,7 @@ combobox, not a native `select` element.
 - Manual and validation error states retain their existing semantic focus treatment.
 - The open trigger has `.select--open`.
 - The open panel matches the trigger width through `DrylPopover`.
+- The panel, the option rows and the empty row take their declarations from the `OPTION LIST` block of `dryl.css`, shared with `DrylMultiSelect` (idea I52); the component's stylesheet adds the accent dot.
 - The floating list surface uses `--panel-float` with `--glass-fx-float`.
 - The list's border, radius and shadow use `--line-strong`, `--r-md` and `--shadow-lg`.
 - The listbox carries `data-dryl-glide="[role=option]"`, which makes it a
@@ -231,8 +235,8 @@ combobox, not a native `select` element.
   behavior added to I13.
 - `.select:focus-visible` suppresses the ordinary outline in favor of its glow; H05 now
   restores the outline under forced colors. Native inspection limits are below.
-- `DrylSelect.razor.css` retains literal open-state shadow geometry and
-  scrollbar radius; shared `.select` styling retains literal padding and a
+- `DrylSelect.razor.css` retains literal open-state shadow geometry, and the
+  shared `OPTION LIST` block in `dryl.css` a literal scrollbar radius; shared `.select` styling retains literal padding and a
   mode-assuming SVG arrow color (`DESIGN-01`, `DESIGN-02`). I13 changes no
   arrow or token design.
 - The field root has no enter/exit animation. Conditional labels and helper
@@ -249,8 +253,8 @@ combobox, not a native `select` element.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both modes:** source inspection covers shared `.select` and isolated
-  `.select-panel`/`.select-option` token use. The arrow literal is recorded
+- **Both modes:** source inspection covers shared `.select` and the shared
+  `.select-panel`/`.select-option` token use in `dryl.css`. The arrow literal is recorded
   above. Actual open and closed dark/light rendering remains to be checked;
   token synchronization does not establish the composed control's appearance.
 - **Motion:** `DrylPopover` owns the real surface entrance and exit; the

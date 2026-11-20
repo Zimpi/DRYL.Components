@@ -24,7 +24,7 @@
     }
 
     <div class="@WrapperCssClass">
-        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" Frameless="true" />
         <div class="rating-group" @key="_genTick"
              role="group"
              aria-labelledby="@(!string.IsNullOrEmpty(Label) ? _labelId : null)"
@@ -91,10 +91,10 @@
     /// <summary>Accessible label — required when <c>Label</c> is not set.</summary>
     [Parameter] public string? AriaLabel { get; set; }
 
-    /// <summary>AI ambient state — controls the gradient border, glow, and reveal animation.</summary>
+    /// <summary>AI ambient state — the stars show it: they take the AI colour, pulse while thinking, ripple while streaming and flash once when generated.</summary>
     [Parameter] public AiState Ai { get; set; } = AiState.None;
 
-    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    /// <summary>AI aura variant. Has no visible effect here: the rating draws no aura frame, its stars carry the state.</summary>
     [Parameter] public AiAura? Aura { get; set; }
 
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>

@@ -23,9 +23,8 @@ unrelated periods around a breathing nucleus. The enum keeps its names, so the
 redesign changes no public API.
 
 Its distinguishing behaviour is that **the AI state changes the spinner's own
-rhythm, not only its aura.** Every other component in the category treats `Ai`
-as a decoration applied around unchanged content. Here the loop itself
-retimes — slower while a model is thinking, faster while it is streaming, and
+rhythm and color.** A spinner has no surface of its own, so it draws no aura
+frame (`AI-08`). The loop itself retimes — slower while a model is thinking, faster while it is streaming, and
 stopped once it is done — so the same spinner communicates a different kind of
 waiting in the same space.
 
@@ -43,7 +42,7 @@ the AI state sets once.
 | `Size` | `DrylSpinner.SpinnerSize` | `SpinnerSize.Medium` | Physical size. |
 | `Label` | `string?` | `null` | Accessible label. `null` uses a state-aware default. |
 | `Ai` | `AiState` | `AiState.None` | Ambient AI state; also retimes the spinner's own loop. `AiState.None` inherits a surrounding `DrylAiScope`. |
-| `Aura` | `AiAura?` | `null` | Pins the aura variant; `null` inherits a surrounding `DrylAiScope`. |
+| `Aura` | `AiAura?` | `null` | Has no visible effect; the spinner draws no aura frame. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the spinner's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
@@ -76,7 +75,7 @@ the AI state sets once.
 - The ring's wall thickness is a share of its own size, so a small ring stays
   proportionate rather than looking heavy.
 - Every variant renders inside a square box with a circular outline, so the
-  aura ring wraps each of them the same way.
+  three occupy the same space.
 
 ### Keyboard and accessibility
 
@@ -146,13 +145,13 @@ the AI state sets once.
 ### AI mode
 
 - `Ai` defaults to `AiState.None`, so AI styling is opt-in.
-- The aura variant follows `Aura` when set and a surrounding `DrylAiScope`
-  otherwise.
 - A component that leaves `Ai` at `AiState.None` shows the surrounding
-  `DrylAiScope`'s state, including the one-shot `AiState.Generated` reveal on an
-  inherited move into it; an explicit `Ai` wins over the scope.
-- The spinner renders the shared aura vocabulary — ring, comet, glow, wash —
-  rather than a spinner-specific AI treatment (`AI-02`).
+  `DrylAiScope`'s state; an explicit `Ai` wins over the scope.
+- The spinner renders no aura layer — no ring, comet, glow or wash — because it
+  has no surface of its own for one to trace (`AI-08`).
+- The root carries the shared state classes, so the loop takes the state's
+  colors from the shared vocabulary (`AI-02`).
+- `Aura` has no visible effect on the spinner.
 - `AiState.Thinking` slows the spinner's own loop relative to its default.
 - `AiState.Streaming` speeds the spinner's own loop relative to its default.
 - `AiState.Active` sets a rate between the two, so an idle-but-engaged model
@@ -165,13 +164,12 @@ the AI state sets once.
   geometry does not shift when the state changes.
 - The rate change is one tempo multiplier per state, set once on the root, so
   the ratio between states is the same for every variant.
-- Leaving AI mode keeps the aura mounted for one `--dur-slow` beat, so it
-  dissolves rather than snapping away.
-- Entering `AiState.Generated` replays the one-shot completion wash, every time
-  it is entered.
+- Under `AiState.Thinking` and `AiState.Streaming` the spinner's two colors take
+  the state's weighting of `--ai-a` and `--ai-b`.
+- The color change is one pair of custom properties set once on the root, so
+  every variant follows it.
 - `AiState.Active` is signalled by an extra class the shared aura helper
-  deliberately omits, because the generic aura treats `Active` as ring-only and
-  the spinner needs the rate cue as well.
+  deliberately omits, because the spinner needs the rate cue for it.
 - `AiState.Proposed` renders exactly like `AiState.None`: a spinner
   reports work in progress, and nothing on it waits for a human decision.
 
@@ -188,7 +186,8 @@ the AI state sets once.
   component is one class wider than the shared vocabulary. Anything reusing the
   helper alone would miss the `Active` rate cue.
 - **Only structure is tested.** `DrylSpinnerTests` covers the elements per
-  variant, the unique filter id, the hidden moving parts and the size classes;
+  variant, the unique filter id, the hidden moving parts and the size classes,
+  `AiFramelessTests` the absent frame;
   motion, rate and reduced-motion criteria remain a reviewer check.
 
 ## Cross-cutting evidence (`SPEC-05`)
@@ -206,9 +205,8 @@ the AI state sets once.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above. The
   substantive decision is the state-aware default label: the AI state is
   announced in words, not only in motion.
-- **AI mode** — yes, and further than anywhere else in the category: the
-  component's own loop retimes per state, which is the cue a user reads before
-  they read the aura.
+- **AI mode** — yes: the component's own loop retimes and recolors per state.
+  There is no frame (`AI-08`).
 - **Demo page** — `DRYL.Website/Components/Pages/DemoSpinner.razor`, with the
   examples `Components/Examples/Spinner/Variants.razor`, `.../Sizes.razor`,
   `.../AiMode.razor`, `.../InContext.razor` and `.../Live.razor`.

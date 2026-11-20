@@ -99,3 +99,31 @@ the provider disposes on detach. The bell marker `data-dryl-inbox` is written by
 Cleanup (`CODE-05`): the timer lives on the slot's registration; `detach` and
 `leave` clear it, and a callback retained past `detach` checks the registration
 and stays inert (`tests/js/toast.test.mjs`).
+
+### Reconnect modal (`F4 DrylReconnectModal`)
+
+| Concern | What |
+|---|---|
+| Interop | None through `IJSRuntime`, and no `dryl.*` entry point. The framework's own `blazor.web.js` finds the root by id, toggles its state classes and fills the counter spans. The component's two buttons call the framework globals `Blazor.reconnect()` and `location.reload()` through native inline `onclick` attributes, because no .NET code runs on a dead circuit. |
+| Services | None injected or registered. |
+| Cleanup | None: no listener, timer, observer or `DotNetObjectReference` is owned (`CODE-05`). |
+
+
+### `dryl.theme` (`F5 DrylThemeProvider`, `F6 DrylColorModeToggle`)
+
+| Entry point | Called from | Does |
+|---|---|---|
+| `dryl.theme.apply(vars)` | `DrylThemeProvider`, on `OnThemeChanged` after its first render | Removes every seed a theme may emit (`dryl.theme.managed`: the accent, AI, semantic and chart tokens) from `document.documentElement`'s inline style, then sets each `--key:value` pair of `vars`. The registered `@property` seeds and the `:root` transition make the derived chain glide. |
+| `dryl.theme.applyMode(mode, persist)` | `DrylThemeProvider`, on `OnModeChanged` after its first render | `"light"` / `"dark"` set `data-dryl-mode` on the document root; anything else removes it. With `persist`, writes or removes `localStorage` `dryl-color-mode`. A storage failure is swallowed; the attribute is still applied. |
+| `dryl.theme.storedMode()` | `DrylThemeProvider`, once after its first render | Returns the stored `"light"` / `"dark"`, or `null`. |
+
+The provider also renders an inline pre-paint `<script>` that repeats the
+`storedMode` logic so a persisted choice applies before first paint; it is not
+an entry point and holds no handle. A `JSDisconnectedException` from any of the
+three calls is swallowed. `DrylColorModeToggle` makes no interop call: it only
+calls `IDrylThemeService.SetModeAsync`.
+
+| Concern | What |
+|---|---|
+| Services | `IDrylThemeService` — scoped, registered by `AddDrylComponents()`. `DrylThemeProvider` is the single `OnThemeChanged` subscriber and one of the `OnModeChanged` subscribers; `DrylColorModeToggle` subscribes to `OnModeChanged`; any code switches themes and modes through it. |
+| Cleanup | Both components unsubscribe their `OnThemeChanged` / `OnModeChanged` handlers in `Dispose` (`CODE-05`) — a scoped service outlives a torn-down layout, and a stale handler would keep calling into a disposed component. Neither owns a `DotNetObjectReference`, `IJSObjectReference`, timer or listener. The seeds and `data-dryl-mode` stay on the document root after dispose, by design. |

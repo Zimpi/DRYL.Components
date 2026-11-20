@@ -30,8 +30,7 @@ It is the surface the rest of the library is built on. `DrylMenu`,
 all place one rather than emitting their own floating panel. That is why it is
 `F1` of this category: the seven other `E11 Surfaces` components stand beside
 it, not on it, while eight components in four other categories stand on this
-one. `F2`–`F8` of this category are unassigned and stay free; nothing here
-claims them.
+one.
 
 **The panel element is always rendered; only its body is conditional.** This is
 the shape the whole component turns on, and it is not an optimisation:
