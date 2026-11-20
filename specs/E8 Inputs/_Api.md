@@ -7,7 +7,12 @@ part of the data contract the 1.0 freeze binds.
 
 This reference covers the shared contracts used by `DrylInputText`,
 `DrylTextarea` and `DrylSelect`; `DrylMultiSelect` uses `SelectItem` and
-`InputState` with the same meaning, and `DrylTimePicker` uses `InputState`. Other Inputs types remain phase-C work. It has
+`InputState` with the same meaning, and `DrylTimePicker` uses `InputState`.
+`DrylInputPassword`, `DrylInputMask`, `DrylInputNumber`, `DrylDatePicker` and
+`DrylChipInput` use `InputState` with the same meaning as well (for
+`DrylChipInput` without the validation-message precedence, see below). The
+sections below also list `MaskType`, `SegmentedSize` and the binding
+contracts of the remaining inputs. It has
 no `Meta` block and claims no component (`SPEC-03`).
 
 ## `InputState`
@@ -108,6 +113,97 @@ with `data-touched` (idea I39); see
 validation like the text fields; see
 [`F9 DrylRadioGroup.md`](F9%20DrylRadioGroup.md).
 
+## `MaskType`
+
+Defined in `code/DRYL.Components/Components/Inputs/MaskType.cs`, namespace
+`DRYL.Components`; owned by `DrylInputMask`
+([`F17 DrylInputMask.md`](F17%20DrylInputMask.md)). In a pattern, `#` is one
+digit, `A` one letter (upper-cased), anything else a literal separator.
+
+| Member | Pattern |
+|---|---|
+| `Phone` | `+## ### ### ####` |
+| `Iban` | `AA## #### #### #### #### ##` |
+| `PostalCode` | `#####` |
+| `CreditCard` | `#### #### #### ####` |
+| `Custom` | The component's `CustomPattern`. |
+
+## `SegmentedSize`
+
+Defined in `code/DRYL.Components/Components/Inputs/SegmentedSize.cs`, namespace
+`DRYL.Components`; owned by `DrylSegmentedControl<TValue>`
+([`F20 DrylSegmentedControl.md`](F20%20DrylSegmentedControl.md)).
+
+| Member | Track class |
+|---|---|
+| `Small` | `.seg--sm` |
+| `Medium` | `.seg--md` (the default) |
+| `Large` | `.seg--lg` |
+
+## `InputBase<string>` — `DrylInputPassword`, `DrylInputMask`
+
+Both follow the `InputBase<string>` binding contract above: `() => Value` is
+supplied when no `ValueExpression` is given, parsing accepts any string and
+normalizes `null` to `string.Empty`, validation messages replace `HelperText`
+and set `aria-invalid="true"`, and `AdditionalAttributes` land on the native
+input. `DrylInputPassword` updates on the native `input` event.
+`DrylInputMask` has no Blazor `input` binding: its value arrives masked from
+`dryl.inputmask` through the `[JSInvokable]` method `OnMaskedValue(string maskedValue)`.
+
+## `InputBase<TValue>` — `DrylInputNumber`
+
+`DrylInputNumber<TValue>` inherits `InputBase<TValue>` for `int`, `long`,
+`float`, `double`, `decimal` and their nullable forms. `Value`,
+`ValueChanged` and `ValueExpression` are typed `TValue`; `() => Value` is
+supplied when no expression is given. Parsing uses
+`BindConverter.TryConvertTo<TValue>` with the invariant culture and reports
+`The field must be a valid number.` on failure. `double`, `float` and `decimal`
+values are formatted with the invariant culture. `Min`, `Max` and `Step` are
+typed `TValue?`; because that is `TValue` itself for a non-nullable value type,
+the component tracks whether each was supplied rather than null-checking it.
+Validation display follows the string fields.
+
+## `InputBase<DateOnly?>` — `DrylDatePicker`
+
+`DrylDatePicker` inherits `InputBase<DateOnly?>`. In single mode it binds
+`Value` and supplies **no** fallback `ValueExpression`. In range mode
+(`Range="true"`) it binds `RangeStart` / `RangeStartChanged` and `RangeEnd` /
+`RangeEndChanged` (each `DateOnly?` / `EventCallback<DateOnly?>`), and points
+`ValueExpression` at a private dummy field. A parsed string is accepted when
+empty or in the exact format `dd.MM.yyyy`; otherwise the parsing message is
+`Invalid date. Expected format: dd.MM.yyyy`. Validation display follows the
+string fields.
+
+## `@bind-Tags` — `DrylChipInput`
+
+`DrylChipInput` is not an `InputBase`. It binds `Tags`
+(`IReadOnlyList<string>`, default `[]`) through `TagsChanged`
+(`EventCallback<IReadOnlyList<string>>`); it never mutates `Tags` and reports
+each change as a new list. It has no `EditContext` integration: `InputState`
+styles the box and, for `InputState.Error`, the helper, without a validation
+message or `aria-invalid`. `AdditionalAttributes` is typed
+`IDictionary<string, object>?` and lands on the inner text input; `Class`
+merges onto the `.field` root.
+
+## `@bind-Value` — `DrylSegmentedControl<TValue>` / `DrylSegment<TValue>`
+
+`DrylSegmentedControl<TValue>` is not an `InputBase` and takes no part in
+validation. It binds `Value` (`TValue`) through `ValueChanged`
+(`EventCallback<TValue>`); a selection also updates its own `Value`, so it
+works unbound. Segment values are compared with
+`EqualityComparer<TValue>.Default`. `DrylSegment<TValue>` declares one option
+(`Value`, `Label`, `Icon`, `Disabled`, `ChildContent`) and must sit inside a
+control of the same `TValue`.
+
+## `DrylFormField<TValue>` and `DrylValidationSummary`
+
+Neither binds a value. `DrylFormField<TValue>` takes `For`
+(`Expression<Func<TValue>>?`) only to look up validation messages of that field
+in the cascading `EditContext`; `TValue` is the field's type.
+`DrylValidationSummary` reads every message of the cascading `EditContext`.
+Both take `Class` (merged onto their root) and `AdditionalAttributes`
+(`IDictionary<string, object>?`, applied to their root).
+
 ## AI state and aura inheritance
 
 `AiState` and `AiAura` are Foundation types, defined in
@@ -132,6 +228,19 @@ decorative aura has no field-value generation, validation or live announcement
 behavior. Applications that announce AI work must supply appropriate status
 feedback (`UX-04`); applications must stop live states when their work ends
 (`AI-06`).
+
+### Aura-only inputs
+
+`DrylInputPassword`, `DrylInputMask`, `DrylInputNumber`, `DrylDatePicker` and
+`DrylChipInput` expose the same `Ai` and `Aura` parameters and compose the same
+`AuraLifecycle` / `AiAuraCss.Append` / `DrylAuraElements`, but resolve only the
+**variant** through `AiScope.ResolveAura`. Their state is the explicit `Ai`
+alone: a surrounding `DrylAiScope` state does not reach them. They are listed
+as I32 follow-ups in `tests/DRYL.Components.Tests/AiScopeInheritanceTests.cs`
+and record the gap as debt in their specs.
+
+`DrylSegmentedControl`, `DrylSegment`, `DrylFormField` and
+`DrylValidationSummary` have no `Ai` parameter (`AI-05`); each spec states why.
 
 ## Shared field focus — I13 H05
 

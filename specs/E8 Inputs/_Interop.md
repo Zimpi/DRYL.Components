@@ -5,10 +5,13 @@ cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
 This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect`,
-`DrylFileUpload`, `DrylAutocomplete`, `DrylMultiSelect` and `DrylTimePicker`.
-The list ink of the four list inputs (I38) is driven by `DrylPopover`, not by
-the components; it is documented in `../E11 Surfaces/_Interop.md`.
-The category's remaining components are still phase-C work.
+`DrylFileUpload`, `DrylAutocomplete`, `DrylMultiSelect`, `DrylTimePicker`,
+`DrylInputMask`, `DrylDatePicker`, `DrylChipInput` and
+`DrylSegmentedControl`. The list ink of the four list inputs (I38) is driven by
+`DrylPopover`, not by the components; it is documented in
+`../E11 Surfaces/_Interop.md`. `DrylInputNumber`, `DrylInputPassword`,
+`DrylSegment`, `DrylFormField` and `DrylValidationSummary` make no JavaScript
+calls.
 
 ## Interop
 
@@ -78,11 +81,39 @@ highlight moves.
 | `dryl.timepicker.focusPanel(panel)` | After an open, moves focus into the panel once the popover reveals it. |
 | `dryl.timepicker.restoreFocus(panel, input)` | After a close, hands focus back to the field while it is still inside the closing panel; answers whether it moved focus. |
 
+`DrylInputMask` uses `dryl.inputmask`:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.inputmask.attach(element, pattern, dotnetRef)` | `OnAfterRenderAsync`, after the first interactive render and again whenever the active pattern changes to a different nonempty one, installs `input` and `paste` listeners on the native input. Each event re-masks the text, puts the caret at its end and calls the `[JSInvokable]` `OnMaskedValue` with the masked string. Attaching first detaches any previous listeners of that element. |
+| `dryl.inputmask.detach(element)` | `DisposeAsync` removes the listeners; a no-op for an element without them. |
+
+The listeners are kept in a `WeakMap` keyed by the element.
+
+`DrylDatePicker` uses two entry points of `dryl.datepicker`:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.datepicker.focusDay(panel, dayNumber)` | After an open or a keyboard move, installs the shared panel key policy (`drylPanelKeys`, navigation keys suppressed) and focuses the day button carrying `data-day="{dayNumber}"`, or the panel when there is none — deferred through `drylPanelFocus` until the popover reveals the panel. |
+| `dryl.datepicker.restoreFocus(panel, input)` | After `Escape` or a selection closes the panel, hands focus back to the field while it is still on `<body>` or inside the panel; answers whether it moved focus, so the one-shot open suppression is dropped when it did not. |
+
+Like `DrylTimePicker`, it delegates portal, placement, outside dismissal and
+enter/exit to `DrylPopover`; see `../E11 Surfaces/_Interop.md` for
+`drylPanelFocus` and `drylPanelKeys`.
+
+`DrylChipInput` and `DrylSegmentedControl` call no `dryl.js` entry point. They
+move focus with Blazor's built-in `ElementReference.FocusAsync` — the chip
+field when its box is clicked, the segmented control onto the segment an arrow
+key selected.
+
 ## Services
 
-No input-specific DI service is registered by these three components.
-`DrylSelect` injects framework `IJSRuntime`. Form validation uses a cascading
-`EditContext` when present. AI inheritance consumes cascading `AiScope`
+No input-specific DI service is registered by any component of this category.
+`DrylSelect`, `DrylInputMask` and `DrylDatePicker` inject framework
+`IJSRuntime`. Form validation uses a cascading `EditContext` when present;
+`DrylFormField` and `DrylValidationSummary` read it without binding a value.
+`DrylSegmentedControl` cascades itself (`IsFixed="true"`) so that its
+`DrylSegment` children can register. AI inheritance consumes cascading `AiScope`
 without injecting an AI activity service directly.
 
 ## Cleanup
@@ -114,6 +145,23 @@ state nor renders.
 listeners only after its first interactive render attached them, tolerating
 `JSDisconnectedException` and `JSException`, and finally disposes its
 `DotNetObjectReference`.
+
+`DrylInputMask` implements `IAsyncDisposable`: it disposes its
+`AuraLifecycle`, then — only after an interactive render — calls
+`dryl.inputmask.detach`, swallowing any exception, and finally disposes its
+`DotNetObjectReference`. Its attach calls are not guarded.
+
+`DrylInputNumber`, `DrylInputPassword`, `DrylDatePicker` and `DrylChipInput`
+implement `IDisposable` and dispose their `AuraLifecycle`. `DrylDatePicker`
+holds no listener of its own: the panel key listener installed by
+`dryl.datepicker.focusDay` lives on the popover's panel node and goes with it
+(see `../E11 Surfaces/_Interop.md`).
+
+`DrylValidationSummary` implements `IDisposable` and unsubscribes from
+`EditContext.OnValidationStateChanged`; it also moves the subscription when the
+cascading `EditContext` changes. `DrylSegmentedControl` clears its segment
+registrations on dispose, and each `DrylSegment` unregisters itself from its
+control on dispose. `DrylFormField` holds nothing to release.
 
 ## Evidence boundary
 
