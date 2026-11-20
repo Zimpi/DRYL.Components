@@ -18,8 +18,11 @@ keyboard model, its chip row or a search beside it myself.
 
 `DrylMultiSelect` is a `combobox` trigger that opens a `listbox` with
 `aria-multiselectable="true"`. It binds a list of option values through
-`SelectedValues` / `SelectedValuesChanged`; it is not an `InputBase`, so it
-takes part in no `EditForm` validation.
+`SelectedValues` / `SelectedValuesChanged`. It is not an `InputBase`; inside an
+`EditForm` it reports to the form through `SelectedValuesExpression`, which
+`@bind-SelectedValues` supplies (`ideas/I52 Loose ends of the select family.md`):
+every change marks the bound field as modified, and a validation message for
+that field turns the control to its error state and replaces the helper text.
 
 **It is a consumer of `E11 Surfaces`/`F1 DrylPopover`**, and the panel's
 portal, placement, click-outside dismissal and entrance and exit motion are
@@ -75,11 +78,12 @@ is shown unmarked.
 | `Items` | `IEnumerable<SelectItem>?` | `null` | The options, in order. |
 | `SelectedValues` | `IReadOnlyList<string>` | `[]` | The picked option values. |
 | `SelectedValuesChanged` | `EventCallback<IReadOnlyList<string>>` | — | Raised with the new list after a toggle or a chip removal. |
+| `SelectedValuesExpression` | `Expression<Func<IReadOnlyList<string>>>?` | `null` | Names the bound field for a surrounding `EditForm`; supplied by `@bind-SelectedValues`. |
 | `Label` | `string?` | `null` | Visible label above the trigger. |
 | `Placeholder` | `string?` | `null` | Shown while nothing is picked; falls back to `Texts.Placeholder`. |
-| `HelperText` | `string?` | `null` | Text below the control, linked through `aria-describedby`. |
+| `HelperText` | `string?` | `null` | Text below the control, linked through `aria-describedby`; replaced by validation messages. |
 | `MaxVisibleChips` | `int` | `3` | Chips shown before the rest collapse into `+N`. |
-| `State` | `InputState` | `Default` | `Default`, `Error` or `Success` border treatment. |
+| `State` | `InputState` | `Default` | `Default`, `Error` or `Success` border treatment; a validation message wins. |
 | `Disabled` | `bool` | `false` | Greys the trigger out and ignores clicks. |
 | `AriaLabel` | `string?` | `null` | Accessible name when `Label` is not set. |
 | `Ai` | `AiState` | `None` | AI ambient state of the field. |
@@ -126,12 +130,31 @@ Its shape is `DrylAutocomplete.SearchFunc` with `SelectItem` for `TItem`.
 - `ArrowDown` on a closed control opens it with the first option highlighted.
 - `ArrowDown` moves the highlight to the next option and stops at the last.
 - `ArrowUp` moves the highlight to the previous option and stops at the first.
+- `ArrowUp` on a closed control opens it with the last option highlighted.
+- `ArrowUp` on an open list without a highlight highlights the last option.
+- `Home` on an open list highlights the first option, `End` the last.
+- `Home` and `End` on a closed control do nothing.
 - `Enter` and `Space` on an open list toggle the highlighted option.
 - `Enter` and `Space` on a closed control open it.
 - `Escape` and `Tab` close the list.
 - The trigger's `aria-activedescendant` names the highlighted option while the list is open.
 - Moving the highlight scrolls it into view.
 - Hovering an option makes it the highlighted option.
+
+### Validation
+
+These criteria hold while the control has a `SelectedValuesExpression` and a
+cascaded `EditContext`. Without either it reports to no form and shows no
+message.
+
+- Every change that raises `SelectedValuesChanged` then notifies the `EditContext` that the bound field changed.
+- A validation message for the bound field applies `.input-error` to the trigger regardless of `State`.
+- A validation message sets `aria-invalid="true"` on the element carrying `role="combobox"`.
+- Validation messages replace `HelperText`, in an `.input-helper-error` element the combobox names through `aria-describedby`.
+- Several validation messages are displayed joined by a space.
+- When the field's messages go, the trigger, `aria-invalid` and `HelperText` return to their state without a message.
+- A change of the form's validation state re-renders the control.
+- Disposal unsubscribes from the `EditContext`.
 
 ### Search
 
@@ -151,7 +174,7 @@ behaves as described above.
 - A filtered-out option is `inert` and `aria-hidden="true"` and stays in the DOM.
 - A query change highlights the first listed option.
 - A query that lists no option shows `EmptyText`, or `Texts.EmptyText` when it is not set, and highlights nothing.
-- `ArrowDown` and `ArrowUp` move the highlight across listed options only.
+- `ArrowDown` and `ArrowUp` move the highlight across listed options only; `ArrowUp` without a highlight, or on a closed control, starts at the last listed option.
 - `Enter` on an open list toggles the highlighted option.
 - `Enter` on a closed control opens it.
 - `Space` types a space and toggles nothing.
@@ -206,6 +229,8 @@ behaves as described above.
 - The marked part of a label reads `--accent-fg` at weight 600 on no fill of its own.
 - The marked last chip carries `.chip--armed`: an `--accent-line` ring and a stronger accent tint.
 - The search text field draws no border, fill or focus ring of its own; the trigger's focus treatment shows while it has focus.
+- The panel, the option rows and the empty row take their base declarations from the `OPTION LIST` block of `dryl.css`, shared with `DrylSelect`; the component's stylesheet adds the picked tint, the checkbox column and the panel's accent edge.
+- A trigger in the error or success state shows that state's focus treatment while the search text field has focus.
 - The component branches on no colour mode (`DESIGN-02`).
 
 ### AI mode
@@ -229,7 +254,7 @@ behaves as described above.
 - **AI mode** — **yes**: a model may propose or fill a multi-value field, so
   the field carries `Ai` and `Aura` like the other inputs (`AI-05`).
 - **Demo page** — `/components/multiselect` in `DRYL.Website`, built from the
-  `Basics`, `Search`, `Translated`, `Overflow`, `States` and `AiMode` examples under
+  `Basics`, `Search`, `Translated`, `Validation`, `Overflow`, `States` and `AiMode` examples under
   `Components/Examples/MultiSelect/`.
 - **`ComponentCatalog`** — registered as `"Multi Select"` / `multiselect`,
   group `Inputs`, `ClassName` `"DrylMultiSelect"`, AI flag `true` (`REL-04`).
@@ -238,20 +263,13 @@ behaves as described above.
   covered in `tests/js/glide.test.mjs`. The "Search" criteria are covered in
   `tests/DRYL.Components.Tests/DrylMultiSelectSearchTests.cs`, the "Texts and
   announcements" criteria in
-  `tests/DRYL.Components.Tests/DrylMultiSelectTextsTests.cs`, the key list of
+  `tests/DRYL.Components.Tests/DrylMultiSelectTextsTests.cs`, the "Validation"
+  criteria and `Home`, `End` and `ArrowUp` in
+  `tests/DRYL.Components.Tests/DrylMultiSelectFormTests.cs`, the key list of
   `dryl.keynav` in `tests/js/keynav.test.mjs`.
 
 ## Recorded debt (`State: Implemented`)
 
 **Deviations from the acceptance criteria above: none.**
 
-- **Without `Searchable`, `Home` and `End` do nothing**, although
-  `dryl.keynav` suppresses their default; `DrylSelect` handles both. In search
-  mode they move the caret.
-- **`ArrowUp` before any highlight does nothing** rather than starting at the
-  last option.
-- **Option styles are a copy of `DrylSelect`'s**, because scoped CSS does not
-  cross components; the two copies have already drifted (the picked tint exists
-  only here). A shared rule in `dryl.css` would end that.
-- **No `EditForm` integration** — the control is not an `InputBase`, so a
-  validation message for the bound list is never shown.
+*(none)*

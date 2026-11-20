@@ -127,6 +127,7 @@
 
 .multiselect-trigger.input-error { border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
 .multiselect-trigger.input-error:focus,
+.multiselect-trigger.input-error:focus-within,
 .multiselect-trigger.input-error.select--open {
     border-color: var(--danger);
     background: var(--glass-2);
@@ -136,6 +137,7 @@
 
 .multiselect-trigger.input-success { border-color: color-mix(in srgb, var(--success) 50%, transparent); }
 .multiselect-trigger.input-success:focus,
+.multiselect-trigger.input-success:focus-within,
 .multiselect-trigger.input-success.select--open {
     border-color: var(--success);
     background: var(--glass-2);
@@ -143,39 +145,15 @@
                 0 0 24px color-mix(in srgb, var(--success) 18%, transparent);
 }
 
-/* ── Option rows ─────────────────────────────────────────── */
+/* ── Option list ─────────────────────────────────────────── */
 
-/* .select-option base styles live in DrylSelect.razor.css under a different
-   Blazor scope attribute — they never reach DrylMultiSelect elements.
-   Replicate the essentials here so options are actually styled. */
+/* The panel, the option rows and the empty row are styled in dryl.css
+   ("OPTION LIST"), shared with DrylSelect. What follows is the
+   multi-select's own. */
 
-.select-option {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: var(--sp-2) var(--sp-3);
-    border-radius: var(--r-sm);
-    background: transparent;
-    color: var(--fg-muted);
-    font-size: 13px;
-    line-height: 1.4;
-    cursor: pointer;
-    user-select: none;
-    transition: background var(--dur-fast) var(--ease-out),
-                color      var(--dur-fast) var(--ease-out);
-}
-
-.select-option:hover,
-.select-option.is-highlighted { color: var(--fg); }
-
-/* Static fill only without the ink (I38). */
-.select-panel:not([data-glide]) .select-option:hover,
-.select-panel:not([data-glide]) .select-option.is-highlighted { background: var(--glass-2); }
-
-/* Selected rows get a permanent accent tint so checked state reads
-   at a glance without only relying on the checkbox. */
+/* Picked rows get a permanent accent tint so the checked state reads
+   at a glance without relying on the checkbox alone. */
 .select-option.is-selected {
-    color: var(--fg);
     background: color-mix(in srgb, var(--accent-a) 8%, transparent);
 }
 
@@ -184,9 +162,6 @@
 }
 
 /* ── Checkbox column ─────────────────────────────────────── */
-
-/* Suppress the DrylSelect accent dot — multiselect uses checkboxes instead. */
-.multiselect-option.is-selected::after { display: none; }
 
 .multiselect-option { gap: var(--sp-3); }
 
@@ -197,36 +172,9 @@
 
 /* ── Dropdown panel ──────────────────────────────────────── */
 
-/* Positioning (and the enter animation) is provided by the DrylPopover
-   wrapper, which portals the panel to <body> so it escapes any ancestor
-   overflow / backdrop-filter containing block. This is just the surface. */
+/* An accent edge and a faint glow on top of the shared surface. */
 .select-panel {
-    width: 100%;
-    background: var(--panel-float);
-    backdrop-filter: var(--glass-fx-float);
-    -webkit-backdrop-filter: var(--glass-fx-float);
-    border: 1px solid var(--line-strong);
     border-top-color: color-mix(in srgb, var(--accent-a) 35%, transparent);
-    border-radius: var(--r-md);
     box-shadow: var(--shadow-lg),
                 0 0 24px color-mix(in srgb, var(--accent-a) 8%, transparent);
-    padding: var(--sp-1);
-    max-height: 240px;
-    overflow-y: auto;
-    outline: none;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line-strong) transparent;
-}
-
-.select-panel::-webkit-scrollbar       { width: 4px; }
-.select-panel::-webkit-scrollbar-track { background: transparent; }
-.select-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
-
-/* ── Empty state ─────────────────────────────────────────── */
-
-.select-empty {
-    padding: var(--sp-3) var(--sp-4);
-    color: var(--fg-dim);
-    font-size: 13px;
-    text-align: center;
 }

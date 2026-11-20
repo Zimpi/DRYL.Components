@@ -69,11 +69,11 @@
                  role="listbox"
                  class="select-panel"
                  data-dryl-glide="[role=option]"
-                 aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
+                 aria-label="@Texts.ListLabel(Label)">
 
                 @if (_items.Count == 0)
                 {
-                    <div class="select-empty">No options</div>
+                    <div class="select-empty">@Texts.NoOptions</div>
                 }
                 else
                 {
@@ -145,6 +145,12 @@
 
     /// <summary>Resolved aura variant: explicit <see cref="Aura"/> wins, otherwise the inherited scope, otherwise <see cref="AiAura.Comet"/>.</summary>
     private AiAura EffectiveAura => AiScope.ResolveAura(Aura, AiScopeContext);
+
+    /// <summary>
+    /// Every word the select renders of its own: translate with
+    /// <c>SelectTexts.Default with { … }</c>.
+    /// </summary>
+    [Parameter] public SelectTexts Texts { get; set; } = SelectTexts.Default;
 
     /// <summary>The selectable options.</summary>
     [Parameter] public IEnumerable<SelectItem>? Items { get; set; }

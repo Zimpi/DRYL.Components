@@ -1,4 +1,5 @@
 @namespace DRYL.Components
+@using System.Linq.Expressions
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -32,9 +33,14 @@
 
     The panel stays open while selecting; use Escape or Tab to close.
     Keyboard: ArrowDown/Up navigate, Space/Enter toggle highlighted,
-    Escape/Tab closes. In search mode Space types, Backspace in an empty
+    Home/End jump to the first/last option, Escape/Tab closes. In search
+    mode Space types, Home/End move the caret, Backspace in an empty
     field marks and then removes the last chip, and Escape clears the
     query before it closes.
+
+    Inside an EditForm, @bind-SelectedValues reports each change to the
+    EditContext; a validation message for the bound list replaces the
+    helper text and turns the field to its error state.
     ───────────────────────────────────────────────────────── *@
 
 <div class="field">
@@ -84,6 +90,7 @@
                                aria-controls="@_listboxId"
                                aria-activedescendant="@ActiveDescendant"
                                aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                               aria-invalid="@(HasValidationError ? "true" : null)"
                                aria-describedby="@(ShowHelper ? _helperId : null)"
                                @oninput="HandleSearchInput"
                                @onkeydown="HandleSearchKeyDown" />
@@ -101,6 +108,7 @@
                          aria-controls="@_listboxId"
                          aria-activedescendant="@ActiveDescendant"
                          aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                         aria-invalid="@(HasValidationError ? "true" : null)"
                          aria-describedby="@(ShowHelper ? _helperId : null)"
                          @onclick="Toggle"
                          @onkeydown="HandleKeyDown">
@@ -165,7 +173,13 @@
         </PanelContent>
     </DrylPopover>
 
-    @if (!string.IsNullOrEmpty(HelperText))
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", _editContext!.GetValidationMessages(_field!.Value))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
     {
         <div class="input-helper" id="@_helperId">@HelperText</div>
     }
@@ -182,7 +196,7 @@
     /// <summary>Placeholder shown when nothing is selected. When set, wins over <see cref="MultiSelectTexts.Placeholder"/>.</summary>
     [Parameter] public string? Placeholder { get; set; }
 
-    /// <summary>Helper text shown below the control.</summary>
+    /// <summary>Helper text shown below the control. Replaced by validation messages when present.</summary>
     [Parameter] public string? HelperText { get; set; }
 
     /// <summary>The selectable options.</summary>
@@ -194,10 +208,17 @@
     /// <summary>Raised when the selection changes.</summary>
     [Parameter] public EventCallback<IReadOnlyList<string>> SelectedValuesChanged { get; set; }
 
+    /// <summary>
+    /// Names the bound field for a surrounding <c>EditForm</c>; <c>@bind-SelectedValues</c> supplies it.
+    /// With it, every change is reported to the <c>EditContext</c> and a validation message for the
+    /// field replaces <see cref="HelperText"/>.
+    /// </summary>
+    [Parameter] public Expression<Func<IReadOnlyList<string>>>? SelectedValuesExpression { get; set; }
+
     /// <summary>Maximum number of chips shown before collapsing to "+N".</summary>
     [Parameter] public int MaxVisibleChips { get; set; } = 3;
 
-    /// <summary>Visual state.</summary>
+    /// <summary>Visual state override. A validation message for the bound field overrides this.</summary>
     [Parameter] public InputState State { get; set; } = InputState.Default;
 
     /// <summary>If true, the control is greyed out and non-interactive.</summary>
@@ -236,6 +257,9 @@
     /// </summary>
     [Parameter] public MultiSelectTexts Texts { get; set; } = MultiSelectTexts.Default;
 
+    /// <summary>The surrounding <c>EditForm</c>'s context, when there is one.</summary>
+    [CascadingParameter] private EditContext? CascadedEditContext { get; set; }
+
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
 
@@ -259,6 +283,11 @@
     // Text of the polite live region; see the markup.
     private string _live = string.Empty;
 
+    // The form this field reports to: set only while both an EditContext and the
+    // bound field's expression are there.
+    private EditContext? _editContext;
+    private FieldIdentifier? _field;
+
     private DrylPopover? _popover;
     private ElementReference _trigger;
     private ElementReference _searchInput;
@@ -276,6 +305,7 @@
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
         _items = Items?.ToList() ?? [];
+        SyncEditContext();
         if (!Searchable && _query.Length > 0) { _query = string.Empty; Disarm(); }
         ComputeMatches();
         if (_highlightedIndex >= _matches.Count) _highlightedIndex = _matches.Count - 1;
@@ -303,6 +333,31 @@
             _attached = true;
         }
         catch (JSDisconnectedException) { /* circuit closing during prerender — ignore */ }
+    }
+
+    private void SyncEditContext()
+    {
+        var context = SelectedValuesExpression is null ? null : CascadedEditContext;
+        if (!ReferenceEquals(context, _editContext))
+        {
+            if (_editContext is not null) _editContext.OnValidationStateChanged -= HandleValidationStateChanged;
+            _editContext = context;
+            if (_editContext is not null) _editContext.OnValidationStateChanged += HandleValidationStateChanged;
+        }
+        _field = _editContext is null ? null : FieldIdentifier.Create(SelectedValuesExpression!);
+    }
+
+    private void HandleValidationStateChanged(object? sender, ValidationStateChangedEventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    private bool HasValidationError =>
+        _editContext is not null && _field is { } id && _editContext.GetValidationMessages(id).Any();
+
+    /// <summary>Raises the change and, inside a form, reports the field as modified.</summary>
+    private async Task CommitAsync(List<string> values)
+    {
+        await SelectedValuesChanged.InvokeAsync(values.AsReadOnly());
+        if (_editContext is not null && _field is { } id) _editContext.NotifyFieldChanged(id);
     }
 
     private RenderFragment Chips => __builder =>
@@ -429,7 +484,7 @@
         else
             current.Add(item.Value);
 
-        await SelectedValuesChanged.InvokeAsync(current.AsReadOnly());
+        await CommitAsync(current);
     }
 
     private async Task RemoveValue(string value)
@@ -438,7 +493,7 @@
         var current = new List<string>(SelectedValues);
         if (!current.Remove(value)) return;
         _live = Texts.Removed(LabelOf(value));
-        await SelectedValuesChanged.InvokeAsync(current.AsReadOnly());
+        await CommitAsync(current);
     }
 
     /// <summary>Takes the mark off the last chip, and its announcement with it.</summary>
@@ -469,11 +524,23 @@
                 break;
 
             case "ArrowUp":
-                if (_isOpen && _highlightedIndex > 0)
-                {
-                    _highlightedIndex--;
-                    await ScrollHighlightedIntoView();
-                }
+                // Closed, or open without a highlight: start at the last option.
+                if (!_isOpen) { _isOpen = true; _highlightedIndex = count - 1; break; }
+                if (_highlightedIndex < 0) _highlightedIndex = count - 1;
+                else if (_highlightedIndex > 0) _highlightedIndex--;
+                await ScrollHighlightedIntoView();
+                break;
+
+            case "Home":
+                if (!_isOpen || count == 0) break;
+                _highlightedIndex = 0;
+                await ScrollHighlightedIntoView();
+                break;
+
+            case "End":
+                if (!_isOpen || count == 0) break;
+                _highlightedIndex = count - 1;
+                await ScrollHighlightedIntoView();
                 break;
 
             case "Enter":
@@ -527,11 +594,11 @@
 
             case "ArrowUp":
                 Disarm();
-                if (_isOpen && _highlightedIndex > 0)
-                {
-                    _highlightedIndex--;
-                    await ScrollHighlightedIntoView();
-                }
+                // Closed, or open without a highlight: start at the last listed option.
+                if (!_isOpen) { _isOpen = true; _highlightedIndex = count - 1; break; }
+                if (_highlightedIndex < 0) _highlightedIndex = count - 1;
+                else if (_highlightedIndex > 0) _highlightedIndex--;
+                await ScrollHighlightedIntoView();
                 break;
 
             case "Enter":
@@ -616,7 +683,7 @@
             if (Searchable) c += " multiselect-trigger--search";
             if (_isOpen)   c += " select--open";
             if (Disabled)  c += " select--disabled";
-            if (State == InputState.Error)   c += " input-error";
+            if (HasValidationError || State == InputState.Error) c += " input-error";
             else if (State == InputState.Success) c += " input-success";
             return c;
         }
@@ -630,12 +697,13 @@
         return c;
     }
 
-    private bool ShowHelper => !string.IsNullOrEmpty(HelperText);
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
 
     public async ValueTask DisposeAsync()
     {
         _disposed = true;
         _aura.Dispose();
+        if (_editContext is not null) _editContext.OnValidationStateChanged -= HandleValidationStateChanged;
         if (!_attached || _keynavElement is not { } el) return;
         try { await JS.InvokeVoidAsync("dryl.keynav.detach", el); }
         catch (JSDisconnectedException) { /* circuit already gone — ignore */ }

@@ -1006,6 +1006,62 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   border: 0;
 }
 
+/* ============== OPTION LIST ==============
+   The list surface DrylSelect and DrylMultiSelect open in a popover: the
+   panel, its option rows and its empty row. It lives here because scoped
+   CSS does not cross components; each component's stylesheet only adds
+   what is its own (the select's dot, the multi-select's tint and box). */
+.select-panel {
+  width: 100%;
+  background: var(--panel-float);
+  backdrop-filter: var(--glass-fx-float);
+  -webkit-backdrop-filter: var(--glass-fx-float);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--sp-1);
+  max-height: 240px;
+  overflow-y: auto;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.select-panel::-webkit-scrollbar       { width: 4px; }
+.select-panel::-webkit-scrollbar-track { background: transparent; }
+.select-panel::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+
+.select-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease-out),
+              color      var(--dur-fast) var(--ease-out);
+}
+.select-option:hover,
+.select-option.is-highlighted,
+.select-option.is-selected { color: var(--fg); }
+
+/* The static fill is the fallback for a list without the ink (I38): once
+   dryl.motion.glideScan marks the listbox data-glide, the ink is the fill. */
+.select-panel:not([data-glide]) .select-option:hover,
+.select-panel:not([data-glide]) .select-option.is-highlighted { background: var(--glass-2); }
+
+.select-empty {
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--fg-dim);
+  font-size: 13px;
+  text-align: center;
+}
+
 /* ============== INPUTS ============== */
 .input,
 .textarea,

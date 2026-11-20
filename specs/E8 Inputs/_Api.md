@@ -47,6 +47,26 @@ There are no item-level disabled, group, icon or template members. `DrylSelect`
 preserves enumeration order and uses string equality to match `Value`; it does
 not enforce uniqueness or membership of the bound value.
 
+## `SelectTexts`
+
+Defined in `code/DRYL.Components/Components/Inputs/SelectTexts.cs`. A record
+of `init` members with English defaults, reached through `SelectTexts.Default`
+and passed to `DrylSelect.Texts`: `NoOptions` (`string`) and `ListLabel`
+(`Func<string?, string>`, receives the field's `Label`). Translate with
+`SelectTexts.Default with { … }`.
+
+## `@bind-SelectedValues` — `DrylMultiSelect`
+
+`DrylMultiSelect` is not an `InputBase`. It binds `SelectedValues`
+(`IReadOnlyList<string>`, default `[]`) through `SelectedValuesChanged`
+(`EventCallback<IReadOnlyList<string>>`); it never mutates `SelectedValues` and
+reports each change as a new list. `@bind-SelectedValues` also supplies
+`SelectedValuesExpression` (`Expression<Func<IReadOnlyList<string>>>?`). With
+that expression and a cascaded `EditContext` the control notifies the context
+after every change and shows the field's validation messages, with the same
+precedence over `State` as the `InputBase` inputs above. Without either it has
+no `EditContext` integration.
+
 ## `MultiSelectTexts`
 
 Defined in `code/DRYL.Components/Components/Inputs/MultiSelectTexts.cs`. A
