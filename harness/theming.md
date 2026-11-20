@@ -30,6 +30,10 @@ after startup, switch via the service):
 <DrylThemeProvider Mode="DrylColorMode.Dark" />
 ```
 
+`Theme`, by contrast, follows its value: bind it to a field and a changed theme
+is applied. A theme picked at runtime through the service stays until the
+parameter itself changes.
+
 Switch at runtime via the same service that switches themes:
 
 ```csharp
@@ -49,6 +53,20 @@ dark surface in both modes** (`--code-bg` / `--code-fg`); `DrylCodeBlock` follow
 mode with its token-mapped syntax colors.
 
 ---
+
+## Content Security Policy
+
+The provider writes two inline elements: a `<style>` with the theme seeds and a
+small `<script>` that restores the stored color mode before first paint. Under
+a policy without `'unsafe-inline'`, pass the nonce of the current response and
+both carry it:
+
+```razor
+<DrylThemeProvider Nonce="@_nonce" />
+```
+
+Without a nonce such a policy blocks both: the default look paints first, and
+the stored mode arrives late.
 
 ## Built-in presets
 

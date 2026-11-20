@@ -76,8 +76,9 @@ service — see `_Api.md`, section *Theming*).
 
 | Member | Type | Default | Purpose |
 |---|---|---|---|
-| `Theme` | `DrylTheme?` | `null` | The theme to apply on startup. `null` keeps the service's current theme, which starts as `DrylThemes.Default`. |
-| `Mode` | `DrylColorMode` | `DrylColorMode.System` | The colour mode to start in. A persisted explicit choice wins over it. |
+| `Theme` | `DrylTheme?` | `null` | The theme to apply; a changed value is applied again. `null` keeps the service's current theme, which starts as `DrylThemes.Default`. |
+| `Mode` | `DrylColorMode` | `DrylColorMode.System` | The colour mode to start in — a startup value. A persisted explicit choice wins over it. |
+| `Nonce` | `string?` | `null` | Content Security Policy nonce, written onto the inline `<style>` and `<script>`. |
 
 `IDrylThemeService`:
 
@@ -111,6 +112,23 @@ service — see `_Api.md`, section *Theming*).
   `--chart-6`); a `null` or blank member emits nothing.
 - The first paint carries the seeds without any JS call.
 
+### The `Theme` parameter after startup
+
+- A `Theme` value different from the one last passed is set on the service, so
+  the parameter can be bound to a field.
+- Themes compare by value: an equal `DrylTheme` built anew on a parent render
+  is not applied again and raises no `OnThemeChanged`.
+- A theme set through `IDrylThemeService` stays when the parent re-renders with
+  the unchanged `Theme` parameter; only a change of the parameter replaces it.
+- `Theme` changing to `null` keeps the current theme.
+
+### Content Security Policy
+
+- With `Nonce` set, the `<style>` element carries it as its `nonce` attribute.
+- With `Nonce` set, the pre-paint `<script>` carries it as its `nonce`
+  attribute, HTML-encoded.
+- With `Nonce` `null` or empty, neither element carries a `nonce` attribute.
+
 ### Runtime theme change
 
 - After `IDrylThemeService.SetThemeAsync`, the provider re-renders its `<style>`
@@ -128,6 +146,8 @@ service — see `_Api.md`, section *Theming*).
 
 ### Colour mode
 
+- `Mode` is a startup value: changing it on a mounted provider changes neither
+  `IDrylThemeService.CurrentMode` nor the document.
 - The component renders one inline pre-paint `<script>`.
 - The script reads `dryl-color-mode` from `localStorage`.
 - A stored `light` or `dark` sets `data-dryl-mode` to that value on the
@@ -188,10 +208,9 @@ service — see `_Api.md`, section *Theming*).
 
 ## Recorded debt
 
-- **Parameters are read once.** `Theme` and `Mode` are evaluated in
-  `OnInitializedAsync` only; changing either on a mounted provider has no
-  effect. The theming guide calls `Mode` a startup value, but neither parameter
-  says so in code.
+- **`Mode` is read once, by design.** It is the mode to start in; changing it
+  on a mounted provider has no effect, because a reactive `Mode` would override
+  the user's own choice. Its doc comment says so.
 - **Semantic overrides do not glide.** `--success`, `--warning`, `--danger` and
   `--info` are not registered `@property` colours and are absent from the
   `:root` transition list, so a theme change that alters them snaps while the
@@ -209,12 +228,6 @@ service — see `_Api.md`, section *Theming*).
 - **The storage contract is written twice.** The pre-paint script repeats the
   key `dryl-color-mode` and the `light`/`dark` filter of `dryl.theme.storedMode`
   in `dryl.js`; they are kept in sync by a comment only.
-- **Inline script and style vs. a strict CSP.** The pre-paint `<script>` and the
-  seed `<style>` are inline; an app with a Content Security Policy without
-  `'unsafe-inline'` (or a nonce/hash) blocks both.
-- **Theme equality is by reference.** `Theme` is applied when it is not
-  `ReferenceEquals` to `Current`; a structurally equal new instance still
-  raises `OnThemeChanged` (harmless, but a redundant apply).
 - **`SetThemeAsync` always raises.** Setting the current theme again raises
   `OnThemeChanged` and re-applies it; `SetModeAsync`, by contrast, is a no-op
   for the current mode.

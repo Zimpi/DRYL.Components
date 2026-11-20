@@ -19,52 +19,82 @@
     the derived color-mix chain glide.
     ───────────────────────────────────────────────────────── *@
 
-<style>@($":root {{ {_vars} }}")</style>
+<style nonce="@Nonce">@($":root {{ {_vars} }}")</style>
 @((MarkupString)_modeScript)
 
 @code {
     /// <summary>
-    /// The theme to apply on startup. When omitted, <see cref="DrylThemes.Default"/>
-    /// (the signature DRYL look) is used. After startup, switch themes at runtime
-    /// via <see cref="IDrylThemeService"/>.
+    /// The theme to apply. When omitted, <see cref="DrylThemes.Default"/> (the
+    /// signature DRYL look) is used. Passing a different theme later applies it,
+    /// so the parameter can be bound to a field. A theme set at runtime through
+    /// <see cref="IDrylThemeService"/> stays until this parameter itself changes.
     /// </summary>
     [Parameter] public DrylTheme? Theme { get; set; }
 
     /// <summary>
-    /// The color mode to start in. Defaults to <see cref="DrylColorMode.System"/>
+    /// The color mode to start in — a startup value only: changing it on a
+    /// mounted provider has no effect. Defaults to <see cref="DrylColorMode.System"/>
     /// (follow the OS). A persisted explicit user choice — made earlier via
     /// <see cref="IDrylThemeService.SetModeAsync"/> — wins over this parameter.
+    /// To switch the mode at runtime, call <see cref="IDrylThemeService.SetModeAsync"/>.
     /// </summary>
     [Parameter] public DrylColorMode Mode { get; set; } = DrylColorMode.System;
+
+    /// <summary>
+    /// The Content Security Policy nonce of the current response. The provider
+    /// writes an inline <c>&lt;style&gt;</c> and an inline <c>&lt;script&gt;</c>;
+    /// under a policy without <c>'unsafe-inline'</c> pass the nonce here and both
+    /// carry it. Leave null when your policy allows inline code or you have none.
+    /// </summary>
+    [Parameter] public string? Nonce { get; set; }
 
     private string _vars = "";
     private string _modeScript = "";
     private bool _attached;
     private bool _persist = true;
 
+    // The Theme parameter as last applied. Compared against the parameter, not
+    // against the service: a theme picked at runtime must survive the next
+    // parent render that passes the unchanged parameter again.
+    private DrylTheme? _appliedParameter;
+
     protected override async Task OnInitializedAsync()
     {
         ThemeService.OnThemeChanged += HandleChangedAsync;
         ThemeService.OnModeChanged += HandleModeChangedAsync;
 
-        if (Theme is not null && !ReferenceEquals(Theme, ThemeService.Current))
+        if (Theme is not null && !Equals(Theme, ThemeService.Current))
         {
             // Updates _vars through the handler; JS is skipped because we are not
             // attached yet, so the inline <style> below carries the initial paint.
             await ThemeService.SetThemeAsync(Theme);
         }
 
+        _appliedParameter = Theme;
         _vars = ThemeService.Current.ToCssVariables();
 
         // Pre-paint restore script: runs during HTML parsing, before first paint,
         // so a persisted explicit choice (or this Mode fallback) never flashes.
         // Kept in sync with dryl.theme.applyMode/storedMode in dryl.js.
         var p = Mode switch { DrylColorMode.Light => "light", DrylColorMode.Dark => "dark", _ => "" };
+        var nonce = string.IsNullOrEmpty(Nonce)
+            ? ""
+            : " nonce=\"" + System.Net.WebUtility.HtmlEncode(Nonce) + "\"";
         _modeScript =
-            "<script>(function(){try{var p='" + p + "';" +
+            "<script" + nonce + ">(function(){try{var p='" + p + "';" +
             "var m=localStorage.getItem('dryl-color-mode');" +
             "m=(m==='light'||m==='dark')?m:p;" +
             "if(m){document.documentElement.setAttribute('data-dryl-mode',m);}}catch(e){}})();</script>";
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Records compare by value, so an equal theme built anew on every parent
+        // render (Theme="@(new DrylTheme { … })") is not applied again.
+        if (Theme is null || Equals(Theme, _appliedParameter)) return;
+        _appliedParameter = Theme;
+        if (!Equals(Theme, ThemeService.Current))
+            await ThemeService.SetThemeAsync(Theme);
     }
 
     private async Task HandleChangedAsync()
