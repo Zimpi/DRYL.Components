@@ -3,7 +3,7 @@
 ## Meta
 - **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Layout/DrylTypo.razor
-              code/DRYL.Components/Components/Layout/DrylTypo.razor.css
+              code/DRYL.Components/wwwroot/dryl.css
 
 ## User Story
 
@@ -16,10 +16,9 @@ outline, and body copy reads in the right colour without hand-written classes.
 
 `DrylTypo` renders its content as a single element for one step of the type
 scale. `Variant` picks the rendered tag and a `.typo-*` class; `As`
-independently overrides the tag. The variant classes are styled in
-`DrylTypo.razor.css`, but that scoped stylesheet does not reach the element
-(see Recorded debt), so **today the look follows the rendered tag** through the
-element rules in `dryl.css` — an `h1` looks like an `h1` whatever the variant. `Color` swaps the variant's colour for one
+independently overrides the tag. The variant classes are styled in the TYPE
+section of `dryl.css`, where a class outranks the element rules — the look
+follows the variant, not the tag. `Color` swaps the variant's colour for one
 of the `--fg*` tokens, `Align` sets the text alignment, and `Gradient` fills the
 text with the accent gradient through the shared `.gradient-text` primitive.
 
@@ -70,12 +69,21 @@ Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
 - `Variant` defaults to `DrylTypo.TypoVariant.Body`.
 - Each variant adds its own class: `.typo-h1`, `.typo-h2`, `.typo-h3`,
   `.typo-h4`, `.typo-lead`, `.typo-body`, `.typo-caption`, `.typo-eyebrow`.
-- The element carries no scoped-CSS attribute, so the rules of
-  `DrylTypo.razor.css` do not apply to it.
-- An `h1`–`h4` element takes size, weight, line height and letter spacing from
-  the heading element rules of `dryl.css`.
-- A `p` element reads `--fg-muted` and has no margin, from the `p` element rule
-  of `dryl.css`.
+- The variant class sets the look whatever tag is rendered: an
+  `DrylTypo.TypoVariant.H2` with `As="h1"` has the size, weight, line height
+  and letter spacing of the `h2` step.
+- The heading variants share their step with the `h1`–`h4` element rules of
+  `dryl.css` and read `--fg`.
+- `DrylTypo.TypoVariant.Lead` is the 17 px step in `--fg-muted`, at most `64ch`
+  wide.
+- `DrylTypo.TypoVariant.Body` is the 14 px step in `--fg-muted`.
+- `DrylTypo.TypoVariant.Caption` is the 12 px step in `--fg-dim`.
+- `DrylTypo.TypoVariant.Eyebrow` is the 11 px uppercase `--font-mono` step in
+  `--fg-dim`, shared with `.eyebrow`.
+- The element has no margin.
+- The rules live in the TYPE section of `dryl.css`, not in a scoped
+  stylesheet: the element is built with a `RenderTreeBuilder` and carries no
+  scoped-CSS attribute.
 
 ### Color
 
@@ -92,6 +100,8 @@ Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
 - `Gradient` adds `.gradient-text` to the element.
 - Under `.gradient-text`, the text is filled with `--accent-grad`.
 - With `Gradient`, `Color` writes no inline colour.
+- The gradient shows on every variant: `.gradient-text` follows the `.typo-*`
+  rules in `dryl.css`, so its transparent colour wins over the variant's.
 
 ### Alignment
 
@@ -111,21 +121,9 @@ Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
 
 ## Recorded debt
 
-- **The scoped stylesheet is dead.** The element is built with a
-  `RenderTreeBuilder` in `@code` (`DrylTypo.Render`), and the Razor compiler
-  adds the scoped-CSS attribute only to template markup. Every rule in
-  `DrylTypo.razor.css` — `.typo`, `.typo-h1` … `.typo-eyebrow` — therefore never
-  matches: `Variant` does not drive the look, `Lead`, `Body`, `Caption` and
-  `Eyebrow` render with no step of their own, and an `H2` variant rendered with
-  `As="h1"` looks like an `h1`, contrary to the component's documented
-  contract. Verified on the running demo page, where the element carries no
-  `b-*` attribute. Note that a fix which makes the scoped rules match would
-  also let `.typo-h*`'s `color: var(--fg)` outrank `.gradient-text`'s
-  transparent colour and hide the gradient.
 - **Literal type scale (`DESIGN-01`).** Font sizes, line heights and letter
-  spacing of every `.typo-*` class are literals in `DrylTypo.razor.css`, as is
-  the `h1`–`h4` scale in `dryl.css` that actually applies; there are no type
-  tokens.
+  spacing of every `.typo-*` class and of the `h1`–`h4` scale it shares are
+  literals in `dryl.css`; there are no type tokens.
 - **`TypoAlign.End` is physical.** It writes `right`, not `end`, so it does not
   flip in a right-to-left document.
 - **`As` is an unchecked string.** Any value becomes the tag; there is no guard
@@ -140,8 +138,9 @@ Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
 - **Enter/exit animation** — **no**, by written exception (`DESIGN-11`): static
   text with no state of its own; entrance motion is composed with `DrylReveal`.
 - **Keyboard and a11y** — semantic tag per variant, overridable with `As` for
-  the document outline; no focus stop. The decoupling of look from tag that
-  `As` promises is broken, as recorded above.
+  the document outline; no focus stop. Look and tag are decoupled: measured on
+  `/components/typography`, `Variant` `H2` with `As="h1"` computes the 32 px
+  step (2026-11-20).
 - **AI mode** — **no** (`AI-05`): a type primitive renders text, not a surface;
   streamed or generated text is carried by the AI components around it.
 - **Demo page** — `/components/typography`

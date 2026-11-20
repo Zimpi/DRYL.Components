@@ -47,6 +47,7 @@ Version bump guide:
 - `DRYL.Components` — Minimum `Markdig` raised from 1.3.2 to 1.6.0. No API of this package changes; consumers pinned to an older Markdig need to move up with it.
 
 ### Fixed
+- `DrylTypo` — `Variant` now sets the look, as documented. Until now the look followed the rendered tag: `Lead`, `Caption` and `Eyebrow` rendered as plain body text, and `Variant="DrylTypo.TypoVariant.H2" As="h1"` looked like an `h1`. Text you render through `DrylTypo` with one of these variants changes size and color accordingly; `Body` and the heading variants on their own tag look as before.
 - `DrylRating` — The glow behind the filled stars no longer turns green while `Thinking`.
 
 ### Security

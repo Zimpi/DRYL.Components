@@ -543,13 +543,18 @@ body::before {
 #root { position: relative; z-index: 2; min-height: 100vh; }
 
 /* ============== TYPE ============== */
-h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
-h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; }
-h2 { font-size: 32px; line-height: 1.15; letter-spacing: -0.025em; }
-h3 { font-size: 20px; line-height: 1.3; }
-h4 { font-size: 15px; line-height: 1.4; }
+/* The heading steps are written once, for the element and for DrylTypo's
+   variant class. A class outranks an element selector, so a DrylTypo looks
+   like its Variant whatever tag `As` renders: `.typo-h2` on an <h1> is the h2
+   step, weight and tracking included. */
+h1, h2, h3, h4,
+.typo-h1, .typo-h2, .typo-h3, .typo-h4 { margin: 0; font-weight: 600; letter-spacing: -0.02em; }
+h1, .typo-h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; }
+h2, .typo-h2 { font-size: 32px; line-height: 1.15; letter-spacing: -0.025em; }
+h3, .typo-h3 { font-size: 20px; line-height: 1.3; }
+h4, .typo-h4 { font-size: 15px; line-height: 1.4; }
 
-.eyebrow {
+.eyebrow, .typo-eyebrow {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.18em;
@@ -559,6 +564,18 @@ h4 { font-size: 15px; line-height: 1.4; }
 }
 
 .mono { font-family: var(--font-mono); }
+
+/* DrylTypo — the element is built with a RenderTreeBuilder and carries no
+   scoped-CSS attribute, so its steps live here. The text steps reset weight
+   and tracking, so they hold on a heading tag as well.
+   This block stays ABOVE .gradient-text: the two are equally specific, and the
+   later rule has to win for `Gradient` to keep its transparent colour. */
+.typo { margin: 0; }
+.typo-h1, .typo-h2, .typo-h3, .typo-h4 { color: var(--fg); }
+.typo-lead, .typo-body, .typo-caption { font-weight: 400; letter-spacing: normal; }
+.typo-lead    { font-size: 17px; line-height: 1.55; color: var(--fg-muted); max-width: 64ch; }
+.typo-body    { font-size: 14px; line-height: 1.5;  color: var(--fg-muted); }
+.typo-caption { font-size: 12px; line-height: 1.4;  color: var(--fg-dim); }
 
 .gradient-text {
   background: var(--accent-grad);
