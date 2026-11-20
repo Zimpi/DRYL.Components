@@ -81,9 +81,15 @@
      floating surfaces only.
 
      An app that wants frost everywhere can have it back in one line:
-     --glass-fx-flow: blur(var(--glass-blur)) saturate(140%); */
+     --glass-fx-flow: blur(var(--glass-blur)) saturate(140%);
+
+     And one thin frost for a layer you are meant to keep seeing through: the
+     scrim behind a dialog or a flyout sidebar, and the depth-glass pane. The
+     float tier would smear the page behind a dialog and charge a full-viewport
+     layer its heavy blur; the flow tier is none. */
   --glass-fx-float: blur(24px) saturate(160%);
   --glass-fx-flow:  none;
+  --glass-fx-thin:  blur(8px);
 
   /* Text */
   --fg:            #f4f4f7;
@@ -1609,8 +1615,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .dg-surface {
   border-radius: var(--r-lg);
   background: var(--glass-1);
-  backdrop-filter: blur(8px) saturate(1.5);
-  -webkit-backdrop-filter: blur(8px) saturate(1.5);
+  backdrop-filter: var(--glass-fx-thin);
+  -webkit-backdrop-filter: var(--glass-fx-thin);
   border: 1px solid var(--depth-edge);
   box-shadow:
     0 12px 36px color-mix(in srgb, var(--depth-shadow) 76%, transparent),
@@ -1860,7 +1866,8 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   position: fixed;
   inset: 0;
   background: var(--backdrop);
-  backdrop-filter: blur(4px);
+  backdrop-filter: var(--glass-fx-thin);
+  -webkit-backdrop-filter: var(--glass-fx-thin);
   z-index: 40;
   opacity: 0;
   pointer-events: none;
@@ -4641,8 +4648,8 @@ body.dryl-scroll-locked { overflow: hidden; }
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--backdrop) 92%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: var(--glass-fx-thin);
+  -webkit-backdrop-filter: var(--glass-fx-thin);
   display: grid;
   place-items: center;
   padding: var(--sp-5);

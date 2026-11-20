@@ -109,6 +109,8 @@ evidence**.
 ### Surface
 
 - The pane's fill is `--glass-1`.
+- The pane's `backdrop-filter` is `--glass-fx-thin`: what lies behind the pane
+  is softened and stays readable as shape.
 - The pane's corner radius is `--r-lg`.
 - The pane's border and inset edge highlights read `--depth-edge` and
   `--depth-edge-strong`.
@@ -126,12 +128,6 @@ evidence**.
 
 ## Recorded debt
 
-- **Hand-written frost on an in-flow surface.** `.dg-surface` in `dryl.css`
-  declares `backdrop-filter: blur(8px) saturate(1.5)` instead of `--glass-fx-flow`
-  (`DESIGN-06`, `DESIGN-07`); the `DESIGN-07` check line names it. Moving it
-  onto `--glass-fx-flow` was tried on 2026-11-20 and withdrawn: with the
-  default tier the ground shows sharp through the pane and the glass reads as
-  a tinted outline. Which tier the pane belongs to is an open design question.
 - **Literal shadow geometry.** The `.dg-surface` shadow and the `.dg-warp:hover`
   shadow write their offsets, blur radii and inset widths as literals around the
   `--depth-*` colour tokens (`DESIGN-01`: every shadow references a variable).

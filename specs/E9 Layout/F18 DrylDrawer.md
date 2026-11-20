@@ -64,6 +64,8 @@ from `DrylLayout`.
 - The root renders as an `aside` with class `sidebar`.
 - The sidebar's `backdrop-filter` is `--glass-fx-float`, the floating glass
   tier.
+- The `.sidebar-backdrop` scrim frosts what is behind it with
+  `--glass-fx-thin`.
 - The root carries `tabindex="-1"`.
 - `Class` is appended to the root's class list.
 - Unmatched attributes are applied to the root.

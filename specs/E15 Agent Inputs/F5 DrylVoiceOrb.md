@@ -117,6 +117,9 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`.
 
 ### Appearance
 
+- The core's `backdrop-filter` is `--glass-fx-float`: the orb is a floating
+  mark, wherever a host places it.
+
 - The orb is a circle of radius `--r-pill`.
 - The core is glass: a radial highlight of `--glass-2` over `--glass-1`, with a
   border of `--line`.
@@ -138,8 +141,6 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`.
 
 ## Recorded debt
 
-- **Frost on an in-flow surface.** The core uses `--glass-fx-float`, the
-  floating-surface frost, wherever the orb is placed (`DESIGN-06`).
 - **Literal geometry.** The level-to-scale factor, the `--orb-size` fallback,
   the core's border width and the radial highlight's size and position are
   literals (`DESIGN-01`).

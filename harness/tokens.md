@@ -47,6 +47,7 @@ Tokens listed below with a single value are identical in both modes.
 | `--glass-blur`   | `18px`                     | (same)                     | Default `backdrop-filter` blur radius.             |
 | `--glass-fx-flow`| `none`                     | (same)                     | Frosting for surfaces **in the flow** — see below. |
 | `--glass-fx-float`| `blur(24px) saturate(160%)`| (same)                    | Frosting for surfaces that **float over content**. |
+| `--glass-fx-thin`| `blur(8px)`                | (same)                     | A thin frost for a layer you keep **seeing through**: scrims, the depth-glass pane. |
 | `--panel-float`  | `rgba(16,16,22,0.76)`      | `rgba(252,252,255,0.76)`   | Fill for floating flat panels (menu, popover, select). |
 
 **Frost is charged per surface.** A `backdrop-filter` makes the browser re-sample
@@ -62,6 +63,11 @@ pays for it where it shows:
   (measured: 0.84 of 255 average) while costing multiples of the page's GPU draw.
 - **Opaque** — no frost at all. A surface you cannot see through can never show a
   backdrop-filter; adding one is pure cost.
+- **Meant to be seen through** (the scrim behind a dialog or a flyout sidebar,
+  the `DrylDepthGlass` pane) — a thin frost, `--glass-fx-thin`. It softens what
+  lies behind without hiding it, and a full-viewport scrim does not pay the
+  float tier's heavy blur. It is not a third tier to choose freely: a floating
+  surface takes the float tier, a surface in the flow the flow tier.
 
 An app that wants frost on everything sets one line:
 `--glass-fx-flow: blur(var(--glass-blur)) saturate(140%);`
