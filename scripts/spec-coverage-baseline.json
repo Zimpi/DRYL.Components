@@ -1,16 +1,4 @@
 {
   "version": 1,
-  "uncovered": [
-    "code/DRYL.Components.Agents/Agents/DrylAgentError.razor",
-    "code/DRYL.Components.Agents/Agents/DrylAgentUsage.razor",
-    "code/DRYL.Components.Agents/Agents/DrylHandoffTrace.razor",
-    "code/DRYL.Components.Agents/CommandPalette/DrylAiCommandPalette.razor",
-    "code/DRYL.Components.Agents/Display/DrylAgentAttachments.razor",
-    "code/DRYL.Components.Agents/Generation/DrylAiBuild.razor",
-    "code/DRYL.Components.Agents/Generation/DrylAiGenerate.razor",
-    "code/DRYL.Components.Agents/Tools/DrylAskChoiceDialog.razor",
-    "code/DRYL.Components.Agents/Tools/DrylAskMultiChoiceDialog.razor",
-    "code/DRYL.Components.Agents/Tools/DrylAskTextDialog.razor",
-    "code/DRYL.Components.Agents/Voice/DrylVoiceOrb.razor"
-  ]
+  "uncovered": []
 }

@@ -9,8 +9,11 @@ The voice types below record the existing public surface and the cancellation
 contract adopted from [I13](../../ideas/I13%20Performance%20and%20hardening%20update.md).
 The implementation uses an internal attempt-owned callback target; the verification
 record below distinguishes .NET, deterministic JS and live-browser evidence. This
-companion file has no `Meta` block and claims no component coverage (`SPEC-03`). Shared
-Field, CommandPalette and Generation types remain phase-C documentation debt.
+companion file has no `Meta` block and claims no component coverage (`SPEC-03`).
+The CommandPalette and Generation types follow the voice types below. The Field
+folder's own types (`AiFieldTexts` and its helpers) are documented in
+[`F1 DrylAiField.md`](F1%20DrylAiField.md), whose `Source` claims them; they have
+no section here yet.
 
 GPT-Live additions are specified by [I14](../../ideas/I14%20GPT-Live%20voice%20delegation.md)
 and implemented alongside the existing Realtime surface.
@@ -384,3 +387,107 @@ The expanded regression cases live in
 exercise the actual attempt callback target, including results already awaiting
 host work. Final command results and browser-engine coverage are recorded in
 `docs/2026-09-15-i13-implementation-plan.md`.
+
+## DrylAiCommandResolver
+
+`public sealed class DrylAiCommandResolver : ICommandResolver`, declared in
+`code/DRYL.Components.Agents/CommandPalette/DrylAiCommandResolver.cs`, in
+namespace `DRYL.Components.Agents`. The core's `ICommandResolver` and
+`CommandResolution` are specified in
+[`../E10 Navigation/_Api.md`](../E10%20Navigation/_Api.md). Behaviour:
+[`F2 DrylAiCommandPalette.md`](F2%20DrylAiCommandPalette.md).
+
+| Public signature | Contract |
+|---|---|
+| `DrylAiCommandResolver(AIAgent agent, Func<CancellationToken, Task<AgentSession>>? sessionFactory = null)` | Resolves through `agent`; a null `sessionFactory` creates a fresh session per resolution. |
+| `Task<CommandResolution?> ResolveAsync(string query, IReadOnlyList<DrylCommand> commands, CancellationToken ct)` | Offers each enabled command as an `AIFunction` named by its `ResolvedId`; returns the command the agent called with its parsed arguments and `Confidence` `1.0`, or `null`. Never runs a command. |
+| `static IReadOnlyDictionary<string, object?> ParseArguments(DrylCommand command, JsonElement args)` | Coerces a JSON object into declared arguments by `CommandArgType`: `Number` → `double?`, `Boolean` → `bool?`, otherwise the string or the raw JSON text. |
+
+## AddDrylCommandResolver
+
+`public static IServiceCollection AddDrylCommandResolver(this IServiceCollection
+services, Func<IServiceProvider, AIAgent> agentFactory)`, declared on
+`ServiceCollectionExtensions` in
+`code/DRYL.Components.Agents/Extensions/ServiceCollectionExtensions.cs`. Registers
+`ICommandResolver` scoped as a `DrylAiCommandResolver` over the factory's agent,
+without a session factory. See [`_Interop.md`](_Interop.md).
+
+## The non-opt-ins of this category
+
+`DrylAiGenerate` and `DrylAiBuild` carry `AiState SettleTo`, default
+`AiState.None`: the state to settle to *after* the `AiState.Generated` reveal.
+The live state comes from the stream or the run, so the parameter never turns
+anything on — it says where to land. They are two of the five non-opt-ins
+`AI-03` names, alongside `DrylAiStream` in `E3 AI`.
+
+`DrylVoiceOrb` carries no `AiState` parameter at all: its state is read from
+`DrylVoiceRun.State`.
+
+## GenerationSnapshot\<T\>
+
+`public sealed class GenerationSnapshot<T>`, declared in
+`code/DRYL.Components.Agents/Generation/GenerationSnapshot.cs`, in namespace
+`DRYL.Components.Agents.Generation`. Handed to `DrylAiGenerate<T>`'s
+`ChildContent`; one instance per component, mutated in place. All setters are
+internal.
+
+| Property | Type | Initial value | Contract |
+|---|---|---|---|
+| `Value` | `T?` | `default` | The best partial value parsed so far. |
+| `State` | `AiState` | `AiState.Thinking` | `Thinking` → `Streaming` → `Generated` → `SettleTo`; `None` on failure. |
+| `IsComplete` | `bool` | `false` | True once the stream has completed. |
+| `Raw` | `string` | `""` | The accumulated JSON buffer up to the last render, before repair. |
+
+## ArtifactSnapshot\<T\>
+
+`public sealed class ArtifactSnapshot<T>`, declared in
+`code/DRYL.Components.Agents/Generation/ArtifactSnapshot.cs`, in namespace
+`DRYL.Components.Agents.Generation`. Handed to `DrylAiBuild<T>`'s `ChildContent`;
+one instance per component, mutated in place. All setters are internal.
+
+| Property | Type | Initial value | Contract |
+|---|---|---|---|
+| `Artifact` | `T?` | `default` | The artifact merged so far. |
+| `State` | `AiState` | `AiState.Thinking` | Mirrors the run; held at `Generated` during the dwell, then `SettleTo`. |
+| `Round` | `int` | `0` | The number of merge steps the run has applied. |
+| `IsComplete` | `bool` | `false` | True once the build has settled after the `Generated` reveal. |
+
+## PartialJsonReader\<T\>
+
+`public sealed class PartialJsonReader<T>`, declared in
+`code/DRYL.Components.Agents/Generation/PartialJsonReader.cs`, in namespace
+`DRYL.Components.Agents.Generation`.
+
+| Public signature | Contract |
+|---|---|
+| `PartialJsonReader(JsonSerializerOptions? options = null)` | Null options use case-insensitive property names, trailing commas allowed and comments skipped. |
+| `string Buffer { get; }` | The raw accumulated buffer. |
+| `T? Current { get; }` | The last successfully parsed snapshot, or `null`. |
+| `void AppendRaw(string chunk)` | Appends without parsing. |
+| `T? Snapshot()` | Repairs and parses the buffer; re-parses only when the buffer has grown; on a `JsonException` or a `null` result keeps the last good snapshot. |
+| `T? Append(string chunk)` | `AppendRaw` followed by `Snapshot`. |
+
+## JsonPartialRepair
+
+`public static class JsonPartialRepair`, declared in
+`code/DRYL.Components.Agents/Generation/JsonPartialRepair.cs`, in namespace
+`DRYL.Components.Agents.Generation`.
+
+`public static string Close(string partial)` returns a parseable JSON string
+derived from a mid-stream buffer: an open string is closed with its content
+kept (a dangling backslash neutralised), open containers are closed innermost
+first, a trailing comma is dropped, a key without a value is dropped, a
+half-written literal is dropped, and a half-written number keeps its longest
+complete numeric prefix.
+
+## JsonMerge
+
+`public static class JsonMerge`, declared in
+`code/DRYL.Components.Agents/Generation/JsonMerge.cs`, in namespace
+`DRYL.Components.Agents.Generation`. Used by `DrylArtifactRun<T>` to apply
+`update_<T>` patches; claimed by no component spec.
+
+`public static JsonNode? Merge(JsonNode? target, JsonNode? patch)` returns a new
+node: objects merge recursively; a scalar, an array or a type mismatch in the
+patch replaces; a JSON `null` value or an absent key leaves the existing value;
+a `null` patch returns `target`.
