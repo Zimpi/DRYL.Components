@@ -28,8 +28,14 @@ public class DrylAiStreamTests : BunitContext
         cut.WaitForAssertion(() => Assert.Contains("Hello", cut.Markup),
             timeout: TimeSpan.FromSeconds(10));
 
-        cut.InvokeAsync(() => channel.Writer.TryWrite("world"));
-        channel.Writer.TryComplete();
+        // Write and complete in one dispatcher call. Completing from the test thread while
+        // the write was still queued on the dispatcher closed the channel first; the write
+        // then returned false, "world" was lost and the wait below ran into its timeout.
+        cut.InvokeAsync(() =>
+        {
+            channel.Writer.TryWrite("world");
+            channel.Writer.TryComplete();
+        });
         cut.WaitForAssertion(() => Assert.Contains("Hello world", cut.Markup),
             timeout: TimeSpan.FromSeconds(10));
     }

@@ -443,8 +443,10 @@ public class DrylAiFieldTests : BunitContext
         {
             var writes = _module.Invocations.Where(i => i.Identifier == "write").ToList();
             Assert.Equal("before", writes[^1].Arguments[1]);
+            // OnRejected fires after the restoring write, on the run's continuation: asserting
+            // it outside this wait raced that continuation.
+            Assert.True(rejected);
         });
-        Assert.True(rejected);
         // Review chips never mounted in this run — no cancel-only path enters Review.
         Assert.Empty(cut.FindAll(".ai-field-review"));
     }
