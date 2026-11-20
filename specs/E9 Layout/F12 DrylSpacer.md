@@ -27,6 +27,7 @@ Namespace: `DRYL.Components`.
 |---|---|---|---|
 | `Size` | `DrylStack.StackGap?` | `null` | Fixed size from the spacing scale; `null` grows to fill. |
 | `Class` | `string?` | `null` | Classes merged onto the spacer's own classes. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the root. |
 
 `DrylStack.StackGap` is specified in [`F13 DrylStack.md`](F13%20DrylStack.md).
@@ -39,6 +40,11 @@ Namespace: `DRYL.Components`.
 - The root carries `aria-hidden="true"`.
 - `Class` is appended to the root's class list.
 - Unmatched attributes are applied to the root.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the flex sizing stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Flexible
 
@@ -65,9 +71,6 @@ Namespace: `DRYL.Components`.
 
 ## Recorded debt
 
-- **A consumer `style` replaces the sizing.** `AdditionalAttributes` is applied
-  after the component's `style`, so a captured `style` attribute overwrites the
-  flex and size declarations.
 - **Fixed size is square.** A fixed spacer sets both width and height, so in a
   horizontal row it also imposes a minimum height on the row, and vice versa.
 

@@ -26,6 +26,7 @@ Namespace: `DRYL.Components`.
 | `Size` | `DrylContainer.ContainerSize` | `ContainerSize.Lg` | Maximum-width preset. |
 | `ChildContent` | `RenderFragment?` | `null` | Container content. |
 | `Class` | `string?` | `null` | Classes appended to the root. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the root. |
 
 Nested enum `DrylContainer.ContainerSize`: `Sm`, `Md`, `Lg`, `Xl`, `Full`.
@@ -38,6 +39,11 @@ Nested enum `DrylContainer.ContainerSize`: `Sm`, `Md`, `Lg`, `Xl`, `Full`.
 - `ChildContent` renders inside it.
 - `Class` is appended to the container's class list.
 - Unmatched attributes are applied to the container.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the width cap, the centring and the inline padding stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Size
 
@@ -60,9 +66,6 @@ Nested enum `DrylContainer.ContainerSize`: `Sm`, `Md`, `Lg`, `Xl`, `Full`.
 - **Literal widths.** The four maximum widths are rem literals in the
   component's C# (`DrylContainer.Style`), not tokens (`DESIGN-01`); the
   padding's viewport factor is a literal too.
-- **A consumer `style` replaces the sizing.** The splatted attributes come
-  after the computed `style`, so a consumer `style` drops the width cap, the
-  centring and the padding.
 - **Viewport-relative padding.** The padding scales with the viewport, not
   with the container's slot, so a container in a narrow panel on a wide screen
   takes the wide padding.

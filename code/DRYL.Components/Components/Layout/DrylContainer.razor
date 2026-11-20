@@ -11,7 +11,7 @@
       </DrylContainer>
     ───────────────────────────────────────────────────────── *@
 
-<div class="container @Class" style="@Style" @attributes="AdditionalAttributes">
+<div class="container @Class" style="@InlineStyle.Merge(OwnStyle, Style)" @attributes="AdditionalAttributes">
     @ChildContent
 </div>
 
@@ -29,7 +29,10 @@
     /// <summary>Extra CSS class(es) merged onto the container's own classes.</summary>
     [Parameter] public string? Class { get; set; }
 
-    private string Style
+    /// <summary>Extra inline declarations merged after the component's own; a plain <c>style="…"</c> attribute binds here too. On a property both set, yours wins.</summary>
+    [Parameter] public string? Style { get; set; }
+
+    private string OwnStyle
     {
         get
         {

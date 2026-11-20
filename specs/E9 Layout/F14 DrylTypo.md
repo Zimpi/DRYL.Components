@@ -35,6 +35,7 @@ Namespace: `DRYL.Components`.
 | `Gradient` | `bool` | `false` | Fills the text with the accent gradient. |
 | `ChildContent` | `RenderFragment?` | `null` | Text content. |
 | `Class` | `string?` | `null` | Classes merged onto the element's own classes. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the element. |
 
 Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
@@ -51,6 +52,11 @@ Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
 - The element carries `.typo`.
 - `Class` is appended to the element's class list.
 - Unmatched attributes are applied to the element.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the inline colour and alignment stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Tag
 
@@ -128,9 +134,6 @@ Nested enums (always written qualified, e.g. `DrylTypo.TypoVariant.H1`):
   flip in a right-to-left document.
 - **`As` is an unchecked string.** Any value becomes the tag; there is no guard
   against an invalid or unsafe tag name.
-- **A consumer `style` replaces colour and alignment.** `AdditionalAttributes`
-  is applied after the component's `style`, so a captured `style` attribute
-  overwrites the inline colour and alignment.
 
 ## Cross-cutting evidence (`SPEC-05`)
 

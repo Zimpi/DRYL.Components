@@ -30,6 +30,7 @@ Namespace: `DRYL.Components`.
 | `RatioValue` | `string?` | `null` | Custom CSS `aspect-ratio` value; read only when `Ratio` is `AspectRatio.Custom`. |
 | `ChildContent` | `RenderFragment?` | `null` | The boxed media or content. |
 | `Class` | `string?` | `null` | Classes appended to the root. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the root. |
 
 Nested enum `DrylAspectRatio.AspectRatio`: `Square`, `Video`, `Photo`, `Wide`,
@@ -43,6 +44,11 @@ Nested enum `DrylAspectRatio.AspectRatio`: `Square`, `Video`, `Photo`, `Wide`,
 - `ChildContent` renders inside the box.
 - `Class` is appended to the box's class list.
 - Unmatched attributes are applied to the box.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the ratio, the width cap and the clipping stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Ratio
 
@@ -70,9 +76,6 @@ Nested enum `DrylAspectRatio.AspectRatio`: `Square`, `Video`, `Photo`, `Wide`,
 
 ## Recorded debt
 
-- **A consumer `style` replaces the ratio.** The splatted attributes come
-  after the computed `style`, so a `style` passed by the consumer drops the
-  `aspect-ratio`, the width cap and the clipping.
 - **`RatioValue` is unchecked.** It is written into the inline style as given;
   an invalid value leaves the box without a ratio.
 - **The `AspectRatio.Custom` fallback is silent.** A blank `RatioValue` renders

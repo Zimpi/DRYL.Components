@@ -164,6 +164,7 @@ and marks them, already while dragging. A conflict warns and never blocks.
 | `Labels` | `CalendarLabels` | `new()` | Every text the calendar renders that is not a formatted date. |
 | `AriaLabel` | `string?` | `null` | Accessible label of the calendar. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the calendar's own classes. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the root element. |
 
 `CalendarEvent`, `CalendarPerson`, `CalendarAvailability`, `CalendarRange`,

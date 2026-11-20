@@ -31,6 +31,7 @@ Namespace: `DRYL.Components`.
 | `Horizontal` | `bool` | `false` | Scrolls horizontally instead of vertically. |
 | `ChildContent` | `RenderFragment?` | `null` | Scrollable content. |
 | `Class` | `string?` | `null` | Classes merged onto the root's own classes. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the root. |
 
 ## Acceptance Criteria
@@ -41,6 +42,11 @@ Namespace: `DRYL.Components`.
 - `ChildContent` renders directly inside the root.
 - `Class` is appended to the root's class list.
 - Unmatched attributes are applied to the root.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so `MaxHeight` and `MaxWidth` stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Direction
 
@@ -82,9 +88,6 @@ Namespace: `DRYL.Components`.
   it cannot be given a name except through `AdditionalAttributes` (`UX-01`).
 - **Literal geometry (`DESIGN-01`).** The WebKit scrollbar's thickness and the
   thumb's inset border are literal lengths.
-- **A consumer `style` replaces the bounds.** `AdditionalAttributes` is applied
-  after the component's `style`, so a captured `style` attribute overwrites
-  `MaxHeight` / `MaxWidth`.
 
 ## Cross-cutting evidence (`SPEC-05`)
 

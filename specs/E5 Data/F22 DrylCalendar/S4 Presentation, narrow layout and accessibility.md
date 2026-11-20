@@ -13,6 +13,11 @@
 - `AdditionalAttributes` are applied to the root.
 - The toolbar and the legend are absent from the markup entirely when they are
   switched off, rather than rendered empty.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the `Height` it writes stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Tokens
 

@@ -39,6 +39,7 @@ Namespace: `DRYL.Components`. Implements `IDisposable`.
 | `SidebarWidth` | `string?` | `null` | Expanded drawer column as a CSS length; written to `--sidebar-w`. |
 | `SidebarCollapsedWidth` | `string?` | `null` | Collapsed drawer column as a CSS length; written to `--sidebar-collapsed-w`. |
 | `Class` | `string?` | `null` | Classes appended to the root. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the root. |
 
 Cascades: one `DrylLayoutContext`, fixed for the layout's lifetime.
@@ -53,6 +54,11 @@ Cascades: one `DrylLayoutContext`, fixed for the layout's lifetime.
 - Unmatched attributes are applied to the root.
 - The layout cascades one `DrylLayoutContext` instance to its descendants.
 - The cascaded context instance stays the same across re-renders.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so `--sidebar-w` and `--sidebar-collapsed-w` stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Custom widths
 
@@ -110,9 +116,6 @@ Cascades: one `DrylLayoutContext`, fixed for the layout's lifetime.
 - **Literal overlay geometry.** Below desktop width the overlay drawer's width
   and stacking order are literals in `dryl.css`, not `--sidebar-w` and a
   `--z-*` token (`DESIGN-01`).
-- **A consumer `style` replaces the widths.** The splatted attributes come
-  after the computed `style`, so a consumer `style` drops `SidebarWidth` and
-  `SidebarCollapsedWidth`.
 - **Width strings are unchecked.** `SidebarWidth` and `SidebarCollapsedWidth`
   are written into the style as given.
 - **No tests.** No bUnit test renders `DrylLayout`; the coordination is

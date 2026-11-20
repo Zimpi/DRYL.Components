@@ -41,6 +41,7 @@ Namespace: `DRYL.Components`.
 | `Gap` | `DrylStack.StackGap` | `StackGap.Md` | Gap between cells, on the `--sp-*` scale. |
 | `ChildContent` | `RenderFragment?` | `null` | Grid items. |
 | `Class` | `string?` | `null` | Classes appended to the grid element. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the grid element. |
 
 Nested enum `DrylGrid.ItemWidth`: `Xs`, `Sm`, `Md`, `Lg`.
@@ -54,6 +55,11 @@ Nested enum `DrylGrid.ItemWidth`: `Xs`, `Sm`, `Md`, `Lg`.
 - `Class` is appended to the grid element's class list.
 - Unmatched attributes are applied to the grid element, never to the
   `div.cq` wrapper.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the gap and the column template stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Auto-fit
 
@@ -106,9 +112,6 @@ Nested enum `DrylGrid.ItemWidth`: `Xs`, `Sm`, `Md`, `Lg`.
 - **A zero or negative `Columns` is unchecked.** It is written into the
   template as given and yields an invalid template, leaving the items in a
   single implicit column.
-- **A consumer `style` replaces the layout.** The splatted attributes come
-  after the computed `style`, so a consumer `style` drops the gap and, in
-  auto-fit mode, `display: grid` and the template.
 - **`.grid` has no rule of its own.** The class is a hook; the layout comes
   from the inline style or a `grid-cols-*` utility.
 

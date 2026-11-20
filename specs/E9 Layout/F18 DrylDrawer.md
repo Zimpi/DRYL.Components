@@ -47,6 +47,7 @@ Namespace: `DRYL.Components`.
 | `Footer` | `RenderFragment?` | `null` | Pinned region below the scrolling content. |
 | `ChildContent` | `RenderFragment?` | `null` | Body when no slot is used. |
 | `Class` | `string?` | `null` | Classes appended to the root. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the root. |
 
 Public methods: `ToggleCollapseAsync()` toggles `Collapsed` (persisting it under
@@ -75,6 +76,11 @@ from `DrylLayout`.
 - `.sidebar-content` renders `Content`, or `ChildContent` when `Content` is null.
 - Without any slot, `ChildContent` renders directly inside the root.
 - Only `.sidebar-content` scrolls; header and footer stay in place.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so `--sidebar-w` and `--sidebar-collapsed-w` stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Modes
 

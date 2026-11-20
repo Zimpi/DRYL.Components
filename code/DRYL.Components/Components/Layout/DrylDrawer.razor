@@ -43,7 +43,7 @@
 
 <aside @ref="_aside"
        class="@CssClass"
-       style="@StyleVars"
+       style="@InlineStyle.Merge(StyleVars, Style)"
        tabindex="-1"
        @attributes="AdditionalAttributes">
     @if (_useSlots)
@@ -119,6 +119,9 @@
 
     /// <summary>Extra CSS class(es) applied to the .sidebar root.</summary>
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>Extra inline declarations merged after the component's own; a plain <c>style="…"</c> attribute binds here too. On a property both set, yours wins.</summary>
+    [Parameter] public string? Style { get; set; }
 
     /// <summary>Pass-through HTML attributes on the root element.</summary>
     [Parameter(CaptureUnmatchedValues = true)]

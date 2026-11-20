@@ -41,6 +41,7 @@ Namespace: `DRYL.Components`.
 | `CollapseBelow` | `Breakpoint?` | `null` | Below this container width a horizontal stack becomes vertical; `null` never collapses. |
 | `ChildContent` | `RenderFragment?` | `null` | Stack content. |
 | `Class` | `string?` | `null` | Classes merged onto the stack's own classes. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Captured unmatched attributes applied to the stack element. |
 
 Nested enums (always written qualified, e.g. `DrylStack.StackGap.Md`):
@@ -63,6 +64,11 @@ Nested enums (always written qualified, e.g. `DrylStack.StackGap.Md`):
 - Unmatched attributes are applied to the stack element.
 - The stack element's inline style declares `display: flex`.
 - The stack element can shrink below its content's width (`min-width: 0`).
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so `display: flex` and the flex declarations stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### Direction
 
@@ -132,9 +138,6 @@ Nested enums (always written qualified, e.g. `DrylStack.StackGap.Md`):
 
 ## Recorded debt
 
-- **A consumer `style` replaces the layout.** `AdditionalAttributes` is applied
-  after the component's `style`, so a captured `style` attribute overwrites
-  every flex declaration, `display: flex` included.
 - **Breakpoint widths are literals in the container queries.** The
   `.stack-collapse-*` queries carry the pixel values of the `Breakpoint` scale
   because CSS query conditions cannot read custom properties; the scale is

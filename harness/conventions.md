@@ -33,6 +33,14 @@ library already follows — see `CLAUDE.md` for the design-system rules and
   the component's own identity classes (the splat overrides the explicit
   `class="…"`). Therefore every consumer-facing component carries a merged
   `Class`; never drop it as "redundant".
+- **Extra inline style** follows the same rule wherever a component writes an
+  inline `style` on its root: a typed, optional `string? Style` that the
+  component merges **after** its own declarations with `InlineStyle.Merge(own, Style)`.
+  A consumer's `style="…"` binds to `Style` and is merged; left to the bare
+  `@attributes` splat it would replace the component's inline layout
+  (`display: flex` on a stack, `--sidebar-w` on the shell). The consumer's
+  declarations come last, so for a property both set, theirs wins. A component
+  that writes no inline style on its root needs no `Style`.
 
 ## 3. Events
 

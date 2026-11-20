@@ -59,6 +59,7 @@ image has one.
 | `Progress` | `int?` | `null` | 0–100 sharpen progress for `AiState.Streaming`. `null` runs it on a timer. |
 | `BlurDuration` | `int` | `2000` | Duration in ms of the timed sharpen. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the frame's own classes. |
+| `Style` | `string?` | `null` | Inline declarations merged after the component's own; a `style` attribute binds here too. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the frame. |
 
 The four enums are nested in `DrylImage` and are therefore written qualified —
@@ -81,6 +82,11 @@ The four enums are nested in `DrylImage` and are therefore written qualified —
 - `Shadow` set lifts the frame with `--shadow-sm`.
 - The frame does not clip its children, so the aura's glow can breathe outside
   the box.
+- `Style` is appended to the root's inline style after the component's own
+  declarations, so the ratio and the width cap of the frame stay.
+- A consumer `style` attribute binds to `Style` and is merged the same way; it
+  does not reach `AdditionalAttributes`.
+- For a property both set, the consumer's declaration comes last and wins.
 
 ### The box
 
