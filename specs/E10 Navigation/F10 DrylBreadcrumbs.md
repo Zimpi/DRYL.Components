@@ -146,7 +146,7 @@ Namespace: `DRYL.Components`. Implements `IDisposable`.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — EYE-CHECK-PENDING on /components/breadcrumbs
+- **Both color modes** — mode tokens only; inspected on `/components/breadcrumbs` in dark and light (2026-11-20)
 - **Enter/exit animation** — **no**, recorded as debt above; the only motion is
   the link's hover transition.
 - **Keyboard and a11y** — `nav` landmark with an accessible name, an ordered

@@ -73,7 +73,7 @@ public API.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — EYE-CHECK-PENDING on /components/breadcrumbs
+- **Both color modes** — mode tokens only; inspected on `/components/breadcrumbs` in dark and light (2026-11-20)
 - **Enter/exit animation** — `DrylBreadcrumbItem` renders nothing, so there is
   nothing of its own to animate; the trail's missing enter/exit is recorded in
   `F10 DrylBreadcrumbs`.

@@ -139,7 +139,7 @@ public API.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — EYE-CHECK-PENDING on /components/tabs
+- **Both color modes** — mode tokens only; inspected on `/components/tabs` in dark and light (2026-11-20)
 - **Enter/exit animation** — `DrylTab` renders nothing, so it has nothing to
   mount or animate itself. Its header's state changes — hover, active, AI ring
   — are animated by `DrylTabs`' styles; switching to it slides its panel in.

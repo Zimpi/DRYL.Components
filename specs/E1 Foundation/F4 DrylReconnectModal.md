@@ -195,7 +195,7 @@ Namespace: `DRYL.Components`.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — EYE-CHECK-PENDING on /components/reconnect-modal
+- **Both color modes** — mode tokens only; inspected on `/components/reconnect-modal` in dark and light (2026-11-20)
 - **Enter/exit animation** — **yes, without `DrylPresence`.** The component
   never mounts or unmounts conditionally — it is always in the DOM — and the
   framework's class toggling drives a CSS fade in *and* out (`visibility`

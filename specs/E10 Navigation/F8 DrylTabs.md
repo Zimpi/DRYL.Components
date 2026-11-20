@@ -192,7 +192,9 @@ parameter; the strip is horizontal only.
   on, which now carries `tabindex="-1"`. The next arrow press is handled for
   that same, still-focused header and targets the tab that is already active,
   so it does nothing — arrow navigation advances one step per focus.
-  *To be confirmed in a browser.*
+  Measured on `/components/tabs` (2026-11-20): from the first header, the
+  first ArrowRight selects the second tab while focus stays on the first; the
+  second ArrowRight changes nothing.
 - **`aria-controls` points at panels that do not exist.** Only the active
   tab's panel is rendered, so every inactive header's `aria-controls` names an
   id that is not in the document.
@@ -224,7 +226,7 @@ parameter; the strip is horizontal only.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — EYE-CHECK-PENDING on /components/tabs
+- **Both color modes** — mode tokens only; inspected on `/components/tabs` in dark and light (2026-11-20)
 - **Enter/exit animation** — the component itself does not mount
   conditionally. Its moving parts are animated: the ink glides between headers,
   the fallback underline scales in, and each new panel enters directionally.
