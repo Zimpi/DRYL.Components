@@ -74,6 +74,7 @@ Namespace: `DRYL.Components`. Inherits `DrylAiAware`; implements `IDisposable`.
 
 - The panel's fill is `--glass-1`.
 - The panel's border is `--line`.
+- The panel's `backdrop-filter` is `--glass-fx-flow`, the in-flow glass tier.
 - The panel's corner radius is `--r-lg`.
 - The panel's shadow is `--shadow-md`.
 - The log's messages are spaced by `--sp-4` and the log is padded by `--sp-5`.
@@ -110,11 +111,6 @@ Namespace: `DRYL.Components`. Inherits `DrylAiAware`; implements `IDisposable`.
 
 ## Recorded debt
 
-- **Hand-written frost.** The `.chat` rule in `DrylChat.razor.css` declares
-  `backdrop-filter: blur(var(--glass-blur))` (and its `-webkit-` twin) instead of
-  `--glass-fx-flow`, the in-flow tier (`DESIGN-07`, `DESIGN-06`). It is one of the
-  pre-existing hits the `DESIGN-07` check names, and it charges the panel a real
-  blur that every `DrylCard` in the flow no longer pays.
 - **Auto-scroll ignores the reader.** The log is pinned to its end after every
   render, wherever the user had scrolled. Reading back through a conversation
   while an answer streams is not possible with `AutoScroll` on.

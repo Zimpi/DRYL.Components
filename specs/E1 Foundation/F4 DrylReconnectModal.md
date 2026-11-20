@@ -127,6 +127,7 @@ Namespace: `DRYL.Components`.
 - The overlay covers the viewport and centres the card.
 - The overlay stacks on `--z-reconnect`.
 - The overlay's fill is `--backdrop`.
+- The overlay's `backdrop-filter` is `--glass-fx-float`: it lies over the whole page, so it takes the floating glass tier.
 - The card's fill is `--panel-grad`, its border `--line-strong`, its radius
   `--r-lg` and its shadow `--shadow-lg` plus an `--accent-a` glow.
 - The card's text is `--fg`, centred.
@@ -157,9 +158,6 @@ Namespace: `DRYL.Components`.
 
 ## Recorded debt
 
-- **Hand-written backdrop blur (`DESIGN-07`).** The `.reconnect-overlay` rule
-  writes `backdrop-filter: blur(6px) saturate(120%)` and its `-webkit-` twin
-  instead of a glass token.
 - **The floating card is not floating glass (`DESIGN-06`).** `.reconnect-card`
   floats over the page but carries `--panel-grad` with no
   `--glass-fx-float`; the frost sits on the full-screen overlay instead.

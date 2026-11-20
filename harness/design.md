@@ -109,10 +109,9 @@ Never write `backdrop-filter: blur(...)` on a new in-flow surface — use the
 token (`--glass-fx-flow` / `--glass-fx-float`).
 
 Check: `rg -n 'backdrop-filter:\s*blur\(' code/` returns hits only in
-`dryl.css` — currently **6 pre-existing hits outside `dryl.css`**, across
-three components — the `.chat` rule in `DrylChat.razor.css`, the
-`.reconnect-overlay` rule in `DrylReconnectModal.razor.css`, and the
-`.validation-summary` rule in `DrylValidationSummary.razor.css` — see phase C.
+`dryl.css` — and currently returns none there. The last three pre-existing
+offenders (`.chat`, `.reconnect-overlay`, `.validation-summary`) moved onto the
+tokens in 3.17.0.
 
 ### DESIGN-08 — Accents glow, never scream
 

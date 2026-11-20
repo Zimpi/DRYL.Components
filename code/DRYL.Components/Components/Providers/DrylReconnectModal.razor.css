@@ -20,8 +20,8 @@
     place-items: center;
     padding: var(--sp-5);
     background: var(--backdrop);
-    -webkit-backdrop-filter: blur(6px) saturate(120%);
-    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: var(--glass-fx-float);
+    backdrop-filter: var(--glass-fx-float);
 
     /* Hidden by default and on `hide`; the active states below reveal it.
        Transitioning `visibility` (a discrete property) gives a real fade-OUT:

@@ -54,6 +54,7 @@ Namespace: `DRYL.Components`. Implements `IDisposable`.
 
 - The banner has a border mixed from `--danger`.
 - The banner's background is a tint mixed from `--danger`.
+- The banner's `backdrop-filter` is `--glass-fx-flow`, the in-flow glass tier.
 - The banner has the `--r-md` radius.
 - The banner has `--sp-4` padding.
 - The icon reads `--danger`.
@@ -67,10 +68,6 @@ Namespace: `DRYL.Components`. Implements `IDisposable`.
 
 ## Recorded debt
 
-- **Hand-written blur.** The `.validation-summary` rule in
-  `DrylValidationSummary.razor.css` writes `backdrop-filter: blur(var(--glass-blur))`
-  instead of the frost token; an in-flow surface takes `--glass-fx-flow`
-  (`DESIGN-06`, `DESIGN-07`).
 - **The banner snaps in and out.** It mounts on the first message and unmounts
   on the last without `DrylPresence` (`DESIGN-11`, `DESIGN-12`).
 - **Messages are not linked to their fields**; the list offers no way to jump to
