@@ -4,6 +4,7 @@
 - **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Inputs/DrylMultiSelect.razor
               code/DRYL.Components/Components/Inputs/DrylMultiSelect.razor.css
+              code/DRYL.Components/Components/Inputs/MultiSelectTexts.cs
 
 ## User Story
 
@@ -52,6 +53,13 @@ list closes. `Backspace` in an empty field first marks the last picked value,
 a second press removes it. `Escape` first clears a query, a second press
 closes the list.
 
+**The field says what it does.** A polite live region inside the field, hidden
+from sight, announces what happens without a focus move: that `Backspace`
+marked the last picked value, that a value was removed, and how many options a
+query lists. Every word the field renders or announces of its own comes from
+`Texts` (`MultiSelectTexts`), English by default; `Placeholder`,
+`SearchPlaceholder` and `EmptyText` win over the matching member when set.
+
 **Filtered rows stay mounted.** In search mode each option sits in a
 `role="none"` track wrapper; a row the query does not match collapses its
 track and fades, and is `inert` and `aria-hidden` until it matches again, so
@@ -68,7 +76,7 @@ is shown unmarked.
 | `SelectedValues` | `IReadOnlyList<string>` | `[]` | The picked option values. |
 | `SelectedValuesChanged` | `EventCallback<IReadOnlyList<string>>` | — | Raised with the new list after a toggle or a chip removal. |
 | `Label` | `string?` | `null` | Visible label above the trigger. |
-| `Placeholder` | `string?` | `null` | Shown while nothing is picked; falls back to `Select options…`. |
+| `Placeholder` | `string?` | `null` | Shown while nothing is picked; falls back to `Texts.Placeholder`. |
 | `HelperText` | `string?` | `null` | Text below the control, linked through `aria-describedby`. |
 | `MaxVisibleChips` | `int` | `3` | Chips shown before the rest collapse into `+N`. |
 | `State` | `InputState` | `Default` | `Default`, `Error` or `Success` border treatment. |
@@ -77,9 +85,10 @@ is shown unmarked.
 | `Ai` | `AiState` | `None` | AI ambient state of the field. |
 | `Aura` | `AiAura?` | `null` | Aura variant; inherits a surrounding `DrylAiScope`. |
 | `Searchable` | `bool` | `false` | Turns the trigger into a chip input that filters the list as the user types. |
-| `SearchPlaceholder` | `string?` | `null` | Placeholder of the search field while values are picked; falls back to `Search…`. While nothing is picked the field shows `Placeholder`. |
+| `SearchPlaceholder` | `string?` | `null` | Placeholder of the search field while values are picked; falls back to `Texts.SearchPlaceholder`. While nothing is picked the field shows `Placeholder`. |
 | `SearchFunc` | `Func<string, IEnumerable<SelectItem>, IEnumerable<SelectItem>>?` | `null` | Filter replacing the default case-insensitive `Contains` on `Label`. Receives the trimmed query and all items. |
-| `EmptyText` | `string` | `"No results"` | Text of an open list whose query matches no option. |
+| `EmptyText` | `string?` | `null` | Text of an open list whose query matches no option; falls back to `Texts.EmptyText`. |
+| `Texts` | `MultiSelectTexts` | `MultiSelectTexts.Default` | Every word the field renders or announces of its own; see `_Api.md`. |
 
 `SearchFunc` is a `Func` rather than an `EventCallback` because it returns a
 value the component needs (conventions §3 governs notification events only).
@@ -95,7 +104,7 @@ Its shape is `DrylAutocomplete.SearchFunc` with `SelectItem` for `TItem`.
 - The listbox carries `role="listbox"` and `aria-multiselectable="true"`.
 - Each item of `Items` renders as one option carrying `role="option"`, in order.
 - An option's `aria-selected` is `true` exactly while its value is in `SelectedValues`.
-- A list without items shows a `No options` row instead of options.
+- A list without items shows a `Texts.NoOptions` row instead of options.
 - Each picked value renders as a chip labelled with its option's label.
 - A picked value without a matching option renders its raw value as the chip label.
 - No more than `MaxVisibleChips` chips are shown.
@@ -141,7 +150,7 @@ behaves as described above.
 - An empty or whitespace query lists every option.
 - A filtered-out option is `inert` and `aria-hidden="true"` and stays in the DOM.
 - A query change highlights the first listed option.
-- A query that lists no option shows `EmptyText` and highlights nothing.
+- A query that lists no option shows `EmptyText`, or `Texts.EmptyText` when it is not set, and highlights nothing.
 - `ArrowDown` and `ArrowUp` move the highlight across listed options only.
 - `Enter` on an open list toggles the highlighted option.
 - `Enter` on a closed control opens it.
@@ -161,6 +170,22 @@ behaves as described above.
 - The text field's caret keys (`ArrowLeft`, `ArrowRight`, `Home`, `End`) keep their native behaviour.
 - `Enter` in the text field does not submit a surrounding form.
 - A disabled control's text field is disabled.
+
+### Texts and announcements
+
+- The field contains one visually hidden `aria-live="polite"` region, with and without `Searchable`; it starts empty.
+- Marking the last picked value announces `Texts.RemoveArmed` with that value's label, also when the mark shows on the `+N` marker.
+- Taking the mark off without removing clears the announcement, so marking again is announced again.
+- Removing a picked value, by the second `Backspace` or by a chip's remove button, announces `Texts.Removed` with its label.
+- A picked value without a matching option is announced by its raw value.
+- A query that lists at least one option announces `Texts.Results` with the number of listed options.
+- A query that lists no option announces nothing in that region; the `EmptyText` row is itself `aria-live="polite"`.
+- An empty query, toggling an option and closing the list clear the announcement.
+- The placeholder without a pick falls back to `Texts.Placeholder`, the search field's placeholder with a pick to `Texts.SearchPlaceholder`.
+- The listbox's accessible name is `Texts.ListLabel` of `Label`.
+- A chip's remove button is named `Texts.Remove` of the chip's label.
+- `Placeholder`, `SearchPlaceholder` and `EmptyText` win over `Texts` when set.
+- With `MultiSelectTexts.Default` every word is English.
 
 ### Appearance and motion
 
@@ -204,14 +229,16 @@ behaves as described above.
 - **AI mode** — **yes**: a model may propose or fill a multi-value field, so
   the field carries `Ai` and `Aura` like the other inputs (`AI-05`).
 - **Demo page** — `/components/multiselect` in `DRYL.Website`, built from the
-  `Basics`, `Search`, `Overflow`, `States` and `AiMode` examples under
+  `Basics`, `Search`, `Translated`, `Overflow`, `States` and `AiMode` examples under
   `Components/Examples/MultiSelect/`.
 - **`ComponentCatalog`** — registered as `"Multi Select"` / `multiselect`,
   group `Inputs`, `ClassName` `"DrylMultiSelect"`, AI flag `true` (`REL-04`).
 - **Tests** — `tests/DRYL.Components.Tests/ListGlideTests.cs` covers the ink
   host marker; the ink's behaviour, including following a collapsing row, is
   covered in `tests/js/glide.test.mjs`. The "Search" criteria are covered in
-  `tests/DRYL.Components.Tests/DrylMultiSelectSearchTests.cs`, the key list of
+  `tests/DRYL.Components.Tests/DrylMultiSelectSearchTests.cs`, the "Texts and
+  announcements" criteria in
+  `tests/DRYL.Components.Tests/DrylMultiSelectTextsTests.cs`, the key list of
   `dryl.keynav` in `tests/js/keynav.test.mjs`.
 
 ## Recorded debt (`State: Implemented`)
@@ -223,12 +250,6 @@ behaves as described above.
   mode they move the caret.
 - **`ArrowUp` before any highlight does nothing** rather than starting at the
   last option.
-- **Fixed English strings** — `No options`, `Options` / `{Label} options` and
-  `Remove {label}` are not translatable; `Select options…`, `Search…` and
-  `No results` are, through `Placeholder`, `SearchPlaceholder` and `EmptyText`.
-- **No announcement of the result count** — a screen reader hears the
-  highlighted option through `aria-activedescendant`, not how many options a
-  query left.
 - **Option styles are a copy of `DrylSelect`'s**, because scoped CSS does not
   cross components; the two copies have already drifted (the picked tint exists
   only here). A shared rule in `dryl.css` would end that.

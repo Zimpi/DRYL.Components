@@ -107,7 +107,7 @@
 
                         @if (SelectedValues.Count == 0)
                         {
-                            <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? "Select options…")</span>
+                            <span class="select-placeholder multiselect-placeholder">@(Placeholder ?? Texts.Placeholder)</span>
                         }
                         else
                         {
@@ -124,11 +124,11 @@
                  class="select-panel"
                  data-dryl-glide="[role=option]"
                  aria-multiselectable="true"
-                 aria-label="@(string.IsNullOrEmpty(Label) ? "Options" : $"{Label} options")">
+                 aria-label="@Texts.ListLabel(Label)">
 
                 @if (_items.Count == 0)
                 {
-                    <div class="select-empty">No options</div>
+                    <div class="select-empty">@Texts.NoOptions</div>
                 }
                 else if (Searchable)
                 {
@@ -151,7 +151,7 @@
                     <DrylPresence Visible="_matches.Count == 0"
                                   Transition="PresenceTransition.Fade"
                                   Speed="PresenceSpeed.Fast">
-                        <div class="select-empty" aria-live="polite">@EmptyText</div>
+                        <div class="select-empty" aria-live="polite">@(EmptyText ?? Texts.EmptyText)</div>
                     </DrylPresence>
                 }
                 else
@@ -169,13 +169,17 @@
     {
         <div class="input-helper" id="@_helperId">@HelperText</div>
     }
+
+    @* What the chips and the filter do without moving focus: a marked chip,
+       a removed value, the number of options a query lists. *@
+    <span class="visually-hidden" aria-live="polite">@_live</span>
 </div>
 
 @code {
     /// <summary>Optional label shown above the multi-select.</summary>
     [Parameter] public string? Label { get; set; }
 
-    /// <summary>Placeholder shown when nothing is selected.</summary>
+    /// <summary>Placeholder shown when nothing is selected. When set, wins over <see cref="MultiSelectTexts.Placeholder"/>.</summary>
     [Parameter] public string? Placeholder { get; set; }
 
     /// <summary>Helper text shown below the control.</summary>
@@ -214,7 +218,7 @@
     /// </summary>
     [Parameter] public bool Searchable { get; set; }
 
-    /// <summary>Placeholder of the search field while values are picked; <c>null</c> gives <c>Search…</c>.</summary>
+    /// <summary>Placeholder of the search field while values are picked. When set, wins over <see cref="MultiSelectTexts.SearchPlaceholder"/>.</summary>
     [Parameter] public string? SearchPlaceholder { get; set; }
 
     /// <summary>
@@ -223,8 +227,14 @@
     /// </summary>
     [Parameter] public Func<string, IEnumerable<SelectItem>, IEnumerable<SelectItem>>? SearchFunc { get; set; }
 
-    /// <summary>Text of an open list whose query matches no option.</summary>
-    [Parameter] public string EmptyText { get; set; } = "No results";
+    /// <summary>Text of an open list whose query matches no option. When set, wins over <see cref="MultiSelectTexts.EmptyText"/>.</summary>
+    [Parameter] public string? EmptyText { get; set; }
+
+    /// <summary>
+    /// Every word the field renders or announces of its own: translate with
+    /// <c>MultiSelectTexts.Default with { … }</c>.
+    /// </summary>
+    [Parameter] public MultiSelectTexts Texts { get; set; } = MultiSelectTexts.Default;
 
     /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); used to resolve the aura variant.</summary>
     [CascadingParameter] private AiScope? Scope { get; set; }
@@ -246,6 +256,8 @@
     private int _highlightedIndex = -1;
     private string _query = string.Empty;
     private bool _chipArmed;
+    // Text of the polite live region; see the markup.
+    private string _live = string.Empty;
 
     private DrylPopover? _popover;
     private ElementReference _trigger;
@@ -264,7 +276,7 @@
         _prevAi = Ai;
         _aura.Sync(Ai, () => InvokeAsync(StateHasChanged));
         _items = Items?.ToList() ?? [];
-        if (!Searchable && _query.Length > 0) { _query = string.Empty; _chipArmed = false; }
+        if (!Searchable && _query.Length > 0) { _query = string.Empty; Disarm(); }
         ComputeMatches();
         if (_highlightedIndex >= _matches.Count) _highlightedIndex = _matches.Count - 1;
     }
@@ -301,13 +313,13 @@
             @for (int c = 0; c < visible.Count; c++)
             {
                 var v = visible[c];
-                var lbl = _items.FirstOrDefault(i => i.Value == v)?.Label ?? v;
+                var lbl = LabelOf(v);
                 var armed = _chipArmed && !armOverflow && c == visible.Count - 1;
                 <span class="@(armed ? "chip chip--armed" : "chip")" @key="v">
                     <span class="chip-text">@lbl</span>
                     <button type="button" class="chip-remove"
                             tabindex="-1"
-                            aria-label="@($"Remove {lbl}")"
+                            aria-label="@Texts.Remove(lbl)"
                             @onmousedown:preventDefault
                             @onclick:stopPropagation="true"
                             @onclick="() => RemoveValue(v)">
@@ -398,7 +410,8 @@
     {
         _isOpen = false;
         _highlightedIndex = -1;
-        _chipArmed = false;
+        Disarm();
+        _live = string.Empty;
         if (_query.Length > 0)
         {
             _query = string.Empty;
@@ -408,7 +421,8 @@
 
     private async Task ToggleItem(SelectItem item)
     {
-        _chipArmed = false;
+        Disarm();
+        _live = string.Empty;
         var current = new List<string>(SelectedValues);
         if (current.Contains(item.Value))
             current.Remove(item.Value);
@@ -420,11 +434,22 @@
 
     private async Task RemoveValue(string value)
     {
-        _chipArmed = false;
+        Disarm();
         var current = new List<string>(SelectedValues);
-        current.Remove(value);
+        if (!current.Remove(value)) return;
+        _live = Texts.Removed(LabelOf(value));
         await SelectedValuesChanged.InvokeAsync(current.AsReadOnly());
     }
+
+    /// <summary>Takes the mark off the last chip, and its announcement with it.</summary>
+    private void Disarm()
+    {
+        if (!_chipArmed) return;
+        _chipArmed = false;
+        _live = string.Empty;
+    }
+
+    private string LabelOf(string value) => _items.FirstOrDefault(i => i.Value == value)?.Label ?? value;
 
     private void HighlightItem(int itemIndex)
     {
@@ -478,10 +503,12 @@
     {
         if (Disabled) return;
         _query = e.Value?.ToString() ?? string.Empty;
-        _chipArmed = false;
+        Disarm();
         ComputeMatches();
         _isOpen = true;
         _highlightedIndex = _matches.Count > 0 ? 0 : -1;
+        // No match is announced by the empty row, which is a live region itself.
+        _live = TrimmedQuery.Length > 0 && _matches.Count > 0 ? Texts.Results(_matches.Count) : string.Empty;
         await ScrollHighlightedIntoView();
     }
 
@@ -492,14 +519,14 @@
         switch (e.Key)
         {
             case "ArrowDown":
-                _chipArmed = false;
+                Disarm();
                 if (!_isOpen) { OpenList(); break; }
                 if (count > 0) _highlightedIndex = Math.Min(_highlightedIndex + 1, count - 1);
                 await ScrollHighlightedIntoView();
                 break;
 
             case "ArrowUp":
-                _chipArmed = false;
+                Disarm();
                 if (_isOpen && _highlightedIndex > 0)
                 {
                     _highlightedIndex--;
@@ -508,14 +535,14 @@
                 break;
 
             case "Enter":
-                _chipArmed = false;
+                Disarm();
                 if (!_isOpen) OpenList();
                 else if (_highlightedIndex >= 0 && _highlightedIndex < count)
                     await ToggleItem(_items[_matches[_highlightedIndex]]);
                 break;
 
             case "Escape":
-                _chipArmed = false;
+                Disarm();
                 if (_query.Length > 0)
                 {
                     _query = string.Empty;
@@ -533,15 +560,20 @@
                 break;
 
             case "Backspace":
-                if (_query.Length > 0 || SelectedValues.Count == 0) { _chipArmed = false; break; }
+                if (_query.Length > 0 || SelectedValues.Count == 0) { Disarm(); break; }
                 if (_chipArmed)
+                {
                     await RemoveValue(SelectedValues[^1]);
+                }
                 else
+                {
                     _chipArmed = true;
+                    _live = Texts.RemoveArmed(LabelOf(SelectedValues[^1]));
+                }
                 break;
 
             default:
-                _chipArmed = false;
+                Disarm();
                 break;
         }
     }
@@ -564,7 +596,7 @@
             : null;
 
     private string SearchFieldPlaceholder =>
-        SelectedValues.Count == 0 ? Placeholder ?? "Select options…" : SearchPlaceholder ?? "Search…";
+        SelectedValues.Count == 0 ? Placeholder ?? Texts.Placeholder : SearchPlaceholder ?? Texts.SearchPlaceholder;
 
     private string WrapperCssClass
     {

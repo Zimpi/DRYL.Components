@@ -47,6 +47,19 @@ There are no item-level disabled, group, icon or template members. `DrylSelect`
 preserves enumeration order and uses string equality to match `Value`; it does
 not enforce uniqueness or membership of the bound value.
 
+## `MultiSelectTexts`
+
+Defined in `code/DRYL.Components/Components/Inputs/MultiSelectTexts.cs`. A
+record of `init` members with English defaults, reached through
+`MultiSelectTexts.Default` and passed to `DrylMultiSelect.Texts`. Strings:
+`Placeholder`, `SearchPlaceholder`, `EmptyText`, `NoOptions`. Functions, for
+the words that carry a value: `ListLabel` (`Func<string?, string>`, receives
+the field's `Label`), `Remove`, `RemoveArmed` and `Removed`
+(`Func<string, string>`, receive a picked value's label) and `Results`
+(`Func<int, string>`, receives the number of listed options). Translate with
+`MultiSelectTexts.Default with { … }`. `DrylMultiSelect.Placeholder`,
+`SearchPlaceholder` and `EmptyText` win over the matching member when set.
+
 ## `InputBase<string>` binding contract
 
 The three components inherit `Microsoft.AspNetCore.Components.Forms.InputBase<string>`.

@@ -123,6 +123,15 @@ highlighting:
   `release/3.17.0` in the meantime, so this one is renumbered to **I51**
   (Tech Lead).
 
+- 2026-11-20: Two findings of the pre-merge review are closed before the
+  release, on the Product Owner's word ("Das muss alles clean sein"). The mark
+  on the last chip was visual only: a polite live region now announces the
+  mark, a removal and the number of options a query lists. The field's fixed
+  English words become **`Texts`** (`MultiSelectTexts`), the pattern of
+  `CommandPaletteTexts`; `EmptyText` turns nullable and falls back to it, which
+  breaks nothing because `EmptyText` has not shipped. No new token, keyframe
+  or dependency: the region uses the existing `.visually-hidden`.
+
 ## Open Points
 
 *(none)*
