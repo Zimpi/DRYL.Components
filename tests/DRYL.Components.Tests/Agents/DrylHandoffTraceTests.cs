@@ -105,4 +105,70 @@ public class DrylHandoffTraceTests : BunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Running", cut.Markup));
     }
+
+    [Fact]
+    public void A_lane_that_completes_plays_the_generated_one_shot()
+    {
+        var run = Flow(DrylAgentFlow.Sequential, "A", "B");
+        run.Steps[0].Run = new DrylAgentRun { State = AiState.Streaming };
+        var cut = Render<DrylHandoffTrace>(p => p.Add(x => x.Run, run));
+
+        run.Steps[0].Run!.State = AiState.Generated;
+        run.Raise();
+
+        cut.WaitForAssertion(() =>
+        {
+            var body = cut.Find(".handoff-step--done .handoff-body");
+            Assert.Contains("ai-generated", body.ClassList);
+            Assert.Single(cut.FindAll(".ai-aura-wash"));
+        });
+    }
+
+    [Fact]
+    public void A_lane_already_done_when_the_trace_mounts_is_shown_settled()
+    {
+        var run = Flow(DrylAgentFlow.Sequential, "A", "B");
+        run.Steps[0].Run = new DrylAgentRun { State = AiState.Generated };
+
+        var cut = Render<DrylHandoffTrace>(p => p.Add(x => x.Run, run));
+
+        Assert.DoesNotContain("ai-aura", cut.Find(".handoff-step--done .handoff-body").ClassList);
+        Assert.Empty(cut.FindAll(".ai-aura-ring, .ai-aura-wash"));
+    }
+
+    [Fact]
+    public void A_lane_that_fails_fades_its_aura_out_instead_of_cutting_it()
+    {
+        var run = Flow(DrylAgentFlow.Sequential, "A", "B");
+        run.Steps[0].Run = new DrylAgentRun { State = AiState.Thinking };
+        var cut = Render<DrylHandoffTrace>(p => p.Add(x => x.Run, run));
+
+        run.Steps[0].Run!.Error = new DrylRunError("boom");
+        run.Steps[0].Run!.State = AiState.None;
+        run.Raise();
+
+        cut.WaitForAssertion(() =>
+        {
+            var body = cut.Find(".handoff-step--failed .handoff-body");
+            Assert.Contains("ai-aura--out", body.ClassList);
+            Assert.Single(cut.FindAll(".ai-aura-ring"));
+        });
+        cut.WaitForAssertion(
+            () => Assert.Empty(cut.FindAll(".ai-aura-ring")),
+            TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
+    public void Each_lane_of_a_concurrent_run_carries_its_own_aura()
+    {
+        var run = Flow(DrylAgentFlow.Concurrent, "A", "B");
+        run.Steps[0].Run = new DrylAgentRun { State = AiState.Thinking };
+        run.Steps[1].Run = new DrylAgentRun { State = AiState.Streaming };
+
+        var cut = Render<DrylHandoffTrace>(p => p.Add(x => x.Run, run));
+
+        Assert.Equal(2, cut.FindAll(".ai-aura-ring").Count);
+        Assert.Single(cut.FindAll(".handoff-body.ai-thinking"));
+        Assert.Single(cut.FindAll(".handoff-body.ai-streaming"));
+    }
 }

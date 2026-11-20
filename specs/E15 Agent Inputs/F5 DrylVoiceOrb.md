@@ -13,10 +13,13 @@ with the audio, so that the user sees the conversation without reading a label.
 
 ## Description
 
-`DrylVoiceOrb` is a voice made visible: a glass sphere wrapped in the shared
-`.ai-aura` ring, comet and halo. Its state classes are the ones every other AI
-surface wears, mapped from the `AiState` of the `DrylVoiceRun` it is given — so
-a thinking assistant reads the same here as anywhere else in the library.
+`DrylVoiceOrb` is a voice made visible: a glass sphere that wears the shared
+`.ai-aura` ring, comet and halo while its session works. The aura is composed
+from `AuraLifecycle`, `AiAuraCss` and `DrylAuraElements` like every other AI
+surface, driven by the `AiState` of the `DrylVoiceRun` it is given — so a
+thinking assistant reads the same here as anywhere else in the library, and an
+orb without a working session is the sphere alone
+([`I48`](../../ideas/I48%20The%20orb%20and%20the%20handoff%20lane%20wear%20the%20shared%20aura.md)).
 
 The one thing the orb owns is the **level**. The voice module measures the
 microphone and the model's audio in the browser and writes `--voice-level`
@@ -50,9 +53,11 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`.
 
 ### Structure
 
-- The component renders one root element carrying `.voice-orb` and `.ai-aura`.
-- The root contains, in order, `.ai-aura-ring`, `.ai-aura-comet`,
-  `.ai-aura-glow` and `.voice-orb-core`.
+- The component renders one root element carrying `.voice-orb`.
+- The root always contains `.voice-orb-core`.
+- While the aura is present, the root also carries `.ai-aura` and contains,
+  before the core, the layers of `DrylAuraElements`: `.ai-aura-ring`,
+  `.ai-aura-comet` and `.ai-aura-glow`.
 - The root carries `aria-hidden="true"`.
 - The root's inline style sets `--orb-size` to `Size` in pixels.
 - `--orb-size` is formatted with the invariant culture.
@@ -62,10 +67,16 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`.
 
 ### State
 
+- With a `null` `Run`, or a run at `AiState.None`, the orb is at rest: no
+  `.ai-aura`, no state class and no aura layer; only the core is drawn.
+- `AiState.Active` on the run shows the aura with no state class.
 - `AiState.Thinking` on the run adds `ai-thinking` to the root.
 - `AiState.Streaming` on the run adds `ai-streaming` to the root.
-- `AiState.Generated` on the run adds `ai-generated` to the root.
-- Any other state, and a `null` `Run`, adds no state class.
+- `AiState.Generated` on the run adds `ai-generated`, plays the one-shot once
+  and is then retired by the `AuraLifecycle` without the run changing state.
+- `AiState.Proposed` on the run adds `ai-proposed`.
+- When the run returns to `AiState.None` or `Run` becomes `null`, the aura
+  stays for its exit with `ai-aura--out` and is then removed.
 - `IsMuted` on the run adds `voice-orb--muted` to the root.
 - Every `OnChange` of the run re-renders the orb.
 - Passing the same `Run` reference again does not resubscribe.
@@ -127,15 +138,6 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`.
 
 ## Recorded debt
 
-- **Idle reads as `Active`.** The root always carries `.ai-aura`, and the base
-  `.ai-aura` is the `Active` look with an orbiting comet. A `null` run, an
-  `Idle` run and a run at `AiState.Active` all render the same live aura
-  (`AI-06`). Inside `DrylCanvasDock` the orb is mounted only while a session is
-  active, so the debt surfaces where a host places the orb standalone.
-- **Hand-drawn aura.** The orb writes the `.ai-aura-*` elements and state
-  classes itself instead of composing `AiAuraCss`, `DrylAuraElements` and
-  `AuraLifecycle` (`AI-02`, `AI-07`): `AiState.Proposed` has no mapping, a
-  `Generated` is not retired, and there is no graceful exit.
 - **Frost on an in-flow surface.** The core uses `--glass-fx-float`, the
   floating-surface frost, wherever the orb is placed (`DESIGN-06`).
 - **Literal geometry.** The level-to-scale factor, the `--orb-size` fallback,
@@ -149,11 +151,11 @@ Namespace: `DRYL.Components.Agents`. Implements `IAsyncDisposable`.
 
 ## Cross-cutting evidence (`SPEC-05`)
 
-- **Both color modes** — glass and aura tokens only, no mode branch; **not yet inspected by eye**: the orb mounts only during a live voice session, which the 2026-11-20 session did not start.
+- **Both color modes** — glass and aura tokens only, no mode branch; inspected in dark and light on a probe page of `tests/DRYL.BrowserHost` that drove a run through rest, `Thinking`, `Streaming` and back (2026-11-20). The level animation needs a live microphone and was not part of that inspection.
 - **Enter/exit animation** — the orb itself does not mount conditionally;
   inside `DrylCanvasDock` it arrives and leaves with the dock's voice panel
-  through `DrylPresence` (`PresenceTransition.Scale`). Level and mute changes
-  are animated as above. A standalone orb has no exit of its own.
+  through `DrylPresence` (`PresenceTransition.Scale`). Its aura enters and
+  exits through `AuraLifecycle`; level and mute changes are animated as above.
 - **Keyboard and a11y** — decorative and hidden from assistive technology, as
   stated above.
 - **AI mode** — **yes, always on and not an opt-in**: the orb has no `Ai`

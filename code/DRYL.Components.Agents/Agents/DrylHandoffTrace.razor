@@ -1,4 +1,5 @@
 @namespace DRYL.Components.Agents
+@using DRYL.Components.Ai
 @implements IDisposable
 
 @*  ─────────────────────────────────────────────────────────
@@ -6,7 +7,9 @@
 
     Renders one lane per step of a DrylMultiAgentRun (sequential
     handoff chain or concurrent fan-out) and speaks the shared AI
-    vocabulary throughout: the active lane wears the ai-aura, the
+    vocabulary throughout: the active lane wears the ai-aura (one
+    AuraLifecycle per lane, so it leaves gracefully and a lane that
+    completes plays the Generated one-shot), the
     status pill is a DrylAiIndicator, a failed lane shows the step's
     DrylAgentError and completed lanes settle with a check. Sequential
     flows draw a connector that fills as the baton is handed on.
@@ -53,12 +56,7 @@
                 </div>
 
                 <div class="@BodyCss(step)">
-                    @if (IsActive(step))
-                    {
-                        <div class="ai-aura-ring"></div>
-                        <div class="ai-aura-comet"></div>
-                        <div class="ai-aura-glow"></div>
-                    }
+                    <DrylAuraElements Aura="AuraOf(step)" />
                     <div class="handoff-head">
                         <span class="handoff-name">@step.Name</span>
                         <span class="handoff-status" @key="StatusKey(step)">
@@ -153,15 +151,53 @@
         return string.Join(' ', parts);
     }
 
-    private static string BodyCss(DrylAgentHandoff step)
+    private string BodyCss(DrylAgentHandoff step)
     {
         var parts = new List<string> { "handoff-body" };
-        if (IsActive(step))
-        {
-            parts.Add("ai-aura");
-            parts.Add(step.State == AiState.Streaming ? "ai-streaming" : "ai-thinking");
-        }
+        AiAuraCss.Append(parts, AuraOf(step), AiAura.Comet);
         return string.Join(' ', parts);
+    }
+
+    // One lifecycle per lane, so each aura enters, leaves and retires on its own.
+    private readonly Dictionary<DrylAgentHandoff, AuraLifecycle> _auras = new();
+
+    // Lanes that were already done when the trace first saw them.
+    private readonly HashSet<DrylAgentHandoff> _settled = new();
+
+    private AuraLifecycle AuraOf(DrylAgentHandoff step) =>
+        _auras.TryGetValue(step, out var aura) ? aura : _auras[step] = new AuraLifecycle();
+
+    // What a lane's aura shows: the live states and the one-shot. A failed lane has none:
+    // its error speaks, and the aura it wore fades out.
+    private static AiState AuraState(DrylAgentHandoff step) =>
+        step.Error is null && step.State is AiState.Thinking or AiState.Streaming or AiState.Generated
+            ? step.State
+            : AiState.None;
+
+    private void SyncAuras()
+    {
+        if (Run is null) return;
+        foreach (var step in Run.Steps)
+        {
+            var state = AuraState(step);
+            if (!_auras.TryGetValue(step, out var aura))
+            {
+                aura = _auras[step] = new AuraLifecycle();
+                // A lane that finished before the trace saw it is shown settled,
+                // without replaying the one-shot.
+                if (state == AiState.Generated) _settled.Add(step);
+            }
+            if (state == AiState.Generated && _settled.Contains(step)) continue;
+            _settled.Remove(step);
+            aura.Sync(state, () => InvokeAsync(StateHasChanged));
+        }
+    }
+
+    private void DropAuras()
+    {
+        foreach (var aura in _auras.Values) aura.Dispose();
+        _auras.Clear();
+        _settled.Clear();
     }
 
     private static string NodeCss(DrylAgentHandoff step)
@@ -175,16 +211,27 @@
 
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_subscribed, Run)) return;
-        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
-        _subscribed = Run;
-        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        if (!ReferenceEquals(_subscribed, Run))
+        {
+            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            _subscribed = Run;
+            if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+            DropAuras();
+        }
+
+        SyncAuras();
     }
 
-    private void HandleChange() => InvokeAsync(StateHasChanged);
+    // The run changes off the render thread; the lifecycles are only touched on it.
+    private void HandleChange() => InvokeAsync(() =>
+    {
+        SyncAuras();
+        StateHasChanged();
+    });
 
     public void Dispose()
     {
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        DropAuras();
     }
 }

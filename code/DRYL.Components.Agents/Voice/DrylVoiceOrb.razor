@@ -7,8 +7,10 @@
     DrylVoiceOrb — a voice, made visible.
 
     Nothing here is new: it is the shared .ai-aura vocabulary bent into a
-    circle. The state classes are the same ones every other AI surface wears,
-    so a listening assistant reads the same here as it does anywhere else.
+    circle, composed from AuraLifecycle, AiAuraCss and DrylAuraElements like
+    every other AI surface. A listening assistant reads the same here as
+    anywhere else, the aura leaves gracefully, and an orb without a working
+    session is the glass sphere alone.
 
     The level is the one thing the orb owns, and it never touches .NET: the
     JS module writes --voice-level straight onto this element and the CSS
@@ -23,9 +25,7 @@
      style="@FormattableString.Invariant($"--orb-size: {Size}px")"
      @ref="_el"
      aria-hidden="true">
-    <div class="ai-aura-ring"></div>
-    <div class="ai-aura-comet"></div>
-    <div class="ai-aura-glow"></div>
+    <DrylAuraElements Aura="_aura" GenTick="_genTick" />
     <div class="voice-orb-core"></div>
 </div>
 
@@ -46,29 +46,43 @@
     private IJSObjectReference? _module;
     private bool _attached;
 
+    private readonly AuraLifecycle _aura = new();
+    private AiState _lastState = AiState.None;
+    private int _genTick;
+
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_subscribed, Run)) return;
+        if (!ReferenceEquals(_subscribed, Run))
+        {
+            if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+            _subscribed = Run;
+            if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        }
 
-        if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
-        _subscribed = Run;
-        if (_subscribed is not null) _subscribed.OnChange += HandleChange;
+        SyncAura();
     }
 
-    private void HandleChange() => InvokeAsync(StateHasChanged);
+    // The run changes off the render thread; the lifecycle is only touched on it.
+    private void HandleChange() => InvokeAsync(() =>
+    {
+        SyncAura();
+        StateHasChanged();
+    });
+
+    private void SyncAura()
+    {
+        var state = Run?.State ?? AiState.None;
+        if (state == AiState.Generated && _lastState != AiState.Generated) _genTick++;
+        _lastState = state;
+        _aura.Sync(state, () => InvokeAsync(StateHasChanged));
+    }
 
     private string RootCssClass
     {
         get
         {
-            var parts = new List<string> { "voice-orb", "ai-aura" };
-
-            switch (Run?.State ?? AiState.None)
-            {
-                case AiState.Thinking: parts.Add("ai-thinking"); break;
-                case AiState.Streaming: parts.Add("ai-streaming"); break;
-                case AiState.Generated: parts.Add("ai-generated"); break;
-            }
+            var parts = new List<string> { "voice-orb" };
+            AiAuraCss.Append(parts, _aura, AiAura.Comet);
 
             // Muted: the aura steps back and only the core keeps answering — the model's voice.
             if (Run?.IsMuted == true) parts.Add("voice-orb--muted");
@@ -96,6 +110,7 @@
     public async ValueTask DisposeAsync()
     {
         if (_subscribed is not null) _subscribed.OnChange -= HandleChange;
+        _aura.Dispose();
 
         if (!_attached || _module is null) return;
 

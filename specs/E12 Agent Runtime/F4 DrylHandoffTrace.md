@@ -87,10 +87,19 @@ Namespace: `DRYL.Components.Agents`.
   its lane `.handoff-step--active` and its node `.handoff-node--active`.
 - A step at `AiState.Generated` without an error marks its lane
   `.handoff-step--done` and its node `.handoff-node--done`.
+- Each lane's aura is driven by an `AuraLifecycle` of its own and rendered
+  through `AiAuraCss` and `DrylAuraElements`.
 - An active lane's body carries `.ai-aura` plus `.ai-thinking` or
   `.ai-streaming` matching the step's state, and renders the aura's ring,
   comet and glow layers.
-- A lane that is not active renders no aura classes and no aura layers.
+- A lane that completes while the trace is shown plays the `AiState.Generated`
+  one-shot once — `.ai-generated` and the wash layer — and is then plain.
+- A lane that was already at `AiState.Generated` when the trace first saw it is
+  shown settled: no aura classes, no aura layers, no one-shot.
+- A lane that fails or is stopped keeps its aura for the exit with
+  `ai-aura--out`; then it is removed.
+- A lane that never ran renders no aura classes and no aura layers.
+- Passing another `Run` drops the lanes' aura state of the previous one.
 
 ### Status
 
@@ -164,11 +173,6 @@ Namespace: `DRYL.Components.Agents`.
 
 ## Recorded debt
 
-- **Hand-drawn aura.** The active lane writes `.ai-aura-ring`,
-  `.ai-aura-comet` and `.ai-aura-glow` itself instead of composing
-  `AuraLifecycle`, `AiAuraCss` and `DrylAuraElements` (`AI-02`). The aura
-  therefore vanishes at once when the step finishes — no graceful exit — and a
-  done lane plays no `AiState.Generated` one-shot (`AI-07`).
 - **Fixed English labels.** "Agent flow", "Pending", "Failed", "Running",
   "Streaming…", "Done", "Active", "Stopped" and "Step failed" are not
   parameters.
@@ -193,8 +197,9 @@ Namespace: `DRYL.Components.Agents`.
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above.
 - **AI mode** — yes, and not an opt-in: a multi-agent flow is AI work by
   definition, so the component takes no `Ai` parameter and derives each lane's
-  state from its step's run (`AI-05`). The aura's composition is recorded as
-  debt above.
+  state from its step's run (`AI-05`). The aura is composed from the shared
+  primitives, one `AuraLifecycle` per lane; inspected in dark and light on a
+  probe page of `tests/DRYL.BrowserHost` (2026-11-20).
 - **Demo page** — `/components/multi-agent`
   (`DRYL.Website/Components/Pages/DemoMultiAgent.razor`), example
   `Agents/HandoffFlow`.

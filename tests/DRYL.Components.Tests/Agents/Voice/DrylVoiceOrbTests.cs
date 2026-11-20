@@ -96,4 +96,41 @@ public class DrylVoiceOrbTests : BunitContext
         run.OnActivity(nameof(VoiceActivity.Speaking));
         cut.WaitForAssertion(() => Assert.Contains("ai-streaming", cut.Find(".voice-orb").ClassList));
     }
+
+    [Fact]
+    public void At_rest_the_orb_is_the_sphere_alone()
+    {
+        var idle = new DrylVoiceRunner(new NoopJsRuntime())
+            .Create(new DrylVoiceOptions { ApiKey = "sk-test" });
+
+        foreach (var cut in new[]
+                 {
+                     Render<DrylVoiceOrb>(),
+                     Render<DrylVoiceOrb>(p => p.Add(x => x.Run, idle)),
+                 })
+        {
+            Assert.DoesNotContain("ai-aura", cut.Find(".voice-orb").ClassList);
+            Assert.Empty(cut.FindAll(".ai-aura-ring, .ai-aura-comet, .ai-aura-glow"));
+            Assert.Single(cut.FindAll(".voice-orb-core"));
+        }
+    }
+
+    [Fact]
+    public void The_aura_leaves_gracefully_when_the_session_stops_working()
+    {
+        var run = LiveRun(VoiceActivity.Speaking);
+        var cut = Render<DrylVoiceOrb>(p => p.Add(x => x.Run, run));
+
+        cut.Render(p => p.Add(x => x.Run, (DrylVoiceRun?)null));
+
+        // Still mounted, fading: the exit class is on and the ring is there to fade.
+        var orb = cut.Find(".voice-orb");
+        Assert.Contains("ai-aura--out", orb.ClassList);
+        Assert.Single(cut.FindAll(".ai-aura-ring"));
+
+        // ...and gone once the exit window has passed.
+        cut.WaitForAssertion(
+            () => Assert.DoesNotContain("ai-aura", cut.Find(".voice-orb").ClassList),
+            TimeSpan.FromSeconds(3));
+    }
 }

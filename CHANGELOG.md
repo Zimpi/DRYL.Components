@@ -62,6 +62,8 @@ Version bump guide:
 ### Changed
 - `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
 
+- `DrylVoiceOrb` — An orb without a working session is now the glass sphere alone. Before, it showed an orbiting comet even with no `Run` or an idle one. The aura arrives when the session listens, thinks or speaks, and fades out when it stops instead of vanishing.
+- `DrylHandoffTrace` — A lane that completes now plays the same "done" one-shot as a message or a card, and the aura of a lane that fails or is stopped fades out instead of being cut off. A lane that was already done when the trace appears stays calm.
 - `DrylAiCommandPalette` — `Placeholder` and `EmptyText` no longer default to German words. Left unset, the palette now shows the same English defaults as `DrylCommandPalette` ("Search commands…", "No results"). If you relied on the German defaults, set them: `<DrylAiCommandPalette Placeholder="Befehl suchen…" EmptyText="Keine Treffer" />`.
 
 ### Fixed
