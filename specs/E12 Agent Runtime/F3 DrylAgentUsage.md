@@ -72,6 +72,9 @@ Namespace: `DRYL.Components.Agents`.
 
 - The row enters through `DrylPresence` with `PresenceTransition.Fade`,
   including on first render (`Appear`).
+- When `Run.Usage` returns to `null` — for example when the consumer passes a
+  fresh run — the row leaves through the `DrylPresence` exit: it stays rendered
+  with the numbers it last showed until the exit has finished.
 
 ### Keyboard and accessibility
 
@@ -89,10 +92,6 @@ Namespace: `DRYL.Components.Agents`.
 
 - **Labels are fixed English.** "Prompt", "Completion", "Total" and the row's
   `aria-label` "Token usage" are not parameters.
-- **The exit is empty.** As in
-  [`F2 DrylAgentError.md`](F2%20DrylAgentError.md), the row sits under an
-  `@if` inside the `DrylPresence`, so passing a new run without usage removes
-  it at once and the fade-out plays on an empty wrapper (`DESIGN-12`).
 - **Every usage update re-announces the row.** Usage reported in several
   chunks makes the live region speak once per chunk.
 
@@ -100,7 +99,8 @@ Namespace: `DRYL.Components.Agents`.
 
 - **Both color modes** — token-only colors, composed of `DrylBadge`; inspected on `/components/run-health`, with usage badges shown, in dark and light (2026-11-20).
 - **Enter/exit animation** — enter yes: `DrylPresence` with
-  `PresenceTransition.Fade`; the exit runs on an empty wrapper, recorded above.
+  `PresenceTransition.Fade`; exit yes: the same presence, with the row held
+  for it (`DrylAgentUsageTests.Keeps_the_row_for_the_exit_when_a_run_without_usage_replaces_it`).
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above.
 - **AI mode** — **no** `Ai` parameter (`AI-05`). Usage is bookkeeping read off
   a run, not a surface the AI works on; the run's state is shown by the

@@ -67,4 +67,16 @@ public class DrylAgentErrorTests : BunitContext
         cut.Find("button").Click();
         Assert.True(retried);
     }
+
+    [Fact]
+    public void Keeps_the_alert_for_the_exit_when_a_fresh_run_replaces_the_failed_one()
+    {
+        var cut = Render<DrylAgentError>(p => p.Add(x => x.Run, FailedRun("model exploded")));
+
+        cut.Render(p => p.Add(x => x.Run, new DrylAgentRun()));
+
+        // The presence is exiting, not gone — and it still has the alert to slide out.
+        Assert.Contains("presence-exit", cut.Markup);
+        Assert.Contains("model exploded", cut.Find(".alert").TextContent);
+    }
 }

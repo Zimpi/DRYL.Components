@@ -14,7 +14,7 @@ Version bump guide:
 
 ## [Unreleased]
 
-## [3.17.0] — 2026-11-19
+## [3.17.0] — 2026-11-20
 
 <!-- Collected on release/3.17.0: each feature branch adds its entries to this block and moves the date forward. The intro line is written in the release commit. -->
 
@@ -51,10 +51,13 @@ Version bump guide:
 ### Security
 - `DrylMarkdown` — Model-authored Markdown can no longer run script in your app. Two ways through are closed. A link, image or autolink target with a scheme other than `http`, `https`, `mailto` or `tel` (images: `http`, `https`) — `javascript:`, `vbscript:`, `data:` and the rest, in any case, behind character references or with control characters inside — is dropped: a link keeps its text, an image shows its alt text. And attribute blocks such as `{onclick="…"}` or `{style="…"}` are no longer interpreted, so they can no longer put an event handler or an overlay on a rendered element; they now show as plain text. If you render model output with an earlier version, update. Relative links, fragments and `https` images are unchanged; a `{.class}` or `{#id}` block you relied on for styling now renders as text.
 
-## [Agents 0.25.1] — 2026-11-19
+## [Agents 0.25.1] — 2026-11-20
 
 ### Changed
 - `DRYL.Components.Agents` — Minimum `Microsoft.Agents.AI` raised from 1.27.0 to 1.28.0. No API of this package changes; consumers pinned to 1.27.x need to move up with it.
+
+### Fixed
+- `DrylAgentError`, `DrylAgentUsage` — When you pass a fresh run, the alert and the usage row now slide and fade out. Before, they vanished at once and the exit animation played on an empty element.
 
 ## [3.16.0] — 2026-11-02
 

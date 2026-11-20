@@ -77,8 +77,8 @@ Namespace: `DRYL.Components.Agents`.
 - The alert enters through `DrylPresence` with `PresenceTransition.SlideUp`,
   including on first render (`Appear`).
 - When `Run.Error` returns to `null` — for example when the consumer passes a
-  fresh run — the `DrylPresence` wrapper runs its exit (see "Recorded debt"
-  for what it exits with).
+  fresh run — the alert leaves through the `DrylPresence` exit: it stays
+  rendered with the error it last showed until the exit has finished.
 
 ### Keyboard and accessibility
 
@@ -98,11 +98,6 @@ Namespace: `DRYL.Components.Agents`.
 
 - **Literal font size.** `.agent-error-meta` sets an 11 px font size instead of
   a type token (`DESIGN-01`).
-- **The exit is empty.** The alert is rendered under
-  `@if (Run?.Error is { } error)` inside the `DrylPresence`, so once the error
-  is gone the presence's exit pass renders no alert: the alert disappears at
-  once and the slide-out plays on an empty wrapper (`DESIGN-12`). The fix is to
-  hold the last error for the exit.
 - **The meta line is not localisable.** Its em dash separator is fixed in code;
   only `Title` and `RetryLabel` are parameters.
 
@@ -111,8 +106,9 @@ Namespace: `DRYL.Components.Agents`.
 - **Both color modes** — token-only colors, composed of `DrylAlert` and
   `DrylButton`; inspected on `/components/run-health`, with a failed run shown, in dark and light (2026-11-20).
 - **Enter/exit animation** — enter yes: `DrylPresence` with
-  `PresenceTransition.SlideUp`; the exit runs on an empty wrapper, recorded
-  above.
+  `PresenceTransition.SlideUp`; exit yes: the same presence, with the alert
+  held for it
+  (`DrylAgentErrorTests.Keeps_the_alert_for_the_exit_when_a_fresh_run_replaces_the_failed_one`).
 - **Keyboard and a11y** — the "Keyboard and accessibility" criteria above.
 - **AI mode** — **no** `Ai` parameter (`AI-05`). The component exists for the
   moment the AI stopped working: by the library's convention a failed run is
