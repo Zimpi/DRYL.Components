@@ -8,16 +8,10 @@ part of the data contract the 1.0 freeze binds.
 This file carries no `Meta` block: it is a reference for the specs around it, not
 a unit of implementation (`SPEC-03`).
 
-**Partial by design, and this is the honest state of it.** The category holds
-eight components — `DrylPopover`, `DrylCard`, `DrylChat`, `DrylChatComposer`,
-`DrylDepthGlass`, `DrylMarkdown`, `DrylMessage` and `DrylToast`. Two of
-them have a spec today (`F1 DrylPopover.md`, `F2 DrylToast.md`), and only what
-those components own or touch is written below. `MessageRole` in
-`code/DRYL.Components/Components/Surfaces/MessageRole.cs` is the category's other
-public type and is deliberately **not** documented here: it belongs to
-`DrylMessage`, which has no spec yet, and a member list written without the spec
-that pins its behaviour would be a second source of truth from the day it was
-written. The remaining six components are open, not covered.
+The category holds eight components, each with its spec: `F1 DrylPopover.md`,
+`F2 DrylToast.md`, `F3 DrylCard.md`, `F4 DrylChat.md`, `F5 DrylChatComposer.md`,
+`F6 DrylDepthGlass.md`, `F7 DrylMarkdown.md` and `F8 DrylMessage.md`. The public
+types they own are listed below.
 
 ## `PopoverPlacement`
 
@@ -56,6 +50,50 @@ Top-level in `code/DRYL.Components/Toasts/ToastVariant.cs`, namespace
 | `Error` | `Alert` icon, `--danger` tint, assertive. |
 | `Info` | `Info` icon, `--info` tint, polite. |
 
+## `DrylCard.CardPadding`
+
+Nested in `DrylCard` (declared in
+`code/DRYL.Components/Components/Surfaces/DrylCard.razor`), so a consumer writes
+it qualified: `Padding="DrylCard.CardPadding.Tight"`. Owned by `F3 DrylCard.md`.
+
+| Member | Notes |
+|---|---|
+| `None` | No padding (`p-0`), for a custom layout. |
+| `Tight` | `--sp-4` (`p-tight`). |
+| `Default` | `--sp-5` (`p-default`). The default of `DrylCard.Padding`. |
+| `Loose` | `--sp-6` (`p-loose`). |
+
+A value outside the four members is rendered as `Default`.
+
+## `DepthGlassIntensity`
+
+Top-level in `code/DRYL.Components/DepthGlassIntensity.cs`, namespace
+`DRYL.Components`. Owned by `F6 DrylDepthGlass.md`; also the type of
+`DrylCard.Depth`.
+
+| Member | Notes |
+|---|---|
+| `Subtle` | Gentle tilt and parallax (`dg--subtle`). |
+| `Medium` | Balanced (`dg--medium`). The default of `DrylDepthGlass.Intensity`. |
+| `Strong` | Deep tilt and pronounced parallax (`dg--strong`). |
+
+A value outside the three members is rendered as `Medium`. On `DrylCard`, a `null`
+`Depth` means "no depth warp" rather than any intensity.
+
+## `MessageRole`
+
+Top-level in `code/DRYL.Components/Components/Surfaces/MessageRole.cs`, namespace
+`DRYL.Components`. Owned by `F8 DrylMessage.md`.
+
+| Member | Notes |
+|---|---|
+| `User` | The human participant: row from the trailing edge, `--accent-soft` bubble. |
+| `Assistant` | The AI or agent: row from the leading edge, glass bubble, default avatar icon `Sparkle`. The default of `DrylMessage.Role`. |
+| `System` | A centred, muted status line: no avatar, no meta line, no bubble, no aura. |
+
+A value outside the three members — reachable only by casting — is laid out and
+styled as `Assistant`, but without its default `Sparkle` icon.
+
 ## Enums this category uses but does not own
 
 Named so a consumer knows where to look, with their members deliberately not
@@ -65,10 +103,23 @@ restated — a second copy of a member list is the second source of truth
 | Type | Owner | Used by |
 |---|---|---|
 | `DrylMenu.MenuPlacement` | `E10 Navigation` — nested inside `DrylMenu` | Not by this category. Listed because `DrylMenu` maps its own placement onto `PopoverPlacement` when it configures the popover it wraps, so the two enums are read together. |
+| `AiState` | `E1 Foundation` | `DrylCard`, `DrylChat`, `DrylChatComposer`, `DrylMarkdown`, `DrylMessage` and `DrylToast`, as the type of their `Ai` parameter. |
+| `AiAura` | `E1 Foundation` | The same six, as the type of their `Aura` parameter — `AiAura?` (with `null` inheriting a surrounding `DrylAiScope`) on all but `DrylToast`, whose `Aura` is a non-nullable `AiAura` defaulting to `AiAura.Comet`. |
 
-`DrylPopover` takes no `AiState` and no `AiAura`: it declares no `Ai` parameter
-and does not inherit `DrylAiAware`. That is a decision rather than an omission
-(`AI-05`) and is argued in `F1 DrylPopover.md`.
+## The `Ai` parameter in this category
+
+Four components inherit `Ai` and `Aura` from `DrylAiAware` — `DrylCard`,
+`DrylChat`, `DrylMarkdown` and `DrylMessage` — and therefore resolve **both** the
+state and the variant against a surrounding `DrylAiScope`. `DrylChatComposer`
+declares the two parameters itself and resolves only the variant through the
+scope: its state is `Ai` as given, a difference recorded in
+`F5 DrylChatComposer.md`. `DrylToast` declares both itself and resolves neither
+through a scope; see `F2 DrylToast.md`.
+
+`DrylPopover` and `DrylDepthGlass` take no `AiState` and no `AiAura`: neither
+declares an `Ai` parameter nor inherits `DrylAiAware`. Both are decisions rather
+than omissions (`AI-05`), argued in `F1 DrylPopover.md` and
+`F6 DrylDepthGlass.md`.
 
 ## The popover's contract with its consumers
 
@@ -95,7 +146,8 @@ rule is in `F1 DrylPopover.md`.
 service, and `AddDrylComponents()` in
 `code/DRYL.Components/Extensions/ServiceCollectionExtensions.cs` registers
 nothing on their behalf: every entry it makes belongs to another category.
-Several components in the folder — `DrylPopover` among them — inject
-`IJSRuntime`, which is the framework's service rather than one of the library's,
-and none of them injects a `DRYL.Components` service at all. See
+Five components in the folder — `DrylPopover`, `DrylCard`, `DrylChat`,
+`DrylChatComposer` and `DrylDepthGlass` — inject `IJSRuntime`, which is the
+framework's service rather than one of the library's, and none of them injects a
+`DRYL.Components` service at all. See
 [`_Interop.md`](_Interop.md).

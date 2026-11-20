@@ -4,19 +4,17 @@ The JS interop surface this category uses, the DI services it registers, and the
 cleanup duties each imposes (`CODE-05` in
 [`../../harness/code.md`](../../harness/code.md)).
 
-**Partial by design.** Of the category's eight components `DrylPopover` and
-`DrylToast` have a spec (`F1 DrylPopover.md`, `F2 DrylToast.md`), and only their
-interop is documented below.
-`DrylCard`, `DrylChat`, `DrylChatComposer` and `DrylDepthGlass` also inject
-`IJSRuntime` and call `dryl.*` entry points of their own — `dryl.depthglass.*`,
-`dryl.spotlight.*` and `dryl.chat.*` — and none of that is written here yet;
-`DrylMarkdown`, `DrylMessage` and `DrylToast` inject no `IJSRuntime` at all.
-`DrylToast`'s timer and motion are driven from `dryl.toast` through its
-provider, documented in `E1 Foundation/_Interop.md`. The six components without
-a spec are open, not covered, and the sections below are not a complete account
-of the category.
+Five of the category's eight components inject `IJSRuntime`: `DrylPopover`,
+`DrylCard`, `DrylChat`, `DrylChatComposer` and `DrylDepthGlass`. `DrylMarkdown`,
+`DrylMessage` and `DrylToast` inject none. `DrylToast`'s timer and motion are
+driven from `dryl.toast` through its provider, documented in
+`E1 Foundation/_Interop.md`. Every module named below lives in
+`code/DRYL.Components/wwwroot/js/dryl.js`; none is imported as a JS module, and no
+component holds an `IJSObjectReference`.
 
 ## Interop
+
+### `DrylPopover`
 
 `DrylPopover` injects `IJSRuntime` and calls four entry points of the
 `dryl.popover` module in `code/DRYL.Components/wwwroot/js/dryl.js`. There is no
@@ -71,12 +69,51 @@ imports no positioning library: the placement, the viewport flip and the
 horizontal clamp are arithmetic in `dryl.popover`'s own `place`, which keeps
 `CODE-03`'s zero-runtime-dependency rule intact.
 
+### `DrylCard` and `DrylDepthGlass` — the pointer trackers
+
+Both modules only write custom properties on the element they are given; every
+visible effect is CSS in `dryl.css`, so a pointer move costs no Blazor render.
+
+| Entry point | Called from | Does |
+|---|---|---|
+| `dryl.spotlight.track(el)` | `DrylCard.OnAfterRenderAsync`, first render only, when `Depth` is `null` and `Spotlight` is `true` | Binds one `mousemove` listener that writes the pointer position relative to the element as `--mx` / `--my` (pixels). Marks the element `__drylSpot`; a second call on a marked element does nothing. |
+| `dryl.spotlight.untrack(el)` | `DrylCard.DisposeAsync`, when the spotlight was tracked | Removes the listener and the `__drylSpot` marker. The written properties stay. |
+| `dryl.depthglass.track(el)` | `DrylCard.OnAfterRenderAsync` (first render, `Depth` set) and `DrylDepthGlass.OnAfterRenderAsync` (first render, `Interactive` `true`) | Binds `pointermove`, writing `--mx` / `--my` (percent of the element) and `--tx` / `--ty` (offset from the centre), and `pointerleave`, resetting `--tx` / `--ty` to zero. Marks the element `__drylDg`; idempotent like the spotlight. |
+| `dryl.depthglass.untrack(el)` | `DrylCard.DisposeAsync` and `DrylDepthGlass.DisposeAsync`, when tracked | Removes both listeners and the `__drylDg` marker. |
+
+Neither component re-evaluates the choice after the first render; see the
+recorded debt in `F3 DrylCard.md` and `F6 DrylDepthGlass.md`.
+
+### `DrylChat` and `DrylChatComposer` — `dryl.chat`
+
+| Entry point | Called from | Does |
+|---|---|---|
+| `dryl.chat.scrollToEnd(el)` | `DrylChat.OnAfterRenderAsync`, after **every** render while `AutoScroll` is `true` | Sets the log's `scrollTop` to its `scrollHeight`. Stateless; registers nothing. |
+| `dryl.chat.attachComposer(el, dotnetRef)` | `DrylChatComposer.OnAfterRenderAsync`, first render only | Detaches any earlier registration for the element, then binds `keydown` (`Enter` without `Shift` and outside an IME composition: `preventDefault` and `SubmitFromJs`) and `input` (grow the textarea to its content). If the element cannot be measured yet — hidden, `scrollHeight` zero — it keeps its CSS height and a `ResizeObserver` measures it once, then disconnects. Handlers are held in a module-private `WeakMap` keyed by the element. |
+| `dryl.chat.resize(el)` | `DrylChatComposer`, after each send | Re-measures the textarea, so it shrinks after the draft is cleared. |
+| `dryl.chat.detachComposer(el)` | `DrylChatComposer.DisposeAsync`, when attached | Removes both listeners, disconnects a pending `ResizeObserver` and drops the `WeakMap` entry. |
+
+**Back into .NET.** `DrylChatComposer` hands `attachComposer` a
+`DotNetObjectReference<DrylChatComposer>`; the `keydown` listener calls
+`SubmitFromJs()`, the component's one `[JSInvokable]` method, which takes the same
+path as the send button.
+
+**The input echo guard.** The composer's `textarea` carries `data-dryl-input`. The
+component makes no call for it: `dryl.inputs` installs itself on the element at
+its first focus through a document-level `focusin` listener and protects the field
+from late server echoes of older keystrokes. The guard belongs to the input
+family and is documented with it (`E8 Inputs/_Interop.md`).
+
 ## Services
 
 **None.** No component in this category registers a service, and none injects a
-`DRYL.Components` service. `DrylPopover` injects `IJSRuntime` alone. It reads no
-cascading value and requires no provider component in the layout, so it works in
-an application that never called `AddDrylComponents()`.
+`DRYL.Components` service. `DrylPopover`, `DrylCard`, `DrylChat`,
+`DrylChatComposer` and `DrylDepthGlass` inject `IJSRuntime` alone. `DrylPopover`
+reads no cascading value and requires no provider component in the layout, so it
+works in an application that never called `AddDrylComponents()`. The AI-aware
+components (`DrylCard`, `DrylChat`, `DrylChatComposer`, `DrylMarkdown`,
+`DrylMessage`) read the optional cascading `AiScope` that `DrylAiScope` supplies,
+and work without one.
 
 ## Cleanup
 
@@ -96,9 +133,23 @@ exit cleanup cannot strand the portalled panel. Registration failure keeps the
 existing watchdog fallback. This ownership is internal; no public parameter,
 callback signature or motion timing is added.
 
+### Per component
+
 | Component | Contract | Released |
 |---|---|---|
 | `DrylPopover` | `IAsyncDisposable` | The portal (`dryl.popover.close`) and the `DotNetObjectReference` it handed to JS. |
+| `DrylCard` | `IAsyncDisposable` | Its `AuraLifecycle`, then the pointer tracker (`dryl.depthglass.untrack` or `dryl.spotlight.untrack`) if one was attached. Any exception from the untrack call is swallowed. |
+| `DrylDepthGlass` | `IAsyncDisposable` | The pointer tracker (`dryl.depthglass.untrack`) if attached; swallows `JSDisconnectedException` and `InvalidOperationException` (prerender). |
+| `DrylChat` | `IDisposable` | Its `AuraLifecycle`. `dryl.chat.scrollToEnd` registers nothing, so there is no JS to release. |
+| `DrylChatComposer` | `IAsyncDisposable` | Its `AuraLifecycle`, the composer listeners (`dryl.chat.detachComposer`) if attached — swallowing `JSDisconnectedException`, `JSException` and `InvalidOperationException` — and then its `DotNetObjectReference`. |
+| `DrylMarkdown` | `IDisposable` | Its `AuraLifecycle`. |
+| `DrylMessage` | `IDisposable` | Its `AuraLifecycle`. |
+
+Each `AuraLifecycle` disposal cancels a pending aura exit or `Generated` retire
+timer, so no re-render is requested of a disposed component (`CODE-05`).
+Every JS-attaching component guards its teardown with a flag set only after the
+first-render attach succeeded, so a statically prerendered instance makes no JS
+call on disposal.
 
 `DisposeAsync` tears the portal down **before** disposing the object reference,
 in that order, because a popover disposed while open has its panel node living
