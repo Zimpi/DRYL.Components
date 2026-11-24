@@ -83,6 +83,9 @@
 
 - An event renders its `Title`.
 - A timed event in the day and week views renders its start and end time.
+- A time or an avatar that does not fit an event's box whole is not drawn in
+  part: it is left out, or — the times of a box taller than one line — broken
+  at the dash onto a second line.
 - Times are formatted with `Culture`.
 - An event with people assigned renders them as avatars, in the order of
   `PersonIds`.
@@ -131,9 +134,14 @@
   all layout arithmetic is server-side. A day with more gives its third row to
   the overflow control; a bar hidden on one of its days is hidden, and counted,
   on all of them.
-- **Avatars and the recurring mark are not shown in a box narrower than 120px**,
-  and a single-line segment narrower than 150px drops its times, so the title
-  stays readable. The event's accessible name states all of it at any width.
+- **A box too narrow for everything shows less, never a cut part.** Avatars
+  and the recurring mark are not shown in a box narrower than 120px, and the
+  times not in one narrower than 56px. On a single-line segment the parts give
+  way from the end — avatars, recurring mark, times — each whole, and only the
+  title shortens to an ellipsis; in a taller box the times break at the dash
+  onto a second line. The thresholds are literal widths in the stylesheet,
+  not measurements of the text. The event's accessible name states all of it
+  at any width.
 - **A timed event wholly outside `DayStart`–`DayEnd` on every day it touches**
   is drawn in no column, as "Placement" says — and is therefore not visible in
   the day and week views at all. The month view shows it.
