@@ -133,6 +133,11 @@ Every rule has a stable ID. Cite it when you flag a violation.
 Evidence and references cite selectors, symbol names and file paths — never line
 numbers (`SPEC-09`).
 
+**Fix the root cause — never a workaround.** A defect is fixed in the component
+or stylesheet it originates in, not patched over in a consumer (the website, a
+demo, a one-off override). The weight of the process here — spec, changelog,
+version — is not a reason to fix it somewhere else or to leave it open.
+
 If a value, a state or a primitive you need does not exist: **do not invent it.**
 Propose adding it and ask the maintainer. That is the bar for tokens
 (`DESIGN-03`), motion (`DESIGN-10`), AI visuals (`AI-04`) and dependencies

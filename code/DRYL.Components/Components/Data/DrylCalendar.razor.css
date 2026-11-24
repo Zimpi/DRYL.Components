@@ -453,7 +453,8 @@ button.cal-day-head:hover {
 }
 
 /* Where a box is too narrow for everything, the avatars give way first, then
-   the recurring mark, and only then the title. */
+   the recurring mark, and only then the title. Nothing is cut through: an
+   avatar or a time that does not fit whole is not shown at all. */
 .cal-event-recurring {
     display: inline-flex;
     flex: 0 999 auto;
@@ -466,6 +467,10 @@ button.cal-day-head:hover {
     display: inline-flex;
     flex: 0 9999 auto;
     align-self: center;
+    /* One row of avatars: one that does not fit whole wraps below the row and
+       is clipped there, so the row never ends in half an avatar. */
+    flex-wrap: wrap;
+    height: var(--sp-4);
     min-width: 0;
     overflow: hidden;
     gap: calc(var(--sp-1) / 2);
@@ -491,8 +496,8 @@ button.cal-day-head:hover {
 }
 
 /* A box too narrow for everything keeps its title: the avatars and the
-   recurring mark go first, then — on a single-line segment — the times. The
-   event's accessible name states all of it at any width. */
+   recurring mark go first, and a box too narrow for even one clock time drops
+   its times. The event's accessible name states all of it at any width. */
 @container cal-slot (max-width: 120px) {
     .cal-event-people,
     .cal-event-recurring {
@@ -500,8 +505,8 @@ button.cal-day-head:hover {
     }
 }
 
-@container cal-slot (max-width: 150px) {
-    .cal-event--timed.is-compact .cal-event-time {
+@container cal-slot (max-width: 56px) {
+    .cal-event--timed .cal-event-time {
         display: none;
     }
 }
@@ -555,19 +560,39 @@ button.cal-day-head:hover {
     flex: 0 1 auto;
 }
 
-/* Too short for a second line: everything on one, and what does not fit is cut
-   at the box rather than through the middle of a line. */
+/* In a box narrower than its range the times break at the dash onto a second
+   line instead of being cut through a digit. */
+.cal-event--timed .cal-event-time {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+}
+
+/* Too short for a second line: one visible line. The parts still wrap, in
+   source order — title, times, recurring mark, avatars — but the strut below
+   makes the first line as tall as the box, so whatever wraps lands outside it
+   and is clipped whole. The last parts give way first and none is cut through. */
 .cal-event--timed.is-compact {
-    flex-wrap: nowrap;
     align-items: center;
     padding-block: 0;
 }
 
-/* On that one line the title comes first; the times give way before it does. */
+.cal-event--timed.is-compact::before {
+    content: "";
+    align-self: stretch;
+    height: 100%;
+    /* Takes no room of its own: cancel the gap that follows it. */
+    margin-right: calc(-1 * var(--sp-2));
+}
+
+/* The title alone may shorten to an ellipsis; the times stay whole or go. */
+.cal-event--timed.is-compact .cal-event-title {
+    max-width: 100%;
+}
+
 .cal-event--timed.is-compact .cal-event-time {
-    flex: 0 99 auto;
-    min-width: 0;
-    overflow: hidden;
+    flex: none;
+    white-space: nowrap;
 }
 
 /* A bar or line: placed on the lanes of the all-day row or a month's week row. */

@@ -14,6 +14,14 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.18.1] — 2026-11-24
+
+An app shell that no longer lets a wide app bar push the page off a phone, and calendar events that never cut a time or an avatar in half.
+
+### Fixed
+- `DrylLayout` — An app bar whose content is wider than the viewport no longer widens the whole shell. Before, the shell's content column grew to the bar's minimum width, so on a phone, a tablet or a narrow desktop window the main area was laid out wider than the screen and clipped at the right edge: text ran off the page and could not be scrolled into view. The column is now exactly the room there is (`minmax(0, 1fr)`), on every breakpoint and with the sidebar collapsed. A bar that is still too wide for its row is clipped by itself, so give its content a way to shrink or hide on small screens.
+- `DrylCalendar` — Times and avatars inside an event are no longer cut through. A short single-line event dropped its title to an ellipsis and showed a clipped range such as "09:00 – 0"; it now keeps the title and shows the times, the recurring mark and the avatars only where each fits whole. In a taller event that is narrower than its range the times break at the dash onto a second line, and an event narrower than 56 px leaves them out. The event's accessible name still states everything at any width.
+
 ## [3.18.0] — 2026-11-24
 
 DRYL is ready for .NET 11: a `net11.0` build of both packages, and a reconnect modal that stays out of the way when .NET 11 auto-pause hands a hidden tab's circuit back and picks it up again. Agents 0.27.0 ships with it.

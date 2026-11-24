@@ -79,6 +79,10 @@ Cascades: one `DrylLayoutContext`, fixed for the layout's lifetime.
 - A direct `.topbar` child occupies the `topbar` area.
 - A direct `.main` child occupies the `main` area.
 - The shell is exactly one viewport tall and does not scroll itself.
+- The content column is exactly the room beside the drawer column, at every
+  width: a top bar or main area whose content is wider than that room does not
+  widen the column, so one oversized part never pushes the others past the
+  shell's edge.
 - Below desktop width the shell has a single column holding the top bar and
   the main area.
 - Below desktop width a direct `.sidebar` child leaves the grid and slides in

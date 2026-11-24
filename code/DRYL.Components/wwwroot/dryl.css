@@ -1762,7 +1762,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 /* ============== APP CHROME ============== */
 .app-shell {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  /* minmax(0, 1fr), not 1fr: a bare 1fr track is never narrower than its widest
+     item's min-content, so an app bar whose content outgrows the viewport would
+     widen the track — and the main area with it — past the shell's clip edge.
+     With a zero minimum the track is exactly the room there is, and the bar's
+     own content has to flex or clip inside it. */
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   grid-template-areas:
     "drawer topbar"
@@ -1779,7 +1784,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
    grid is a single column and the sidebar is an overlay, so collapse is moot. */
 @media (min-width: 1024px) {
   .app-shell.is-sidebar-collapsed {
-    grid-template-columns: var(--sidebar-collapsed-w) 1fr;
+    grid-template-columns: var(--sidebar-collapsed-w) minmax(0, 1fr);
   }
 }
 .app-shell > .sidebar { grid-area: drawer; }
@@ -1963,7 +1968,7 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 @media (max-width: 1023px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "topbar"
       "main";
