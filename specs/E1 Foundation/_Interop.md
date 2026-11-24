@@ -104,9 +104,10 @@ and stays inert (`tests/js/toast.test.mjs`).
 
 | Concern | What |
 |---|---|
-| Interop | None through `IJSRuntime`, and no `dryl.*` entry point. The framework's own `blazor.web.js` finds the root by id, toggles its state classes and fills the counter spans. The component's two buttons call the framework globals `Blazor.reconnect()` and `location.reload()` through native inline `onclick` attributes, because no .NET code runs on a dead circuit. |
+| Interop | None through `IJSRuntime`, and no `dryl.*` entry point. The framework's own `blazor.web.js` finds the root by id, toggles its state classes and fills the counter spans. The component's buttons call the framework globals `Blazor.reconnect()`, `Blazor.resumeCircuit()` and `location.reload()` through native inline `onclick` attributes, because no .NET code runs on a dead circuit. |
+| Pause origin | `dryl.js` registers one capture-phase `document` listener for the framework's `components-reconnect-state-changed` event (it does not bubble) when the script loads. On state `paused` it sets `data-pause-origin` on the event target — `server` when `detail.remote` is true, `client` otherwise — and removes the attribute on every other state. |
 | Services | None injected or registered. |
-| Cleanup | None: no listener, timer, observer or `DotNetObjectReference` is owned (`CODE-05`). |
+| Cleanup | None owned by the component (`CODE-05`). The `document` listener belongs to the script and lives as long as the page. |
 
 
 ### `dryl.theme` (`F5 DrylThemeProvider`, `F6 DrylColorModeToggle`)

@@ -14,6 +14,23 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.18.0] — 2026-11-24
+
+DRYL is ready for .NET 11: a `net11.0` build of both packages, and a reconnect modal that stays out of the way when .NET 11 auto-pause hands a hidden tab's circuit back and picks it up again. Agents 0.27.0 ships with it.
+
+### Added
+- `DRYL.Components` — The package now carries a `net11.0` build beside `net8.0`, `net9.0` and `net10.0`. Nothing changes for apps on the older frameworks.
+- `DrylReconnectModal` — A **paused** state for a session the server paused (`components-reconnect-paused`), with a resume button that calls `Blazor.resumeCircuit()` and reloads the page when the server no longer holds the session. New parameters `PausedText` and `ResumeButtonText`.
+- `DrylReconnectModal` — A **resume-failed** state (`components-reconnect-resume-failed`) with a reload button, and the new parameter `ResumeFailedText`. Before, a failed resume left the page dead with nothing on screen.
+
+### Changed
+- `DrylReconnectModal` — A circuit the browser paused by itself, as .NET 11 auto-pause (`AddAutoPause`) does for a hidden tab, no longer shows the overlay. Before, the paused state looked like "Reconnecting to the server…", so a visitor returning to the tab saw the modal flash before the framework resumed. This needs `dryl.js` on the page, which tells the two kinds of pause apart; without it every pause shows the paused state. To show the overlay for a browser-side pause as well, override `.reconnect-overlay.components-reconnect-paused` in your own stylesheet.
+
+## [Agents 0.27.0] — 2026-11-24
+
+### Added
+- `DRYL.Components.Agents` — The package now carries a `net11.0` build beside `net8.0`, `net9.0` and `net10.0`.
+
 ## [3.17.1] — 2026-11-24
 
 A compact table keeps its titles readable, a phone gets the page gutter it was always meant to have, and the page-size selector is never empty.

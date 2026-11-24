@@ -7,9 +7,13 @@
     survives the framework's class toggling, so these selectors keep matching.
 
       (no class) / components-reconnect-hide → hidden  (base)
-      components-reconnect-show|retrying|paused → reconnecting
-      components-reconnect-failed             → failed
-      components-reconnect-rejected           → rejected
+      components-reconnect-show|retrying → reconnecting
+      components-reconnect-paused        → paused        (hidden while the
+                                            browser paused the circuit itself:
+                                            [data-pause-origin="client"])
+      components-reconnect-resume-failed → resume failed
+      components-reconnect-failed        → failed
+      components-reconnect-rejected      → rejected
 */
 
 .reconnect-overlay {
@@ -35,7 +39,8 @@
 
 .reconnect-overlay.components-reconnect-show,
 .reconnect-overlay.components-reconnect-retrying,
-.reconnect-overlay.components-reconnect-paused,
+.reconnect-overlay.components-reconnect-paused:not([data-pause-origin="client"]),
+.reconnect-overlay.components-reconnect-resume-failed,
 .reconnect-overlay.components-reconnect-failed,
 .reconnect-overlay.components-reconnect-rejected {
     opacity: 1;
@@ -63,7 +68,8 @@
 
 .reconnect-overlay.components-reconnect-show .reconnect-card,
 .reconnect-overlay.components-reconnect-retrying .reconnect-card,
-.reconnect-overlay.components-reconnect-paused .reconnect-card,
+.reconnect-overlay.components-reconnect-paused:not([data-pause-origin="client"]) .reconnect-card,
+.reconnect-overlay.components-reconnect-resume-failed .reconnect-card,
 .reconnect-overlay.components-reconnect-failed .reconnect-card,
 .reconnect-overlay.components-reconnect-rejected .reconnect-card {
     transform: translateY(0) scale(1);
@@ -80,7 +86,8 @@
 
 .reconnect-overlay.components-reconnect-show .reconnect-reconnecting,
 .reconnect-overlay.components-reconnect-retrying .reconnect-reconnecting,
-.reconnect-overlay.components-reconnect-paused .reconnect-reconnecting,
+.reconnect-overlay.components-reconnect-paused:not([data-pause-origin="client"]) .reconnect-paused,
+.reconnect-overlay.components-reconnect-resume-failed .reconnect-resume-failed,
 .reconnect-overlay.components-reconnect-failed .reconnect-failed,
 .reconnect-overlay.components-reconnect-rejected .reconnect-rejected {
     display: flex;
@@ -127,6 +134,11 @@
     color: var(--warning);
     background: color-mix(in srgb, var(--warning) 12%, transparent);
     border-color: color-mix(in srgb, var(--warning) 32%, transparent);
+}
+.reconnect-glyph-accent {
+    color: var(--accent-a);
+    background: var(--accent-soft);
+    border-color: var(--line-strong);
 }
 .reconnect-glyph-danger {
     color: var(--danger);

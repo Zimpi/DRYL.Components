@@ -66,7 +66,7 @@ look. Full guide: [`theming.md`](https://github.com/Zimpi/DRYL.Components/blob/m
 
 ## Quick start
 
-DRYL targets **.NET 8, 9 and 10**.
+DRYL targets **.NET 8, 9, 10 and 11**.
 
 **1. Add the package**
 
