@@ -27,6 +27,11 @@ and its decisions are in `ideas/I43 A table that becomes a record list.md`.
 - A record shows its title, its trailing value and its meta values; every other
   column is not shown until the record is unfolded.
 - The title and the trailing value share the first line, the title leading.
+- The trailing value takes the width its content asks for, up to two fifths of
+  the record; a longer value wraps within that width, so the title always keeps
+  the larger part of the line and a long trailing value — an ID, a sentence —
+  cannot squeeze it into a column a few letters wide. The second meta value
+  shares that column and its limit.
 - The meta values share the second line, the first leading and the second
   trailing.
 - The selection checkbox and the reorder grip, where configured, lead the
@@ -143,9 +148,6 @@ and its decisions are in `ideas/I43 A table that becomes a record list.md`.
   control by `dryl.table.initCompactTap`, because the component cannot know
   that it is compact. Before the page is interactive, and wherever that helper
   failed to attach, only the unfold control itself unfolds a record.
-- **A wide trailing value squeezes the title.** The trailing value takes the
-  width its content asks for and the title takes what is left, so a long
-  trailing text leaves the title a narrow column to wrap in.
 - **Touch cannot drag a record.** The grip relies on HTML drag-and-drop, which
   touch screens do not fire; on a phone a record can be reordered only with a
   keyboard.
@@ -173,6 +175,7 @@ and its decisions are in `ideas/I43 A table that becomes a record list.md`.
 - **Tests** — `tests/DRYL.Components.Tests/DrylTableCompactTests.cs` guards
   what the markup carries: the breakpoint class and the opt-out, the role
   assignment, the unfold control, the tap marker, the sort and filter control
-  and its panel, the explicit roles and the width property. The layout itself
+  and its panel, the explicit roles and the width property, and pins the
+  record grid's cap on the trailing track in the stylesheet. The layout itself
   is the stylesheet's and was checked by eye on the docs page at a phone width
   and at desktop width, in both color modes.

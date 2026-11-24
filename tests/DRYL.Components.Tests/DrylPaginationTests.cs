@@ -120,4 +120,27 @@ public class DrylPaginationTests : BunitContext
 
         Assert.Empty(cut.FindAll(".tbl-pagination-size"));
     }
+
+    [Fact]
+    public void Size_selector_shows_a_PageSize_missing_from_the_options()
+    {
+        var cut = RenderBar(pageSize: 25);
+
+        var trigger = cut.Find(".tbl-pagination-size [role=combobox]");
+        Assert.Contains("25", trigger.TextContent);
+
+        trigger.Click();
+        var options = cut.FindAll(".select-option").Select(o => o.TextContent.Trim()).ToArray();
+        Assert.Equal(new[] { "10", "20", "25", "50", "100" }, options);
+    }
+
+    [Fact]
+    public void Size_selector_lists_an_option_once_when_PageSize_is_among_them()
+    {
+        var cut = RenderBar(pageSize: 50);
+
+        cut.Find(".tbl-pagination-size [role=combobox]").Click();
+        var options = cut.FindAll(".select-option").Select(o => o.TextContent.Trim()).ToArray();
+        Assert.Equal(new[] { "10", "20", "50", "100" }, options);
+    }
 }

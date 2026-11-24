@@ -63,8 +63,10 @@ Namespace: `DRYL.Components`.
 
 ## Recorded debt
 
-- **Literal geometry (`DESIGN-01`).** The reading-width cap and both padding
-  sets of `.main-inner` are literal lengths, not `--sp-*` tokens.
+- **Literal geometry (`DESIGN-01`).** The reading-width cap and the desktop
+  padding set of `.main-inner` are literal lengths, not `--sp-*` tokens; the
+  smaller set below the desktop breakpoint reads `--sp-5`, `--sp-4` and
+  `--sp-8`.
 - **Viewport, not container.** The padding step-down is a viewport media query,
   not a container query, unlike the responsive foundation's container-first
   approach.
@@ -85,4 +87,6 @@ Namespace: `DRYL.Components`.
   `DRYL.Website/Components/Layout/MainLayout.razor`.
 - **`ComponentCatalog`** — no entry of its own; covered by the `"App Shell"` /
   `app-shell` entry (`REL-04`).
-- **Tests** — none of its own.
+- **Tests** — `tests/DRYL.Components.Tests/DrylMainContentTests.cs` pins the
+  stylesheet order: the smaller padding below the desktop breakpoint follows the
+  base `.main-inner` rule, so it is not overridden by it.
