@@ -4,6 +4,7 @@
 - **State:** Implemented
 - **Source:** code/DRYL.Components/Components/Providers/DrylReconnectModal.razor
               code/DRYL.Components/Components/Providers/DrylReconnectModal.razor.css
+              code/DRYL.Components/wwwroot/js/dryl.js
 
 ## User Story
 
@@ -25,13 +26,27 @@ is down no C# runs and no re-render can happen.
 | Framework class | What shows |
 |---|---|
 | none, or `components-reconnect-hide` | nothing — the overlay is hidden and takes no pointer events |
-| `components-reconnect-show`, `-retrying`, `-paused` | the **reconnecting** block: spinner, message, optional attempt counter |
+| `components-reconnect-show`, `-retrying` | the **reconnecting** block: spinner, message, optional attempt counter |
 | `components-reconnect-failed` | the **failed** block: warning glyph, message, a retry button |
+| `components-reconnect-paused` | the **paused** block: pause glyph, message, a resume button — or nothing, when the browser paused the circuit itself (see below) |
+| `components-reconnect-resume-failed` | the **resume-failed** block: warning glyph, message, a reload button |
 | `components-reconnect-rejected` | the **rejected** block: danger glyph, message, a reload button |
 
-**The two buttons are native on purpose.** They are plain `button` elements
-with an inline `onclick` — `Blazor.reconnect()` and `location.reload()` — not
-`DrylButton`s, because an `EventCallback` would never reach a dead circuit. They
+**A pause the browser asked for shows nothing.** Since .NET 10 a circuit can
+be paused and resumed; .NET 11 auto-pause (`AddAutoPause` in the host) does it
+for a tab that has been hidden for a while and resumes when the tab is looked
+at again. The framework sets `components-reconnect-paused` for that pause
+exactly as for one the server requested; only its
+`components-reconnect-state-changed` event tells them apart (`remote`).
+`dryl.js` mirrors that onto the root as `data-pause-origin` — `client` or
+`server` — and the stylesheet keeps the overlay hidden for `client`: nobody
+was looking at the tab, and the resume needs no decision. A pause the server
+requested, a pause on a page without `dryl.js`, and a resume that failed are
+shown.
+
+**The buttons are native on purpose.** They are plain `button` elements
+with an inline `onclick` — `Blazor.reconnect()`, `Blazor.resumeCircuit()` and
+`location.reload()` — not `DrylButton`s, because an `EventCallback` would never reach a dead circuit. They
 borrow the `.btn` / `.btn-primary` look from `dryl.css`.
 
 **It enters and leaves.** The overlay fades its `opacity` and `visibility` on
@@ -40,7 +55,7 @@ borrow the `.btn` / `.btn-primary` look from `dryl.css`.
 
 **A consumer can force a state.** Because the state is just a class, a
 `Class="components-reconnect-failed"` shows that state without any outage —
-which is how the demo page shows all three side by side.
+which is how the demo page shows its states side by side.
 
 The component is mounted once, near the end of the layout. It has no effect
 under Blazor WebAssembly, where there is no circuit to lose.
@@ -54,8 +69,11 @@ Namespace: `DRYL.Components`.
 | `ReconnectingText` | `string` | `"Reconnecting to the server…"` | Message of the reconnecting state. |
 | `FailedText` | `string` | `"We couldn't reconnect. The server may be unavailable."` | Message of the failed state. |
 | `RejectedText` | `string` | `"Your session has expired."` | Message of the rejected state. |
+| `PausedText` | `string` | `"Your session was paused."` | Message of the paused state. |
+| `ResumeFailedText` | `string` | `"We couldn't resume your session."` | Message of the resume-failed state. |
+| `ResumeButtonText` | `string` | `"Resume"` | Label of the paused state's resume button. |
 | `RetryButtonText` | `string` | `"Retry now"` | Label of the failed state's retry button. |
-| `ReloadButtonText` | `string` | `"Reload page"` | Label of the rejected state's reload button. |
+| `ReloadButtonText` | `string` | `"Reload page"` | Label of the reload button of the rejected and resume-failed states. |
 | `ShowAttemptCounter` | `bool` | `true` | Shows the "Attempt X / Y" and "next try in Ns" lines in the reconnecting state. |
 | `AttemptLabel` | `string` | `"Attempt"` | Text before the current attempt number. |
 | `NextAttemptLabel` | `string` | `"Next try in"` | Text before the seconds value. |
@@ -75,9 +93,10 @@ Namespace: `DRYL.Components`.
 - The root carries `role="alertdialog"` and `aria-modal="true"`.
 - The root's `aria-labelledby` names the reconnecting message
   (`dryl-reconnect-label`).
-- The root holds one `.reconnect-card` with three state blocks:
-  `.reconnect-reconnecting`, `.reconnect-failed` and `.reconnect-rejected`.
-- All three blocks are always in the markup; CSS decides which one shows.
+- The root holds one `.reconnect-card` with five state blocks:
+  `.reconnect-reconnecting`, `.reconnect-failed`, `.reconnect-paused`,
+  `.reconnect-resume-failed` and `.reconnect-rejected`.
+- All five blocks are always in the markup; CSS decides which one shows.
 
 ### Reconnecting state
 
@@ -108,13 +127,40 @@ Namespace: `DRYL.Components`.
 - The warning glyph is drawn in `--warning`, the danger glyph in `--danger`,
   each over a tint of its own colour.
 
+### Paused and resume-failed states
+
+- The paused block carries `role="alert"` and renders an `aria-hidden` pause
+  glyph (`Pause` icon), `PausedText` and one button labelled
+  `ResumeButtonText`.
+- The resume button is of `type="button"` and calls `Blazor.resumeCircuit()`
+  through a native `onclick`.
+- When `Blazor.resumeCircuit()` resolves `false`, the page reloads.
+- When `Blazor.resumeCircuit()` rejects, the root's
+  `components-reconnect-paused` is replaced by
+  `components-reconnect-resume-failed`.
+- The resume-failed block carries `role="alert"` and renders an `aria-hidden`
+  warning glyph (`Alert` icon), `ResumeFailedText` and one button labelled
+  `ReloadButtonText` that calls `location.reload()` through a native `onclick`.
+- Both buttons carry `.btn` and `.btn-primary`.
+- The pause glyph is drawn in `--accent-a` over `--accent-soft`, bordered
+  `--line-strong`.
+- On a `components-reconnect-state-changed` event with state `paused`,
+  `dryl.js` sets `data-pause-origin` on the event's target: `server` when the
+  event's `remote` is true, `client` otherwise.
+- On any other state of that event, `dryl.js` removes `data-pause-origin`.
+
 ### State visibility
 
 - Without a state class, and with `components-reconnect-hide`, the overlay is
   invisible and takes no pointer events.
-- With `components-reconnect-show`, `components-reconnect-retrying` or
-  `components-reconnect-paused`, the overlay is visible and shows only the
-  reconnecting block.
+- With `components-reconnect-show` or `components-reconnect-retrying`, the
+  overlay is visible and shows only the reconnecting block.
+- With `components-reconnect-paused` and `data-pause-origin="client"`, the
+  overlay is invisible and takes no pointer events.
+- With `components-reconnect-paused` and any other or no `data-pause-origin`,
+  the overlay is visible and shows only the paused block.
+- With `components-reconnect-resume-failed`, the overlay is visible and shows
+  only the resume-failed block.
 - With `components-reconnect-failed`, the overlay is visible and shows only the
   failed block.
 - With `components-reconnect-rejected`, the overlay is visible and shows only
@@ -161,13 +207,10 @@ Namespace: `DRYL.Components`.
 - **The floating card is not floating glass (`DESIGN-06`).** `.reconnect-card`
   floats over the page but carries `--panel-grad` with no
   `--glass-fx-float`; the frost sits on the full-screen overlay instead.
-- **No resume-failed state.** Since .NET 10 the framework sets
-  `components-reconnect-resume-failed` when resuming a paused circuit fails
-  (read from the framework's `blazor.web.js`). The stylesheet has no rule for
-  it, so in that state the overlay stays hidden and the user sees nothing.
-- **A paused circuit reads as reconnecting.** `components-reconnect-paused`
-  shows the spinner and the reconnecting message; nothing offers
-  `Blazor.resumeCircuit()`.
+- **A browser-side resume in flight shows nothing.** Between the tab becoming
+  visible and the framework's `hide`, the page does not respond and nothing
+  says so. Measured on the showcase at about 30 ms; a slow resume would be a
+  silent wait.
 - **The accessible name never changes.** `aria-labelledby` always names the
   reconnecting message, so the dialog is announced as "Reconnecting…" in the
   failed and rejected states too.
@@ -189,7 +232,8 @@ Namespace: `DRYL.Components`.
   `2px` margin; and the continuous tempos `0.9s`, `1.6s` and `1.8s`.
 - **Duplicate ids if mounted twice.** The root and counter spans use fixed ids,
   so a second instance — as on the demo page — repeats them.
-- **No tests.** `tests/DRYL.Components.Tests/` holds no test of this component.
+- **Visibility is untested in bUnit.** Which block shows is CSS; the tests pin
+  the markup only. The pause behaviour was measured in a browser (below).
 
 ## Cross-cutting evidence (`SPEC-05`)
 
@@ -198,6 +242,9 @@ Namespace: `DRYL.Components`.
   never mounts or unmounts conditionally — it is always in the DOM — and the
   framework's class toggling drives a CSS fade in *and* out (`visibility`
   transitioned alongside `opacity`), a card glide and a per-state rise.
+  A browser-side pause and resume was driven on the showcase under .NET 11
+  auto-pause (2026-11-24): the overlay's computed `opacity` stayed `0` from
+  `paused` through `hide`.
   `DrylPresence` could not drive it anyway: no C# runs while the circuit is down.
   The reduced-motion exit gap is recorded above.
 - **Keyboard and a11y** — `role="alertdialog"`, `aria-modal`, a polite live
@@ -212,10 +259,10 @@ Namespace: `DRYL.Components`.
 - **Demo page** — `/components/reconnect-modal`
   (`DRYL.Website/Components/Pages/DemoReconnectModal.razor`), a hand-built
   page rather than `DemoExample`s: it renders three extra instances inside
-  frames with `Class` forcing `components-reconnect-show`, `-failed` and
-  `-rejected`. The site itself mounts the real one in
+  frames with `Class` forcing `components-reconnect-show`, `-failed`,
+  `-paused`, `-resume-failed` and `-rejected`. The site itself mounts the real one in
   `DRYL.Website/Components/App.razor`.
 - **`ComponentCatalog`** — `"Reconnect Modal"` / `reconnect-modal` in
   `DRYL.Website/Components/ComponentCatalog.cs`, group `Surfaces`, `ClassName`
   `"DrylReconnectModal"`, folder `Providers`, AI flag `false` (`REL-04`).
-- **Tests** — none.
+- **Tests** — `tests/DRYL.Components.Tests/DrylReconnectModalTests.cs`.

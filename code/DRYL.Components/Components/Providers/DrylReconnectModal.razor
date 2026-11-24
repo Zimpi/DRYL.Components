@@ -13,12 +13,20 @@
     (`components-reconnect-modal`). Blazor's own JS then toggles
     the state classes on it at runtime:
 
-        components-reconnect-show      → reconnecting
-        components-reconnect-retrying  → reconnecting  (.NET 9+)
-        components-reconnect-paused    → reconnecting  (.NET 9+)
-        components-reconnect-failed    → failed  → Blazor.reconnect()
-        components-reconnect-rejected  → rejected → location.reload()
-        components-reconnect-hide      → connected (overlay fades out)
+        components-reconnect-show          → reconnecting
+        components-reconnect-retrying      → reconnecting  (.NET 9+)
+        components-reconnect-paused        → paused  → Blazor.resumeCircuit()  (.NET 10+)
+        components-reconnect-resume-failed → resume failed → location.reload()  (.NET 10+)
+        components-reconnect-failed        → failed  → Blazor.reconnect()
+        components-reconnect-rejected      → rejected → location.reload()
+        components-reconnect-hide          → connected (overlay fades out)
+
+    A circuit the BROWSER paused itself — .NET 11 auto-pause on a hidden
+    tab — shows nothing: dryl.js marks the element with
+    data-pause-origin="client", and the stylesheet keeps the overlay
+    hidden for it. The tab was not being looked at, and the framework
+    resumes by itself when it is. Only a pause the server asked for, or a
+    resume that failed, is put in front of the user.
 
     Everything visible is driven purely by CSS keyed on those
     classes — there is NO Blazor state here, because during a
@@ -38,7 +46,7 @@
 
     <div class="reconnect-card">
 
-        @* ── Reconnecting (show / retrying / paused) ────────── *@
+        @* ── Reconnecting (show / retrying) ─────────────────── *@
         <div class="reconnect-state reconnect-reconnecting" aria-live="polite">
             <span class="reconnect-spinner" aria-hidden="true">
                 <span class="reconnect-spinner-ring"></span>
@@ -72,6 +80,31 @@
             </button>
         </div>
 
+        @* ── Paused by the server (resume available) ────────── *@
+        <div class="reconnect-state reconnect-paused" role="alert">
+            <span class="reconnect-glyph reconnect-glyph-accent" aria-hidden="true">
+                <DrylIcon Name="Pause" Size="20" />
+            </span>
+            <p class="reconnect-text">@PausedText</p>
+            @* Native onclick, as below. `false` means the server no longer holds the
+               session, so the page reloads; a throw means the server was not reached. *@
+            <button type="button" class="btn btn-primary reconnect-action"
+                    onclick="var m=this.closest('#components-reconnect-modal');Blazor.resumeCircuit().then(function(ok){if(!ok)location.reload()},function(){m.classList.replace('components-reconnect-paused','components-reconnect-resume-failed')})">
+                @ResumeButtonText
+            </button>
+        </div>
+
+        @* ── Resume failed (state lost → reload) ────────────── *@
+        <div class="reconnect-state reconnect-resume-failed" role="alert">
+            <span class="reconnect-glyph reconnect-glyph-warn" aria-hidden="true">
+                <DrylIcon Name="Alert" Size="20" />
+            </span>
+            <p class="reconnect-text">@ResumeFailedText</p>
+            <button type="button" class="btn btn-primary reconnect-action" onclick="location.reload()">
+                @ReloadButtonText
+            </button>
+        </div>
+
         @* ── Rejected (state lost → reload) ─────────────────── *@
         <div class="reconnect-state reconnect-rejected" role="alert">
             <span class="reconnect-glyph reconnect-glyph-danger" aria-hidden="true">
@@ -96,10 +129,19 @@
     /// <summary>Message shown when the server rejected the connection and the session was lost.</summary>
     [Parameter] public string RejectedText { get; set; } = "Your session has expired.";
 
+    /// <summary>Message shown when the server paused the session and it can be resumed.</summary>
+    [Parameter] public string PausedText { get; set; } = "Your session was paused.";
+
+    /// <summary>Message shown when a paused session could not be resumed.</summary>
+    [Parameter] public string ResumeFailedText { get; set; } = "We couldn't resume your session.";
+
+    /// <summary>Label of the button that resumes the session in the <c>paused</c> state.</summary>
+    [Parameter] public string ResumeButtonText { get; set; } = "Resume";
+
     /// <summary>Label of the button that retries the connection in the <c>failed</c> state.</summary>
     [Parameter] public string RetryButtonText { get; set; } = "Retry now";
 
-    /// <summary>Label of the button that reloads the page in the <c>rejected</c> state.</summary>
+    /// <summary>Label of the button that reloads the page in the <c>rejected</c> and <c>resume-failed</c> states.</summary>
     [Parameter] public string ReloadButtonText { get; set; } = "Reload page";
 
     /// <summary>

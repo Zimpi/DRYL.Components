@@ -70,7 +70,7 @@ look. Full guide: [`harness/theming.md`](harness/theming.md).
 
 ## Quick start
 
-DRYL targets **.NET 8, 9 and 10**.
+DRYL targets **.NET 8, 9, 10 and 11**.
 
 **1. Add the package**
 

@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
 
     <!-- ===== NuGet package identity ===== -->
     <PackageId>DRYL.Components</PackageId>
-    <Version>3.17.1</Version>
+    <Version>3.18.0</Version>
     <Title>DRYL — Blazor Component Library</Title>
     <Description>DRYL is a dark, glassy, AI-native UI component library for Blazor Server and Blazor WebAssembly. Token-driven, accessible by default, with a shared AI-state visual vocabulary (Active / Thinking / Streaming / Generated) across every surface — and zero JavaScript framework dependencies.</Description>
     <PackageTags>blazor;blazor-components;ui;components;razor;dark;glassmorphism;ai;design-system;blazor-server;blazor-webassembly</PackageTags>
@@ -23,6 +23,11 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- XML doc comments are intentionally incomplete during early development -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- BL0016 (default since .NET 11) asks for a try/catch around every JS interop call.
+         A component library deliberately lets JSException reach the host, and catches
+         JSDisconnectedException where a dead circuit is expected; swallowing more would
+         hide real faults from the consumer. -->
+    <NoWarn>$(NoWarn);BL0016</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -52,6 +57,9 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0" />
   </ItemGroup>
 
 </Project>

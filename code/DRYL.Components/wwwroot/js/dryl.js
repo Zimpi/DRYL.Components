@@ -1973,6 +1973,22 @@ window.dryl.keynav = (() => {
 window.dryl.tree = window.dryl.keynav;
 
 /* ──────────────────────────────────────────────────────────
+ * Reconnect modal — who paused the circuit.
+ *   The framework's `components-reconnect-state-changed` event says whether a
+ *   pause came from the server (`remote`) or from the browser itself (.NET 11
+ *   auto-pause on a hidden tab). Its state class does not, so the answer is
+ *   mirrored onto the element as data-pause-origin; DrylReconnectModal's
+ *   stylesheet keeps the overlay hidden for "client". The event does not
+ *   bubble, hence the capture listener.
+ * ────────────────────────────────────────────────────────── */
+document.addEventListener('components-reconnect-state-changed', (e) => {
+    const el = e.target, d = e.detail || {};
+    if (!el || !el.setAttribute) return;
+    if (d.state === 'paused') el.setAttribute('data-pause-origin', d.remote ? 'server' : 'client');
+    else el.removeAttribute('data-pause-origin');
+}, true);
+
+/* ──────────────────────────────────────────────────────────
  * dryl.table — small helpers for DrylTable.
  *   focusGrip(root, index): after a keyboard row-move, restore focus to the
  *   reorder grip handle now sitting at the row's new position so repeated
