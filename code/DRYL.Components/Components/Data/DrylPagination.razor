@@ -110,7 +110,11 @@
     /// <summary>Total number of items across all pages.</summary>
     [Parameter] public int TotalCount { get; set; }
 
-    /// <summary>Available page-size choices in the selector. Default: <c>[10, 20, 50, 100]</c>.</summary>
+    /// <summary>
+    /// Available page-size choices in the selector. Default: <c>[10, 20, 50, 100]</c>.
+    /// A <see cref="PageSize"/> that is not among them is listed as well, in ascending order,
+    /// so the selector always shows the current size.
+    /// </summary>
     [Parameter] public IReadOnlyList<int> PageSizeOptions { get; set; } = [10, 20, 50, 100];
 
     /// <summary>Hides the page-size selector when false. Default true.</summary>
@@ -131,11 +135,18 @@
 
     private readonly string _sizeLabelId = $"dryl-pgsize-{Guid.NewGuid():N}";
 
-    private IEnumerable<SelectItem> SizeItems => PageSizeOptions.Select(o =>
-    {
-        var s = o.ToString(CultureInfo.InvariantCulture);
-        return new SelectItem(s, s);
-    });
+    // The current size is always one of the choices: a PageSize missing from
+    // PageSizeOptions is sorted in, so the selector never shows an empty field.
+    private IEnumerable<SelectItem> SizeItems => PageSizeOptions
+        .Append(PageSize)
+        .Where(o => o > 0)
+        .Distinct()
+        .Order()
+        .Select(o =>
+        {
+            var s = o.ToString(CultureInfo.InvariantCulture);
+            return new SelectItem(s, s);
+        });
 
     private int TotalPages => PageSize <= 0 ? 1 : Math.Max(1, (int)Math.Ceiling((double)TotalCount / PageSize));
 

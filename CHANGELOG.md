@@ -14,6 +14,15 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.17.1] — 2026-11-24
+
+A compact table keeps its titles readable, a phone gets the page gutter it was always meant to have, and the page-size selector is never empty.
+
+### Fixed
+- `DrylTable` — A long trailing value no longer squeezes a compact record's title into a column a few letters wide. The trailing value now takes the width it needs up to two fifths of the record and wraps beyond that, so a 19-digit ID beside a name leaves the name the larger part of the line. To keep such a value out of the first line altogether, give its column `CompactRole="ColumnCompactRole.Meta"` or `Detail`.
+- `DrylMainContent` — On a phone or tablet (below 1024 px) the page now has the narrow 16 px side gutter it was meant to have. The rule for it stood before the desktop rule in `dryl.css` and was overridden by it, so every page kept the 48 px desktop gutter, which cost a quarter of a phone's width. If you relied on the wide gutter on small screens, set your own `padding` on `.main-inner`.
+- `DrylPagination`, `DrylTable` — The "Rows" selector no longer shows an empty field when `PageSize` is not one of `PageSizeOptions`, for example `PageSize="25"` with the default options. The current size is now sorted in among the options and shown as selected.
+
 ## [3.17.0] — 2026-11-21
 
 A table becomes a list of records on a phone, `DrylMultiSelect` learns to search, validate and speak your language, AI state finds its own marks on components without a surface to frame, and `DrylMarkdown` is hardened against model-authored script. Agents 0.26.0 ships with it.

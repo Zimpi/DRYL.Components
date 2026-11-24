@@ -1999,7 +1999,6 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
     display: none;
   }
   .topbar { padding: 0 16px; }
-  .main-inner { padding: 24px 16px 64px; }
 }
 
 .brand {
@@ -2482,6 +2481,12 @@ a:hover { text-decoration: underline; text-underline-offset: 4px; }
   max-width: 1400px;
   margin-inline: auto;
   padding: 40px 48px 80px;
+}
+/* Below the desktop breakpoint the page keeps a narrow gutter. This rule has to
+   follow the base rule above: at equal specificity the later one wins, and while
+   it stood in the earlier mobile block a phone kept the 48px desktop gutter. */
+@media (max-width: 1023px) {
+  .main-inner { padding: var(--sp-5) var(--sp-4) var(--sp-8); }
 }
 
 /* ============== KBD / CODE ============== */
@@ -3650,10 +3655,13 @@ td.tbl-td-editing select {
 
 /* A record — two lines at rest: [grip] [check] title … trailing [unfold]
                                                 meta  … meta-end
-   Everything else spans the record beneath those lines once it is unfolded. */
+   Everything else spans the record beneath those lines once it is unfolded.
+   The trailing column takes the width its content asks for up to two fifths of
+   the record and wraps beyond that, so a long value — an ID, a sentence — can
+   never squeeze the title into a column a few letters wide. */
 .tbl-root .tbl > tbody > tr.tbl-rec {
   display: var(--tblc-grid, table-row);
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) fit-content(40%) auto;
   align-items: center;
   row-gap: var(--sp-1);
   padding: var(--sp-3) var(--sp-4);

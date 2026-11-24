@@ -333,4 +333,25 @@ public class DrylTableCompactTests : BunitContext
         Assert.Equal("width: 120px", cut.Find("thead th").GetAttribute("style"));
         Assert.Equal("--tbl-col-w: 120px", cut.Find("tbody td").GetAttribute("style"));
     }
+
+    [Fact]
+    public void The_record_grid_caps_the_trailing_track_so_the_title_keeps_its_room()
+    {
+        // What the track computes to is verified in the browser; here: the stylesheet
+        // contract that a long trailing value wraps inside two fifths of the record
+        // instead of taking its full width from the title.
+        var css = File.ReadAllText(Path.Combine(RepoRoot(), "code", "DRYL.Components", "wwwroot", "dryl.css"));
+        var rule = css.IndexOf(".tbl-root .tbl > tbody > tr.tbl-rec {", StringComparison.Ordinal);
+        Assert.True(rule >= 0, "record rule not found");
+        var body = css[rule..css.IndexOf('}', rule)];
+
+        Assert.Contains("grid-template-columns: auto auto minmax(0, 1fr) fit-content(40%) auto;", body);
+    }
+
+    private static string RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "DRYL.slnx"))) dir = dir.Parent;
+        return dir?.FullName ?? throw new InvalidOperationException("DRYL.slnx not found above the test directory.");
+    }
 }

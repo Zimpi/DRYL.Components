@@ -42,7 +42,7 @@ navigation, measured against the bar's own container rather than the viewport.
 | `PageSize` | `int` | `20` | Items per page. |
 | `PageSizeChanged` | `EventCallback<int>` | — | Raised with the new size. Pairs for `@bind-PageSize`. |
 | `TotalCount` | `int` | `0` | Total items across all pages. |
-| `PageSizeOptions` | `IReadOnlyList<int>` | `[10, 20, 50, 100]` | Choices in the size selector. |
+| `PageSizeOptions` | `IReadOnlyList<int>` | `[10, 20, 50, 100]` | Choices in the size selector; a `PageSize` missing from them is sorted in. |
 | `ShowPageSize` | `bool` | `true` | Renders the size selector. |
 | `Class` | `string?` | `null` | Extra CSS class(es) merged onto the bar's own classes. |
 | `AdditionalAttributes` | `IDictionary<string, object>?` | `null` | Pass-through attributes on the bar. |
@@ -115,6 +115,10 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   at a compact fixed width.
 - `ShowPageSize` set to `false` renders no selector.
 - The option matching `PageSize` is the selected one.
+- A `PageSize` above zero that is not among `PageSizeOptions` is listed as an
+  option of its own, in ascending order with the others, so the selector always
+  shows the current size rather than an empty field.
+- Each size is listed once, and sizes of zero or less are not listed.
 - Picking a size raises `PageSizeChanged` with that size.
 - A size that does not parse as a number raises nothing.
 - A size of zero or less raises nothing, so the bar cannot ask its host for an
@@ -208,6 +212,7 @@ The component takes **no** `Ai` and no `Aura` — see "AI mode" below.
   summary, the empty message, the disabled edge controls, the next and last
   controls' raised values including the clamp, a numbered control's raised
   value, the size change through the `DrylSelect` panel, the
-  selector's labelling and the hidden selector. It is the second-best-covered
+  selector's labelling, a `PageSize` missing from the options being sorted in
+  and the hidden selector. It is the second-best-covered
   component in the category, and it exists because the two callbacks were
   renamed — the file pins the current names against the 1.0 freeze.
