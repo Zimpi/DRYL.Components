@@ -94,6 +94,8 @@ Not settled. Candidate building blocks, to be cut down in the dialogue:
 
 ## Decisions
 - 2026-11-24: `DRYL.Website` moves to `net11.0` and turns auto-pause on as part of this idea (Product Owner) — it is the only place the modal's pause behaviour can be seen.
+- 2026-11-24: the library supports .NET 11 — `net11.0` joins the target frameworks of both projects (Product Owner).
+- 2026-11-24: the library part stays small; persistence is wanted as "made easier", not as a large feature (Product Owner). What that means concretely is open — see Open Points.
 
 ## Open Points
 - What exactly does the returning user see with auto-pause on: does
@@ -101,6 +103,7 @@ Not settled. Candidate building blocks, to be cut down in the dialogue:
   classes does it set on the way? To be verified against the .NET 11 SDK.
 - A: is `net8.0` dropped (MAJOR, 4.0.0) or kept alongside `net11.0` (MINOR)?
 - C: which state must survive a resume, and which is acceptable to lose?
-- C, sharpened: state the consumer passes in is the consumer's to persist; only state the library holds internally (unbound table sort/page, unbound active tab, theme, chat, notifications) is in question. Tech Lead proposes theme + table + tabs, the rest deliberately lost.
+- C, options for "easier persistence": (1) no library code, a guide page on the website showing binding plus `[PersistentState]`; (2) the library persists its own internal state by itself on `net10.0`+ (theme, unbound table sort/page, unbound active tab); (3) a consumer-facing persistence helper — Tech Lead advises against it, `[PersistentState]` already is one line and a wrapper would only rename it. Tech Lead recommends (1) + (2). To verify for (2): how `[PersistentState]` keys several instances of one library component under the same parent.
+- C, background: state the consumer passes in is the consumer's to persist; only state the library holds internally (unbound table sort/page, unbound active tab, theme, chat, notifications) is in question. Tech Lead proposes theme + table + tabs, the rest deliberately lost.
 - The working environment has no .NET SDK and cannot download one; stage 5
   evidence (`dotnet build`, `dotnet test`) needs that solved first.
