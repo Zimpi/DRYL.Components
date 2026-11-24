@@ -93,7 +93,7 @@ Not settled. Candidate building blocks, to be cut down in the dialogue:
   reachable when this draft was written.
 
 ## Decisions
-- (none yet)
+- 2026-11-24: `DRYL.Website` moves to `net11.0` and turns auto-pause on as part of this idea (Product Owner) — it is the only place the modal's pause behaviour can be seen.
 
 ## Open Points
 - What exactly does the returning user see with auto-pause on: does
@@ -101,6 +101,6 @@ Not settled. Candidate building blocks, to be cut down in the dialogue:
   classes does it set on the way? To be verified against the .NET 11 SDK.
 - A: is `net8.0` dropped (MAJOR, 4.0.0) or kept alongside `net11.0` (MINOR)?
 - C: which state must survive a resume, and which is acceptable to lose?
-- E: does the website move to `net11.0` and auto-pause as part of this idea?
+- C, sharpened: state the consumer passes in is the consumer's to persist; only state the library holds internally (unbound table sort/page, unbound active tab, theme, chat, notifications) is in question. Tech Lead proposes theme + table + tabs, the rest deliberately lost.
 - The working environment has no .NET SDK and cannot download one; stage 5
   evidence (`dotnet build`, `dotnet test`) needs that solved first.
