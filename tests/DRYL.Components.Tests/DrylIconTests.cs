@@ -42,6 +42,18 @@ public class DrylIconTests
     }
 
     [Theory]
+    [InlineData("Bold")]
+    [InlineData("Italic")]
+    [InlineData("Strikethrough")]
+    [InlineData("ListOrdered")]
+    [InlineData("ListChecks")]
+    public void The_text_formatting_icons_are_in_the_set(string name)
+    {
+        Assert.True(DrylIcon.Icons.ContainsKey(name));
+        Assert.NotEmpty(DrylIcon.Icons[name]);
+    }
+
+    [Theory]
     [InlineData("Play")]
     [InlineData("Pause")]
     [InlineData("Square")]

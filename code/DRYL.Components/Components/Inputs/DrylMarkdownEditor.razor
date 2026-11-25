@@ -1,0 +1,334 @@
+@namespace DRYL.Components
+@inherits InputBase<string>
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*  ─────────────────────────────────────────────────────────
+    DrylMarkdownEditor — a Markdown field with two views of one string:
+    the source, with a formatting toolbar, and the rendered preview. A
+    switch in the header changes between them. Bound to EditForm like
+    DrylTextarea.
+
+    Usage:
+      <DrylMarkdownEditor @bind-Value="post.Body" Label="Body" />
+
+      <DrylMarkdownEditor @bind-Value="post.Body"
+                          @bind-View="_view"
+                          Ai="_state" />
+
+    The toolbar and the shortcuts (Ctrl/Cmd+B, I, K, E) edit the selection
+    in the browser (dryl.mdeditor) — a command never waits for the server.
+
+    AI: one aura frames the whole editor, and while the state is Streaming
+    the preview shows the document arriving. The source stays in the DOM in
+    both views, so the editor can be wrapped in DrylAiField (Agents package)
+    unchanged.
+    ───────────────────────────────────────────────────────── *@
+
+<div class="@RootCssClass">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="field-label" for="@_id">@Label</label>
+    }
+
+    <div class="@FrameCssClass" data-mde-view="@ViewName" @ref="_frame">
+        <DrylAuraElements Aura="_aura" GenTick="_genTick" />
+
+        @* The frame carries the AI state for the whole editor; the buttons, the
+           switch and the preview inside it must not each draw an aura of their own. *@
+        <CascadingValue Value="NoScope" IsFixed="true">
+            <div class="mde-header">
+                <DrylSegmentedControl TValue="MarkdownEditorView"
+                                      Value="_view"
+                                      ValueChanged="SetViewAsync"
+                                      Size="SegmentedSize.Small"
+                                      AriaLabel="@T.View"
+                                      Class="mde-switch">
+                    <DrylSegment TValue="MarkdownEditorView" Value="MarkdownEditorView.Editor" Label="@T.Editor" Icon="Edit" />
+                    <DrylSegment TValue="MarkdownEditorView" Value="MarkdownEditorView.Preview" Label="@T.Preview" Icon="Eye" />
+                </DrylSegmentedControl>
+
+                <div class="mde-toolbar"
+                     role="toolbar"
+                     aria-label="@T.Toolbar"
+                     aria-controls="@_id"
+                     data-mde-toolbar>
+                    @{ var first = true; }
+                    @foreach (var group in CommandGroups)
+                    {
+                        if (!first)
+                        {
+                            <span class="mde-sep" aria-hidden="true"></span>
+                        }
+                        foreach (var command in group)
+                        {
+                            var tabStop = first;
+                            first = false;
+                            <DrylTooltip Text="@command.Label" @key="command.Id">
+                                <DrylButton Variant="DrylButton.ButtonVariant.Ghost"
+                                            Size="DrylButton.ButtonSize.Small"
+                                            LeadingIcon="@command.Icon"
+                                            AriaLabel="@command.Label"
+                                            Disabled="!CommandsEnabled"
+                                            data-mde-cmd="@command.Id"
+                                            aria-keyshortcuts="@command.Shortcut"
+                                            tabindex="@(tabStop ? 0 : -1)" />
+                            </DrylTooltip>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="mde-body">
+                <textarea id="@_id"
+                          class="mde-source"
+                          value="@CurrentValueAsString"
+                          data-dryl-input
+                          data-mde-source
+                          @oninput="HandleInput"
+                          placeholder="@Placeholder"
+                          rows="@Rows"
+                          disabled="@Disabled"
+                          aria-label="@(string.IsNullOrEmpty(Label) ? AriaLabel : null)"
+                          aria-invalid="@(HasValidationError ? "true" : null)"
+                          aria-describedby="@(ShowHelper ? _helperId : null)"
+                          @attributes="AdditionalAttributes"></textarea>
+
+                <DrylPresence Visible="_view == MarkdownEditorView.Preview" Class="mde-preview-layer">
+                    <DrylScrollArea Class="mde-preview" role="region" aria-label="@T.Preview" tabindex="0">
+                        @if (string.IsNullOrWhiteSpace(CurrentValue))
+                        {
+                            <p class="mde-preview-empty">@T.PreviewEmpty</p>
+                        }
+                        else
+                        {
+                            <DrylMarkdown Content="@CurrentValue" />
+                        }
+                    </DrylScrollArea>
+                </DrylPresence>
+            </div>
+        </CascadingValue>
+    </div>
+
+    @if (HasValidationError)
+    {
+        <div class="input-helper input-helper-error" id="@_helperId">
+            @string.Join(" ", EditContext.GetValidationMessages(FieldIdentifier))
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(HelperText))
+    {
+        <div class="input-helper" id="@_helperId">@HelperText</div>
+    }
+</div>
+
+@code {
+    /// <summary>Which view is shown. Supports two-way binding via <c>@bind-View</c>.</summary>
+    [Parameter] public MarkdownEditorView View { get; set; } = MarkdownEditorView.Editor;
+
+    /// <summary>Fires when the user changes the view with the switch.</summary>
+    [Parameter] public EventCallback<MarkdownEditorView> ViewChanged { get; set; }
+
+    /// <summary>Optional label shown above the editor.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Placeholder text shown while the source is empty.</summary>
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Helper text shown below the editor. Replaced by validation errors when present.</summary>
+    [Parameter] public string? HelperText { get; set; }
+
+    /// <summary>Initial visible row count of the source. Default 8.</summary>
+    [Parameter] public int Rows { get; set; } = 8;
+
+    /// <summary>Visual state override. An active validation error overrides this.</summary>
+    [Parameter] public InputState State { get; set; } = InputState.Default;
+
+    /// <summary>If true, the source cannot be edited and the toolbar is disabled. The view switch stays usable.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Accessible label of the source — required if <c>Label</c> is not set.</summary>
+    [Parameter] public string? AriaLabel { get; set; }
+
+    /// <summary>The editor's own words — switch, toolbar and empty preview. Defaults to English (<see cref="MarkdownEditorTexts.Default"/>).</summary>
+    [Parameter] public MarkdownEditorTexts? Texts { get; set; }
+
+    /// <summary>AI ambient state — one aura around the whole editor; while <see cref="AiState.Streaming"/> the preview shows the document arriving.</summary>
+    [Parameter] public AiState Ai { get; set; } = AiState.None;
+
+    /// <summary>AI aura variant. Leave <c>null</c> to inherit a surrounding <c>DrylAiScope</c> (ultimately <see cref="AiAura.Comet"/>).</summary>
+    [Parameter] public AiAura? Aura { get; set; }
+
+    /// <summary>Extra CSS class(es) merged onto the editor's root.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Surrounding AI scope (supplied by <c>DrylAiScope</c>); an explicit <see cref="Ai"/> overrides it.</summary>
+    [CascadingParameter] private AiScope? AiScopeContext { get; set; }
+
+    private AiState EffectiveAi => AiScope.Resolve(Ai, AiScopeContext);
+    private AiAura EffectiveAura => AiScope.ResolveAura(Aura, AiScopeContext);
+
+    // Handed to everything inside the frame so that only the frame draws the aura.
+    private static readonly AiScope NoScope = new();
+
+    private sealed record Command(string Id, string Icon, string Label, string? Shortcut = null);
+
+    private readonly string _id       = $"dryl-mde-{Guid.NewGuid():N}";
+    private readonly string _helperId = $"dryl-help-{Guid.NewGuid():N}";
+    private readonly AuraLifecycle _aura = new();
+    private ElementReference _frame;
+    private AiState _prevAi = AiState.None;
+    private int _genTick;
+
+    private MarkdownEditorView _view;
+    private MarkdownEditorView _viewParameter;
+    private bool _viewSeen;
+
+    private bool _attached;        // dryl.mdeditor listeners are installed
+    private bool? _syncedEnabled;  // the CommandsEnabled value the toolbar's tab stop was last synced for
+
+    private MarkdownEditorTexts T => Texts ?? MarkdownEditorTexts.Default;
+
+    private bool CommandsEnabled => !Disabled && _view == MarkdownEditorView.Editor;
+
+    private string ViewName => _view == MarkdownEditorView.Preview ? "preview" : "editor";
+
+    private Command[][] CommandGroups =>
+    [
+        [
+            new("bold", "Bold", T.Bold, "Control+B Meta+B"),
+            new("italic", "Italic", T.Italic, "Control+I Meta+I"),
+            new("strike", "Strikethrough", T.Strikethrough),
+        ],
+        [
+            new("heading", "Heading", T.Heading),
+        ],
+        [
+            new("bullet", "List", T.BulletList),
+            new("ordered", "ListOrdered", T.NumberedList),
+            new("task", "ListChecks", T.TaskList),
+        ],
+        [
+            new("quote", "Quote", T.Quote),
+            new("code", "Code", T.Code, "Control+E Meta+E"),
+            new("link", "Link", T.Link, "Control+K Meta+K"),
+        ],
+    ];
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        if (ValueExpression is null)
+            ValueExpression = () => Value!;
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        // The parameter moves the view only when the host changed it; a switch the
+        // user made is not undone by an unrelated re-render of the host.
+        if (!_viewSeen || View != _viewParameter)
+        {
+            _view = View;
+            _viewParameter = View;
+            _viewSeen = true;
+        }
+
+        if (EffectiveAi == AiState.Generated && _prevAi != AiState.Generated) _genTick++;
+        _prevAi = EffectiveAi;
+        _aura.Sync(EffectiveAi, () => InvokeAsync(StateHasChanged));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                // attach syncs the tab stop for the DOM it finds. A render that lands
+                // while the call is in flight is caught up right after it.
+                var enabled = CommandsEnabled;
+                await JS.InvokeVoidAsync("dryl.mdeditor.attach", _frame);
+                _attached = true;
+                _syncedEnabled = enabled;
+                if (CommandsEnabled != enabled)
+                {
+                    _syncedEnabled = CommandsEnabled;
+                    await JS.InvokeVoidAsync("dryl.mdeditor.sync", _frame);
+                }
+            }
+            else if (_attached && _syncedEnabled != CommandsEnabled)
+            {
+                // Enabling or disabling the commands changes which button may be the tab stop.
+                _syncedEnabled = CommandsEnabled;
+                await JS.InvokeVoidAsync("dryl.mdeditor.sync", _frame);
+            }
+        }
+        catch (JSDisconnectedException) { /* circuit gone — nothing left to wire */ }
+        catch (JSException) { /* e.g. a stale cached dryl.js: the editor stays a plain text area */ }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task SetViewAsync(MarkdownEditorView view)
+    {
+        if (_view == view) return;
+        _view = view;
+        await ViewChanged.InvokeAsync(view);
+    }
+
+    private bool HasValidationError =>
+        EditContext is not null && EditContext.GetValidationMessages(FieldIdentifier).Any();
+
+    private bool ShowHelper => HasValidationError || !string.IsNullOrEmpty(HelperText);
+
+    private string RootCssClass =>
+        string.Join(' ', new[] { "field", "mde-field", Class }.Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    private string FrameCssClass
+    {
+        get
+        {
+            var classes = new List<string> { "mde", $"mde--{ViewName}" };
+            if (HasValidationError || State == InputState.Error) classes.Add("mde--error");
+            else if (State == InputState.Success)                classes.Add("mde--success");
+            if (Disabled) classes.Add("mde--disabled");
+            AiAuraCss.Append(classes, _aura, EffectiveAura);
+            return string.Join(' ', classes);
+        }
+    }
+
+    private void HandleInput(ChangeEventArgs e) =>
+        CurrentValueAsString = e.Value?.ToString();
+
+    protected override bool TryParseValueFromString(
+        string? value,
+        out string result,
+        out string validationErrorMessage)
+    {
+        result = value ?? string.Empty;
+        validationErrorMessage = string.Empty;
+        return true;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _aura.Dispose();
+        base.Dispose(disposing);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // InputBase releases its EditContext subscription in Dispose; the renderer calls
+        // only DisposeAsync on a component that has both, so run it from here.
+        ((IDisposable)this).Dispose();
+
+        if (!_attached) return;
+        _attached = false;
+        try { await JS.InvokeVoidAsync("dryl.mdeditor.detach", _frame); }
+        catch (JSDisconnectedException) { }
+        catch (JSException) { }
+        catch (OperationCanceledException) { }
+    }
+}

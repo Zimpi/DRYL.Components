@@ -6,8 +6,8 @@ cleanup duties each imposes (`CODE-05` in
 
 This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect`,
 `DrylFileUpload`, `DrylAutocomplete`, `DrylMultiSelect`, `DrylTimePicker`,
-`DrylInputMask`, `DrylDatePicker`, `DrylChipInput` and
-`DrylSegmentedControl`. The list ink of the four list inputs (I38) is driven by
+`DrylInputMask`, `DrylDatePicker`, `DrylChipInput`,
+`DrylSegmentedControl` and `DrylMarkdownEditor`. The list ink of the four list inputs (I38) is driven by
 `DrylPopover`, not by the components; it is documented in
 `../E11 Surfaces/_Interop.md`. `DrylInputNumber`, `DrylInputPassword`,
 `DrylSegment`, `DrylFormField` and `DrylValidationSummary` make no JavaScript
@@ -115,10 +115,39 @@ move focus with Blazor's built-in `ElementReference.FocusAsync` — the chip
 field when its box is clicked, the segmented control onto the segment an arrow
 key selected.
 
+`DrylMarkdownEditor` uses one module of the same file, `dryl.mdeditor`:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.mdeditor.attach(root)` | `OnAfterRenderAsync` on the first interactive render. Finds the source (`[data-mde-source]`) and the toolbar (`[data-mde-toolbar]`) under the editor's frame and installs five listeners: `keydown` on the source (shortcuts, list continuation) and `click`, `mousedown`, `keydown` and `focusin` on the toolbar. Attaching again replaces them. |
+| `dryl.mdeditor.sync(root)` | `OnAfterRenderAsync` after a render that changed which toolbar buttons are enabled. Leaves exactly one enabled `button[data-mde-cmd]` with `tabindex="0"` and every other one with `-1`, preferring the button that last had focus; with none enabled, none is a tab stop. While the frame carries `data-mde-view="preview"` it also collapses the source's selection to its end. |
+| `dryl.mdeditor.detach(root)` | `DisposeAsync` removes the five listeners. Repeated detachment is a no-op. |
+| `dryl.mdeditor.run(root, command)` | Not called from .NET. Applies one command to the source's selection; refuses when the source is disabled or read-only or the frame carries `data-mde-view="preview"`. |
+| `dryl.mdeditor.transform(value, start, end, command)`, `dryl.mdeditor.enter(value, caret)` | Not called from .NET. The pure text edits behind `run` and the Enter key; each returns `{ start, end, text, selStart, selEnd }` or `null`. |
+
+A toolbar press is handled by the `click` listener in the browser and never
+travels to the server: the button names its command in `data-mde-cmd` (`bold`,
+`italic`, `strike`, `heading`, `bullet`, `ordered`, `task`, `quote`, `code`,
+`link`). The edit is made with `document.execCommand('insertText' | 'delete')`
+so that it joins the browser's undo stack and raises a native `input` event;
+where the browser refuses, the module falls back to `setRangeText` and
+dispatches a bubbling `input` event itself. Either way the value reaches the
+component through its ordinary `input` handler, and the echo guard of
+`dryl.inputs` records it like typed text. `mousedown` on a toolbar button is
+default-prevented so that a press does not move focus, and with it the
+selection, out of the source. The shortcut modifier is Ctrl, or Cmd alone on
+Apple platforms (read from `navigator.platform`), where Ctrl+B and Ctrl+E are
+native caret movements. A shortcut is matched by `key` and, failing that, by
+`code`, and loses its browser default even while its command is refused. An
+edit that would exceed the source's `maxLength` is refused whole. Tab is never
+handled.
+
+The module starts no timer and no animation frame.
+
 ## Services
 
 No input-specific DI service is registered by any component of this category.
-`DrylSelect`, `DrylInputMask` and `DrylDatePicker` inject framework
+`DrylSelect`, `DrylInputMask`, `DrylDatePicker` and `DrylMarkdownEditor` inject framework
 `IJSRuntime`. Form validation uses a cascading `EditContext` when present;
 `DrylFormField` and `DrylValidationSummary` read it without binding a value.
 `DrylSegmentedControl` cascades itself (`IsFixed="true"`) so that its
@@ -165,6 +194,17 @@ implement `IDisposable` and dispose their `AuraLifecycle`. `DrylDatePicker`
 holds no listener of its own: the panel key listener installed by
 `dryl.datepicker.focusDay` lives on the popover's panel node and goes with it
 (see `../E11 Surfaces/_Interop.md`).
+
+`DrylMarkdownEditor` implements `IAsyncDisposable`. It disposes its
+`AuraLifecycle` through `InputBase`'s `Dispose(bool)`, which `DisposeAsync`
+invokes first so that the base's `EditContext` subscription is released too —
+the renderer calls only `DisposeAsync` on a component that has both. It then
+calls `dryl.mdeditor.detach` once, only after `attach` succeeded on an
+interactive render, tolerating `JSDisconnectedException`, `JSException` and
+`OperationCanceledException`. `attach` and `sync` tolerate the same three; a
+failed `attach` leaves the component unattached, so it neither syncs nor
+detaches. The composed `DrylPresence` owns the preview's
+exit and its own cleanup (E1).
 
 `DrylValidationSummary` implements `IDisposable` and unsubscribes from
 `EditContext.OnValidationStateChanged`; it also moves the subscription when the

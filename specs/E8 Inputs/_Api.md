@@ -173,6 +173,44 @@ Defined in `code/DRYL.Components/Components/Inputs/SegmentedSize.cs`, namespace
 | `Medium` | `.seg--md` (the default) |
 | `Large` | `.seg--lg` |
 
+## `MarkdownEditorView`
+
+Defined in `code/DRYL.Components/Components/Inputs/MarkdownEditorView.cs`,
+namespace `DRYL.Components`; owned by `DrylMarkdownEditor`
+([`F24 DrylMarkdownEditor.md`](F24%20DrylMarkdownEditor.md)).
+
+| Member | Meaning |
+|---|---|
+| `Editor` | The Markdown source, editable (the default). |
+| `Preview` | The same Markdown, rendered. |
+
+The enum is appended to, never reordered: a later view joins at the end.
+
+## `MarkdownEditorTexts`
+
+Defined in `code/DRYL.Components/Components/Inputs/MarkdownEditorTexts.cs`. A
+record of `init` members with English defaults, reached through
+`MarkdownEditorTexts.Default` and passed to `DrylMarkdownEditor.Texts`. All
+members are strings: `View` (name of the switch), `Editor` and `Preview` (its
+two segments; `Preview` also names the preview region), `PreviewEmpty` (the
+preview of an empty value), `Toolbar` (name of the toolbar), and the ten
+command labels `Bold`, `Italic`, `Strikethrough`, `Heading`, `BulletList`,
+`NumberedList`, `TaskList`, `Quote`, `Code` and `Link`, each used as a button's
+tooltip and accessible name. Translate with
+`MarkdownEditorTexts.Default with { … }`.
+
+## `InputBase<string>` — `DrylMarkdownEditor`
+
+Follows the `InputBase<string>` binding contract above: `() => Value` is
+supplied when no `ValueExpression` is given, parsing accepts any string and
+normalizes `null` to `string.Empty`, validation messages replace `HelperText`,
+are joined with a space and set `aria-invalid="true"` on the source.
+`AdditionalAttributes` are applied to the source `textarea`. Unlike the three
+components above it has a `Class` parameter, merged onto its root. `@bind-View`
+binds `View` (`MarkdownEditorView`) through `ViewChanged`
+(`EventCallback<MarkdownEditorView>`); a re-render that leaves the `View`
+parameter unchanged does not undo a view the user chose.
+
 ## `InputBase<string>` — `DrylInputPassword`, `DrylInputMask`
 
 Both follow the `InputBase<string>` binding contract above: `() => Value` is

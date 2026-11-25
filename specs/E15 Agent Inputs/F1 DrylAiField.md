@@ -39,6 +39,10 @@ takes the aura out through the graceful exit.
 </DrylAiField>
 ```
 
+`DrylMarkdownEditor` is such an input: its source `textarea` stays in the DOM
+in both of its views, so a run can be watched as source or in the rendered
+preview ([`../E8 Inputs/F24 DrylMarkdownEditor.md`](../E8%20Inputs/F24%20DrylMarkdownEditor.md)).
+
 Without `Instruction` (or with `ShowPrompt`) the trigger opens a mini-prompt in
 a `DrylPopover` instead, where the user types what the agent should do.
 
