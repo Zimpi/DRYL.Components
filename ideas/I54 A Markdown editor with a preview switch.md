@@ -1,7 +1,7 @@
 # A Markdown editor with a preview switch
 
 ## Meta
-- **State:** Draft
+- **State:** Ready
 
 ## Problem
 
@@ -134,8 +134,21 @@ and no model call.
   `Strikethrough`, `ListOrdered`, `ListChecks`, sourced from Lucide.
 - 2026-11-25 — Jan: shortcuts, list continuation on Enter, no Tab capture and
   the dialog-free link insertion as listed under *Solution Idea*.
+- 2026-11-25 — Jan: confirmed the final version as summarized by the Tech Lead
+  ("Ja fang an"); the idea is `Ready`.
+- 2026-11-25 — Tech Lead, refining the link command for the empty case: with
+  no selection it inserts `[](url)` and puts the caret between the brackets,
+  because there is no text to keep and the text is what is typed first. With
+  a selection it stays as decided: `[selection](url)` with `url` selected.
+- 2026-11-25 — Tech Lead: both views share one box whose height the source
+  sets; a longer preview scrolls inside it. That is what keeps the page from
+  jumping on a switch.
+- 2026-11-25 — Tech Lead: the view switch stays usable on a disabled editor —
+  `Disabled` stops editing, not reading.
+- 2026-11-25 — Tech Lead: on Apple platforms the shortcuts use Cmd only.
+  Ctrl+E and Ctrl+B are native caret movements in a macOS text field and are
+  left alone.
 
 ## Open Points
 
-- None. Awaiting the Product Owner's explicit confirmation of the final
-  version (`IDEA-04`, phase 5) before the state moves to `Ready`.
+None.
