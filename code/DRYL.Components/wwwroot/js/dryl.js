@@ -1856,6 +1856,315 @@ window.dryl.inputmask = (() => {
 })();
 
 /* ──────────────────────────────────────────────────────────
+ * dryl.mdeditor — DrylMarkdownEditor's editing script.
+ *   attach(root)   wires the source's shortcuts and list continuation and
+ *                  the toolbar's presses and arrow keys. Presses are handled
+ *                  here, in the browser — a formatting command never waits
+ *                  for a server round trip.
+ *   detach(root)   removes every listener attach() added.
+ *   sync(root)     keeps exactly one enabled toolbar button in the tab order.
+ *   run(root, cmd) applies one command to the source's selection.
+ *   transform(value, start, end, cmd) / enter(value, caret)
+ *                  the pure text edits behind run() and the Enter key. Both
+ *                  return { start, end, text, selStart, selEnd } — replace
+ *                  [start, end) with text, then select [selStart, selEnd) —
+ *                  or null when there is nothing to do.
+ *
+ * An edit goes through the browser's own text insertion, so Ctrl+Z takes it
+ * back like typed text, and it reaches @bind-Value as a native input event.
+ * ────────────────────────────────────────────────────────── */
+window.dryl.mdeditor = (() => {
+    const _map = new WeakMap();
+    const MARKS = { bold: '**', italic: '_', strike: '~~', code: '`' };
+    const KEYS = { b: 'bold', i: 'italic', k: 'link', e: 'code' };
+    const FENCE = '```';
+    const TASK = /^(\s*)[-*+] \[[ xX]\] ?/;
+    const BULLET = /^(\s*)[-*+] /;
+    const ORDERED = /^(\s*)\d+[.)] /;
+    const QUOTE = /^(\s*)> ?/;
+    const HEADING = /^(#{1,6})(?:[ \t]+|$)/;
+    const ITEM = /^(\s*)(?:([-*+]) (\[[ xX]\] )?|(\d+)([.)]) |(>) ?)/;
+    const BUTTON = 'button[data-mde-cmd]';
+
+    const blank = (line) => line.trim() === '';
+
+    // The whole lines a selection touches. A selection that ends right after a
+    // line break does not reach into the next line.
+    function lineBounds(value, start, end) {
+        const ls = value.lastIndexOf('\n', start - 1) + 1;
+        const anchor = end > start && value[end - 1] === '\n' ? end - 1 : end;
+        let le = value.indexOf('\n', anchor);
+        if (le < 0) le = value.length;
+        return [ls, le];
+    }
+
+    function inline(value, s, e, mark) {
+        const m = mark.length;
+        // Marks directly around the selection — take them off.
+        if (s >= m && value.slice(s - m, s) === mark && value.slice(e, e + m) === mark)
+            return { start: s - m, end: e + m, text: value.slice(s, e), selStart: s - m, selEnd: e - m };
+        const sel = value.slice(s, e);
+        // Marks at the selection's own ends — take them off.
+        if (sel.length > 2 * m && sel.startsWith(mark) && sel.endsWith(mark)) {
+            const text = sel.slice(m, -m);
+            return { start: s, end: e, text, selStart: s, selEnd: s + text.length };
+        }
+        // Put them on. Whitespace at the ends stays outside: "** x **" is not bold.
+        const lead = blank(sel) ? 0 : sel.length - sel.trimStart().length;
+        const trail = blank(sel) ? 0 : sel.length - sel.trimEnd().length;
+        const core = sel.slice(lead, sel.length - trail);
+        const text = sel.slice(0, lead) + mark + core + mark + sel.slice(sel.length - trail);
+        const selStart = s + lead + m;
+        return { start: s, end: e, text, selStart, selEnd: selStart + core.length };
+    }
+
+    function fence(value, s, e) {
+        if (value[e - 1] === '\n' && e - 1 > s) e -= 1;
+        const open = FENCE + '\n', close = '\n' + FENCE;
+        if (s >= open.length && value.slice(s - open.length, s) === open && value.slice(e, e + close.length) === close)
+            return { start: s - open.length, end: e + close.length, text: value.slice(s, e),
+                     selStart: s - open.length, selEnd: e - open.length };
+        const before = s > 0 && value[s - 1] !== '\n' ? '\n' : '';
+        const after = e < value.length && value[e] !== '\n' ? '\n' : '';
+        const sel = value.slice(s, e);
+        const selStart = s + before.length + open.length;
+        return { start: s, end: e, text: before + open + sel + close + after, selStart, selEnd: selStart + sel.length };
+    }
+
+    function link(value, s, e) {
+        const sel = value.slice(s, e);
+        const text = '[' + sel + '](url)';
+        // Nothing selected: the text is what gets typed first.
+        if (!sel) return { start: s, end: e, text, selStart: s + 1, selEnd: s + 1 };
+        const url = s + sel.length + 3;
+        return { start: s, end: e, text, selStart: url, selEnd: url + 3 };
+    }
+
+    // A line without any list marker: [indent, rest].
+    function unlisted(line) {
+        const m = TASK.exec(line) || BULLET.exec(line) || ORDERED.exec(line);
+        return m ? [m[1], line.slice(m[0].length)] : [/^\s*/.exec(line)[0], line.trimStart()];
+    }
+
+    function lines(value, s, e, command) {
+        const [ls, le] = lineBounds(value, s, e);
+        const src = value.slice(ls, le).split('\n');
+        // Blank lines inside a selection are left alone — unless there is nothing else.
+        const live = src.some(l => !blank(l)) ? (l) => !blank(l) : () => true;
+        const all = (re) => src.filter(live).every(l => re.test(l));
+        let out;
+        switch (command) {
+            case 'heading': {
+                const current = (HEADING.exec(src.find(live)) || ['', ''])[1].length;
+                const next = current >= 3 ? 0 : current + 1;
+                out = src.map(l => live(l) ? (next ? '#'.repeat(next) + ' ' : '') + l.replace(HEADING, '') : l);
+                break;
+            }
+            case 'bullet': {
+                const on = src.filter(live).every(l => BULLET.test(l) && !TASK.test(l));
+                out = src.map(l => {
+                    if (!live(l)) return l;
+                    if (on) return l.replace(BULLET, '$1');
+                    const [indent, rest] = unlisted(l);
+                    return indent + '- ' + rest;
+                });
+                break;
+            }
+            case 'ordered': {
+                const on = all(ORDERED);
+                let n = 0;
+                out = src.map(l => {
+                    if (!live(l)) return l;
+                    if (on) return l.replace(ORDERED, '$1');
+                    const [indent, rest] = unlisted(l);
+                    return indent + (++n) + '. ' + rest;
+                });
+                break;
+            }
+            case 'task': {
+                const on = all(TASK);
+                out = src.map(l => {
+                    if (!live(l)) return l;
+                    if (on) return l.replace(TASK, '$1');
+                    const [indent, rest] = unlisted(l);
+                    return indent + '- [ ] ' + rest;
+                });
+                break;
+            }
+            case 'quote': {
+                const on = all(QUOTE);
+                // A quote is one block: the blank lines inside it are quoted too.
+                out = src.map(l => on ? l.replace(QUOTE, '$1') : (blank(l) && src.length > 1 ? '>' : '> ' + l));
+                break;
+            }
+            default:
+                return null;
+        }
+        const text = out.join('\n');
+        if (s !== e) return { start: ls, end: le, text, selStart: ls, selEnd: ls + text.length };
+        // A caret stays on the character it was on; inside a marker it moves behind the new one.
+        const was = src[0], now = out[0];
+        let tail = 0;
+        while (tail < was.length && tail < now.length && was[was.length - 1 - tail] === now[now.length - 1 - tail]) tail++;
+        const col = s - ls;
+        const caret = ls + (col <= was.length - tail ? now.length - tail : now.length - (was.length - col));
+        return { start: ls, end: le, text, selStart: caret, selEnd: caret };
+    }
+
+    function transform(value, start, end, command) {
+        value = value || '';
+        const s = Math.max(0, Math.min(start ?? 0, value.length));
+        const e = Math.max(s, Math.min(end ?? s, value.length));
+        switch (command) {
+            case 'bold':
+            case 'italic':
+            case 'strike':
+                return inline(value, s, e, MARKS[command]);
+            case 'code':
+                return value.slice(s, e).includes('\n') ? fence(value, s, e) : inline(value, s, e, MARKS.code);
+            case 'link':
+                return link(value, s, e);
+            default:
+                return lines(value, s, e, command);
+        }
+    }
+
+    // Enter inside a list, a task list or a quote: the next item starts with the
+    // same marker, and an item left empty ends the list instead.
+    function enter(value, caret) {
+        value = value || '';
+        const ls = value.lastIndexOf('\n', caret - 1) + 1;
+        let le = value.indexOf('\n', caret);
+        if (le < 0) le = value.length;
+        const line = value.slice(ls, le);
+        const m = ITEM.exec(line);
+        if (!m || caret - ls < m[0].length) return null;
+        if (blank(line.slice(m[0].length)))
+            return { start: ls, end: le, text: '', selStart: ls, selEnd: ls };
+        const marker = m[2] ? m[2] + ' ' + (m[3] ? '[ ] ' : '')
+            : m[4] ? (parseInt(m[4], 10) + 1) + m[5] + ' '
+            : '> ';
+        const text = '\n' + m[1] + marker;
+        return { start: caret, end: caret, text, selStart: caret + text.length, selEnd: caret + text.length };
+    }
+
+    function apply(el, edit) {
+        if (!edit) return false;
+        el.focus();
+        const before = el.value;
+        if (before.slice(edit.start, edit.end) !== edit.text) {
+            el.setSelectionRange(edit.start, edit.end);
+            // execCommand is the one path that keeps the edit on the undo stack.
+            let done = false;
+            try {
+                done = edit.text === ''
+                    ? document.execCommand('delete')
+                    : document.execCommand('insertText', false, edit.text);
+            } catch { done = false; }
+            if (!done || el.value === before) {
+                el.setRangeText(edit.text, edit.start, edit.end, 'end');
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        el.setSelectionRange(edit.selStart, edit.selEnd);
+        return true;
+    }
+
+    function run(root, command) {
+        const h = _map.get(root);
+        const el = h ? h.el : root && root.querySelector('[data-mde-source]');
+        if (!el || el.disabled || el.readOnly || root.dataset.mdeView === 'preview') return false;
+        return apply(el, transform(el.value, el.selectionStart, el.selectionEnd, command));
+    }
+
+    function sync(root) {
+        const h = _map.get(root);
+        if (!h) return;
+        const list = h.buttons();
+        const live = list.filter(b => !b.disabled);
+        const stop = live.find(b => b.tabIndex === 0) || live[0];
+        for (const b of list) b.tabIndex = b === stop ? 0 : -1;
+    }
+
+    function attach(root) {
+        if (!root) return;
+        detach(root);
+        const el = root.querySelector('[data-mde-source]');
+        const bar = root.querySelector('[data-mde-toolbar]');
+        if (!el || !bar) return;
+
+        // On Apple platforms Ctrl+B and Ctrl+E move the caret; only Cmd is a shortcut there.
+        const apple = typeof navigator !== 'undefined'
+            && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+        const buttons = () => [...bar.querySelectorAll(BUTTON)];
+        const button = (e) => {
+            const b = e.target && e.target.closest ? e.target.closest(BUTTON) : null;
+            return b && bar.contains(b) ? b : null;
+        };
+
+        const onKey = (e) => {
+            if (e.isComposing || e.altKey) return;
+            const mod = apple ? (e.metaKey && !e.ctrlKey) : (e.ctrlKey && !e.metaKey);
+            if (mod) {
+                const command = e.shiftKey ? null : KEYS[(e.key || '').toLowerCase()];
+                if (command && run(root, command)) e.preventDefault();
+                return;
+            }
+            if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey) return;
+            if (el.readOnly || el.selectionStart !== el.selectionEnd) return;
+            const edit = enter(el.value, el.selectionStart);
+            if (edit) { e.preventDefault(); apply(el, edit); }
+        };
+        const onClick = (e) => {
+            const b = button(e);
+            if (b && !b.disabled) run(root, b.dataset.mdeCmd);
+        };
+        // A press must not take the caret, and its selection, out of the source.
+        const onDown = (e) => { if (button(e)) e.preventDefault(); };
+        const onBarKey = (e) => {
+            const list = buttons().filter(b => !b.disabled);
+            const i = list.indexOf(button(e));
+            if (i < 0) return;
+            const j = e.key === 'ArrowRight' ? (i + 1) % list.length
+                : e.key === 'ArrowLeft' ? (i - 1 + list.length) % list.length
+                : e.key === 'Home' ? 0
+                : e.key === 'End' ? list.length - 1
+                : -1;
+            if (j < 0) return;
+            e.preventDefault();
+            for (const b of buttons()) b.tabIndex = b === list[j] ? 0 : -1;
+            list[j].focus();
+        };
+        const onFocus = (e) => {
+            const b = button(e);
+            if (b) for (const x of buttons()) x.tabIndex = x === b ? 0 : -1;
+        };
+
+        el.addEventListener('keydown', onKey);
+        bar.addEventListener('click', onClick);
+        bar.addEventListener('mousedown', onDown);
+        bar.addEventListener('keydown', onBarKey);
+        bar.addEventListener('focusin', onFocus);
+        _map.set(root, { el, bar, buttons, onKey, onClick, onDown, onBarKey, onFocus });
+        sync(root);
+    }
+
+    function detach(root) {
+        if (!root) return;
+        const h = _map.get(root);
+        if (!h) return;
+        h.el.removeEventListener('keydown', h.onKey);
+        h.bar.removeEventListener('click', h.onClick);
+        h.bar.removeEventListener('mousedown', h.onDown);
+        h.bar.removeEventListener('keydown', h.onBarKey);
+        h.bar.removeEventListener('focusin', h.onFocus);
+        _map.delete(root);
+    }
+
+    return { attach, detach, sync, run, transform, enter };
+})();
+
+/* ──────────────────────────────────────────────────────────
  * dryl.chat — DrylChat scroll + composer helpers.
  *   scrollToEnd(el)             pins a scroll region to the bottom.
  *   attachComposer(el, ref)     Enter sends (Shift+Enter = newline),

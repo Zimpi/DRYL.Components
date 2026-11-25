@@ -6,8 +6,8 @@ cleanup duties each imposes (`CODE-05` in
 
 This reference covers `DrylInputText`, `DrylTextarea`, `DrylSelect`,
 `DrylFileUpload`, `DrylAutocomplete`, `DrylMultiSelect`, `DrylTimePicker`,
-`DrylInputMask`, `DrylDatePicker`, `DrylChipInput` and
-`DrylSegmentedControl`. The list ink of the four list inputs (I38) is driven by
+`DrylInputMask`, `DrylDatePicker`, `DrylChipInput`,
+`DrylSegmentedControl` and `DrylMarkdownEditor`. The list ink of the four list inputs (I38) is driven by
 `DrylPopover`, not by the components; it is documented in
 `../E11 Surfaces/_Interop.md`. `DrylInputNumber`, `DrylInputPassword`,
 `DrylSegment`, `DrylFormField` and `DrylValidationSummary` make no JavaScript
@@ -114,6 +114,32 @@ enter/exit to `DrylPopover`; see `../E11 Surfaces/_Interop.md` for
 move focus with Blazor's built-in `ElementReference.FocusAsync` — the chip
 field when its box is clicked, the segmented control onto the segment an arrow
 key selected.
+
+`DrylMarkdownEditor` uses one module of the same file, `dryl.mdeditor`:
+
+| Entry point | Caller and observable purpose |
+|---|---|
+| `dryl.mdeditor.attach(root)` | `OnAfterRenderAsync` on the first interactive render. Finds the source (`[data-mde-source]`) and the toolbar (`[data-mde-toolbar]`) under the editor's frame and installs five listeners: `keydown` on the source (shortcuts, list continuation) and `click`, `mousedown`, `keydown` and `focusin` on the toolbar. Attaching again replaces them. |
+| `dryl.mdeditor.sync(root)` | `OnAfterRenderAsync` after a render that changed which toolbar buttons are enabled. Leaves exactly one enabled `button[data-mde-cmd]` with `tabindex="0"` and every other one with `-1`; with none enabled, none is a tab stop. |
+| `dryl.mdeditor.detach(root)` | `DisposeAsync` removes the five listeners. Repeated detachment is a no-op. |
+| `dryl.mdeditor.run(root, command)` | Not called from .NET. Applies one command to the source's selection; refuses when the source is disabled or read-only or the frame carries `data-mde-view="preview"`. |
+| `dryl.mdeditor.transform(value, start, end, command)`, `dryl.mdeditor.enter(value, caret)` | Not called from .NET. The pure text edits behind `run` and the Enter key; each returns `{ start, end, text, selStart, selEnd }` or `null`. |
+
+A toolbar press is handled by the `click` listener in the browser and never
+travels to the server: the button names its command in `data-mde-cmd` (`bold`,
+`italic`, `strike`, `heading`, `bullet`, `ordered`, `task`, `quote`, `code`,
+`link`). The edit is made with `document.execCommand('insertText' | 'delete')`
+so that it joins the browser's undo stack and raises a native `input` event;
+where the browser refuses, the module falls back to `setRangeText` and
+dispatches a bubbling `input` event itself. Either way the value reaches the
+component through its ordinary `input` handler, and the echo guard of
+`dryl.inputs` records it like typed text. `mousedown` on a toolbar button is
+default-prevented so that a press does not move focus, and with it the
+selection, out of the source. The shortcut modifier is Ctrl, or Cmd alone on
+Apple platforms (read from `navigator.platform`), where Ctrl+B and Ctrl+E are
+native caret movements. Tab is never handled.
+
+The module starts no timer and no animation frame.
 
 ## Services
 
