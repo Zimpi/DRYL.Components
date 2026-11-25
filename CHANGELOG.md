@@ -14,6 +14,13 @@ Version bump guide:
 
 ## [Unreleased]
 
+## [3.19.0] — 2026-11-25
+
+Five text-formatting icons.
+
+### Added
+- `DrylIcon` — Five new names for text formatting: `Bold`, `Italic`, `Strikethrough`, `ListOrdered` and `ListChecks`.
+
 ## [3.18.1] — 2026-11-24
 
 An app shell that no longer lets a wide app bar push the page off a phone, and calendar events that never cut a time or an avatar in half.
