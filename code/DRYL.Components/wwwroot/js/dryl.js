@@ -1883,7 +1883,8 @@ window.dryl.mdeditor = (() => {
     const ORDERED = /^(\s*)\d+[.)] /;
     const QUOTE = /^(\s*)> ?/;
     const HEADING = /^(#{1,6})(?:[ \t]+|$)/;
-    const ITEM = /^(\s*)(?:([-*+]) (\[[ xX]\] )?|(\d+)([.)]) |(>) ?)/;
+    const ITEM = /^(\s*)(?:([-*+]) (\[[ xX]\](?: |$))?|(\d+)([.)]) |(>) ?)/;
+    const RULE = /^\s*([-*_])(?:\s*\1){2,}\s*$/;   // a thematic break, not a list item
     const BUTTON = 'button[data-mde-cmd]';
 
     const blank = (line) => line.trim() === '';
@@ -1900,13 +1901,23 @@ window.dryl.mdeditor = (() => {
 
     function inline(value, s, e, mark) {
         const m = mark.length;
-        // Marks directly around the selection — take them off.
-        if (s >= m && value.slice(s - m, s) === mark && value.slice(e, e + m) === mark)
-            return { start: s - m, end: e + m, text: value.slice(s, e), selStart: s - m, selEnd: e - m };
+        // Marks around the selection — take them off. Other marks may sit in
+        // between ("**_x_**" with x selected is bold), so look past those.
+        for (let a = s, b = e; ;) {
+            if (a >= m && value.slice(a - m, a) === mark && value.slice(b, b + m) === mark)
+                return { start: a - m, end: b + m, text: value.slice(a, b), selStart: s - m, selEnd: e - m };
+            const other = Object.values(MARKS).find(o => o !== mark && a >= o.length
+                && value.slice(a - o.length, a) === o && value.slice(b, b + o.length) === o);
+            if (!other) break;
+            a -= other.length;
+            b += other.length;
+        }
         const sel = value.slice(s, e);
-        // Marks at the selection's own ends — take them off.
+        // Marks at the selection's own ends — take them off, if they are one pair.
         if (sel.length > 2 * m && sel.startsWith(mark) && sel.endsWith(mark)) {
             const text = sel.slice(m, -m);
+            // "**a** and **b**" is two spans; there is no single pair to remove.
+            if (text.includes(mark)) return null;
             return { start: s, end: e, text, selStart: s, selEnd: s + text.length };
         }
         // Put them on. Whitespace at the ends stays outside: "** x **" is not bold.
@@ -2037,7 +2048,7 @@ window.dryl.mdeditor = (() => {
         let le = value.indexOf('\n', caret);
         if (le < 0) le = value.length;
         const line = value.slice(ls, le);
-        const m = ITEM.exec(line);
+        const m = RULE.test(line) ? null : ITEM.exec(line);
         if (!m || caret - ls < m[0].length) return null;
         if (blank(line.slice(m[0].length)))
             return { start: ls, end: le, text: '', selStart: ls, selEnd: ls };
@@ -2050,8 +2061,10 @@ window.dryl.mdeditor = (() => {
 
     function apply(el, edit) {
         if (!edit) return false;
-        el.focus();
         const before = el.value;
+        // The browser would cut an insertion at maxlength and leave half a mark behind.
+        if (el.maxLength >= 0 && before.length - (edit.end - edit.start) + edit.text.length > el.maxLength) return false;
+        el.focus();
         if (before.slice(edit.start, edit.end) !== edit.text) {
             el.setSelectionRange(edit.start, edit.end);
             // execCommand is the one path that keeps the edit on the undo stack.
@@ -2082,8 +2095,12 @@ window.dryl.mdeditor = (() => {
         if (!h) return;
         const list = h.buttons();
         const live = list.filter(b => !b.disabled);
-        const stop = live.find(b => b.tabIndex === 0) || live[0];
+        const stop = (live.includes(h.stop) && h.stop) || live.find(b => b.tabIndex === 0) || live[0];
         for (const b of list) b.tabIndex = b === stop ? 0 : -1;
+        // A selection nobody can see must not steer anything: a wrapper such as
+        // DrylAiField would rewrite only that range while the user reads the whole text.
+        if (root.dataset.mdeView === 'preview' && h.el.selectionStart !== h.el.selectionEnd)
+            h.el.setSelectionRange(h.el.selectionEnd, h.el.selectionEnd);
     }
 
     function attach(root) {
@@ -2102,12 +2119,24 @@ window.dryl.mdeditor = (() => {
             return b && bar.contains(b) ? b : null;
         };
 
+        // The button that last had focus is the toolbar's tab stop, and stays it
+        // across a spell in which every button was disabled.
+        const stop = (b) => {
+            const h = _map.get(root);
+            if (h) h.stop = b;
+            for (const x of buttons()) x.tabIndex = x === b ? 0 : -1;
+        };
+
         const onKey = (e) => {
             if (e.isComposing || e.altKey) return;
             const mod = apple ? (e.metaKey && !e.ctrlKey) : (e.ctrlKey && !e.metaKey);
             if (mod) {
-                const command = e.shiftKey ? null : KEYS[(e.key || '').toLowerCase()];
-                if (command && run(root, command)) e.preventDefault();
+                // e.code covers layouts whose letters are not Latin.
+                const command = e.shiftKey ? null
+                    : KEYS[(e.key || '').toLowerCase()] || KEYS[(/^Key([A-Z])$/.exec(e.code || '') || [])[1]?.toLowerCase()];
+                // The key is the editor's even while a command is refused (a read-only
+                // source during an AI run): Ctrl+K must not open the browser's search bar.
+                if (command) { e.preventDefault(); run(root, command); }
                 return;
             }
             if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey) return;
@@ -2132,12 +2161,12 @@ window.dryl.mdeditor = (() => {
                 : -1;
             if (j < 0) return;
             e.preventDefault();
-            for (const b of buttons()) b.tabIndex = b === list[j] ? 0 : -1;
+            stop(list[j]);
             list[j].focus();
         };
         const onFocus = (e) => {
             const b = button(e);
-            if (b) for (const x of buttons()) x.tabIndex = x === b ? 0 : -1;
+            if (b) stop(b);
         };
 
         el.addEventListener('keydown', onKey);

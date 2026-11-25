@@ -149,6 +149,8 @@ described in [`_Api.md`](_Api.md).
 - In the preview the source remains in the DOM.
 - In the preview the source is not disabled by the view.
 - In the preview the source is neither visible nor reachable by keyboard.
+- Entering the preview collapses the source's selection, so that no wrapper
+  acts on a range the user can no longer see.
 - The frame has the same height in both views.
 - A preview taller than the body scrolls inside the body.
 - The preview enters and leaves through `DrylPresence`.
@@ -180,7 +182,8 @@ described in [`_Api.md`](_Api.md).
 - ArrowLeft moves focus to the previous enabled button and wraps at the start.
 - Home moves focus to the first enabled button.
 - End moves focus to the last enabled button.
-- The button that last had focus is the toolbar's tab stop when focus returns.
+- The button that last had focus is the toolbar's tab stop when focus returns,
+  also after the buttons were disabled in between.
 - Pressing a toolbar button with the pointer leaves focus and the selection in the source.
 - Activating a toolbar button from the keyboard applies its command and moves focus to the source.
 
@@ -199,8 +202,12 @@ source's selection when the command runs.
   places the caret between them.
 - An inline command on a selection that is directly surrounded by its marks
   removes them.
+- An inline command removes its marks around the selection also when other
+  inline marks sit between them and the selection.
 - An inline command on a selection that itself starts and ends with its marks
   removes them.
+- An inline command on a selection that holds more than one span of its marks
+  changes nothing.
 - Code on a selection that spans lines puts it into a fenced block on lines of
   its own.
 - Code on a selection that is directly surrounded by a fence removes the fence.
@@ -226,6 +233,7 @@ source's selection when the command runs.
 - After a line command on a selection the changed lines are selected.
 - A selection that ends directly after a line break does not include the next line.
 - A command changes nothing while the source is read-only.
+- A command whose result would exceed the source's `maxlength` changes nothing.
 - A command raises exactly one `input` event on the source.
 - A command can be taken back with the browser's undo.
 
@@ -235,7 +243,10 @@ source's selection when the command runs.
 - Ctrl+I applies italic.
 - Ctrl+E applies code.
 - Ctrl+K applies link.
-- A shortcut that applied its command suppresses the browser's default for that key.
+- A shortcut suppresses the browser's default for that key, also while its
+  command is refused.
+- A shortcut is recognised by its physical key on a keyboard layout without
+  Latin letters.
 - On Apple platforms the shortcut modifier is Cmd.
 - On Apple platforms Ctrl+B, Ctrl+I, Ctrl+E and Ctrl+K keep their native behaviour.
 - A shortcut combined with Shift or Alt is left to the browser.
@@ -246,6 +257,7 @@ source's selection when the command runs.
 - A continued item keeps the indentation of the item before it.
 - Enter in an item that holds only its marker removes the marker instead of
   adding a line.
+- Enter on a thematic break (`---`, `* * *`) is left to the browser.
 - Enter with the caret before or inside the marker is left to the browser.
 - Enter during text composition is left to the browser.
 - Shift+Enter is left to the browser.
@@ -339,6 +351,8 @@ source's selection when the command runs.
 - Disposal calls `dryl.mdeditor.detach` once, and only after a successful attach.
 - Disposal of a statically prerendered editor makes no JavaScript call.
 - Disposal tolerates a disconnected circuit.
+- A failing `dryl.mdeditor.attach` leaves the editor rendered and usable as a
+  plain text area with a working view switch.
 - Disposal cancels the component's pending aura lifecycle work (`CODE-05`).
 - Disposal releases the `EditContext` subscription of `InputBase`.
 
@@ -367,7 +381,17 @@ source's selection when the command runs.
 - **A changed `View` parameter moves focus nowhere.** If the host switches to
   the preview while the source has focus, focus falls back to the document.
 - **Heading, list and quote detection is line-based.** A marker inside a fenced
-  code block is treated like any other line.
+  code block is treated like any other line; heading does not look behind a
+  line's indentation, list marker or quote marker; and a line of prose that
+  starts like a numbered item (`2024. Was good`) continues as one on Enter.
+- **Italic uses `_`.** CommonMark does not read `_` inside a word as emphasis,
+  so italic on part of a word (`un_believ_able`) shows its underscores in the
+  preview.
+- **An inline mark does not cross a blank line.** Bold, italic, strikethrough
+  and link wrap the selection as one span; a selection that spans paragraphs
+  renders its marks literally.
+- **Entering the preview drops the selection.** Returning to the editor finds
+  the caret at the selection's end.
 - `Rows` is passed through without range validation.
 
 ## Cross-cutting evidence (`SPEC-05`)
@@ -400,8 +424,9 @@ source's selection when the command runs.
 - **Tests:** `tests/DRYL.Components.Tests/DrylMarkdownEditorTests.cs` covers
   structure, binding, the view, the toolbar's markup, validation, texts, the AI
   classes and scope isolation, and the interop calls.
-  `tests/js/mdeditor.test.mjs` covers every command on and off, the Enter key,
-  the shortcut table on both platform families, the toolbar's arrow keys and
+  `tests/js/mdeditor.test.mjs` covers every command on and off, nested and
+  repeated marks, the Enter key, `maxlength`, the shortcut table on both
+  platform families, the toolbar's arrow keys and
   tab stop, and listener cleanup. bUnit does not run the script and the script
   tests do not run a browser: undo, real focus movement, the shared height and
   the rendered colors rest on the browser pass named above, which is not an

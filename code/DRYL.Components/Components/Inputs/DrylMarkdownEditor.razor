@@ -247,9 +247,17 @@
         {
             if (firstRender)
             {
+                // attach syncs the tab stop for the DOM it finds. A render that lands
+                // while the call is in flight is caught up right after it.
+                var enabled = CommandsEnabled;
                 await JS.InvokeVoidAsync("dryl.mdeditor.attach", _frame);
                 _attached = true;
-                _syncedEnabled = CommandsEnabled;
+                _syncedEnabled = enabled;
+                if (CommandsEnabled != enabled)
+                {
+                    _syncedEnabled = CommandsEnabled;
+                    await JS.InvokeVoidAsync("dryl.mdeditor.sync", _frame);
+                }
             }
             else if (_attached && _syncedEnabled != CommandsEnabled)
             {
@@ -259,6 +267,8 @@
             }
         }
         catch (JSDisconnectedException) { /* circuit gone — nothing left to wire */ }
+        catch (JSException) { /* e.g. a stale cached dryl.js: the editor stays a plain text area */ }
+        catch (OperationCanceledException) { }
     }
 
     private async Task SetViewAsync(MarkdownEditorView view)

@@ -120,7 +120,7 @@ key selected.
 | Entry point | Caller and observable purpose |
 |---|---|
 | `dryl.mdeditor.attach(root)` | `OnAfterRenderAsync` on the first interactive render. Finds the source (`[data-mde-source]`) and the toolbar (`[data-mde-toolbar]`) under the editor's frame and installs five listeners: `keydown` on the source (shortcuts, list continuation) and `click`, `mousedown`, `keydown` and `focusin` on the toolbar. Attaching again replaces them. |
-| `dryl.mdeditor.sync(root)` | `OnAfterRenderAsync` after a render that changed which toolbar buttons are enabled. Leaves exactly one enabled `button[data-mde-cmd]` with `tabindex="0"` and every other one with `-1`; with none enabled, none is a tab stop. |
+| `dryl.mdeditor.sync(root)` | `OnAfterRenderAsync` after a render that changed which toolbar buttons are enabled. Leaves exactly one enabled `button[data-mde-cmd]` with `tabindex="0"` and every other one with `-1`, preferring the button that last had focus; with none enabled, none is a tab stop. While the frame carries `data-mde-view="preview"` it also collapses the source's selection to its end. |
 | `dryl.mdeditor.detach(root)` | `DisposeAsync` removes the five listeners. Repeated detachment is a no-op. |
 | `dryl.mdeditor.run(root, command)` | Not called from .NET. Applies one command to the source's selection; refuses when the source is disabled or read-only or the frame carries `data-mde-view="preview"`. |
 | `dryl.mdeditor.transform(value, start, end, command)`, `dryl.mdeditor.enter(value, caret)` | Not called from .NET. The pure text edits behind `run` and the Enter key; each returns `{ start, end, text, selStart, selEnd }` or `null`. |
@@ -137,7 +137,10 @@ component through its ordinary `input` handler, and the echo guard of
 default-prevented so that a press does not move focus, and with it the
 selection, out of the source. The shortcut modifier is Ctrl, or Cmd alone on
 Apple platforms (read from `navigator.platform`), where Ctrl+B and Ctrl+E are
-native caret movements. Tab is never handled.
+native caret movements. A shortcut is matched by `key` and, failing that, by
+`code`, and loses its browser default even while its command is refused. An
+edit that would exceed the source's `maxLength` is refused whole. Tab is never
+handled.
 
 The module starts no timer and no animation frame.
 
@@ -198,8 +201,9 @@ invokes first so that the base's `EditContext` subscription is released too —
 the renderer calls only `DisposeAsync` on a component that has both. It then
 calls `dryl.mdeditor.detach` once, only after `attach` succeeded on an
 interactive render, tolerating `JSDisconnectedException`, `JSException` and
-`OperationCanceledException`. `attach` and `sync` tolerate
-`JSDisconnectedException` only. The composed `DrylPresence` owns the preview's
+`OperationCanceledException`. `attach` and `sync` tolerate the same three; a
+failed `attach` leaves the component unattached, so it neither syncs nor
+detaches. The composed `DrylPresence` owns the preview's
 exit and its own cleanup (E1).
 
 `DrylValidationSummary` implements `IDisposable` and unsubscribes from

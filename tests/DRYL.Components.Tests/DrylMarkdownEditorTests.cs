@@ -448,6 +448,24 @@ public class DrylMarkdownEditorTests : BunitContext
     }
 
     [Fact]
+    public void A_proposal_rests_on_the_frame_and_the_aura_is_hidden_from_assistive_technology()
+    {
+        var cut = RenderEditor(ps => ps.Add(p => p.Ai, AiState.Proposed));
+
+        Assert.Contains("ai-proposed", cut.Find(".mde").ClassList);
+        Assert.Equal("true", cut.Find(".mde > .ai-aura-ring").GetAttribute("aria-hidden"));
+    }
+
+    [Fact]
+    public void Nothing_in_the_editor_is_marked_as_a_wrappers_own_ui()
+    {
+        var cut = RenderEditor(ps => ps.Add(p => p.View, MarkdownEditorView.Preview));
+
+        Assert.Empty(cut.FindAll("[data-aifield-ui]"));
+        Assert.Empty(cut.FindAll("input"));
+    }
+
+    [Fact]
     public void The_Aura_parameter_picks_the_variant()
     {
         var cut = RenderEditor(ps => ps.Add(p => p.Ai, AiState.Active).Add(p => p.Aura, AiAura.Aurora));
@@ -497,6 +515,32 @@ public class DrylMarkdownEditorTests : BunitContext
         await cut.InvokeAsync(async () => await cut.Instance.DisposeAsync());
 
         Assert.Equal(1, Calls(Detach));
+    }
+
+    [Fact]
+    public async Task An_editor_whose_script_failed_to_attach_still_renders_and_never_detaches()
+    {
+        JSInterop.SetupVoid(Attach, _ => true).SetException(new Microsoft.JSInterop.JSException("dryl.mdeditor is undefined"));
+
+        var cut = RenderEditor(ps => ps.Add(p => p.Value, "text"));
+        Switch(cut, "Preview");
+
+        Assert.Equal("text", cut.Find(".mde-preview p").TextContent);
+        Assert.Equal(0, Calls(Sync));
+        await cut.InvokeAsync(async () => await cut.Instance.DisposeAsync());
+        Assert.Equal(0, Calls(Detach));
+    }
+
+    [Fact]
+    public void Toggling_Disabled_syncs_the_toolbars_tab_stop()
+    {
+        var cut = RenderEditor();
+
+        cut.Render(ps => ps.Add(p => p.Disabled, true));
+        Assert.Equal(1, Calls(Sync));
+
+        cut.Render(ps => ps.Add(p => p.Disabled, false));
+        Assert.Equal(2, Calls(Sync));
     }
 
     [Fact]

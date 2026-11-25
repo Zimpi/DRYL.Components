@@ -72,14 +72,17 @@
 }
 
 /* The commands step back while there is no source to apply them to. The
-   buttons' own disabled look does the dimming; this makes it a glide. */
+   buttons' own disabled look does the dimming; this makes it a glide. The list
+   is .btn's own, with opacity and filter added — a transition cannot be extended,
+   only restated. */
 .mde-toolbar ::deep .btn {
-    transition: opacity var(--dur-med) var(--ease-out),
-                filter var(--dur-med) var(--ease-out),
+    transition: transform var(--dur-med) var(--ease-spring),
                 background var(--dur-med) var(--ease-out),
                 border-color var(--dur-med) var(--ease-out),
+                box-shadow var(--dur-med) var(--ease-out),
                 color var(--dur-med) var(--ease-out),
-                transform var(--dur-fast) var(--ease-out);
+                opacity var(--dur-med) var(--ease-out),
+                filter var(--dur-med) var(--ease-out);
 }
 
 .mde-sep {

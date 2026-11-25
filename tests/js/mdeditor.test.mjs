@@ -70,6 +70,19 @@ test('the same command takes the marks off again', () => {
     assert.equal(cmd('`|x|`', 'code'), '|x|');
 });
 
+test('a mark comes off again when another mark sits between it and the selection', () => {
+    assert.equal(cmd('**_|x|_**', 'bold'), '_|x|_');
+    assert.equal(cmd('_**|x|**_', 'italic'), '**|x|**');
+    assert.equal(cmd('~~**_|x|_**~~', 'strike'), '**_|x|_**');
+});
+
+test('a selection of two marked spans is left alone instead of losing its outer marks', () => {
+    for (const [marked, command] of [['|**a** and **b**|', 'bold'], ['|_a_ and _b_|', 'italic'], ['|`a` + `b`|', 'code']]) {
+        const { value, start, end } = parse(marked);
+        assert.equal(md.transform(value, start, end, command), null, marked);
+    }
+});
+
 test('code on a selection that spans lines becomes a fenced block on its own lines', () => {
     assert.equal(cmd('|a\nb|', 'code'), '```\n|a\nb|\n```');
     assert.equal(cmd('x |a\nb| y', 'code'), 'x \n```\n|a\nb|\n```\n y');
@@ -154,6 +167,12 @@ test('Enter on an empty item ends the list', () => {
     assert.equal(enter('1. |'), '|');
     assert.equal(enter('- [ ] |'), '|');
     assert.equal(enter('> |'), '|');
+});
+
+test('a task marker without a trailing space is an empty item, and a thematic break is no item', () => {
+    assert.equal(enter('- [ ]|'), '|');
+    assert.equal(enter('* * *|'), null);
+    assert.equal(enter('- - -|'), null);
 });
 
 test('Enter elsewhere is left to the browser', () => {
@@ -241,6 +260,32 @@ test('a disabled button, a read-only source and the preview all refuse a command
     assert.equal(f.state(), '|word|');
 });
 
+test('an edit that would exceed maxlength is refused whole', () => {
+    const { md } = load(), f = editor('word', 0, 4);
+    f.el.maxLength = 6;
+    md.attach(f.root);
+    f.bar.emit('click', { target: f.buttons[0] });
+    assert.equal(f.state(), '|word|');
+    f.el.maxLength = 8;
+    f.bar.emit('click', { target: f.buttons[0] });
+    assert.equal(f.state(), '**|word|**');
+});
+
+test('a shortcut is found by its physical key on a layout without Latin letters', () => {
+    const { md } = load(), f = editor('x', 0, 1);
+    md.attach(f.root);
+    assert.ok(f.el.emit('keydown', { key: 'и', code: 'KeyB', ctrlKey: true }).prevented);
+    assert.equal(f.state(), '**|x|**');
+});
+
+test('a shortcut stays the editor\'s while the source is read-only', () => {
+    const { md } = load(), f = editor('x', 0, 1);
+    md.attach(f.root);
+    f.el.readOnly = true;
+    assert.ok(f.el.emit('keydown', { key: 'k', ctrlKey: true }).prevented);
+    assert.equal(f.state(), '|x|');
+});
+
 test('Ctrl+B, I, K and E run their commands and lose the browser default', () => {
     const { md } = load();
     for (const [key, expected] of [['b', '**|x|**'], ['i', '_|x|_'], ['k', '[x](|url|)'], ['e', '`|x|`'], ['B', '**|x|**']]) {
@@ -313,6 +358,28 @@ test('sync leaves exactly one enabled button in the tab order', () => {
     for (const b of f.buttons) b.disabled = false;
     md.sync(f.root);
     assert.deepEqual(f.buttons.map(b => b.tabIndex), [0, -1, -1, -1]);
+});
+
+test('the button that last had focus stays the tab stop across a spell of disabled buttons', () => {
+    const { md } = load(), f = editor();
+    md.attach(f.root);
+    f.bar.emit('focusin', { target: f.buttons[2] });
+    assert.deepEqual(f.buttons.map(b => b.tabIndex), [-1, -1, 0, -1]);
+    for (const b of f.buttons) b.disabled = true;
+    md.sync(f.root);
+    for (const b of f.buttons) b.disabled = false;
+    md.sync(f.root);
+    assert.deepEqual(f.buttons.map(b => b.tabIndex), [-1, -1, 0, -1]);
+});
+
+test('entering the preview collapses a selection nobody can see any more', () => {
+    const { md } = load(), f = editor('one two', 4, 7);
+    md.attach(f.root);
+    md.sync(f.root);
+    assert.equal(f.state(), 'one |two|');
+    f.root.dataset.mdeView = 'preview';
+    md.sync(f.root);
+    assert.equal(f.state(), 'one two|');
 });
 
 test('attaching again replaces the listeners, and detach removes every one', () => {
