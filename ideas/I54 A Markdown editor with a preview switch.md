@@ -39,8 +39,17 @@ line prefixes. It is a `role="toolbar"` with one tab stop and arrow-key
 navigation; every button is icon-only with a tooltip and an `aria-label`
 (`UX-05`), and all its words come from one `MarkdownEditorTexts` record
 (English defaults, after `SelectTexts`). In the preview the toolbar's commands
-are not available. *(Command set, shortcuts and typing behaviour: see Open
-Points.)*
+are not available.
+
+Commands, in order: bold, italic, strikethrough · heading (one button that
+cycles H1 → H2 → H3 → none) · bullet list, numbered list, task list · quote ·
+code (inline; a fenced block when the selection spans lines) · link (inserts
+`[selection](url)` and selects `url`; no dialog). A command on text that
+already carries its mark removes it.
+
+**Keyboard and typing.** Ctrl/Cmd+B bold, +I italic, +K link, +E code. Enter
+continues a list, a task list or a quote and ends it on an empty item. Tab is
+not captured, so the editor is never a keyboard trap (`UX-01`).
 
 **AI-native.** The component takes `Ai` and `Aura` (`AI-03`) and follows a
 surrounding `DrylAiScope`. One aura frames the whole editor — header and body
@@ -68,10 +77,11 @@ and no model call.
 - **Harness:**
   - No new token, duration, easing or `AiState`. No new dependency: Markdig is
     the approved exception (`CODE-03`) and is used only through `DrylMarkdown`.
-  - **Needs sign-off — new icons.** `DrylIcon` has `Heading`, `List`, `Quote`,
-    `Code` and `Link`, but no `Bold`, `Italic`, `Strikethrough`, `ListOrdered`
-    or `ListChecks`. They would be added from Lucide (ISC, the set's existing
-    source, already covered by `THIRD_PARTY_NOTICES.md`).
+  - **New icons — signed off by the maintainer (2026-11-25).** `DrylIcon` has
+    `Heading`, `List`, `Quote`, `Code` and `Link`, but no `Bold`, `Italic`,
+    `Strikethrough`, `ListOrdered` or `ListChecks`. They are added from Lucide
+    (ISC, the set's existing source, already covered by
+    `THIRD_PARTY_NOTICES.md`).
   - New first-party script surface: a `window.dryl.mdeditor` module in
     `dryl.js` (read and replace the selection, shortcuts, list continuation).
     No framework, no package.
@@ -114,18 +124,18 @@ and no model call.
   view enum is cut so `Split` can be added later without a breaking change.
 - 2026-11-25 — Tech Lead: the source stays mounted in both views, so that
   `DrylAiField` can stream into the editor while the preview is showing.
+- 2026-11-25 — Jan: "AI-native" in the core package means `Ai`/`Aura`, one
+  aura around the whole editor, the streaming reveal in the preview and
+  guaranteed composition with `DrylAiField`; the toolbar carries no AI action
+  of its own, because the core package knows no agents.
+- 2026-11-25 — Jan: the toolbar's command set as listed under *Solution Idea*;
+  image and table stay out.
+- 2026-11-25 — Jan: sign-off for the five new icons `Bold`, `Italic`,
+  `Strikethrough`, `ListOrdered`, `ListChecks`, sourced from Lucide.
+- 2026-11-25 — Jan: shortcuts, list continuation on Enter, no Tab capture and
+  the dialog-free link insertion as listed under *Solution Idea*.
 
 ## Open Points
 
-- **What "AI-native" contains in the core package.** Proposed: `Ai`/`Aura`,
-  one aura around the whole editor, the streaming reveal in the preview, and
-  guaranteed composition with `DrylAiField` — and no AI action of its own in
-  the toolbar. Needs confirmation.
-- **Toolbar command set and the five new icons** (sign-off). Proposed: bold,
-  italic, strikethrough, heading (cycles H1 → H2 → H3 → none), bullet list,
-  numbered list, task list, quote, code (inline; a fenced block when the
-  selection spans lines), link.
-- **Keyboard and typing behaviour.** Proposed: Ctrl/Cmd+B, +I, +K (link), +E
-  (code); Enter continues a list or quote and ends it on an empty item; Tab is
-  **not** captured, so the editor is never a keyboard trap (`UX-01`); link
-  inserts `[selection](url)` and selects `url` instead of opening a dialog.
+- None. Awaiting the Product Owner's explicit confirmation of the final
+  version (`IDEA-04`, phase 5) before the state moves to `Ready`.
