@@ -1,0 +1,175 @@
+/* DrylMarkdownEditor — one frame, a header (view switch + toolbar) and a body
+   that holds two views of the same string. Tokens only.
+
+   The frame is the input surface: it carries the border, the focus glow, the
+   validation color and the AI aura. The source inside it is bare. */
+
+.mde {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--glass-1);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    transition: border-color var(--dur-med) var(--ease-out),
+                background var(--dur-med) var(--ease-out),
+                box-shadow var(--dur-med) var(--ease-out);
+}
+
+.mde:hover:not(.mde--disabled) {
+    border-color: var(--line-hover);
+}
+
+/* The glow belongs to the source: a focused toolbar button or switch segment
+   shows its own ring and leaves the frame at rest. */
+.mde:has(.mde-source:focus) {
+    border-color: var(--accent-line);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 1px var(--accent-line),
+                0 0 0 var(--sp-1) color-mix(in srgb, var(--accent-a) 12%, transparent),
+                0 0 var(--sp-5) color-mix(in srgb, var(--accent-a) 18%, transparent);
+}
+
+.mde--error {
+    border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+}
+
+.mde--error:has(.mde-source:focus) {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 var(--sp-1) color-mix(in srgb, var(--danger) 12%, transparent),
+                0 0 var(--sp-5) color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.mde--success {
+    border-color: color-mix(in srgb, var(--success) 50%, transparent);
+}
+
+.mde--success:has(.mde-source:focus) {
+    border-color: var(--success);
+    box-shadow: 0 0 0 var(--sp-1) color-mix(in srgb, var(--success) 12%, transparent),
+                0 0 var(--sp-5) color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+
+.mde-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2);
+    border-bottom: 1px solid var(--line);
+}
+
+.mde-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-1);
+    min-width: 0;
+}
+
+/* The commands step back while there is no source to apply them to. The
+   buttons' own disabled look does the dimming; this makes it a glide. */
+.mde-toolbar ::deep .btn {
+    transition: opacity var(--dur-med) var(--ease-out),
+                filter var(--dur-med) var(--ease-out),
+                background var(--dur-med) var(--ease-out),
+                border-color var(--dur-med) var(--ease-out),
+                color var(--dur-med) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+}
+
+.mde-sep {
+    width: 1px;
+    height: var(--sp-4);
+    margin: 0 var(--sp-1);
+    background: var(--line-strong);
+}
+
+/* ── Body: both views share one box; the source sets its height ── */
+
+.mde-body {
+    position: relative;
+    display: flex;
+    min-height: 0;
+}
+
+.mde-source {
+    flex: 1;
+    width: 100%;
+    min-height: calc(var(--sp-8) + var(--sp-6));
+    box-sizing: border-box;
+    margin: 0;
+    padding: var(--sp-3) var(--sp-4);
+    border: 0;
+    border-radius: 0 0 var(--r-md) var(--r-md);
+    outline: none;
+    background: transparent;
+    color: var(--fg);
+    font: 400 13px/1.6 var(--font-mono);
+    resize: vertical;
+    transition: opacity var(--dur-med) var(--ease-out),
+                visibility var(--dur-med) var(--ease-out);
+}
+
+.mde-source::placeholder {
+    color: var(--fg-dim);
+}
+
+.mde-source:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* In the preview the source keeps its place and its size — it is what gives the
+   box its height — but it is neither visible nor reachable. It stays in the DOM
+   and enabled, so a wrapper such as DrylAiField still finds and fills it. */
+.mde--preview .mde-source,
+.mde--preview .mde-source:disabled {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.mde-body ::deep .mde-preview-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    min-height: 0;
+}
+
+.mde-body ::deep .mde-preview {
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: 0 0 var(--r-md) var(--r-md);
+}
+
+.mde-body ::deep .mde-preview:focus-visible {
+    outline-offset: calc(var(--sp-1) * -1);
+}
+
+.mde-preview-empty {
+    margin: 0;
+    color: var(--fg-dim);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* Without box shadows the frame's glow is gone; the source shows the outline
+   itself, like .textarea does (UX-02). */
+@media (forced-colors: active) {
+    .mde-source:focus-visible {
+        outline: auto var(--accent-b);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mde,
+    .mde-source,
+    .mde-toolbar ::deep .btn {
+        transition: none;
+    }
+}

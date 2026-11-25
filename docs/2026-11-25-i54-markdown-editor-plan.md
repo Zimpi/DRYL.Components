@@ -44,8 +44,9 @@ verification and is one commit.
 - `code/DRYL.Components/Components/Inputs/DrylMarkdownEditor.razor` +
   `.razor.css`, `MarkdownEditorView.cs`, `MarkdownEditorTexts.cs`.
 - `code/DRYL.Components/wwwroot/dryl.css` — the editor joins the selector
-  lists of the existing streaming reveal and of the forced-colors focus
-  fallback. No new token, keyframe or duration.
+  lists of the existing streaming reveal. The forced-colors focus fallback
+  lives in the component's isolated stylesheet. No new token, keyframe or
+  duration.
 - `tests/DRYL.Components.Tests/DrylMarkdownEditorTests.cs`.
 - `CHANGELOG.md` — the component's entry in the `[3.19.0]` block.
 - Verify: `dotnet build DRYL.slnx -c Release`, `dotnet test DRYL.slnx -c Release`,

@@ -6551,7 +6551,8 @@ input[type=number] { -moz-appearance: textfield; }
    line rises out of the hot bottom into the cold body as the writing head
    descends. Colour comes only from the AI accent tokens + --fg. */
 .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
-.chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
+.chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
+.mde.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
   background-image: linear-gradient(
     0deg,
     var(--ai-a) 0%, var(--ai-b) 22%,
@@ -6573,7 +6574,8 @@ input[type=number] { -moz-appearance: textfield; }
 .stream-caret,
 .stream-text::after,
 .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after,
-.chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after {
+.chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after,
+.mde.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after {
   content: '';
   display: inline-block;
   width: 0.5em;
@@ -6597,7 +6599,8 @@ input[type=number] { -moz-appearance: textfield; }
 @media (prefers-reduced-motion: reduce) {
   .stream-token { animation: none; }
   .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
-  .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
+  .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block),
+  .mde.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block) {
     animation: none;
     /* Drop the clip so text returns to its normal colour, no frozen hot zone. */
     -webkit-text-fill-color: currentColor;
@@ -6608,7 +6611,8 @@ input[type=number] { -moz-appearance: textfield; }
   .stream-caret,
   .stream-text::after,
   .md.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after,
-  .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after {
+  .chat-bubble.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after,
+  .mde.ai-aura.ai-streaming .md-content > *:last-child:not(.code-block)::after {
     animation: none;
   }
 }

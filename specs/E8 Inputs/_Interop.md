@@ -144,7 +144,7 @@ The module starts no timer and no animation frame.
 ## Services
 
 No input-specific DI service is registered by any component of this category.
-`DrylSelect`, `DrylInputMask` and `DrylDatePicker` inject framework
+`DrylSelect`, `DrylInputMask`, `DrylDatePicker` and `DrylMarkdownEditor` inject framework
 `IJSRuntime`. Form validation uses a cascading `EditContext` when present;
 `DrylFormField` and `DrylValidationSummary` read it without binding a value.
 `DrylSegmentedControl` cascades itself (`IsFixed="true"`) so that its
@@ -191,6 +191,16 @@ implement `IDisposable` and dispose their `AuraLifecycle`. `DrylDatePicker`
 holds no listener of its own: the panel key listener installed by
 `dryl.datepicker.focusDay` lives on the popover's panel node and goes with it
 (see `../E11 Surfaces/_Interop.md`).
+
+`DrylMarkdownEditor` implements `IAsyncDisposable`. It disposes its
+`AuraLifecycle` through `InputBase`'s `Dispose(bool)`, which `DisposeAsync`
+invokes first so that the base's `EditContext` subscription is released too —
+the renderer calls only `DisposeAsync` on a component that has both. It then
+calls `dryl.mdeditor.detach` once, only after `attach` succeeded on an
+interactive render, tolerating `JSDisconnectedException`, `JSException` and
+`OperationCanceledException`. `attach` and `sync` tolerate
+`JSDisconnectedException` only. The composed `DrylPresence` owns the preview's
+exit and its own cleanup (E1).
 
 `DrylValidationSummary` implements `IDisposable` and unsubscribes from
 `EditContext.OnValidationStateChanged`; it also moves the subscription when the

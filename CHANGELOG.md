@@ -16,9 +16,10 @@ Version bump guide:
 
 ## [3.19.0] — 2026-11-25
 
-Five text-formatting icons.
+A Markdown editor: one field with a formatting toolbar and a switch between the source and its rendered preview, bound and validated like a text area, and AI-native. Five text-formatting icons come with it.
 
 ### Added
+- `DrylMarkdownEditor` — New input for writing Markdown. A switch in its header changes between the source and the preview rendered by `DrylMarkdown`; `@bind-View` (`MarkdownEditorView.Editor` / `Preview`) lets the host open or drive either one. Both views share one box, so switching does not move the page. A toolbar formats the selection — bold, italic, strikethrough, heading (cycles H1 → H2 → H3 → none), bullet, numbered and task list, quote, code, link — and the same command takes the formatting off again. Ctrl/Cmd+B, I, E and K are shortcuts; Enter continues a list, a task list or a quote and ends it on an empty item; Tab is never captured. Commands run in the browser without a server round trip and can be undone with Ctrl/Cmd+Z. It inherits `InputBase<string>`: `@bind-Value`, `EditForm` validation, `Label`, `Placeholder`, `HelperText`, `Rows`, `State`, `Disabled`. Every word it renders is translatable through `MarkdownEditorTexts`. AI: `Ai` and `Aura` frame the whole editor with one aura, the preview shows a `Streaming` draft arriving, and the editor works unchanged inside `DrylAiField` from the Agents package.
 - `DrylIcon` — Five new names for text formatting: `Bold`, `Italic`, `Strikethrough`, `ListOrdered` and `ListChecks`.
 
 ## [3.18.1] — 2026-11-24

@@ -1,7 +1,10 @@
 # A Markdown editor with a preview switch
 
 ## Meta
-- **State:** Ready
+- **State:** Adopted
+- **Specs:** [`specs/E8 Inputs/F24 DrylMarkdownEditor.md`](../specs/E8%20Inputs/F24%20DrylMarkdownEditor.md),
+  [`specs/E8 Inputs/_Api.md`](../specs/E8%20Inputs/_Api.md),
+  [`specs/E8 Inputs/_Interop.md`](../specs/E8%20Inputs/_Interop.md)
 
 ## Problem
 
